@@ -1,0 +1,14 @@
+                                              IAS local software log
+
+                   Task Process id                  Unit Name                         Line Number  Error Message
+                   ---- ---------- -------------------------------------------------- -----------  -------------
+2018 012 15:28:10        23808     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:28:49        23812     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:32:42        23951     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:38:16        24235     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:40:40        24242     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:41:34        24252     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:44:27        24287     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:46:07        24323     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 15:46:27        24328     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
+2018 012 16:01:56        24381     xxx_Sensor.c                                             109    Setting sensor to UNKNOWN
