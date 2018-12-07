@@ -1,7 +1,7 @@
 ''' Executable to process L1C images from Sentinel-2 and Landsat mission series
 
 Usage:
-  grs <input_file> <sensor> [-o <file>] [--shape <shp>] \
+  grs <input_file> <sensor> [-o <file>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] \
@@ -18,6 +18,7 @@ Options:
   -o <file>        Full (absolute or relative) path to output L2 image.
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --shape shp      Process only data inside the given shape
+  --wkt wktfile    Process only data inside the given wkt file
   --longlat <longmax,longmin,latmax,latmin>
                    Restrict ROI to long max, long min, lat max, lat min in decimal degree
                    [default: 180, -180, 90, -90]
@@ -72,6 +73,9 @@ def main():
     print(file, sensor, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
     if shapefile != None:
         wkt = shp2wkt(shapefile)
+    elif args['--wkt'] != None:
+        with open(args['--wkt'],'r') as f:
+            wkt = f.read()
     else:
         wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
               + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
