@@ -16,14 +16,14 @@ setup(
     # },
     include_package_data=True,
 
-    url='',
+    url='https://gitlab.irstea.fr/telquel-obs2co/satellite/grs',
     license='MIT',
     author='T. Harmel',
     author_email='tristan.harmel@ntymail.com',
     description='scientific code for atmosphere and sunglint correction of Sentinel-2 and Landsat series',
 
     # Dependent packages (distributions)
-    install_requires=['pandas','scipy','numpy','netCDF4',
+    install_requires=['pandas','geopandas','scipy','numpy','netCDF4',
                       'matplotlib','docopt','GDAL','python-dateutil'],
 
     entry_points={
