@@ -10,7 +10,7 @@ SRC = main_algo.o
 
 all: $(MINPACK) $(INTERP) $(SRC) 
 	$(FC)  -c $(MINPACK) $(INTERP) $(SRC) 
-	f2py3.6 -c -m main_algo main_algo.f95 $(MINPACK) $(INTERP)  --opt='$(FFLAGS)'
+	f2py3 -c -m main_algo main_algo.f95 $(MINPACK) $(INTERP)  --opt='$(FFLAGS)'
 
 clean :
 	rm -rf *.o *.mod
