@@ -12,8 +12,8 @@ class process:
     def __init__(self):
         pass
 
-    def execute(self, file, sensor, wkt, altitude=0, aerosol='cams', noclobber=True, outfile=None,
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, indband=None):
+    def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast',
+                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None):
         '''
 
         :param file:
@@ -22,32 +22,11 @@ class process:
         :param output:
         :param gdm:
         :param altitude:
-        :param noclobber:
         :param aeronet_file:
         :param resolution:
-        :param bands_selection:
         :return:
         '''
 
-        ##################################
-        # File naming convention
-        ##################################
-        if outfile == None:
-            if 'S2' in sensor:
-                outfile = file.replace('L1C', 'L2h')
-                outfile = outfile.replace('.SAFE', '').rstrip('/')
-            elif 'LANDSAT' in sensor:
-                outfile = file.replace('L1TP', 'L2h')
-                outfile = outfile.replace('.txt', '').rstrip('/')
-            else:
-                print('Not recognized sensor, please try again!')
-                sys.exit()
-
-        basename = os.path.basename(outfile)
-
-        if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
-            print('File ' + outfile + ' already processed; skip!')
-            sys.exit()
 
         ##################################
         # Get sensor auxiliary data

@@ -1,11 +1,11 @@
 ''' Executable to process L1C images from Sentinel-2 and Landsat mission series
 
 Usage:
-  grs <input_file> <sensor> [-o <file>] [--shape <shp>] [--wkt <wktfile>]\
+  grs <input_file> <sensor> [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] \
-   [--resolution=res] [--no_clobber]
+   [--resolution=res] [--levname <lev>] [--no_clobber]
   grs -h | --help
   grs -v | --version
 
@@ -15,7 +15,9 @@ Options:
 
   <input_file>     Input MTL.txt file to be processed
   <sensor>         sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
-  -o <file>        Full (absolute or relative) path to output L2 image.
+  -o ofile         Full (absolute or relative) path to output L2 image.
+  --odir odir       Ouput directory [default: ./]
+  --levname lev    Level naming used for output product [default: L2grs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --shape shp      Process only data inside the given shape
   --wkt wktfile    Process only data inside the given wkt file
@@ -70,11 +72,33 @@ def main():
 
     print(args)
 
-    print(file, sensor, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
+    ##################################
+    # File naming convention
+    ##################################
+    outfile = args['-o']
+    if outfile == None:
+        lev = args['--levname']
+        if 'S2' in sensor:
+            outfile = file.replace('L1C', lev)
+            outfile = outfile.replace('.SAFE', '').rstrip('/')
+            outfile = outfile.replace('.zip', '').rstrip('/')
+        elif 'LANDSAT' in sensor:
+            outfile = file.replace('L1TP', lev)
+            outfile = outfile.replace('.txt', '').rstrip('/')
+        else:
+            print('Not recognized sensor, please try again!')
+            sys.exit()
+
+    outfile = os.path.join(args['--odir'], outfile)
+
+    if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
+        print('File ' + outfile + ' already processed; skip!')
+        sys.exit()
+    print(file, sensor, outfile, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
     if shapefile != None:
         wkt = shp2wkt(shapefile)
     elif args['--wkt'] != None:
-        with open(args['--wkt'],'r') as f:
+        with open(args['--wkt'], 'r') as f:
             wkt = f.read()
     else:
         wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
@@ -82,8 +106,8 @@ def main():
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
     from .grs_process import process
-    process().execute(file, sensor, wkt, altitude=altitude, aerosol=aerosol, noclobber=noclobber, outfile=args['-o'],
-                      gdm=None, aeronet_file=aeronet_file, resolution=resolution, indband=None,
+    process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
+                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=args['--aot550'], angstrom=args['--angstrom'])
     return
 
