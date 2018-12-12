@@ -1,5 +1,5 @@
 from pathlib import Path
-from esasnappy import ProductData
+from esasnappy import ProductData, ProductIO
 
 from . import acutils
 from . import auxdata
