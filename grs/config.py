@@ -16,12 +16,10 @@ NDWI_threshold = [0., 1.1]
 # please set the following path according to your specific file tree
 #grs_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs')
 grs_root = root
-
-# data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
-data_root = os.path.abspath('/DATA/S2_processing/PYTHON/AUXDATA')
+data_root = os.path.abspath('/nfs/HYAX/imagerie/grsdata')
 
 lut_root = os.path.join(data_root, "LUT")
-cams_folder = os.path.join(data_root, "CAMS")
+cams_folder = os.path.abspath('/net/axsimagerie/mnt/datas/imagerie/ECMWF/CAMS') #os.path.join(data_root, "CAMS")
 smac_root = os.path.join(data_root, "SMAC_COEFS")
 
 
