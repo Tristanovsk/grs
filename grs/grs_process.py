@@ -275,6 +275,8 @@ class process:
                                         l2h.aot, aot550pix, l2h.fcoef, l2h.nodata)
 
             # reshape for snap modules
+            rcorr[rcorr == l2h.nodata]=np.nan
+            rcorrg[rcorrg == l2h.nodata]=np.nan
             rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
             rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
