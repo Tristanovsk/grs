@@ -79,12 +79,13 @@ def main():
     outfile = args['-o']
     if outfile == None:
         lev = args['--levname']
+        basename=os.path.basename(file)
         if 'S2' in sensor:
-            outfile = file.replace('L1C', lev)
+            outfile = basename.replace('L1C', lev)
             outfile = outfile.replace('.SAFE', '').rstrip('/')
             outfile = outfile.replace('.zip', '').rstrip('/')
         elif 'LANDSAT' in sensor:
-            outfile = file.replace('L1TP', lev)
+            outfile = basename.replace('L1TP', lev)
             outfile = outfile.replace('.txt', '').rstrip('/')
         else:
             print('Not recognized sensor, please try again!')
@@ -95,6 +96,7 @@ def main():
     if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
+
     print(file, sensor, outfile, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
     if shapefile != None:
         wkt = shp2wkt(shapefile)
