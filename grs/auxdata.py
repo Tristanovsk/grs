@@ -305,7 +305,7 @@ class cams:
             print('ERROR: reading ECMWF file!')
         return
 
-    def load_cams_data(self, target, date, grid='0.25/0.25',
+    def load_cams_data(self, target, date, grid='0.125/0.125',
                        param='125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210',
                        data_type='cams_reanalysis'):
 
@@ -463,7 +463,7 @@ class cams:
 
         return  # u().getReprojected(prod, crs)
 
-    def download_erainterim(self, target, date, time='00:00:00', grid='0.25/0.25',
+    def download_erainterim(self, target, date, time='00:00:00', grid='0.125/0.125',
                             param='137.128/151.128/206.210/207.210/213.210/214.210/215.210/216.210',
                             area=None, data_type=''):
         ''' This function open a connexion through an existing CAMS/ERAIterim account and download the requested data.
