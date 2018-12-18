@@ -38,6 +38,7 @@ Options:
 
 '''
 
+import netCDF4 as nc # imported here to avoid conflicts on mistraou
 import numpy as np
 import geopandas as gpd
 from docopt import docopt
