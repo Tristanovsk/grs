@@ -49,37 +49,31 @@ def shp2wkt(shapefile):
 
 
 def main():
-    args = docopt(__doc__, version=__package__ + ' ' + VERSION)
-    print(args)
 
-    file = args['<input_file>']
-    sensor = args['<sensor>']
-    shapefile = args['--shape']
-    if (args['--shape'] == None):
-        lonmax, lonmin, latmax, latmin = np.array(args['--longlat'].rsplit(','), np.float)
-
-    noclobber = args['--no_clobber']
-
-    altitude = float(args['--altitude'])
-    resolution = args['--resolution']
-    aerosol = args['--aerosol']
+    file='/nfs/HYAX/imagerie/S2/L1/ESA/S2A_MSIL1C_20180609T094031_N0206_R036_T35VLG_20180609T101143.zip'
+    sensor='S2A'
+    odir='/net/axsimagerie/mnt/datas/imagerie/S2/L2/GRS/'
+    lev='L2grs_test'
+    aerosol='cams_forecast'
+    altitude=0
+    noclobber = False
+    resolution = None
+    lonmax = 180
+    lonmin = -180
+    latmax = 90
+    latmin = -90
     aeronet_file = 'no'
-    if aerosol == 'aeronet':
-        aeronet_file = args['--aeronet_file']
-    print(args)
-
-    print(file, sensor, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
-    if shapefile != None:
-        wkt = shp2wkt(shapefile)
-    else:
-        wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
+    aot550=0.1
+    angstrom=0.5
+    wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
               + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
     from grs.grs_process import process
-    process().execute(file, sensor, wkt, altitude=altitude, aerosol=aerosol, noclobber=noclobber,
-                      gdm=None, aeronet_file=aeronet_file, resolution=resolution, indband=None,
+    process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
+                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=args['--aot550'], angstrom=args['--angstrom'])
+
     return
 
     # # # file = "/DATA/sensor/SENTINEL2//Villefranche/L1C/S2A_MSIL1C_20170206T102211_N0204_R065_T32TLP_20170206T102733.SAFE" # /DATA/sensor/SENTINEL2/lucinda/L1C/S2A_OPER_PRD_MSIL1C_PDMC_20160728T024349_R016_V20160728T003036_20160728T003036.SAFE/"
