@@ -83,8 +83,11 @@ for idx, row in sites.iterrows():
             continue
         outfile,sensor=set_ofile(basename,odir=odir)
         print(outfile,sensor)
+        if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
+                print('File ' + outfile + ' already processed; skip!')
+                continue
 
-    grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
-                                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                      aot550=aot550, angstrom=angstrom)
+        grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
+                                          gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                                          aot550=aot550, angstrom=angstrom)
 
