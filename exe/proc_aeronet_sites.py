@@ -9,8 +9,8 @@ from grs import grs_process
 sitefile='exe/aeronet-oc_sites.txt'
 sites=pd.read_csv(sitefile,sep=' ')
 
-idir='/nfs/HYAX/imagerie/S2/L1/ESA/'
-odir='/net/axsimagerie/mnt/datas/imagerie/S2/L2/GRS/aeronet-oc'
+idir='/nfs/DD/S2/L1/ESA/'
+odir='/nfs/DP/S2/L2/GRS/aeronet-oc'
 lev='L2grs'
 aerosol='cams_forecast'
 
@@ -78,6 +78,10 @@ for idx, row in sites.iterrows():
     wkt=wktbox(row.lon,row.lat)
 
     for file in imgs:
+# TODO remove this part to process images from 2019
+        if '201901' in file:
+            continue
+
         basename = os.path.basename(file)
         if 'incomplete' in basename:
             continue
