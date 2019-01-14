@@ -1,6 +1,10 @@
 from pathlib import Path
 from esasnappy import ProductData, ProductIO
 
+import os,shutil
+import zipfile
+
+from . import config as cfg
 from . import acutils
 from . import auxdata
 from . import utils
@@ -13,7 +17,7 @@ class process:
         pass
 
     def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast',
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None):
+                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False):
         '''
 
         :param file:
@@ -24,6 +28,8 @@ class process:
         :param altitude:
         :param aeronet_file:
         :param resolution:
+        :param unzip: if True input file is unzipped before processing,
+                      NB: unzipped files are removed at the end of the process
         :return:
         '''
 
@@ -39,6 +45,12 @@ class process:
         ##################################
         # Read L1C product
         ##################################
+        # unzip if needed
+        if unzip:
+            tmpzip = zipfile.ZipFile(file)
+            tmpzip.extractall(cfg.tmp_dir)
+            file = os.path.join(cfg.tmp_dir,tmpzip.namelist()[0])
+
         print("Reading...")
         print(file)
         product = ProductIO.readProduct(file)
@@ -302,3 +314,7 @@ class process:
             l2h.l2_product.getBand("SZA").writePixels(0, i, l2h.width, 1, l2h.sza)
             l2h.l2_product.getBand("VZA").writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
             l2h.l2_product.getBand("AZI").writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
+
+        if unzip:
+            #remove unzipped files
+            shutil.rmtree(file)
