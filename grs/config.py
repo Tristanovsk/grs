@@ -18,10 +18,11 @@ NDWI_threshold = [0., 1.1]
 grs_root = root
 
 # data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
-data_root = os.path.abspath('/nfs/HYAX/imagerie/grsdata')
-
+data_root = os.path.abspath('/nfs/DD/grsdata')
+#directory to store temporary unzipped files
+tmp_dir = os.path.abspath('/nfs/DD/grsdata/tmp')
 lut_root = os.path.join(data_root, "LUT")
-cams_folder = os.path.abspath('/net/axsimagerie/mnt/datas/imagerie/ECMWF/CAMS') #os.path.join(data_root, "CAMS")
+cams_folder = os.path.abspath('/nfs/DP/ECMWF/CAMS') #os.path.join(data_root, "CAMS")
 smac_root = os.path.join(data_root, "SMAC_COEFS")
 
 

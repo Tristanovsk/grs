@@ -91,7 +91,11 @@ for idx, row in sites.iterrows():
                 print('File ' + outfile + ' already processed; skip!')
                 continue
 
+        #unzip image file
+        unzip=False
+        if os.path.splitext(file)[-1] == '.zip':
+            unzip=True
+
         grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
                                           gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                          aot550=aot550, angstrom=angstrom)
-
+                                          aot550=aot550, angstrom=angstrom, unzip=unzip)
