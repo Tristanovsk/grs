@@ -126,6 +126,12 @@ for idx, row in sites.iterrows():
             if os.path.splitext(file)[-1] == '.zip':
                 unzip = True
 
+            basename = os.path.basename(file)
+            outfile, sensor = set_ofile(basename, odir=odir)
+            print('-------------------------------')
+            print('call grs for ',outfile, sensor)
+            print('-------------------------------')
+
             grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
                                           gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                                           aot550=aot550, angstrom=angstrom, unzip=unzip)
