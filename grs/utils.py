@@ -231,7 +231,7 @@ class info:
 
         product = self.product
         ac_product = Product('L2h', 'L2h', self.width, self.height)
-        writer = ProductIO.getProductWriter('BEAM-DIMAP')
+        writer = ProductIO.getProductWriter('NetCDF4-CF')#BEAM-DIMAP')
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
@@ -390,7 +390,8 @@ class info:
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
         ac_product.setAutoGrouping('Lwn:Lwn_g_')
-        ac_product.writeHeader(String(self.outfile + '.dim'))
+        
+        #ac_product.writeHeader(String(self.outfile + '.dim'))
         self.l2_product = ac_product
 
     def print_info(self):
