@@ -14,7 +14,7 @@ NDWI_threshold = [0., 1.1]
 
 # -----------------
 # please set the following path according to your specific file tree
-#grs_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs')
+# grs_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs')
 grs_root = root
 
 # data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
