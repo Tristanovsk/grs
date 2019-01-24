@@ -109,6 +109,7 @@ def main():
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
     from .grs_process import process
+    # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=args['--aot550'], angstrom=args['--angstrom'])

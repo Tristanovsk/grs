@@ -16,7 +16,7 @@ class process:
     def __init__(self):
         pass
 
-    def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast',
+    def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False):
         '''
 
@@ -59,7 +59,7 @@ class process:
         # Generate l2h object
         ##################################
         _utils = utils.utils()
-        l2h = utils.info(product, sensordata, aerosol)
+        l2h = utils.info(product, sensordata, aerosol, ancillary)
 
         ##################################
         # Set bands to be processed including NIR and SWIR
@@ -138,8 +138,9 @@ class process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         l2h.aux = auxdata.cams()
-        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' + l2h.aerosol + '.nc'))
-        l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.aerosol)
+
+        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+        l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
         l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
