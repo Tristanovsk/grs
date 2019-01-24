@@ -16,6 +16,7 @@ idir = '/nfs/DD/S2/L1/ESA/'
 odir = '/nfs/DP/S2/L2/GRS/aeronet-oc'
 lev = 'L2grs'
 aerosol = 'cams_forecast'
+fjunk = os.path.join(odir, 'list_junk_files.txt')
 Nimage = 10
 noclobber = True
 resolution = None
@@ -88,6 +89,9 @@ def chunk(it, n):
     except StopIteration:
         yield xs
 
+#load list of raw image files producing exception during grs process (causes to be investigated)
+with open(fjunk) as f:
+    junkfiles = f.read().splitlines()
 
 for idx, row in sites.iterrows():
     site = row.site
@@ -104,6 +108,9 @@ for idx, row in sites.iterrows():
         if '201901' in file:
             continue
 
+        if file in junkfiles:
+            continue
+
         basename = os.path.basename(file)
         if 'incomplete' in basename:
             continue
@@ -116,7 +123,7 @@ for idx, row in sites.iterrows():
     if imgs_tbp == []:
         continue
     # ----------------------
-
+    i=0
     for files in chunk(iter(imgs_tbp), Nimage):
 
         for file in files:
@@ -131,12 +138,22 @@ for idx, row in sites.iterrows():
             print('-------------------------------')
             print('call grs for ',outfile, sensor)
             print('-------------------------------')
+            try:
+                grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
+                                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                                      aot550=aot550, angstrom=angstrom, unzip=unzip)
+                i=i+1
+            except:
+                #TODO note file name into log file
+                print('-------------------------------')
+                print('error for file  ',file,' skip')
+                print('-------------------------------')
+                with open(fjunk, "a") as myfile:
+                    myfile.write(file+'\n')
+                continue
 
-            grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
-                                          gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                          aot550=aot550, angstrom=angstrom, unzip=unzip)
-
-        # comment next line if you want to process the full series of images
+        # comment next lines if you want to process the full series of images
         # warning: this can be very (prohibitively) consuming in memory,
         # recommended use: set Nimage parameter and call this code within different subprocess
-        sys.exit()
+        if i > Nimage:
+            sys.exit()
