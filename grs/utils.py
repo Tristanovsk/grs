@@ -10,7 +10,7 @@ from .config import *
 
 
 class info:
-    def __init__(self, product, sensordata, aerosol='cams_forecast'):
+    def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast'):
         '''
 
         :param product:
@@ -21,6 +21,7 @@ class info:
         self.sensordata = sensordata
         self.sensor = sensordata.sensor
         self.aerosol = aerosol
+        self.ancillary = ancillary
 
         #########################
         # settings:
@@ -231,7 +232,7 @@ class info:
 
         product = self.product
         ac_product = Product('L2h', 'L2h', self.width, self.height)
-        writer = ProductIO.getProductWriter('NetCDF4-CF')#BEAM-DIMAP')
+        writer = ProductIO.getProductWriter('NetCDF4-CF')  # BEAM-DIMAP')
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
@@ -254,7 +255,7 @@ class info:
         att_ = att('wkt', ProductData.TYPE_ASCII)
         att_.setDataElems(self.wkt)
         meta.addAttribute(att_)
-        #TODO pass int or float arguement in proper format instead converting into string
+        # TODO pass int or float arguement in proper format instead converting into string
         att_ = att('aerosol_data', ProductData.TYPE_ASCII)
         att_.setDataElems(self.aerosol)
         meta.addAttribute(att_)
@@ -291,7 +292,6 @@ class info:
         att_ = att('temperature_2m', ProductData.TYPE_ASCII)
         att_.setDataElems(str(self.aux.t2m))
         meta.addAttribute(att_)
-
 
         ac_product.getMetadataRoot().addElement(meta)
 
@@ -390,8 +390,8 @@ class info:
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
         ac_product.setAutoGrouping('Lwn:Lwn_g_')
-        
-        #ac_product.writeHeader(String(self.outfile + '.dim'))
+
+        # ac_product.writeHeader(String(self.outfile + '.dim'))
         self.l2_product = ac_product
 
     def print_info(self):
