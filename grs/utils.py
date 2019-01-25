@@ -400,12 +400,15 @@ class info:
         self.l2_product = ac_product
 
     def checksum(self, info):
+        # TODO improve checksum scheme
         with open(self.outfile+'.checksum', "w") as f:
             f.write(info)
 
     def finalize_product(self):
-        '''remove extension ".incomplete" from output file name'''
-
+        # TODO improve checksum scheme
+        '''remove checksum file
+        remove extension ".incomplete" from output file name'''
+        os.remove(self.outfile+'.checksum')
         name = self.outfile_ext + '.incomplete'
         final_name = os.path.splitext(name)[0]
         os.rename(name, final_name)
