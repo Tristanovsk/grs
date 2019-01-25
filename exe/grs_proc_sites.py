@@ -7,17 +7,24 @@ import glob
 
 from grs import grs_process
 
-dir = os.path.dirname(os.path.abspath(__file__))
-sitefile = os.path.join(dir, 'aeronet-oc_sites.txt')
+sitefile = sys.argv[1]
+idir = '/nfs/DD/S2/L1/ESA/'
+odir = sys.argv[2]  # '/nfs/DP/S2/L2/GRS/aeronet-oc/netcdf'
+if not os.path.exists(odir):
+    os.makedirs(odir)
 
 sites = pd.read_csv(sitefile, sep=' ')
 
-idir = '/nfs/DD/S2/L1/ESA/'
-odir = '/nfs/DP/S2/L2/GRS/aeronet-oc'
+full_tile = True
+if full_tile:
+    w, h = 200, 200
+else:
+    w, h = 1, 1
+
 lev = 'L2grs'
 aerosol = 'cams_forecast'
 fjunk = os.path.join(odir, 'list_junk_files.txt')
-Nimage = 10
+Nimage = 1
 noclobber = True
 resolution = None
 aeronet_file = 'no'
@@ -25,19 +32,19 @@ aot550 = 0.1;
 angstrom = 0.5
 
 
-def wktbox(center_lon, center_lat, width=500, height=500):
+def wktbox(center_lon, center_lat, width=1, height=1):
     '''
 
     :param center_lon: decimal longitude
     :param center_lat: decimal latitude
-    :param width: width of the box in m
-    :param height: haight of the box in m
+    :param width: width of the box in km
+    :param height: haight of the box in km
     :return: wkt of the box centered on provided coordinates
     '''
     from math import sqrt, atan, pi
     import pyproj
     geod = pyproj.Geod(ellps='WGS84')
-
+    width, height = width * 1000, height * 1000
     rect_diag = sqrt(width ** 2 + height ** 2)
 
     azimuth1 = atan(width / height)
@@ -89,16 +96,23 @@ def chunk(it, n):
     except StopIteration:
         yield xs
 
-#load list of raw image files producing exception during grs process (causes to be investigated)
-with open(fjunk) as f:
-    junkfiles = f.read().splitlines()
+
+# load list of raw image files producing exception during grs process (causes to be investigated)
+try:
+    with open(fjunk) as f:
+        junkfiles = f.read().splitlines()
+except:
+    junkfiles = []
+    with open(fjunk, 'w'):
+        pass
 
 for idx, row in sites.iterrows():
+    print(row)
     site = row.site
     altitude = row.alt
     imgs = glob.glob(idir + '*' + row.tile + '*')
     print(imgs.__len__())
-    wkt = wktbox(row.lon, row.lat)
+    wkt = wktbox(row.lon, row.lat,width=w,height=h)
 
     # ----------------------
     # remove file names which won't be processed whatsoever:
@@ -116,14 +130,15 @@ for idx, row in sites.iterrows():
             continue
         outfile, sensor = set_ofile(basename, odir=odir)
         print(outfile, sensor)
-        if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
+        # if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
+        if os.path.isfile(outfile + ".dim") & noclobber:
             print('File ' + outfile + ' already processed; skip!')
             continue
         imgs_tbp.append(file)
     if imgs_tbp == []:
         continue
     # ----------------------
-    i=0
+    isuccess = 1
     for files in chunk(iter(imgs_tbp), Nimage):
 
         for file in files:
@@ -133,27 +148,42 @@ for idx, row in sites.iterrows():
             if os.path.splitext(file)[-1] == '.zip':
                 unzip = True
 
+
             basename = os.path.basename(file)
             outfile, sensor = set_ofile(basename, odir=odir)
             print('-------------------------------')
-            print('call grs for ',outfile, sensor)
+            print('call grs for ', outfile, sensor)
             print('-------------------------------')
+
+            #check if already partially processed, if so get startrow value
+            checksum = outfile+'.checksum'
+            startrow=0
+            try:
+                with open(checksum) as f:
+                    checkdata = f.read().splitlines()
+                for s in checkdata:
+                    ss=s.split()
+                    if ss[0]=='startrow':
+                        startrow=int(ss[1])
+            except:
+                pass
+
             try:
                 grs_process.process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
-                                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                      aot550=aot550, angstrom=angstrom, unzip=unzip)
-                i=i+1
+                                              gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                                              aot550=aot550, angstrom=angstrom, unzip=unzip, startrow=startrow)
+                isuccess += 1
             except:
-                #TODO note file name into log file
+                # TODO note file name into log file
                 print('-------------------------------')
-                print('error for file  ',file,' skip')
+                print('error for file  ', file, ' skip')
                 print('-------------------------------')
                 with open(fjunk, "a") as myfile:
-                    myfile.write(file+'\n')
+                    myfile.write(file + '\n')
                 continue
 
         # comment next lines if you want to process the full series of images
         # warning: this can be very (prohibitively) consuming in memory,
         # recommended use: set Nimage parameter and call this code within different subprocess
-        if i > Nimage:
+        if isuccess > Nimage:
             sys.exit()

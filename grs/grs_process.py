@@ -17,7 +17,7 @@ class process:
         pass
 
     def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False):
+                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0):
         '''
 
         :param file:
@@ -30,6 +30,9 @@ class process:
         :param resolution:
         :param unzip: if True input file is unzipped before processing,
                       NB: unzipped files are removed at the end of the process
+        :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
+                        NB: this option is used to in the context of operational processing of massive dataset
+
         :return:
         '''
 
@@ -256,7 +259,7 @@ class process:
         # set aot by hand
         aot550pix.fill(l2h.aot550)
 
-        for i in range(l2h.height):
+        for i in range(startrow,l2h.height):
             print('process row ' + str(i))
             # LOAD PIXELS DATA FOR ROW #i
             l2h.load_data(i)
@@ -315,7 +318,9 @@ class process:
             l2h.l2_product.getBand("SZA").writePixels(0, i, l2h.width, 1, l2h.sza)
             l2h.l2_product.getBand("VZA").writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
             l2h.l2_product.getBand("AZI").writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
+            l2h.checksum('startrow '+str(i))
 
+        l2h.finalize_product()
         if unzip:
             #remove unzipped files
             shutil.rmtree(file)
