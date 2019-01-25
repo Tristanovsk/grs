@@ -318,6 +318,7 @@ class process:
             l2h.l2_product.getBand("SZA").writePixels(0, i, l2h.width, 1, l2h.sza)
             l2h.l2_product.getBand("VZA").writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
             l2h.l2_product.getBand("AZI").writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
+            # TODO improve checksum scheme
             l2h.checksum('startrow '+str(i))
 
         l2h.finalize_product()
