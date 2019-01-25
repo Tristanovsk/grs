@@ -231,8 +231,10 @@ class info:
     def create_product(self):
 
         product = self.product
-        ac_product = Product('L2h', 'L2h', self.width, self.height)
-        writer = ProductIO.getProductWriter('NetCDF4-CF')  # BEAM-DIMAP')
+        ac_product = Product('L2grs', 'L2grs', self.width, self.height)
+        # writer = ProductIO.getProductWriter('NetCDF4-CF')  #
+        writer = ProductIO.getProductWriter('BEAM-DIMAP')
+        self.outfile_ext = self.outfile + '.dim'
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
@@ -391,8 +393,22 @@ class info:
 
         ac_product.setAutoGrouping('Lwn:Lwn_g_')
 
-        # ac_product.writeHeader(String(self.outfile + '.dim'))
+        ac_product.writeHeader(String(self.outfile_ext))
+        # next line needed since snap 'writeHeader' force the extension to be consistent with data type (e.g., .tif for GeoTIFF)
+        os.rename(self.outfile_ext,self.outfile_ext+'.incomplete')
+
         self.l2_product = ac_product
+
+    def checksum(self, info):
+        with open(self.outfile+'.checksum', "w") as f:
+            f.write(info)
+
+    def finalize_product(self):
+        '''remove extension ".incomplete" from output file name'''
+
+        name = self.outfile_ext + '.incomplete'
+        final_name = os.path.splitext(name)[0]
+        os.rename(name, final_name)
 
     def print_info(self):
         ''' print info, can be used to check if object is complete'''
