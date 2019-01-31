@@ -312,7 +312,7 @@ class info:
         f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
         f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow) ")
         f5 = coding.addFlag("empty", 32, "empty description ")
-        f6 = coding.addFlag("empty", 64, "empty description ")
+        f6 = coding.addFlag("empty2", 64, "empty description ")
 
         ac_product.getFlagCodingGroup().add(coding)
         flags.setSampleCoding(coding)
