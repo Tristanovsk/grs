@@ -9,6 +9,9 @@ site_file = os.path.join(dir, 'aeronet-oc_sites.txt')
 odir = os.path.abspath('/nfs/DP/S2/L2/GRS/aeronet-oc')
 site_file = os.path.join(dir, 'amazone_sites.txt')
 odir = os.path.abspath('/nfs/DP/S2/L2/GRS/amazone')
+site_file = os.path.join(dir, 'gernez_sites.txt')
+odir = os.path.abspath('/nfs/DP/S2/L2/GRS/gernez')
+
 
 while True:
     try:

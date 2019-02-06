@@ -32,7 +32,7 @@ aot550 = 0.1;
 angstrom = 0.5
 
 lonmin, lonmax = -180, 180
-latmin, latmax = -90,-21.13
+latmin, latmax = -90,90#-21.13
 wkt_rect = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
               + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
@@ -141,10 +141,12 @@ for idx, row in sites.iterrows():
 
         outfile, sensor = set_ofile(basename, odir=odir)
         print(outfile, sensor)
+        # skip if already processed (the .dim exists)
         # if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
         if os.path.isfile(outfile + ".dim") & noclobber:
             print('File ' + outfile + ' already processed; skip!')
             continue
+        # skip if incomplete (enables multiprocess)
         if os.path.isfile(outfile + ".dim.incomplete"):# & False:
             print('found incomplete File ' + outfile + '; skip!')
             continue
