@@ -1,6 +1,8 @@
 import os
 import datetime
-import grs
+import matplotlib
+
+from grs import auxdata
 
 lat, lon = 47, -1.5
 date=datetime.datetime(2018,4,17,12)
@@ -13,7 +15,7 @@ def wktbox(center_lon, center_lat, width=1, height=1):
     '''
 
     :param center_lon: decimal longitude
-    :param center_lat: decimal latitude
+    :param center_laat: decimal latitude
     :param width: width of the box in km
     :param height: haight of the box in km
     :return: wkt of the box centered on provided coordinates
@@ -39,11 +41,14 @@ def wktbox(center_lon, center_lat, width=1, height=1):
         pt1_lon, pt1_lat, pt2_lon, pt2_lat, pt3_lon, pt3_lat, pt4_lon, pt4_lat, pt1_lon, pt1_lat)
     return wkt_poly
 
-wkt = wktbox(lon, lat)
+wkt = wktbox(lon, lat,50,50)
 
-cams = grs.auxdata.cams()
+cams = auxdata.cams()
 cams.load_cams_data(cams_file, date, data_type=type)
 cams.get_cams_ancillary(cams_file, date, wkt)
+for i in range(4):
+    date=date + datetime.timedelta(days=1)
+    cams.get_cams_aerosol(cams_file, date, wkt)
+    print(date.ctime(),cams.aot_rast[1,...].min(),cams.aot_rast[1,...].mean(),cams.aot_rast[1,...].max())
 
-cams.
 

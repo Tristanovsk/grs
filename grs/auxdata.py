@@ -318,7 +318,7 @@ class cams:
         year = int(date.strftime('%Y'))
 
         # ------------download data
-        if not target.is_file():
+        if not os.path.isfile(target):
             print('downloading CAMS files...' + str(target))
             startDate = '%04d%02d%02d' % (year, month, 1)
             numberOfDays = calendar.monthrange(year, month)[1]
@@ -351,23 +351,28 @@ class cams:
 
         N = band_names.__len__()
         self.aot = np.zeros(N, dtype=np.float32)
+        self.aot_std = np.zeros(N, dtype=np.float32)
 
         # ------------read/subset/collocate data
         prod = ProductIO.readProduct(str(target))
-        print(wkt)
+        #print(wkt)
         prod = u().get_subset(prod, wkt)
 
         h = prod.getBand(band_names[0]).getRasterHeight()
         w = prod.getBand(band_names[0]).getRasterWidth()
-        aot_rast = np.zeros([w, h], dtype=np.float32)
+        aot_rast = np.zeros([N,w, h], dtype=np.float32)
 
         for i in range(N):
             prod.getBand(band_names[i]).loadRasterData()
-            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast)
+            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast[i,...])
             # aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast<0, aot_rast >2), fill_value=np.nan)
             self.aot[i] = aot_rast.mean()
+            self.aot_std[i] = aot_rast.std()
             prod.getBand(band_names[i]).unloadRasterData()
         self.aot550 = self.aot[1]
+        self.aot550_std = self.aot_std[1]
+        self.aot_rast = aot_rast
+
 
         return  # u().getReprojected(prod, crs)
 
@@ -422,7 +427,7 @@ class cams:
         ''' generate aerosol data from cams of ECMWF
             subset on the image grid (POLYGON wkt)
             reproject on the image coordinate reference system (crs)'''
-        from utils import utils as u
+        from .utils import utils as u
         import calendar
 
         day = str(int(date.strftime('%d')))
