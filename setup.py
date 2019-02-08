@@ -24,7 +24,7 @@ setup(
 
     # Dependent packages (distributions)
     install_requires=['pandas','geopandas','scipy','numpy','netCDF4',
-                      'matplotlib','docopt','GDAL','python-dateutil'],
+                      'matplotlib','docopt','GDAL','python-dateutil','pyproj'],
 
     entry_points={
           'console_scripts': [
