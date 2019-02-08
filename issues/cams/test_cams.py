@@ -8,6 +8,7 @@ lat, lon = 47, -1.5
 date=datetime.datetime(2018,4,17,12)
 cams_folder = os.path.abspath('/nfs/DP/ECMWF/CAMS')
 type='cams_forecast'
+type='cams_reanalysis'
 cams_file=os.path.join(cams_folder, date.strftime('%Y-%m') + '_month_'+type+'.nc')
 
 
