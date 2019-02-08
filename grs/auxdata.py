@@ -318,7 +318,7 @@ class cams:
         year = int(date.strftime('%Y'))
 
         # ------------download data
-        if not os.path.isfile(target):
+        if not os.path.isfile(str(target)):
             print('downloading CAMS files...' + str(target))
             startDate = '%04d%02d%02d' % (year, month, 1)
             numberOfDays = calendar.monthrange(year, month)[1]
