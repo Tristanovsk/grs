@@ -107,8 +107,8 @@ do ipix=1,npix
 
         rglint = 0.5* (tud(iband) * rg_ratio(iband) * brdf(nband) + tud(iband) * rg_ratio(iband)/rg_ratio(nband-1) * brdf(nband-1))
         rcorr(ipix,iband) = rcorrg(ipix,iband) - rglint
-        rcorr(ipix,iband) = rcorr(ipix,iband) * F0(iband)  / pi / tdiff_Lu / tdiff_Ed
-        rcorrg(ipix,iband) = rcorrg(ipix,iband) * F0(iband)  / pi / tdiff_Lu / tdiff_Ed
+        rcorr(ipix,iband) = rcorr(ipix,iband) / pi / tdiff_Lu / tdiff_Ed
+        rcorrg(ipix,iband) = rcorrg(ipix,iband) / pi / tdiff_Lu / tdiff_Ed
         if (.not. rrs) then
             rcorr(ipix,iband) = rcorr(ipix,iband) * F0(iband)
             rcorrg(ipix,iband) = rcorrg(ipix,iband) * F0(iband)
