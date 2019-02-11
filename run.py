@@ -111,7 +111,7 @@ def main():
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
     from grs.grs_process import process
-    process().execute(file, sensor, wkt, altitude=altitude, aerosol='cams_forecast', noclobber=noclobber,
+    process().execute(file, wkt, altitude=altitude, aerosol='cams_forecast', noclobber=noclobber,
                       gdm=None, aeronet_file=None, resolution=resolution, indband=None)
 
 
