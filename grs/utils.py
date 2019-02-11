@@ -10,18 +10,24 @@ from .config import *
 
 
 class info:
-    def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast'):
+    def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast', output='Rrs'):
         '''
 
         :param product:
         :param sensordata:
         :param aerosol:
+        :param ancillary:
+        :param output: set the unit of the retrievals:
+                 * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
+                 * 'Rrs', remote sensing reflectance (in sr-1)
+                 {default: 'Rrs']
         '''
         self.processor = __package__ + ' ' + VERSION
         self.sensordata = sensordata
         self.sensor = sensordata.sensor
         self.aerosol = aerosol
         self.ancillary = ancillary
+        self.output = output
 
         #########################
         # settings:
@@ -335,7 +341,7 @@ class info:
         # set data
         # Water-leaving radiance + sunglint
         for iband in range(self.N):
-            bname = 'Lwn_g_' + self.band_names[iband]
+            bname = self.output+'_g_' + self.band_names[iband]
             acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
             acband.setSpectralWavelength(self.wl[iband])
             acband.setSpectralBandwidth(self.B[iband].getSpectralBandwidth())
@@ -343,13 +349,18 @@ class info:
             acband.setNoDataValue(np.nan)
             acband.setNoDataValueUsed(True)
             acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
-            ac_product.getBand(bname).setDescription(
-                'Water-leaving plus sunglint normalized radiance (Lwn + Lg) in mW cm-2 sr-1 μm-1 at ' + self.band_names[
-                    iband])
+            if self.output == 'Lwn':
+                ac_product.getBand(bname).setDescription(
+                'Water-leaving plus sunglint normalized radiance (Lwn + Lg) in mW cm-2 sr-1 μm-1 at ' +
+                self.band_names[iband])
+            else:
+                ac_product.getBand(bname).setDescription(
+                'Water-leaving plus sunglint remote sensing reflectance (Rrs + Lg/F0) in sr-1 at ' +
+                self.band_names[iband])
 
         # Water-leaving radiance
         for iband in range(self.N):
-            bname = 'Lwn_' + self.band_names[iband]
+            bname = self.output+'_' + self.band_names[iband]
             acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
             acband.setSpectralWavelength(self.wl[iband])
             acband.setSpectralBandwidth(self.B[iband].getSpectralBandwidth())
@@ -357,9 +368,12 @@ class info:
             acband.setNoDataValue(np.nan)
             acband.setNoDataValueUsed(True)
             acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
-            ac_product.getBand(bname).setDescription(
+            if self.output == 'Lwn':
+                ac_product.getBand(bname).setDescription(
                 'Normalized water-leaving radiance in mW cm-2 sr-1 μm-1 at ' + self.band_names[iband])
-
+            else:
+                ac_product.getBand(bname).setDescription(
+                'Remote sensing reflectance in sr-1 at ' + self.band_names[iband])
         # Sunglint reflection factor
         # for iband in range(self.N):
         bname = 'BRDFg'  # + self.band_names[iband]
@@ -391,7 +405,7 @@ class info:
         acband.setNoDataValueUsed(True)
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
-        ac_product.setAutoGrouping('Lwn:Lwn_g_')
+        ac_product.setAutoGrouping(self.output+':'+self.output+'_g_')
 
         ac_product.writeHeader(String(self.outfile_ext))
         # next line needed since snap 'writeHeader' force the extension to be consistent with data type (e.g., .tif for GeoTIFF)

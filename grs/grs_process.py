@@ -17,7 +17,8 @@ class process:
         pass
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0):
+                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0,
+                output='Rrs'):
         '''
 
         :param file:
@@ -32,7 +33,10 @@ class process:
                       NB: unzipped files are removed at the end of the process
         :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
                         NB: this option is used to in the context of operational processing of massive dataset
-
+        :param output: set the unit of the retrievals:
+                 * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
+                 * 'Rrs', remote sensing reflectance (in sr-1)
+                 {default: 'Rrs']
         :return:
         '''
 
@@ -63,7 +67,7 @@ class process:
         ##################################
         # Generate l2h object
         ##################################
-        l2h = utils.info(product, sensordata, aerosol, ancillary)
+        l2h = utils.info(product, sensordata, aerosol, ancillary, output)
 
         ##################################
         # Set bands to be processed including NIR and SWIR
@@ -107,7 +111,6 @@ class process:
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION
         ##################################
-
         if 'S2' in sensor:
             l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
             # l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution, method='Nearest')
@@ -117,7 +120,6 @@ class process:
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
-
         l2h.product = _utils.get_subset(l2h.product, wkt)
         l2h.get_product_info()
         l2h.set_outfile(outfile)
@@ -127,7 +129,6 @@ class process:
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
         ##################################
-
         l2h.get_bands(l2h.band_names)
         l2h.print_info()
 
@@ -186,9 +187,9 @@ class process:
             l2h.aux.get_cams_aerosol(target, l2h.date, l2h.wkt)
 
         elif (l2h.aerosol == 'user_model'):
-            l2h.aot550 = aot550
+            l2h.aux.aot550 = aot550
             l2h.angstrom = angstrom
-            l2h.aux.aot = l2h.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+            l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
             l2h.aux.aot_wl = l2h.wl
 
         else:
@@ -298,6 +299,11 @@ class process:
             rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
             rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
+            #convert Lwn into Rrs
+            if l2h.output == 'Rrs':
+                rcorr = rcorr / l2h.solar_irr
+                rcorrg = rcorrg / l2h.solar_irr
+
             ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
                                  (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
             # set flags
@@ -307,19 +313,20 @@ class process:
                          (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
                                  ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
                          ((rcorrg[l2h.sensordata.NDWI_nir] > 5.) << 4)
+
                          )
 
             for iband in range(l2h.N):
-                l2h.l2_product.getBand("Lwn_" + l2h.band_names[iband]). \
+                l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
                     writePixels(0, i, l2h.width, 1, rcorr[iband])
-                l2h.l2_product.getBand("Lwn_g_" + l2h.band_names[iband]). \
+                l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
                     writePixels(0, i, l2h.width, 1, rcorrg[iband])
 
             l2h.l2_product.getBand('flags').writePixels(0, i, l2h.width, 1, np.array(l2h.flags, dtype=np.uint32))
-            l2h.l2_product.getBand("BRDFg").writePixels(0, i, l2h.width, 1, l2h.ndwi)
-            l2h.l2_product.getBand("SZA").writePixels(0, i, l2h.width, 1, l2h.sza)
-            l2h.l2_product.getBand("VZA").writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
-            l2h.l2_product.getBand("AZI").writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
+            l2h.l2_product.getBand('BRDFg').writePixels(0, i, l2h.width, 1, l2h.ndwi)
+            l2h.l2_product.getBand('SZA').writePixels(0, i, l2h.width, 1, l2h.sza)
+            l2h.l2_product.getBand('VZA').writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
+            l2h.l2_product.getBand('AZI').writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
             # TODO improve checksum scheme
             l2h.checksum('startrow ' + str(i))
 

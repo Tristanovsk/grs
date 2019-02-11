@@ -7,7 +7,7 @@ from grs import __version__, __package__
 setup(
     name=__package__,
     version=__version__,
-    packages=find_packages(),
+    packages=find_packages(exclude=['build']),
     package_data={'':['*.so']},
     #     # If any package contains *.txt files, include them:
     #     '': ['*.txt'],
