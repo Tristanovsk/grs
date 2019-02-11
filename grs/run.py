@@ -1,10 +1,10 @@
 ''' Executable to process L1C images from Sentinel-2 and Landsat mission series
 
 Usage:
-  grs <input_file> [-s | --sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
+  grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
-   [--aot550=aot] [--angstrom=ang] \
+   [--aot550=aot] [--angstrom=ang] [--output param]\
    [--resolution=res] [--levname <lev>] [--no_clobber]
   grs -h | --help
   grs -v | --version
@@ -14,7 +14,7 @@ Options:
   -v --version     Show version.
 
   <input_file>     Input file to be processed
-  -s --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
+  --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
   -o ofile         Full (absolute or relative) path to output L2 image.
   --odir odir       Ouput directory [default: ./]
@@ -35,6 +35,7 @@ Options:
                    [default: 0.1]
   --angstrom=ang     if `--aerosol` set to 'user_model', provide aot550 value to be used
                    [default: 1]
+  --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res spatial resolution of the scene pixels
 
 '''
@@ -58,7 +59,7 @@ def main():
     print(args)
 
     file = args['<input_file>']
-    sensor = args['<sensor>']
+    sensor = args['--sensor']
     shapefile = args['--shape']
     if (args['--shape'] == None):
         lonmax, lonmin, latmax, latmin = np.array(args['--longlat'].rsplit(','), np.float)
@@ -73,26 +74,32 @@ def main():
     aeronet_file = 'no'
     if aerosol == 'aeronet':
         aeronet_file = args['--aeronet_file']
-
+    output=args['--output']
     print(args)
 
     ##################################
     # File naming convention
     ##################################
+
     outfile = args['-o']
     if outfile == None:
         lev = args['--levname']
         basename=os.path.basename(file)
-        if 'S2' in sensor:
-            outfile = basename.replace('L1C', lev)
-            outfile = outfile.replace('.SAFE', '').rstrip('/')
-            outfile = outfile.replace('.zip', '').rstrip('/')
-        elif 'LANDSAT' in sensor:
-            outfile = basename.replace('L1TP', lev)
-            outfile = outfile.replace('.txt', '').rstrip('/')
-        else:
-            print('Not recognized sensor, please try again!')
-            sys.exit()
+        outfile = basename.replace('L1C', lev)
+        outfile = outfile.replace('.SAFE', '').rstrip('/')
+        outfile = outfile.replace('.zip', '').rstrip('/')
+        outfile = outfile.replace('L1TP', lev)
+        outfile = outfile.replace('.txt', '').rstrip('/')
+        # if 'S2' in sensor:
+        #     outfile = basename.replace('L1C', lev)
+        #     outfile = outfile.replace('.SAFE', '').rstrip('/')
+        #     outfile = outfile.replace('.zip', '').rstrip('/')
+        # elif 'LANDSAT' in sensor:
+        #     outfile = basename.replace('L1TP', lev)
+        #     outfile = outfile.replace('.txt', '').rstrip('/')
+        # else:
+        #     print('Not recognized sensor, please try again!')
+        #     sys.exit()
 
     outfile = os.path.join(args['--odir'], outfile)
 
@@ -115,7 +122,7 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                      aot550=aot550, angstrom=angstrom)
+                      aot550=aot550, angstrom=angstrom, output=output)
     return
 
 
