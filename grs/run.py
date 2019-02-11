@@ -1,7 +1,7 @@
 ''' Executable to process L1C images from Sentinel-2 and Landsat mission series
 
 Usage:
-  grs <input_file> <sensor> [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
+  grs <input_file> [-s | --sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] \
@@ -13,8 +13,9 @@ Options:
   -h --help        Show this screen.
   -v --version     Show version.
 
-  <input_file>     Input MTL.txt file to be processed
-  <sensor>         sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
+  <input_file>     Input file to be processed
+  -s --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
+                    (by default sensor type is retrieved from input file name)
   -o ofile         Full (absolute or relative) path to output L2 image.
   --odir odir       Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2grs]
@@ -110,7 +111,7 @@ def main():
 
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
-    process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
+    process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=args['--aot550'], angstrom=args['--angstrom'])
     return

@@ -1,7 +1,7 @@
 from pathlib import Path
 from esasnappy import ProductData, ProductIO
 
-import os,shutil
+import os, shutil
 import zipfile
 
 from . import config as cfg
@@ -16,7 +16,7 @@ class process:
     def __init__(self):
         pass
 
-    def execute(self, file, outfile, sensor, wkt, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
+    def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0):
         '''
 
@@ -36,10 +36,12 @@ class process:
         :return:
         '''
 
-
         ##################################
         # Get sensor auxiliary data
         ##################################
+        _utils = utils.utils()
+        if sensor == None:
+            sensor = _utils.get_sensor(file)
         sensordata = auxdata.sensordata(sensor)
         if resolution == None:
             resolution = sensordata.resolution
@@ -52,7 +54,7 @@ class process:
         if unzip:
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
-            file = os.path.join(cfg.tmp_dir,tmpzip.namelist()[0])
+            file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
 
         print("Reading...")
         print(file)
@@ -61,7 +63,6 @@ class process:
         ##################################
         # Generate l2h object
         ##################################
-        _utils = utils.utils()
         l2h = utils.info(product, sensordata, aerosol, ancillary)
 
         ##################################
@@ -106,6 +107,7 @@ class process:
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION
         ##################################
+
         if 'S2' in sensor:
             l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
             # l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution, method='Nearest')
@@ -259,7 +261,7 @@ class process:
         # set aot by hand
         aot550pix.fill(l2h.aot550)
 
-        for i in range(startrow,l2h.height):
+        for i in range(startrow, l2h.height):
             print('process row ' + str(i))
             # LOAD PIXELS DATA FOR ROW #i
             l2h.load_data(i)
@@ -291,8 +293,8 @@ class process:
                                         l2h.aot, aot550pix, l2h.fcoef, l2h.nodata)
 
             # reshape for snap modules
-            rcorr[rcorr == l2h.nodata]=np.nan
-            rcorrg[rcorrg == l2h.nodata]=np.nan
+            rcorr[rcorr == l2h.nodata] = np.nan
+            rcorrg[rcorrg == l2h.nodata] = np.nan
             rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
             rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
@@ -319,9 +321,9 @@ class process:
             l2h.l2_product.getBand("VZA").writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
             l2h.l2_product.getBand("AZI").writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
             # TODO improve checksum scheme
-            l2h.checksum('startrow '+str(i))
+            l2h.checksum('startrow ' + str(i))
 
         l2h.finalize_product()
         if unzip:
-            #remove unzipped files
+            # remove unzipped files
             shutil.rmtree(file)

@@ -557,3 +557,21 @@ class utils:
         parameters.put('resampling', method)
 
         return GPF.createProduct('Reproject', parameters, product)
+
+    def get_sensor(self,file):
+        '''
+        Get sensor type from file name
+        :param file: file in standard naming
+        :return: sensor type
+        '''
+        file = os.path.basename(file)
+        if ('S2A' in file): sensor = 'S2A'
+        elif ('S2B' in file): sensor = 'S2B'
+        elif ('LC08' in file): sensor = 'LANDSAT_8'
+        elif ('LE07' in file): sensor = 'LANDSAT_7'
+        elif ('LT05' in file): sensor = 'LANDSAT_5'
+        # TODO add to log file
+        else:
+            print('sensor not recognized from input file')
+            sys.exit(-1)
+        return sensor
