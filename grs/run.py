@@ -68,6 +68,8 @@ def main():
     altitude = float(args['--altitude'])
     resolution = args['--resolution']
     aerosol = args['--aerosol']
+    aot550 = float(args['--aot550'])
+    angstrom = float(args['--angstrom'])
     aeronet_file = 'no'
     if aerosol == 'aeronet':
         aeronet_file = args['--aeronet_file']
@@ -113,7 +115,7 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                      aot550=args['--aot550'], angstrom=args['--angstrom'])
+                      aot550=aot550, angstrom=angstrom)
     return
 
 
