@@ -1,7 +1,7 @@
 subroutine main_algo(npix, nband, naot,                     &
 &                    vza, sza, azi, rtoa, mask, wl,         &
 &                    aotlut, rlut_f,rlut_c,Cext_f,Cext_c,   &
-&                    rg_ratio, F0, rot, aot, aot550, fine_coef, nodata, rcorr,rcorrg)
+&                    rg_ratio, F0, rot, aot, aot550, fine_coef, nodata, rrs, rcorr,rcorrg)
 !f2py -c -m main_algo main_algo.f95
 
 !--------------------------------------------------------------------
@@ -9,7 +9,7 @@ subroutine main_algo(npix, nband, naot,                     &
 !   naot, nsza, nazi, nvza : dimensions of lut data arrays
 !   vza, sza, azi: satellite angle data
 !   rtoa: satellite L1C reflectance (corected from gas absorption)
-!    rg_ratio: spectral variation (referred to as epsilon in Harmel et al., RSE; 201?)
+!   rg_ratio: spectral variation (referred to as epsilon in Harmel et al., RSE; 201?)
 !   TODO
 !--------------------------------------------------------------------
 
@@ -31,12 +31,12 @@ real(rtype),dimension(naot,nband,npix),intent(in) :: rlut_f,rlut_c
 real(rtype),dimension(nband),intent(in) :: Cext_f, Cext_c
 real(rtype),intent(in) :: fine_coef
 real(rtype),intent(in) :: nodata
-
+logical, intent(in) :: rrs
 
 real(rtype),dimension(npix,nband),intent(out) :: rcorr,rcorrg
 
 
-!f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,rlut_f,rlut_c,Cext_f,Cext_c,rg_ratio,F0,rot,fine_coef
+!f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,rlut_f,rlut_c,Cext_f,Cext_c,rg_ratio,F0,rot,fine_coef,rrs
 !f2py intent(inout) aot, aot550, nodata
 !f2py intent(out) rcorr, rcorrg
 !f2py depend(npix) sza, aot550, mask
@@ -109,6 +109,10 @@ do ipix=1,npix
         rcorr(ipix,iband) = rcorrg(ipix,iband) - rglint
         rcorr(ipix,iband) = rcorr(ipix,iband) * F0(iband)  / pi / tdiff_Lu / tdiff_Ed
         rcorrg(ipix,iband) = rcorrg(ipix,iband) * F0(iband)  / pi / tdiff_Lu / tdiff_Ed
+        if (.not. rrs) then
+            rcorr(ipix,iband) = rcorr(ipix,iband) * F0(iband)
+            rcorrg(ipix,iband) = rcorrg(ipix,iband) * F0(iband)
+        endif
     enddo
 
 enddo

@@ -43,6 +43,11 @@ class info:
         # set path for CAMS/ECMWF dataset
         self.cams_folder = cams_folder
 
+        # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
+        self.rrs = False
+        if self.output == 'Rrs':
+            self.rrs = True
+
         #########################
         # variables:
         #########################

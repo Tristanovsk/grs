@@ -291,18 +291,13 @@ class process:
                                         l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
                                         aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
                                         l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                        l2h.aot, aot550pix, l2h.fcoef, l2h.nodata)
+                                        l2h.aot, aot550pix, l2h.fcoef, l2h.nodata, l2h.rrs)
 
             # reshape for snap modules
             rcorr[rcorr == l2h.nodata] = np.nan
             rcorrg[rcorrg == l2h.nodata] = np.nan
             rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
             rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
-
-            #convert Lwn into Rrs
-            if l2h.output == 'Rrs':
-                rcorr = rcorr / l2h.solar_irr
-                rcorrg = rcorrg / l2h.solar_irr
 
             ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
                                  (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
