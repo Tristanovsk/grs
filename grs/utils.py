@@ -379,6 +379,7 @@ class info:
             else:
                 ac_product.getBand(bname).setDescription(
                 'Remote sensing reflectance in sr-1 at ' + self.band_names[iband])
+
         # Sunglint reflection factor
         # for iband in range(self.N):
         bname = 'BRDFg'  # + self.band_names[iband]
@@ -390,6 +391,17 @@ class info:
         acband.setNoDataValueUsed(True)
         acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
         ac_product.getBand(bname).setDescription('Glint reflection factor (BRDF) ')  # + self.band_names[iband])
+
+        # estimated aerosol optical thickness at 550 nm
+        bname = 'aot550'  # + self.band_names[iband]
+        acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
+        # acband.setSpectralWavelength(self.wl[iband])
+        # acband.setSpectralBandwidth(self.b[iband].getSpectralBandwidth())
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
+        ac_product.getBand(bname).setDescription('aerosol optical thickness at 550 nm ')  # + self.band_names[iband])
 
         # Viewing geometry
         acband = ac_product.addBand('SZA', ProductData.TYPE_FLOAT32)

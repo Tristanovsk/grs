@@ -1,7 +1,7 @@
 subroutine main_algo(npix, nband, naot, &
 &                    vza, sza, azi, rtoa, mask, wl, &
 &                    aotlut, rlut_f, rlut_c, cextf, cextc, cextf550, cextc550, &
-&                    rg_ratio, F0, rot, aot, aot550_in, nodata, &
+&                    rg_ratio, F0, rot, aot, aot550_in, nodata, rrs, &
 &                    rcorr, rcorrg, aot550_est, brdf_est)
     !f2py -c -m main_algo main_algo.f95
 
@@ -32,8 +32,9 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(npix, nband), intent(out) :: rcorr, rcorrg
     real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
     real(rtype),intent(inout) :: nodata
+    logical, intent(in) :: rrs
 
-    !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,aotlu,rlut_f,rlut_c
+    !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,aotlu,rlut_f,rlut_c, rrs
     !f2py intent(in) cextf,cextc,cextf550,cextc550
     !f2py intent(in) aot,aot550_in,rg_ratio,F0,rot
     !f2py intent(inout) nodata
@@ -180,11 +181,16 @@ subroutine main_algo(npix, nband, naot, &
             tdiff_Lu = exp(-(0.52 * rot(iband) + 0.16 * aot_est(iband)) * (1. / muv(ipix, iband)))
 
             rcorrg(ipix, iband) = rtoa(ipix, iband) - rsim(iband)
-            rcorrg(ipix, iband) = rcorr(ipix, iband) * F0(iband) / pi / tdiff_Lu / tdiff_Ed
+            rcorrg(ipix, iband) = rcorrg(ipix, iband) / pi / tdiff_Lu / tdiff_Ed
 
             rcorr(ipix, iband) = rtoa(ipix, iband) - rsim(iband) - rglint
-            rcorr(ipix, iband) = rcorr(ipix, iband) * F0(iband) / pi / tdiff_Lu / tdiff_Ed
+            rcorr(ipix, iband) = rcorr(ipix, iband) / pi / tdiff_Lu / tdiff_Ed
 
+            ! convert rrs into normalized water-leaving radiance
+            if (.not. rrs) then
+                rcorr(ipix,iband) = rcorr(ipix,iband) * F0(iband)
+                rcorrg(ipix,iband) = rcorrg(ipix,iband) * F0(iband)
+            endif
             !write(*,*)"band",iband,';  rcorr',rcorr(ipix,iband),tdiff_Lu,tdiff_Ed,aot_est(iband)
         enddo
 

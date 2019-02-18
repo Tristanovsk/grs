@@ -1,4 +1,4 @@
-DIRS = grs/fortran grs/landsat_angles/OLI grs/landsat_angles/TM
+DIRS = grs/fortran/grs grs/fortran/grs_a grs/landsat_angles/OLI grs/landsat_angles/TM
 
 CLEANDIRS = $(DIRS:%=clean-%)
 

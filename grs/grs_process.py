@@ -9,7 +9,8 @@ from . import acutils
 from . import auxdata
 from . import utils
 from .anglegen import *
-from grs.fortran import main_algo as f
+from .fortran.grs import main_algo as grs_solver
+from .fortran.grs_a import main_algo as grs_a_solver
 
 
 class process:
@@ -18,7 +19,7 @@ class process:
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0,
-                output='Rrs'):
+                output='Rrs', grs_a=False):
         '''
 
         :param file:
@@ -36,7 +37,9 @@ class process:
         :param output: set the unit of the retrievals:
                  * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
                  * 'Rrs', remote sensing reflectance (in sr-1)
-                 {default: 'Rrs']
+                 {default: 'Rrs'}
+        :param grs_a: switch to grs-a algorithm (Lwn and aerosol) if True
+
         :return:
         '''
 
@@ -287,11 +290,19 @@ class process:
                 tg = smac.compute_gas_trans(iband, l2h.pressure, l2h.mu0, l2h.muv[iband])
                 l2h.rs2[:, iband] = l2h.rs2[:, iband] / tg
 
-            rcorr, rcorrg = f.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                        l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
-                                        aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
-                                        l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                        l2h.aot, aot550pix, l2h.fcoef, l2h.nodata, l2h.rrs)
+            if grs_a:
+                rcorr, rcorrg, aot550pix, brdfpix = grs_a_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                                                                 l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
+                                                                 aotlut, rtoaf, rtoac,
+                                                                 lutf.Cext, lutc.Cext, lutf.Cext550, lutc.Cext550,
+                                                                 l2h.sensordata.rg, l2h.solar_irr, l2h.rot, l2h.aot,
+                                                                 aot550pix, l2h.nodata, l2h.rrs)
+            else:
+                rcorr, rcorrg = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                                            l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
+                                            aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
+                                            l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
+                                            l2h.aot, aot550pix, l2h.fcoef, l2h.nodata, l2h.rrs)
 
             # reshape for snap modules
             rcorr[rcorr == l2h.nodata] = np.nan
@@ -318,10 +329,13 @@ class process:
                     writePixels(0, i, l2h.width, 1, rcorrg[iband])
 
             l2h.l2_product.getBand('flags').writePixels(0, i, l2h.width, 1, np.array(l2h.flags, dtype=np.uint32))
-            l2h.l2_product.getBand('BRDFg').writePixels(0, i, l2h.width, 1, l2h.ndwi)
+            l2h.l2_product.getBand('BRDFg').writePixels(0, i, l2h.width, 1, brdfpix)
+            l2h.l2_product.getBand("aot550").writePixels(0, i, l2h.width, 1, aot550pix)
+
             l2h.l2_product.getBand('SZA').writePixels(0, i, l2h.width, 1, l2h.sza)
             l2h.l2_product.getBand('VZA').writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
             l2h.l2_product.getBand('AZI').writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
+
             # TODO improve checksum scheme
             l2h.checksum('startrow ' + str(i))
 
