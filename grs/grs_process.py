@@ -9,7 +9,7 @@ from . import acutils
 from . import auxdata
 from . import utils
 from .anglegen import *
-from .fortran import main_algo as f
+from grs.fortran import main_algo as f
 
 
 class process:
