@@ -5,6 +5,11 @@ import os, sys
 import pandas as pd
 import glob
 
+sys.path.extend([os.path.abspath(__file__)])
+#sys.path.extend(['/home/harmel/Dropbox/work/git/satellite_app/grs/exe'])
+from procutils import misc
+misc=misc()
+
 from grs import grs_process
 
 sitefile = sys.argv[1]
@@ -37,72 +42,6 @@ wkt_rect = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + "
               + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
-
-def wktbox(center_lon, center_lat, width=1, height=1):
-    '''
-
-    :param center_lon: decimal longitude
-    :param center_lat: decimal latitude
-    :param width: width of the box in km
-    :param height: haight of the box in km
-    :return: wkt of the box centered on provided coordinates
-    '''
-    from math import sqrt, atan, pi
-    import pyproj
-    geod = pyproj.Geod(ellps='WGS84')
-    width, height = width * 1000, height * 1000
-    rect_diag = sqrt(width ** 2 + height ** 2)
-
-    azimuth1 = atan(width / height)
-    azimuth2 = atan(-width / height)
-    azimuth3 = atan(width / height) + pi  # first point + 180 degrees
-    azimuth4 = atan(-width / height) + pi  # second point + 180 degrees
-
-    pt1_lon, pt1_lat, _ = geod.fwd(center_lon, center_lat, azimuth1 * 180 / pi, rect_diag)
-    pt2_lon, pt2_lat, _ = geod.fwd(center_lon, center_lat, azimuth2 * 180 / pi, rect_diag)
-    pt3_lon, pt3_lat, _ = geod.fwd(center_lon, center_lat, azimuth3 * 180 / pi, rect_diag)
-    pt4_lon, pt4_lat, _ = geod.fwd(center_lon, center_lat, azimuth4 * 180 / pi, rect_diag)
-
-    wkt_point = 'POINT (%.6f %.6f)' % (center_lon, center_lat)
-    wkt_poly = 'POLYGON (( %.6f %.6f, %.6f %.6f, %.6f %.6f, %.6f %.6f, %.6f %.6f ))' % (
-        pt1_lon, pt1_lat, pt2_lon, pt2_lat, pt3_lon, pt3_lat, pt4_lon, pt4_lat, pt1_lon, pt1_lat)
-    return wkt_poly
-
-
-def set_ofile(file, odir='', outfile=None, level_name='l2grs', suffix=''):
-    ##################################
-    # File naming convention
-    ##################################
-
-    # if outfile == None:
-    lev = level_name
-
-    outfile = file.replace('L1C', lev)
-    outfile = outfile.replace('.SAFE', '').rstrip('/')
-    outfile = outfile.replace('.zip', '').rstrip('/')
-    outfile = outfile.replace('L1TP', lev)
-    outfile = outfile.replace('.txt', '').rstrip('/')
-
-    if ('S2A' in outfile): sensor = 'S2A'
-    if ('S2B' in outfile): sensor = 'S2B'
-    if ('LC08' in outfile): sensor = 'LANDSAT_8'
-    if ('LE07' in outfile): sensor = 'LANDSAT_7'
-    if ('LT05' in outfile): sensor = 'LANDSAT_5'
-
-    return os.path.join(odir, outfile), sensor
-
-
-def chunk(it, n):
-    try:
-        while True:
-            xs = []  # The buffer to hold the next n items
-            for _ in range(n):
-                xs.append(next(it))
-            yield xs
-    except StopIteration:
-        yield xs
-
-
 # load list of raw image files producing exception during grs process (causes to be investigated)
 try:
     with open(fjunk) as f:
@@ -120,7 +59,7 @@ for idx, row in sites.iterrows():
     print(imgs.__len__())
 
     if False:
-        wkt = wktbox(row.lon, row.lat,width=w,height=h)
+        wkt = misc.wktbox(row.lon, row.lat,width=w,height=h)
     else:
         wkt = wkt_rect
 
@@ -139,7 +78,7 @@ for idx, row in sites.iterrows():
         if 'incomplete' in basename:
             continue
 
-        outfile, sensor = set_ofile(basename, odir=odir)
+        outfile, sensor = misc.set_ofile(basename, odir=odir)
         print(outfile, sensor)
         # skip if already processed (the .dim exists)
         # if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
@@ -156,7 +95,7 @@ for idx, row in sites.iterrows():
         continue
     # ----------------------
     isuccess = 1
-    for files in chunk(iter(imgs_tbp), Nimage):
+    for files in misc.chunk(iter(imgs_tbp), Nimage):
 
         for file in files:
 
