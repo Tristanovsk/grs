@@ -59,7 +59,7 @@ integer,parameter :: mint=1,l_w=16*(15+100+100+100), & !(naot)
 &                    l_iw=2*(15+100+100+100)  !(naot)
 integer,dimension(mint),parameter :: intpol=1
 integer,dimension(l_iw) :: iw
-real*8,dimension(l_w) :: w
+real(rtype),dimension(l_w) :: w
 integer,parameter :: maot=1
 real(rtype),dimension(maot) :: aotpt
 !----------------------------------------------

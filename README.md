@@ -47,10 +47,10 @@ If the installation is successful, you should have:
 ```
 $ grs
 Usage:
-  grs <input_file> <sensor> [-o <file>] [--shape <shp>]    [--longlat <longmax,longmin,latmax,latmin> ]    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>]    [--aot550=aot] [--angstrom=ang]    [--resolution=res] [--no_clobber]
+   grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]   [--longlat <longmax,longmin,latmax,latmin> ]    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>]    [--aot550=aot] [--angstrom=ang] [--output param]   [--resolution=res] [--levname <lev>] [--no_clobber]
   grs -h | --help
   grs -v | --version
-
+  
 ```
 
 ## Running the tests

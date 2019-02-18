@@ -33,7 +33,7 @@ real(rtype),intent(inout) :: aot550,beta,brdf
 integer, parameter :: n=3 !number of unknows in optimization
 integer :: info
 real(rtype) :: norm
-!epsfcn is an input variable used in determining a suitable
+! epsfcn is an input variable used in determining a suitable
 !       step length for the forward-difference approximation. this
 !       approximation assumes that the relative errors in the
 !       functions are of the order of epsfcn.

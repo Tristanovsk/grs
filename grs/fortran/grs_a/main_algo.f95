@@ -92,7 +92,7 @@ subroutine main_algo(npix, nband, naot, &
     !----------------------------------------------
     ! initialize outputs
     rcorr = nodata
-    rcorrg=nodata
+    rcorrg = nodata
     !----------------------------------------------
     weightaot = 1.
 
