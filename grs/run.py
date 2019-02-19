@@ -5,7 +5,7 @@ Usage:
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
-   [--resolution=res] [--levname <lev>] [--no_clobber]
+   [--resolution=res] [--levname <lev>] [--no_clobber] [--unzip]
   grs -h | --help
   grs -v | --version
 
@@ -37,6 +37,7 @@ Options:
                    [default: 1]
   --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res spatial resolution of the scene pixels
+  --unzip          to process zipped images seamlessly
 
 '''
 
@@ -65,6 +66,7 @@ def main():
         lonmax, lonmin, latmax, latmin = np.array(args['--longlat'].rsplit(','), np.float)
 
     noclobber = args['--no_clobber']
+    unzip = args['--unzip']
 
     altitude = float(args['--altitude'])
     resolution = args['--resolution']
@@ -122,7 +124,7 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                      aot550=aot550, angstrom=angstrom, output=output)
+                      aot550=aot550, angstrom=angstrom, output=output, unzip=unzip)
     return
 
 
