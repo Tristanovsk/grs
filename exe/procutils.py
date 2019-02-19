@@ -11,7 +11,7 @@ class misc:
     def __init__(self):
         pass
 
-    def wktbox(self,center_lon, center_lat, width=1, height=1):
+    def wktbox(self, center_lon, center_lat, width=1, height=1):
         '''
 
         :param center_lon: decimal longitude
@@ -41,8 +41,7 @@ class misc:
             pt1_lon, pt1_lat, pt2_lon, pt2_lat, pt3_lon, pt3_lat, pt4_lon, pt4_lat, pt1_lon, pt1_lat)
         return wkt_poly
 
-
-    def get_sensor(self,file):
+    def get_sensor(self, file):
         '''
         Get sensor type from file name
         :param file: file in standard naming
@@ -50,42 +49,49 @@ class misc:
         '''
         file = os.path.basename(file)
 
-        if ('S2A' in file): sensor = ('S2A', 'S2_ESA',None)
-        elif ('S2B' in file): sensor = ('S2B', 'S2_ESA',None)
-        elif ('LC08' in file) | ('LC8' in file): sensor = ('LANDSAT_8','Landsat_USGS','LC8')
-        elif ('LE07' in file)| ('LE7' in file): sensor = ('LANDSAT_7','Landsat_USGS','LE7')
-        elif ('LT05' in file)| ('LT5' in file): sensor = ('LANDSAT_5','Landsat_USGS','LT5')
+        if ('S2A' in file):
+            sensor = ('S2A', 'S2_ESA', None)
+        elif ('S2B' in file):
+            sensor = ('S2B', 'S2_ESA', None)
+        elif ('LC08' in file) | ('LC8' in file):
+            sensor = ('LANDSAT_8', 'Landsat_USGS', 'LC8')
+        elif ('LE07' in file) | ('LE7' in file):
+            sensor = ('LANDSAT_7', 'Landsat_USGS', 'LE7')
+        elif ('LT05' in file) | ('LT5' in file):
+            sensor = ('LANDSAT_5', 'Landsat_USGS', 'LT5')
         # TODO add to log file
         else:
             print('sensor not recognized from input file')
             sensor = None
-            #sys.exit(-1)
+            # sys.exit(-1)
         return sensor
 
-    def get_tile(self,file):
+    def get_tile(self, file):
         '''
         Get tile from file name
         :param file: file in standard naming
         :return: tile ID
         '''
         file = os.path.basename(file)
-        sensor=''
-        if ('S2A' in file) | ('S2B' in file): tile = file.split('_')[5][-5:]
-        elif ('LC8' in file) | ('LE7' in file) | ('LT5' in file): tile = file[3:9]
-        elif ('LC08' in file) | ('LE07' in file) | ('LT05' in file): tile = file[4:10]
+        sensor = ''
+        if ('S2A' in file) | ('S2B' in file):
+            tile = file.split('_')[5][-5:]
+        elif ('LC8' in file) | ('LE7' in file) | ('LT5' in file):
+            tile = file[3:9]
+        elif ('LC08' in file) | ('LE07' in file) | ('LT05' in file):
+            tile = file[4:10]
         # TODO add to log file
         else:
             print('sensor not recognized from input file')
-            #sys.exit(-1)
+            # sys.exit(-1)
         return tile
 
-    def set_ofile(self,file, odir='', outfile=None, level_name='l2grs', suffix=''):
+    def set_ofile(self, file, odir='', level_name='l2grs', suffix=''):
         ''' get satellite type andset output file name'''
         ##################################
         # File naming convention
         ##################################
 
-        # if outfile == None:
         lev = level_name
 
         outfile = file.replace('L1C', lev)
@@ -93,18 +99,10 @@ class misc:
         outfile = outfile.replace('.zip', '').rstrip('/')
         outfile = outfile.replace('L1TP', lev)
         outfile = outfile.replace('.txt', '').rstrip('/')
-        print(outfile)
-        sensor=''
-        if ('S2A' in outfile): sensor = 'S2A'
-        if ('S2B' in outfile): sensor = 'S2B'
-        if ('LC08' in outfile) | ('LC8' in outfile) : sensor = 'LANDSAT_8'
-        if ('LE07' in outfile): sensor = 'LANDSAT_7'
-        if ('LT05' in outfile): sensor = 'LANDSAT_5'
 
-        return os.path.join(odir, outfile), sensor
+        return os.path.join(odir, outfile, suffix)
 
-
-    def chunk(self,it, n):
+    def chunk(self, it, n):
         '''
         return a tuple of n items found in it
         :param it:

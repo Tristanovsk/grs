@@ -91,6 +91,8 @@ for idx, site in sites.iterrows():
         # download image
         download_image.mp_worker(command)
 
+   wkt = misc.wktbox(row.lon, row.lat, width=w, height=h)
+
 ######################################################
 # TO BE CONTINUED
 
