@@ -4,6 +4,7 @@ command to process images over the aeronet-oc sites
 
 import os, sys
 import pandas as pd
+import glob
 import datetime
 import multiprocessing
 
@@ -16,12 +17,12 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
-#number of processor to use
-ncore = 10
+#number of processors to be used
+ncore = 6
 list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
 command = []
-
+list = []
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
@@ -38,11 +39,18 @@ for idx, site in sites.iterrows():
     sat = sensor[2]
     idir = dic[productimage]['path']
     file = os.path.join(idir, basename)
-    print(sensor, name, file)
+    #------------------------
+    # input file naming
+    # Warning: only .zip or .tgz are permitted
+    file = file.replace('SAFE','zip')
+    if productimage != 'S2_ESA':
+        file = file.replace('.tgz','')
+        file = file + '.tgz'
 
+    print(sensor, name, file)
     # check if image is already downloaded
     if not os.path.exists(file):
-
+        list.append(file)
         fromdate = date.strftime('%Y-%m-%d')
         todate = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
         cloudmax = str(100)

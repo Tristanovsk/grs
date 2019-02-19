@@ -3,6 +3,7 @@ from esasnappy import ProductData, ProductIO
 
 import os, shutil
 import zipfile
+import tarfile
 
 from . import config as cfg
 from . import acutils
@@ -17,7 +18,7 @@ class process:
         pass
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, startrow=0,
+                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
                 output='Rrs'):
         '''
 
@@ -59,6 +60,10 @@ class process:
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
+        if untar:
+            tmpzip = tarfile.open(file)
+            tmpzip.extractall(cfg.tmp_dir)
+            file = os.path.join(cfg.tmp_dir, tmpzip.getnames()[-1])
 
         print("Reading...")
         print(file)
@@ -326,6 +331,8 @@ class process:
             l2h.checksum('startrow ' + str(i))
 
         l2h.finalize_product()
-        if unzip:
-            # remove unzipped files
+        if unzip | untar:
+            # remove unzipped / untared files
             shutil.rmtree(file)
+
+

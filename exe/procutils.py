@@ -100,7 +100,7 @@ class misc:
         outfile = outfile.replace('L1TP', lev)
         outfile = outfile.replace('.txt', '').rstrip('/')
 
-        return os.path.join(odir, outfile, suffix)
+        return os.path.join(odir, outfile + suffix)
 
     def chunk(self, it, n):
         '''
