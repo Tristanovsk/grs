@@ -11,11 +11,11 @@ import datetime
 from grs import grs_process
 
 sys.path.extend([os.path.abspath(__file__)])
-sys.path.extend(['/home/harmel/Dropbox/work/git/satellite_app/grs/exe'])
+sys.path.extend([os.path.abspath('exe')])
 from procutils import misc
 
 misc = misc()
-import sid
+from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
@@ -24,7 +24,7 @@ if not os.path.exists(odir):
     os.makedirs(odir)
 
 idir = '/nfs/DD/S2/L1/ESA/'
-sitefile = '/DATA/Workshop/ACIX/AERONETOC_Matchups_List.xlsx'
+sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
 sites = pd.read_excel(sitefile)  # , sep=' ')
 
 full_tile = True
@@ -62,11 +62,14 @@ for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
     name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    altitude = site.iloc[7]
+    altitude = 0 #site.iloc[6]
     # get date in pratical format
     date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
 
     sensor = misc.get_sensor(basename)
+    if sensor == None:
+        print('non standard image, not processed: ', basename)
+        continue
     file = os.path.join(idir, basename)
     print(sensor, name, file)
 
@@ -75,8 +78,8 @@ for idx, site in sites.iterrows():
         productimage = sensor[1]
         sat = sensor[2]
         fromdate = date.strftime('%Y-%m-%d')
-        todate = fromdate
-        cloudmax = 100
+        todate = datetime.datetime.strftime(date + datetime.timedelta(days=1),'%Y-%m-%d')
+        cloudmax = str(100)
 
         script = dic[productimage]['script']
         write = dic[productimage]['path']
@@ -86,7 +89,7 @@ for idx, site in sites.iterrows():
         print(command)
         print('downloading image, please wait...')
         # download image
-        sid.download_image.mp_worker(command)
+        download_image.mp_worker(command)
 
 ######################################################
 # TO BE CONTINUED

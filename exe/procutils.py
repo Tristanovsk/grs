@@ -49,7 +49,7 @@ class misc:
         :return: sensor type
         '''
         file = os.path.basename(file)
-        sensor=''
+
         if ('S2A' in file): sensor = ('S2A', 'S2_ESA',None)
         elif ('S2B' in file): sensor = ('S2B', 'S2_ESA',None)
         elif ('LC08' in file) | ('LC8' in file): sensor = ('LANDSAT_8','Landsat_USGS','LC8')
@@ -58,6 +58,7 @@ class misc:
         # TODO add to log file
         else:
             print('sensor not recognized from input file')
+            sensor = None
             #sys.exit(-1)
         return sensor
 
