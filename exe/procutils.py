@@ -50,16 +50,33 @@ class misc:
         '''
         file = os.path.basename(file)
         sensor=''
-        if ('S2A' in file): sensor = 'S2A'
-        elif ('S2B' in file): sensor = 'S2B'
-        elif ('LC08' in file) | ('LC8' in file): sensor = 'LANDSAT_8'
-        elif ('LE07' in file): sensor = 'LANDSAT_7'
-        elif ('LT05' in file): sensor = 'LANDSAT_5'
+        if ('S2A' in file): sensor = ('S2A', 'S2_ESA',None)
+        elif ('S2B' in file): sensor = ('S2B', 'S2_ESA',None)
+        elif ('LC08' in file) | ('LC8' in file): sensor = ('LANDSAT_8','Landsat_USGS','LC8')
+        elif ('LE07' in file)| ('LE7' in file): sensor = ('LANDSAT_7','Landsat_USGS','LE7')
+        elif ('LT05' in file)| ('LT5' in file): sensor = ('LANDSAT_5','Landsat_USGS','LT5')
         # TODO add to log file
         else:
             print('sensor not recognized from input file')
             #sys.exit(-1)
         return sensor
+
+    def get_tile(self,file):
+        '''
+        Get tile from file name
+        :param file: file in standard naming
+        :return: tile ID
+        '''
+        file = os.path.basename(file)
+        sensor=''
+        if ('S2A' in file) | ('S2B' in file): tile = file.split('_')[5][-5:]
+        elif ('LC8' in file) | ('LE7' in file) | ('LT5' in file): tile = file[3:9]
+        elif ('LC08' in file) | ('LE07' in file) | ('LT05' in file): tile = file[4:10]
+        # TODO add to log file
+        else:
+            print('sensor not recognized from input file')
+            #sys.exit(-1)
+        return tile
 
     def set_ofile(self,file, odir='', outfile=None, level_name='l2grs', suffix=''):
         ''' get satellite type andset output file name'''

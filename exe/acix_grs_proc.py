@@ -9,24 +9,23 @@ import glob
 import datetime
 
 from grs import grs_process
+
 sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend(['/home/harmel/Dropbox/work/git/satellite_app/grs/exe'])
 from procutils import misc
-misc=misc()
+
+misc = misc()
 import sid
-
-
-sitefile = sys.argv[1]
+# to get image provider info under variable 'dic'
+from sid.config import *
 
 odir = sys.argv[2]  # '/nfs/DP/S2/L2/GRS/aeronet-oc/netcdf'
 if not os.path.exists(odir):
     os.makedirs(odir)
 
-
 idir = '/nfs/DD/S2/L1/ESA/'
 sitefile = '/DATA/Workshop/ACIX/AERONETOC_Matchups_List.xlsx'
 sites = pd.read_excel(sitefile)  # , sep=' ')
-
 
 full_tile = True
 if full_tile:
@@ -63,20 +62,31 @@ for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
     name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-
+    altitude = site.iloc[7]
     # get date in pratical format
-    date = datetime.datetime.strptime(date_raw,'%d-%m-%Y') + datetime.timedelta(hours=time)
-    sensor = misc.get_sensor(basename)
-    # check if image is already downloaded
-    file = os.path.join(idir, basename)
+    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
 
+    sensor = misc.get_sensor(basename)
+    file = os.path.join(idir, basename)
     print(sensor, name, file)
 
+    # check if image is already downloaded
     if not os.path.exists(file):
-        sid.run.main(mode='console', productimage='S2_ESA', fromdate=date.strftime('%Y-%m-%d'), todate=date.strftime('%Y-%m-%d'),
-                    detailedfile=None, fileBDDEMIL=None, shape=os.path.join(os.path.dirname(__file__), 'examples', 'ALL04.shp'),
-  shapeID='CODE_LAC')
+        productimage = sensor[1]
+        sat = sensor[2]
+        fromdate = date.strftime('%Y-%m-%d')
+        todate = fromdate
+        cloudmax = 100
 
+        script = dic[productimage]['script']
+        write = dic[productimage]['path']
+        auth = dic[productimage]['auth']
+        tile = misc.get_tile(basename)
+        command = [script, lat, lon, write, auth, tile, sat, cloudmax, fromdate, todate, productimage]
+        print(command)
+        print('downloading image, please wait...')
+        # download image
+        sid.download_image.mp_worker(command)
 
 ######################################################
 # TO BE CONTINUED
@@ -84,7 +94,7 @@ for idx, site in sites.iterrows():
 for idx, row in sites.iterrows():
     print(row)
     site = row.site
-    altitude = row.alt
+
     imgs = glob.glob(idir + '*' + row.tile + '*')
     print(imgs.__len__())
 
