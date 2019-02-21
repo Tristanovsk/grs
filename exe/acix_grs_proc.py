@@ -8,9 +8,7 @@ import pandas as pd
 import glob
 import datetime
 
-
-
-sys.path.extend([os.path.abspath(__file__)])
+# sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
 from procutils import misc
 
@@ -19,18 +17,16 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
-
-
-#--------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 # set parameters
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
 lev = 'L2grs'
 aerosol = 'cams_forecast'
-odir_root = {'S2A':'/nfs/DP/S2/L2/GRS/',
-             'S2B':'/nfs/DP/S2/L2/GRS/',
-             'LANDSAT_5':'/nfs/DP/Landsat/L2/GRS/',
-             'LANDSAT_7':'/nfs/DP/Landsat/L2/GRS/',
-             'LANDSAT_8':'/nfs/DP/Landsat/L2/GRS/'}
+odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
+             'S2B': '/nfs/DP/S2/L2/GRS/',
+             'LANDSAT_5': '/nfs/DP/Landsat/L2/GRS/',
+             'LANDSAT_7': '/nfs/DP/Landsat/L2/GRS/',
+             'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
 odir_sub = 'acix'
 Nimage = 1
 noclobber = True
@@ -38,24 +34,16 @@ resolution = None
 aeronet_file = 'no'
 aot550 = 0.1
 angstrom = 0.5
-#--------------------------------------------------------------------------------
-
-
-sites = pd.read_excel(sitefile)  # , sep=' ')
-
-full_tile = True
+full_tile = False
 if full_tile:
     w, h = 200, 200
 else:
+    # set rectangle limits (width and height in meters) of the subscene to process
     w, h = 1, 1
+# --------------------------------------------------------------------------------
 
-lonmin, lonmax = -180, 180
-latmin, latmax = -90, 90  # -21.13
-wkt_rect = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
-           + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
-           + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
-
-
+sites = pd.read_excel(sitefile)  # , sep=' ')
+idx, site=list(sites.iterrows())[1]
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
@@ -75,18 +63,18 @@ for idx, site in sites.iterrows():
     # get L1 image full path
     idir = dic[productimage]['path']
     file = os.path.join(idir, basename)
-    #------------------------
+    # ------------------------
     # input file naming
     # Warning: only .zip or .tgz are permitted
-    file = file.replace('SAFE','zip')
+    file = file.replace('SAFE', 'zip')
     if productimage != 'S2_ESA':
-        file = file.replace('.tgz','')
+        file = file.replace('.tgz', '')
         file = file + '.tgz'
     print(sensor, name, file)
 
-    #----------------------------------------------
+    # ----------------------------------------------
     #  DOWNLOAD SECTION
-    #----------------------------------------------
+    # ----------------------------------------------
     # check if image is already downloaded
     if not os.path.exists(file):
         fromdate = date.strftime('%Y-%m-%d')
@@ -101,11 +89,11 @@ for idx, site in sites.iterrows():
         print(command)
         print('downloading image, please wait...')
         # download image
-        download_image.mp_worker(command)
+        # download_image.mp_worker(command)
 
-    #----------------------------------------------
+    # ----------------------------------------------
     #  PROCESS SECTION
-    #----------------------------------------------
+    # ----------------------------------------------
     # check / create output directory
     odir = os.path.join(odir_root[sensor[0]], odir_sub)
     if not os.path.exists(odir):
@@ -123,14 +111,14 @@ for idx, site in sites.iterrows():
             pass
 
     # set output file
-    outfile = misc.set_ofile(basename, odir=odir, suffix='_'+name+'_GRS')
+    outfile = misc.set_ofile(basename, odir=odir, suffix='_' + name + '_GRS')
 
     # get area to be processed
     wkt = misc.wktbox(lon, lat, width=w, height=h)
 
     # skip file if listed in junkfile
     if file in junkfiles:
-        print('File ' + outfile + ' listed in '+fjunk+'; skipped!'
+        print('File ' + outfile + ' listed in ' + fjunk + '; skipped!')
         continue
 
     # skip if already processed (the .dim exists)
@@ -148,10 +136,9 @@ for idx, site in sites.iterrows():
     untar = False
     if os.path.splitext(file)[-1] == '.zip':
         unzip = True
+    if os.path.splitext(file)[-1] == '.tgz':
+        untar = True
 
-
-    basename = os.path.basename(file)
-    outfile, sensor = misc.set_ofile(basename, odir=odir)
     print('-------------------------------')
     print('call grs for ', outfile, sensor)
     print('-------------------------------')
@@ -168,14 +155,15 @@ for idx, site in sites.iterrows():
                 startrow = int(ss[1])
     except:
         pass
-
+    break
     try:
         from grs import grs_process
+
         grs_process.process().execute(file, outfile, wkt, altitude=altitude, aerosol=aerosol,
                                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                                       aot550=aot550, angstrom=angstrom, unzip=unzip, untar=untar,
                                       startrow=startrow)
-        #isuccess += 1
+        # isuccess += 1
     except:
         # TODO note file name into log file
         print('-------------------------------')
@@ -235,7 +223,6 @@ for idx, row in sites.iterrows():
     for files in misc.chunk(iter(imgs_tbp), Nimage):
 
         for file in files:
-
 
         # comment next lines if you want to process the full series of images
         # warning: this can be very (prohibitively) consuming in memory,

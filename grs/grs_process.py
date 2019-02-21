@@ -4,6 +4,7 @@ from esasnappy import ProductData, ProductIO
 import os, shutil
 import zipfile
 import tarfile
+import glob
 
 from . import config as cfg
 from . import acutils
@@ -55,15 +56,23 @@ class process:
         ##################################
         # Read L1C product
         ##################################
+        file_orig = file
         # unzip if needed
         if unzip:
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
+        tartmp = None
+        anggen=False
         if untar:
+            basename = os.path.basename(file).replace('.tgz','')
+            tmp_dir = os.path.join(cfg.tmp_dir,basename)
+            # open tar archive to add potential file (e.g., angle files)
+            tartmp = tarfile.open(file,'a')
+            # open tar archive to extract files for data loading
             tmpzip = tarfile.open(file)
-            tmpzip.extractall(cfg.tmp_dir)
-            file = os.path.join(cfg.tmp_dir, tmpzip.getnames()[-1])
+            tmpzip.extractall(tmp_dir)
+            file = glob.glob(tmp_dir+'/*MTL.txt')[0]
 
         print("Reading...")
         print(file)
@@ -109,7 +118,7 @@ class process:
             # angle_generator().sentinel2(l2h)
             pass
         elif 'LANDSAT_8' in sensor:
-            angle_generator().landsat(l2h)
+            anggen = angle_generator().landsat(l2h)
         else:
             angle_generator().landsat_tm(l2h)
 
@@ -331,8 +340,20 @@ class process:
             l2h.checksum('startrow ' + str(i))
 
         l2h.finalize_product()
-        if unzip | untar:
-            # remove unzipped / untared files
-            shutil.rmtree(file)
+
+        if anggen:
+            # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
+            # copy tgz image and add angle files
+            landsat_file = file_orig.replace('.tgz', '')
+            shutil.make_archive(landsat_file, 'gztar', tmp_dir)
+            #os.rename(landsat_file,landsat_file.replace('.tar.gz','.tgz'))
+
+        if unzip:
+            # remove unzipped files (Sentinel files)
+            shutil.rmtree(file, ignore_errors=True)
+
+        if untar:
+            # remove untared files (Landsat files)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 

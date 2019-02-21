@@ -21,13 +21,14 @@ from sid.config import *
 ncore = 6
 list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
+
 command = []
 list = []
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
     name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    
+
     # get date in pratical format
     date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
 
@@ -47,6 +48,7 @@ for idx, site in sites.iterrows():
         file = file.replace('.tgz','')
         file = file + '.tgz'
 
+
     print(sensor, name, file)
     # check if image is already downloaded
     if not os.path.exists(file):
@@ -58,6 +60,8 @@ for idx, site in sites.iterrows():
         script = dic[productimage]['script']
         write = dic[productimage]['path']
         auth = dic[productimage]['auth']
+        if productimage == 'S2_ESA':
+            auth =os.path.abspath('/local/AIX/tristan.harmel/git/sat/sid/auxdata/apihub_th.txt')
         tile = misc.get_tile(basename)
         command.append([script, lat, lon, write, auth, tile, sat, cloudmax, fromdate, todate, productimage])
 

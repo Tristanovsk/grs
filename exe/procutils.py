@@ -95,10 +95,12 @@ class misc:
         lev = level_name
 
         outfile = file.replace('L1C', lev)
-        outfile = outfile.replace('.SAFE', '').rstrip('/')
-        outfile = outfile.replace('.zip', '').rstrip('/')
         outfile = outfile.replace('L1TP', lev)
-        outfile = outfile.replace('.txt', '').rstrip('/')
+        # remove extension
+        outfile = os.path.splitext(outfile)[0]
+        # outfile = outfile.replace('.SAFE', '').rstrip('/')
+        # outfile = outfile.replace('.zip', '').rstrip('/')
+        # outfile = outfile.replace('.txt', '').rstrip('/')
 
         return os.path.join(odir, outfile + suffix)
 
