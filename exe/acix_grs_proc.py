@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import glob
 import datetime
+import multiprocessing
 
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
-from procutils import misc
+from procutils import misc, multi_process
 
 misc = misc()
 from sid import download_image
@@ -22,13 +23,28 @@ from sid.config import *
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
 lev = 'L2grs'
 aerosol = 'cams_forecast'
+logdir = './tmp'
+idir_root = {'S2A': '/nfs/DD/S2/L1/ESA',
+             'S2B': '/nfs/DD/S2/L1/ESA',
+             'LANDSAT_5': '/nfs/DD/Landsat/L1/uncompressed',
+             'LANDSAT_7': '/nfs/DD/Landsat/L1/uncompressed',
+             'LANDSAT_8': '/nfs/DD/Landsat/L1/uncompressed'}
+
 odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
              'S2B': '/nfs/DP/S2/L2/GRS/',
              'LANDSAT_5': '/nfs/DP/Landsat/L2/GRS/',
              'LANDSAT_7': '/nfs/DP/Landsat/L2/GRS/',
              'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
 odir_sub = 'acix'
-Nimage = 1
+missions=['all','S2','Landsat']
+mission=missions[2]
+# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
+Nimage = 5
+# number of processors to be used
+ncore = 15
+
+download = False  # set to True if you want to download missing images
+angleonly = True  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
 noclobber = True
 resolution = None
 aeronet_file = 'no'
@@ -40,10 +56,16 @@ if full_tile:
 else:
     # set rectangle limits (width and height in meters) of the subscene to process
     w, h = 1, 1
+
+fmissing = os.path.join(logdir, 'list_missing_files.txt')
+fjunk = os.path.join(logdir, 'list_junk_files.txt')
+with open(fmissing, 'w'):
+            pass
 # --------------------------------------------------------------------------------
 
-sites = pd.read_excel(sitefile)  # , sep=' ')
-idx, site=list(sites.iterrows())[1]
+args_list = []
+sites = pd.read_excel(sitefile)
+idx, site = list(sites.iterrows())[1]
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
@@ -60,16 +82,17 @@ for idx, site in sites.iterrows():
     productimage = sensor[1]
     sat = sensor[2]
 
+    # skip S2/Landsat if mission == Landsat/S2
+    if (('Landsat' in productimage) & (mission=='S2')) | (('S2' in productimage) & (mission=='Landsat')):
+        continue
+
     # get L1 image full path
-    idir = dic[productimage]['path']
+    idir = idir_root[sensor[0]]
     file = os.path.join(idir, basename)
     # ------------------------
     # input file naming
-    # Warning: only .zip or .tgz are permitted
+    # Warning: only .zip images are permitted (for landsat, please use uncompressed images
     file = file.replace('SAFE', 'zip')
-    if productimage != 'S2_ESA':
-        file = file.replace('.tgz', '')
-        file = file + '.tgz'
     print(sensor, name, file)
 
     # ----------------------------------------------
@@ -89,8 +112,15 @@ for idx, site in sites.iterrows():
         print(command)
         print('downloading image, please wait...')
         # download image
-        # download_image.mp_worker(command)
+        if download:
+            download_image.mp_worker(command)
+        else:
+            with open(fmissing, "a") as myfile:
+                myfile.write(file + '\n')
 
+            continue
+    else:
+        pass  # break
     # ----------------------------------------------
     #  PROCESS SECTION
     # ----------------------------------------------
@@ -101,7 +131,6 @@ for idx, site in sites.iterrows():
 
     # load list of raw image files producing exception
     # during grs process (causes to be investigated)
-    fjunk = os.path.join(odir, 'list_junk_files.txt')
     try:
         with open(fjunk) as f:
             junkfiles = f.read().splitlines()
@@ -139,93 +168,46 @@ for idx, site in sites.iterrows():
     if os.path.splitext(file)[-1] == '.tgz':
         untar = True
 
+    if "Landsat" in productimage:
+        try:
+            file_tbp = glob.glob(file + '/*MTL.txt')[0]
+            with open(fjunk, "a") as myfile:
+                myfile.write(file + ' image is incomplete or missing \n')
+        except:
+            continue
+    else:
+        file_tbp = file
+
     print('-------------------------------')
     print('call grs for ', outfile, sensor)
     print('-------------------------------')
 
+
     # check if already partially processed, if so get startrow value
-    checksum = outfile + '.checksum'
     startrow = 0
-    try:
-        with open(checksum) as f:
-            checkdata = f.read().splitlines()
-        for s in checkdata:
-            ss = s.split()
-            if ss[0] == 'startrow':
-                startrow = int(ss[1])
-    except:
-        pass
-    break
-    try:
-        from grs import grs_process
-
-        grs_process.process().execute(file, outfile, wkt, altitude=altitude, aerosol=aerosol,
-                                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                      aot550=aot550, angstrom=angstrom, unzip=unzip, untar=untar,
-                                      startrow=startrow)
-        # isuccess += 1
-    except:
-        # TODO note file name into log file
-        print('-------------------------------')
-        print('error for file  ', file, ' skip')
-        print('-------------------------------')
-        with open(fjunk, "a") as myfile:
-            myfile.write(file + '\n')
-        continue
-
-######################################################
-# TO BE CONTINUED
-
-for idx, row in sites.iterrows():
-    print(row)
-    site = row.site
-
-    imgs = glob.glob(idir + '*' + row.tile + '*')
-    print(imgs.__len__())
-
+    # TODO double check checksum files and location for optimization
     if False:
-        wkt = misc.wktbox(row.lon, row.lat, width=w, height=h)
-    else:
-        wkt = wkt_rect
+        checksum = outfile + '.checksum'
+        try:
+            with open(checksum) as f:
+                checkdata = f.read().splitlines()
+            for s in checkdata:
+                ss = s.split()
+                if ss[0] == 'startrow':
+                    startrow = int(ss[1])
+        except:
+            pass
+    # break
 
-    # ----------------------
-    # remove file names which won't be processed whatsoever:
-    imgs_tbp = []
-    for file in imgs:
-        # TODO remove this part to process images from 2019
-        if '201901' in file:
-            continue
+    args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
+                    aot550, angstrom, unzip, untar, startrow, angleonly])
 
-        if file in junkfiles:
-            continue
+# reshape args_list to process several images (Nimage) on each processor
+command=[]
+for args in misc.chunk(iter(args_list), Nimage):
+    command.append([args,fjunk])
 
-        basename = os.path.basename(file)
-        if 'incomplete' in basename:
-            continue
+p = multiprocessing.Pool(ncore)
+p.map(multi_process().grs_call, command)
 
-        outfile, sensor = set_ofile(basename, odir=odir)
-        print(outfile, sensor)
-        # skip if already processed (the .dim exists)
-        # if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
-        if os.path.isfile(outfile + ".dim") & noclobber:
-            print('File ' + outfile + ' already processed; skip!')
-            continue
-        # skip if incomplete (enables multiprocess)
-        if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
-            print('found incomplete File ' + outfile + '; skip!')
-            continue
 
-        imgs_tbp.append(file)
-    if imgs_tbp == []:
-        continue
-    # ----------------------
-    isuccess = 1
-    for files in misc.chunk(iter(imgs_tbp), Nimage):
-
-        for file in files:
-
-        # comment next lines if you want to process the full series of images
-        # warning: this can be very (prohibitively) consuming in memory,
-        # recommended use: set Nimage parameter and call this code within different subprocess
-        if isuccess > Nimage:
-            sys.exit()

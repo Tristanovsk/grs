@@ -121,6 +121,8 @@ class process:
             anggen = angle_generator().landsat(l2h)
         else:
             angle_generator().landsat_tm(l2h)
+        # remove!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        return
 
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION
@@ -210,6 +212,8 @@ class process:
             sys.exit("No aerosol data provided, try again.")
 
         # set spectral aot for satellie bands
+        print('cams partam',target, l2h.date, l2h.wkt)
+        print('wl aero',l2h.aux.aot_wl, l2h.aux.aot)
         aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
         l2h.aot = aero.get_spectral_aot(np.array(l2h.wl))
         l2h.aot550 = l2h.aux.aot550
@@ -227,6 +231,7 @@ class process:
         # normalization of Cext to get spectral dependence of fine and coarse modes
         nCext_f = lutf.Cext / lutf.Cext550
         nCext_c = lutc.Cext / lutc.Cext550
+        print('param aerosol',nCext_f, nCext_c, l2h.aot)
         aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
         l2h.fcoef = aero.fcoef
         # rlut = [x + y for x, y in zip([fcoef * x for x in rlut_f], [(1. - fcoef) * x for x in rlut_c])]
