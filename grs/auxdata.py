@@ -366,8 +366,8 @@ class cams:
             prod.getBand(band_names[i]).loadRasterData()
             prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast[i,...])
             # aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast<0, aot_rast >2), fill_value=np.nan)
-            self.aot[i] = aot_rast.mean()
-            self.aot_std[i] = aot_rast.std()
+            self.aot[i] = aot_rast[i].mean()
+            self.aot_std[i] = aot_rast[i].std()
             prod.getBand(band_names[i]).unloadRasterData()
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
