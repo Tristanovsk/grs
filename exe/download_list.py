@@ -1,5 +1,5 @@
 '''
-command to process images over the aeronet-oc sites
+command to download images from a datasheet list
 '''
 
 import os, sys
@@ -18,9 +18,12 @@ from sid import download_image
 from sid.config import *
 
 #number of processors to be used
-ncore = 6
-list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
+ncore = 2
+list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
+
+missions=['all','S2','Landsat']
+mission=missions[1]
 
 command = []
 list = []
@@ -38,6 +41,11 @@ for idx, site in sites.iterrows():
         continue
     productimage = sensor[1]
     sat = sensor[2]
+
+    # skip S2/Landsat if mission == Landsat/S2
+    if (('Landsat' in productimage) & (mission=='S2')) | (('S2' in productimage) & (mission=='Landsat')):
+        continue
+
     idir = dic[productimage]['path']
     file = os.path.join(idir, basename)
     #------------------------

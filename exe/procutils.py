@@ -17,7 +17,7 @@ class misc:
         :param center_lon: decimal longitude
         :param center_lat: decimal latitude
         :param width: width of the box in km
-        :param height: haight of the box in km
+        :param height: height of the box in km
         :return: wkt of the box centered on provided coordinates
         '''
         from math import sqrt, atan, pi
@@ -135,7 +135,7 @@ class multi_process:
                 grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol,
                                               gdm=None, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, unzip=unzip, untar=untar,
-                                              startrow=startrow)
+                                              startrow=startrow,angleonly=angleonly)
             except:
                 print('-------------------------------')
                 print('error for file  ', file_tbp, ' skip')

@@ -20,7 +20,7 @@ class process:
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
-                output='Rrs'):
+                angleonly=False, output='Rrs'):
         '''
 
         :param file:
@@ -35,6 +35,7 @@ class process:
                       NB: unzipped files are removed at the end of the process
         :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
                         NB: this option is used to in the context of operational processing of massive dataset
+        :param angleonly: if true, grs is used to compute angle parameters only (no atmo correction is applied)
         :param output: set the unit of the retrievals:
                  * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
                  * 'Rrs', remote sensing reflectance (in sr-1)
@@ -121,8 +122,9 @@ class process:
             anggen = angle_generator().landsat(l2h)
         else:
             angle_generator().landsat_tm(l2h)
-        # remove!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        return
+
+        if angleonly:
+            return
 
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION

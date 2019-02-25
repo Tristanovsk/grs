@@ -20,7 +20,7 @@ from sid.config import *
 
 # --------------------------------------------------------------------------------
 # set parameters
-sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List.xlsx'
+sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
 lev = 'L2grs'
 aerosol = 'cams_forecast'
 logdir = './tmp'
@@ -39,12 +39,12 @@ odir_sub = 'acix'
 missions=['all','S2','Landsat']
 mission=missions[2]
 # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
-Nimage = 5
+Nimage = 2
 # number of processors to be used
-ncore = 15
+ncore = 5
 
 download = False  # set to True if you want to download missing images
-angleonly = True  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
+angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
 noclobber = True
 resolution = None
 aeronet_file = 'no'
@@ -171,9 +171,9 @@ for idx, site in sites.iterrows():
     if "Landsat" in productimage:
         try:
             file_tbp = glob.glob(file + '/*MTL.txt')[0]
+        except:
             with open(fjunk, "a") as myfile:
                 myfile.write(file + ' image is incomplete or missing \n')
-        except:
             continue
     else:
         file_tbp = file
