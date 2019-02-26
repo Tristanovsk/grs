@@ -12,8 +12,8 @@ import multiprocessing
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
 from procutils import misc, multi_process
-
 misc = misc()
+
 from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
@@ -21,8 +21,12 @@ from sid.config import *
 # --------------------------------------------------------------------------------
 # set parameters
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
+sites = pd.read_excel(sitefile)
+sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.csv'
+sites = pd.read_csv(sitefile)
 lev = 'L2grs'
 aerosol = 'cams_forecast'
+aerosol = 'cams_reanalysis'
 logdir = './tmp'
 idir_root = {'S2A': '/nfs/DD/S2/L1/ESA',
              'S2B': '/nfs/DD/S2/L1/ESA',
@@ -38,14 +42,18 @@ odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
 odir_sub = 'acix'
 missions=['all','S2','Landsat']
 mission=missions[2]
-# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
-Nimage = 2
-# number of processors to be used
-ncore = 5
+if mission == 'Landsat':
+    # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
+    Nimage = 2
+    # number of processors to be used
+    ncore = 5
+else:
+    Nimage = 1
+    ncore=4
 
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True
+noclobber = False #True
 resolution = None
 aeronet_file = 'no'
 aot550 = 0.1
@@ -64,15 +72,20 @@ with open(fmissing, 'w'):
 # --------------------------------------------------------------------------------
 
 args_list = []
-sites = pd.read_excel(sitefile)
+
 idx, site = list(sites.iterrows())[1]
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
     name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    altitude = 0  # site.iloc[6]
+    altitude = site.iloc[7]
     # get date in pratical format
     date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
+
+    #############
+    if date.year > 2016:
+        continue
+    #############
 
     sensor = misc.get_sensor(basename)
     if sensor == None:

@@ -18,7 +18,7 @@ class process:
     def __init__(self):
         pass
 
-    def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary='cams_forecast',
+    def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary=None,
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
                 angleonly=False, output='Rrs'):
         '''
@@ -53,6 +53,9 @@ class process:
         if resolution == None:
             resolution = sensordata.resolution
         indband = sensordata.indband
+
+        if ancillary == None:
+            ancillary = aerosol
 
         ##################################
         # Read L1C product
@@ -201,7 +204,8 @@ class process:
             # target=Path(os.path.join(l2h.ecmwf_root,l2h.date.strftime('%Y-%m-%d')+'_cams_aero.nc'))
             # cams=aux.get_cams_aerosol(target,l2h.date.strftime('%Y-%m-%d'),l2h.wkt,l2h.crs)
             # monthly file
-
+            target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' +
+                                       l2h.aerosol + '.nc'))
             l2h.aux.get_cams_aerosol(target, l2h.date, l2h.wkt)
 
         elif (l2h.aerosol == 'user_model'):
