@@ -507,6 +507,7 @@ class cams:
         elif data_type == 'cams_reanalysis':
             class_ = 'mc'
             dataset = 'cams_reanalysis'
+            time = '00:00:00/06:00:00/12:00:00/18:00:00'
             type = 'an'
 
         elif data_type == 'interim':

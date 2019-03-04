@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import glob
 import datetime
-import multiprocessing
+from multiprocessing import Pool
 
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
@@ -25,8 +25,7 @@ sites = pd.read_excel(sitefile)
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.csv'
 sites = pd.read_csv(sitefile)
 lev = 'L2grs'
-aerosol = 'cams_forecast'
-aerosol = 'cams_reanalysis'
+
 logdir = './tmp'
 idir_root = {'S2A': '/nfs/DD/S2/L1/ESA',
              'S2B': '/nfs/DD/S2/L1/ESA',
@@ -40,21 +39,22 @@ odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
              'LANDSAT_7': '/nfs/DP/Landsat/L2/GRS/',
              'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
 odir_sub = 'acix'
+resolution = None
 missions=['all','S2','Landsat']
 mission=missions[2]
 if mission == 'Landsat':
     # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
-    Nimage = 2
+    Nimage = 4
     # number of processors to be used
-    ncore = 5
+    ncore = 17
 else:
     Nimage = 1
-    ncore=4
-
+    ncore=2
+    resolution = 10
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False #True
-resolution = None
+noclobber = True
+
 aeronet_file = 'no'
 aot550 = 0.1
 angstrom = 0.5
@@ -63,7 +63,7 @@ if full_tile:
     w, h = 200, 200
 else:
     # set rectangle limits (width and height in meters) of the subscene to process
-    w, h = 1, 1
+    w, h = 0.5,0.5
 
 fmissing = os.path.join(logdir, 'list_missing_files.txt')
 fjunk = os.path.join(logdir, 'list_junk_files.txt')
@@ -84,8 +84,11 @@ for idx, site in sites.iterrows():
 
     #############
     if date.year > 2016:
-        continue
+        aerosol = 'cams_forecast'
+        #continue
     #############
+    else:
+        aerosol = 'cams_reanalysis'
 
     sensor = misc.get_sensor(basename)
     if sensor == None:
@@ -131,7 +134,7 @@ for idx, site in sites.iterrows():
             with open(fmissing, "a") as myfile:
                 myfile.write(file + '\n')
 
-            continue
+            #continue
     else:
         pass  # break
     # ----------------------------------------------
@@ -171,7 +174,7 @@ for idx, site in sites.iterrows():
     # skip if incomplete (enables multiprocess)
     if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
         print('found incomplete File ' + outfile + '; skipped!')
-        continue
+        #continue
 
     # unzip image file
     unzip = False
@@ -220,7 +223,8 @@ command=[]
 for args in misc.chunk(iter(args_list), Nimage):
     command.append([args,fjunk])
 
-p = multiprocessing.Pool(ncore)
-p.map(multi_process().grs_call, command)
+with Pool(processes=ncore) as pool:
+    pool.map(multi_process().grs_call, command)
+    pool.close
 
 

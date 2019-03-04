@@ -143,4 +143,5 @@ class multi_process:
                 with open(fjunk, "a") as myfile:
                     myfile.write(file_tbp + ' error during grs \n')
                 continue
-        return
+        # here sys.exit instead of "return" to terminate and close snappy and free memory
+        sys.exit()

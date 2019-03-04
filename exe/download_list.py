@@ -8,7 +8,7 @@ import glob
 import datetime
 import multiprocessing
 
-#sys.path.extend([os.path.abspath(__file__)])
+# sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
 from procutils import misc
 
@@ -17,13 +17,13 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
-#number of processors to be used
-ncore = 2
+# number of processors to be used
+ncore = 12
 list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
 
-missions=['all','S2','Landsat']
-mission=missions[1]
+missions = ['all', 'S2', 'Landsat']
+mission = missions[2]
 
 command = []
 list = []
@@ -43,23 +43,22 @@ for idx, site in sites.iterrows():
     sat = sensor[2]
 
     # skip S2/Landsat if mission == Landsat/S2
-    if (('Landsat' in productimage) & (mission=='S2')) | (('S2' in productimage) & (mission=='Landsat')):
+    if (('Landsat' in productimage) & (mission == 'S2')) | (('S2' in productimage) & (mission == 'Landsat')):
         continue
 
     idir = dic[productimage]['path']
     file = os.path.join(idir, basename)
-    #------------------------
+    # ------------------------
     # input file naming
     # Warning: only .zip or .tgz are permitted
-    file = file.replace('SAFE','zip')
+    file = file.replace('SAFE', 'zip')
     if productimage != 'S2_ESA':
-        file = file.replace('.tgz','')
+        file = file.replace('.tgz', '')
         file = file + '.tgz'
 
-
-    print(sensor, name, file)
     # check if image is already downloaded
     if not os.path.exists(file):
+        print(sensor, name, file)
         list.append(file)
         fromdate = date.strftime('%Y-%m-%d')
         todate = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
@@ -69,12 +68,13 @@ for idx, site in sites.iterrows():
         write = dic[productimage]['path']
         auth = dic[productimage]['auth']
         if productimage == 'S2_ESA':
-            auth =os.path.abspath('/local/AIX/tristan.harmel/git/sat/sid/auxdata/apihub_th.txt')
+            auth = os.path.abspath('/local/AIX/tristan.harmel/git/sat/sid/auxdata/apihub_th.txt')
         tile = misc.get_tile(basename)
         command.append([script, lat, lon, write, auth, tile, sat, cloudmax, fromdate, todate, productimage])
 
         # download image
-        #download_image.mp_worker(command)
+        # download_image.mp_worker(command)
 
 p = multiprocessing.Pool(ncore)
 p.map(download_image.mp_worker, command)
+p.close()
