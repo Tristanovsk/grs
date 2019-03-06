@@ -1,6 +1,7 @@
 '''utils module dedicated to processing of massive dataset'''
 
 import os, sys
+import re
 import numpy as np
 import pandas as pd
 import glob
@@ -53,7 +54,7 @@ class misc:
             sensor = ('S2A', 'S2_ESA', None)
         elif ('S2B' in file):
             sensor = ('S2B', 'S2_ESA', None)
-        elif ('LC08' in file) | ('LC8' in file):
+        elif ('LC08' in file) | bool(re.search(r"L[C,O]8",file)):
             sensor = ('LANDSAT_8', 'Landsat_USGS', 'LC8')
         elif ('LE07' in file) | ('LE7' in file):
             sensor = ('LANDSAT_7', 'Landsat_USGS', 'LE7')
@@ -76,7 +77,7 @@ class misc:
         sensor = ''
         if ('S2A' in file) | ('S2B' in file):
             tile = file.split('_')[5][-5:]
-        elif ('LC8' in file) | ('LE7' in file) | ('LT5' in file):
+        elif bool(re.search(r"L[C,O]8",file)) | ('LE7' in file) | ('LT5' in file):
             tile = file[3:9]
         elif ('LC08' in file) | ('LE07' in file) | ('LT05' in file):
             tile = file[4:10]

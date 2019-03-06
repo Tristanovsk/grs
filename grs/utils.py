@@ -1,4 +1,5 @@
 # coding=utf-8
+import re
 import numpy as np
 from dateutil import parser
 
@@ -597,7 +598,7 @@ class utils:
         file = os.path.basename(file)
         if ('S2A' in file): sensor = 'S2A'
         elif ('S2B' in file): sensor = 'S2B'
-        elif ('LC08' in file)| ('LC8' in file): sensor = 'LANDSAT_8'
+        elif ('LC08' in file)| bool(re.search(r"L[C,O]8",file)): sensor = 'LANDSAT_8'
         elif ('LE07' in file)| ('LE7' in file): sensor = 'LANDSAT_7'
         elif ('LT05' in file)| ('LT5' in file): sensor = 'LANDSAT_5'
         # TODO add to log file

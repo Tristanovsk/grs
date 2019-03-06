@@ -1,3 +1,4 @@
+
 '''
 command to process images over the aeronet-oc sites
 '''
@@ -41,15 +42,15 @@ odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
 odir_sub = 'acix'
 resolution = None
 missions=['all','S2','Landsat']
-mission=missions[2]
+mission=missions[1]
 if mission == 'Landsat':
     # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
     Nimage = 4
     # number of processors to be used
     ncore = 17
 else:
-    Nimage = 1
-    ncore=2
+    Nimage = 2
+    ncore=6
     resolution = 10
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
