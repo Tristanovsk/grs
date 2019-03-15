@@ -323,6 +323,13 @@ class cams:
             startDate = '%04d%02d%02d' % (year, month, 1)
             numberOfDays = calendar.monthrange(year, month)[1]
             lastDate = '%04d%02d%02d' % (year, month, numberOfDays)
+            now = datetime.datetime.now() - datetime.timedelta(days=2)
+            # restricted access to data from the future
+            # set lastDate as today date
+            # TODO warning this will download incomplete data file for near real time data
+            if now < datetime.datetime.strptime(lastDate, '%Y%m%d'):
+                lastDate = datetime.datetime.strftime(now, '%Y%m%d')
+
             requestDates = startDate + '/TO/' + lastDate
             self.download_erainterim(str(target), requestDates, param=param,
                                      grid=grid, data_type=data_type)
@@ -448,12 +455,6 @@ class cams:
             numberOfDays = calendar.monthrange(year, month)[1]
 
             lastDate = '%04d%02d%02d' % (year, month, numberOfDays)
-            now = datetime.datetime.now()
-            #restricted access to data from the future
-            # set lastDate as today date
-            # TODO warning this will download incomplete data file for near real time data
-            if now < datetime.datetime.strptime(lastDate,'%Y%m%d'):
-                lastDate = datetime.datetime.strftime(now,'%Y%m%d')
 
             requestDates = startDate + '/TO/' + lastDate
             self.download_erainterim(str(target), requestDates, data_type=data_type)
