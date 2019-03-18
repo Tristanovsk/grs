@@ -1,4 +1,3 @@
-
 '''
 command to process images over the aeronet-oc sites
 '''
@@ -13,6 +12,7 @@ from multiprocessing import Pool
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
 from procutils import misc, multi_process
+
 misc = misc()
 
 from sid import download_image
@@ -41,8 +41,8 @@ odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
              'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
 odir_sub = 'acix'
 resolution = None
-missions=['all','S2','Landsat']
-mission=missions[1]
+missions = ['all', 'S2', 'Landsat']
+mission = missions[1]
 if mission == 'Landsat':
     # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
     Nimage = 4
@@ -50,7 +50,7 @@ if mission == 'Landsat':
     ncore = 17
 else:
     Nimage = 2
-    ncore=6
+    ncore = 6
     resolution = 10
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
@@ -64,12 +64,12 @@ if full_tile:
     w, h = 200, 200
 else:
     # set rectangle limits (width and height in meters) of the subscene to process
-    w, h = 0.5,0.5
+    w, h = 0.5, 0.5
 
 fmissing = os.path.join(logdir, 'list_missing_files.txt')
 fjunk = os.path.join(logdir, 'list_junk_files.txt')
 with open(fmissing, 'w'):
-            pass
+    pass
 # --------------------------------------------------------------------------------
 
 args_list = []
@@ -86,7 +86,7 @@ for idx, site in sites.iterrows():
     #############
     if date.year > 2016:
         aerosol = 'cams_forecast'
-        #continue
+        # continue
     #############
     else:
         aerosol = 'cams_reanalysis'
@@ -100,7 +100,7 @@ for idx, site in sites.iterrows():
     sat = sensor[2]
 
     # skip S2/Landsat if mission == Landsat/S2
-    if (('Landsat' in productimage) & (mission=='S2')) | (('S2' in productimage) & (mission=='Landsat')):
+    if (('Landsat' in productimage) & (mission == 'S2')) | (('S2' in productimage) & (mission == 'Landsat')):
         continue
 
     # get L1 image full path
@@ -116,6 +116,16 @@ for idx, site in sites.iterrows():
     #  DOWNLOAD SECTION
     # ----------------------------------------------
     # check if image is already downloaded
+    if not os.path.exists(file):
+        if 'S2' in productimage:
+            # check if other version of the image exists
+            sub = basename.split('_')
+            new_basename = sub[0] + '_' + sub[1] + '_' + sub[2] + '*' + sub[5] + '*zip'
+            f = glob.glob(os.path.join(idir, new_basename))
+            if f != []:
+                file = f[0]
+                basename = os.path.basename(file)
+
     if not os.path.exists(file):
         fromdate = date.strftime('%Y-%m-%d')
         todate = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
@@ -135,7 +145,7 @@ for idx, site in sites.iterrows():
             with open(fmissing, "a") as myfile:
                 myfile.write(file + '\n')
 
-            #continue
+            # continue
     else:
         pass  # break
     # ----------------------------------------------
@@ -175,7 +185,7 @@ for idx, site in sites.iterrows():
     # skip if incomplete (enables multiprocess)
     if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
         print('found incomplete File ' + outfile + '; skipped!')
-        #continue
+        # continue
 
     # unzip image file
     unzip = False
@@ -199,7 +209,6 @@ for idx, site in sites.iterrows():
     print('call grs for ', outfile, sensor)
     print('-------------------------------')
 
-
     # check if already partially processed, if so get startrow value
     startrow = 0
     # TODO double check checksum files and location for optimization
@@ -217,15 +226,13 @@ for idx, site in sites.iterrows():
     # break
 
     args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
-                    aot550, angstrom, unzip, untar, startrow, angleonly])
+                      aot550, angstrom, unzip, untar, startrow, angleonly])
 
 # reshape args_list to process several images (Nimage) on each processor
-command=[]
+command = []
 for args in misc.chunk(iter(args_list), Nimage):
-    command.append([args,fjunk])
+    command.append([args, fjunk])
 
 with Pool(processes=ncore) as pool:
-    pool.map(multi_process().grs_call, command)
+    pool.map(multi_process().grs_call, command, 1)
     pool.close
-
-
