@@ -89,7 +89,9 @@ do ipix=1,npix
 
     aotpt=aot550(ipix)
     !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
+    !TODO  and for AOT > 0.8
     aotpt(:) = max(aotpt * scale,0.01)
+    aotpt(:) = min(aotpt * scale,0.8)
 
     i=0
     success=0

@@ -128,14 +128,14 @@ class multi_process:
         args,fjunk = p
         for arg in args:
             file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
-            aot550, angstrom, unzip, untar, startrow, angleonly = arg
+            aot550, angstrom, mem_safe, unzip, untar, startrow, angleonly = arg
             print('yop',file_tbp)
             #return
             try:
                 from grs import grs_process
                 grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol,
                                               gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                                              aot550=aot550, angstrom=angstrom, unzip=unzip, untar=untar,
+                                              aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
                                               startrow=startrow,angleonly=angleonly)
             except:
                 print('-------------------------------')
@@ -145,7 +145,7 @@ class multi_process:
                     myfile.write(file_tbp + ' error during grs \n')
                 continue
         # here sys.exit instead of "return" to terminate and close snappy and free memory
-        #sys.exit()
+        sys.exit()
         return
 
 

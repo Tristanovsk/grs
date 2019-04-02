@@ -38,6 +38,8 @@ Options:
   --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res spatial resolution of the scene pixels
   --unzip          to process zipped images seamlessly
+  --memory_safe    use generic resampler instead of S2resampler to save memory
+                   (induces loss in angle resolution per pixel for S2)
 
 '''
 
@@ -67,7 +69,7 @@ def main():
 
     noclobber = args['--no_clobber']
     unzip = args['--unzip']
-
+    memory_safe = args['memory_safe']
     altitude = float(args['--altitude'])
     resolution = args['--resolution']
     aerosol = args['--aerosol']
@@ -124,7 +126,8 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       gdm=None, aeronet_file=aeronet_file, resolution=resolution,
-                      aot550=aot550, angstrom=angstrom, output=output, unzip=unzip)
+                      aot550=aot550, angstrom=angstrom, output=output, memory_safe=memory_safe,
+                      unzip=unzip)
     return
 
 

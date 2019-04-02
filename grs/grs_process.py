@@ -20,7 +20,7 @@ class process:
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary=None,
                 gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
-                angleonly=False, output='Rrs'):
+                memory_safe=False, angleonly=False, output='Rrs'):
         '''
 
         :param file:
@@ -133,8 +133,10 @@ class process:
         # RESAMPLE TO A UNIQUE RESOLUTION
         ##################################
         if 'S2' in sensor:
-            l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
-            # l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution, method='Nearest')
+            if memory_safe:
+                l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution)  # , method='Nearest')
+            else:
+                l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
         else:
             l2h.product = _utils.resampler(l2h.product, resolution=resolution)  # , upmethod='Nearest')
 

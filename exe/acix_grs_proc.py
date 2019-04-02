@@ -55,7 +55,7 @@ else:
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
 noclobber = True
-
+memory_safe=False
 aeronet_file = 'no'
 aot550 = 0.1
 angstrom = 0.5
@@ -226,7 +226,7 @@ for idx, site in sites.iterrows():
     # break
 
     args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
-                      aot550, angstrom, unzip, untar, startrow, angleonly])
+                      aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
 
 # reshape args_list to process several images (Nimage) on each processor
 command = []

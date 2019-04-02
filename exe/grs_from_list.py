@@ -19,46 +19,29 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
-from sentinelsat import SentinelAPI
-
-api = SentinelAPI('harmel', 'kroumir1')
-
 # --------------------------------------------------------------------------------
 # set parameters
 sitefile = 'exe/List_images_grs_template.csv'
-odir_sub = 'gernez'
+# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
+Nimage = 1
+# number of processors to be used
+ncore = 2
+
+
 sites = pd.read_csv(sitefile)
 lev = 'L2grs'
 
 logdir = './tmp'
-idir_root = {'S2A': '/nfs/DD/S2/L1/ESA',
-             'S2B': '/nfs/DD/S2/L1/ESA',
-             'LANDSAT_5': '/nfs/DD/Landsat/L1/uncompressed',
-             'LANDSAT_7': '/nfs/DD/Landsat/L1/uncompressed',
-             'LANDSAT_8': '/nfs/DD/Landsat/L1/uncompressed'}
+idir_root = {'s2': '/nfs/DD/S2/L1/ESA',
+             'landsat': '/nfs/DD/landsat/L1/uncompressed'}
 
-odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
-             'S2B': '/nfs/DP/S2/L2/GRS/',
-             'LANDSAT_5': '/nfs/DP/Landsat/L2/GRS/',
-             'LANDSAT_7': '/nfs/DP/Landsat/L2/GRS/',
-             'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
-
-resolution = None
-missions = ['all', 'S2', 'Landsat']
-mission = missions[1]
-if mission == 'Landsat':
-    # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
-    Nimage = 4
-    # number of processors to be used
-    ncore = 17
-else:
-    Nimage = 1
-    ncore = 2
+odir_root = {'s2': '/nfs/DP/S2/L2/GRS/',
+             'landsat': '/nfs/DP/Landsat/L2/GRS/'}
 
 download = True #False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
 noclobber = True
-
+memory_safe= True
 aeronet_file = 'no'
 aot550 = 0.1
 angstrom = 0.5
@@ -80,29 +63,36 @@ for idx, site in sites.iterrows():
     if name != name:
         name=''
     odir_sub = tile
-
+    sat=sat.lower()
+    resolution = int(resolution)
     # get date in pratical format
     start = datetime.datetime.strptime(start, '%Y-%m-%d') #+ datetime.timedelta(hours=time)
     end = datetime.datetime.strptime(end, '%Y-%m-%d')
-    # TODO modify for landsat
-    files = glob.glob(os.path.join(idir_root['S2A'] ,'*' + tile + '*'))
+
+    files = glob.glob(os.path.join(idir_root[sat] ,'*' + tile + '*'))
     print(files.__len__())
-    imgs = []
+
     for file in files:
-        date = file.split('_')[2].split('T')[0]
-        date = datetime.datetime.strptime(date,'%Y%m%d')
-        if (date>= start) & (date <= end):
-            imgs.append(file)
-    if imgs == []:
-        continue
+        #------------------
+        # get date and images within the given, date range
+        basename = os.path.basename(file)
+        if 's2' in sat:
+            date = basename.split('_')[2].split('T')[0]
 
-    wkt = misc.wktbox(lon, lat,width=w,height=h)
-
-    for file in imgs:
-        date = file.split('_')[2].split('T')[0]
+        else:
+            try:
+                file = glob.glob(file + '/*MTL.txt')[0]
+            except:
+                with open(fjunk, "a") as myfile:
+                    myfile.write(file + ' image is incomplete or missing \n')
+                continue
+            date = basename.split('_')[3]
         date = datetime.datetime.strptime(date,'%Y%m%d')
-        #############
-        # CAMS data selection
+        if (date < start) | (date > end):
+            continue
+
+        #------------------
+        #  CAMS data selection
         if date.year > 2016:
             aerosol = 'cams_forecast'
         else:
@@ -113,14 +103,6 @@ for idx, site in sites.iterrows():
         if sensor == None:
             print('non standard image, not processed: ', basename)
             continue
-
-        productimage = sensor[1]
-        sat = sensor[2]
-
-        # skip S2/Landsat if mission == Landsat/S2
-        if (('Landsat' in productimage) & (mission == 'S2')) | (('S2' in productimage) & (mission == 'Landsat')):
-            continue
-
 
         # ------------------------
         # input file naming
@@ -133,7 +115,7 @@ for idx, site in sites.iterrows():
         #  PROCESS SECTION
         # ----------------------------------------------
         # check / create output directory
-        odir = os.path.join(odir_root[sensor[0]], odir_sub)
+        odir = os.path.join(odir_root[sat.lower()], odir_sub)
         if not os.path.exists(odir):
             os.makedirs(odir)
 
@@ -176,16 +158,6 @@ for idx, site in sites.iterrows():
         if os.path.splitext(file)[-1] == '.tgz':
             untar = True
 
-        if "Landsat" in productimage:
-            try:
-                file_tbp = glob.glob(file + '/*MTL.txt')[0]
-            except:
-                with open(fjunk, "a") as myfile:
-                    myfile.write(file + ' image is incomplete or missing \n')
-                continue
-        else:
-            file_tbp = file
-
         print('-------------------------------')
         print('call grs for ', outfile, sensor)
         print('-------------------------------')
@@ -193,7 +165,7 @@ for idx, site in sites.iterrows():
         # check if already partially processed, if so get startrow value
         startrow = 0
         # TODO double check checksum files and location for optimization
-        if False:
+        if True:
             checksum = outfile + '.checksum'
             try:
                 with open(checksum) as f:
@@ -206,8 +178,8 @@ for idx, site in sites.iterrows():
                 pass
         # break
 
-        args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
-                          aot550, angstrom, unzip, untar, startrow, angleonly])
+        args_list.append([file, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
+                          aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
 
 # reshape args_list to process several images (Nimage) on each processor
 command = []

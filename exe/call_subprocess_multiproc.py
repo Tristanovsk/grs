@@ -10,7 +10,7 @@ def call(command):
     return
 
 
-ncore=7
+ncore=2
 ifile = '/local/AIX/nathalie.reynaud/Documents/teledec/'+\
         'processing/grs/batch_grs_ldst/batch_grs_ldst.sh'
 command = pd.read_csv(ifile).values
