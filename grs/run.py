@@ -5,7 +5,7 @@ Usage:
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
-   [--resolution=res] [--levname <lev>] [--no_clobber] [--unzip]
+   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
   grs -h | --help
   grs -v | --version
 
