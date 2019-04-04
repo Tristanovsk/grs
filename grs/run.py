@@ -69,7 +69,7 @@ def main():
 
     noclobber = args['--no_clobber']
     unzip = args['--unzip']
-    memory_safe = args['memory_safe']
+    memory_safe = args['--memory_safe']
     altitude = float(args['--altitude'])
     resolution = args['--resolution']
     aerosol = args['--aerosol']
