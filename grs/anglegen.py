@@ -91,6 +91,7 @@ class angle_generator:
         # Call angle processor executable
         nodatavalue = 0
         ang_header = l2h.headerfile.replace('MTL.txt', 'ANG.txt')
+        ang_header = ang_header.replace('MTL.TXT', 'ANG.TXT')
         ang_file = os.path.join(os.path.dirname(l2h.headerfile),'angle_solar_B01.img.hdr')
 
         for band_name,ang_name in zip(l2h.band_names, l2h.sensordata.angle_names):
