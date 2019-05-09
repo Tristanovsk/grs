@@ -9,6 +9,14 @@ from esasnappy import ProductIO
 from .config import *
 from .utils import utils as u
 
+#------------------------
+# set threshold for masking
+high_nir_threshold = 0.1
+hcld_threshold = 0.003 # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)
+
+# -----------------
+# set values bracketing the Normalized Difference Water Index for rough land/water masking
+NDWI_threshold = [0., 1.1]
 
 class sensordata:
     '''Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.
@@ -30,6 +38,8 @@ class sensordata:
         * ``rg`` -- Cox-Munk Fresnel reflection factor ratio (R(wl)/Rref(2190nm) [Harmel et al., 2018]
         * ``angle_generator`` -- function to compute angles from metadata
     '''
+
+
 
     def __init__(self, sensor):
         self.sensor = sensor
@@ -69,7 +79,7 @@ class sensordata:
                     'ang_proc': None,
                     'smac_dir': os.path.join(smac_root, 'Coef_S2A_CONT_'),
                     'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
-                    'cirrus_band': 'B10',
+                    'cirrus': ['B10',hcld_threshold],
                     'lut_name': 'S2A/lut_',
                     # rot and rglint from old RSR (now updated since Jan-2018)
                     # 'rot': [0.23385, 0.14944, 0.09034, 0.0449976, 0.035565,
@@ -80,7 +90,10 @@ class sensordata:
                             0.02896814, 0.02315269, 0.01830901, 0.01549064, 0.00126556, 0.00036496],
                     'rglint': [1.28672512, 1.26815692, 1.24964349, 1.23035937, 1.22478961,
                                1.2202435, 1.21551569, 1.21009995, 1.206616, 1.12458056, 1.],
-                    'ndwi_conf': [2, 7, NDWI_threshold]},
+                    'ndwi_conf': [2, 7, NDWI_threshold],
+                    'high_nir': [8,high_nir_threshold],
+                    'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
+                    },
 
             # TODO update for S2B: lut_name, rot, rglint for RSR
             'S2B': {'sensor': 'S2B',
@@ -98,13 +111,16 @@ class sensordata:
                     #TODO update for S2B after update of SMAC by CESBIO
                     'smac_dir': os.path.join(smac_root, 'Coef_S2A_CONT_'),
                     'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
-                    'cirrus_band': 'B10',
+                    'cirrus': ['B10',hcld_threshold],
                     'lut_name': 'S2B/lut_',
                     'rot': [0.23745233, 0.15521662, 0.09104522, 0.04485828, 0.03557663,
                             0.02918357, 0.02351827, 0.01829234, 0.01554304, 0.00127606, 0.00037652],
                     'rglint': [1.27878376, 1.26024821, 1.24195311, 1.22253644, 1.21708874, 1.21269296,
                                1.20815455, 1.20243389, 1.19906708, 1.11793355, 1.],
-                    'ndwi_conf': [2, 7, NDWI_threshold]},
+                    'ndwi_conf': [2, 7, NDWI_threshold],
+                    'high_nir': [8,high_nir_threshold],
+                    'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
+                    },
 
             'LANDSAT_4': {'sensor': 'LANDSAT_4',
                           'resolution': 30,
@@ -121,11 +137,14 @@ class sensordata:
                           'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
                           'smac_dir': os.path.join(smac_root, 'coef_LANDSAT4_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
-                          'cirrus_band': 'no',
+                          'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L4/lut_L4_',
                           'rot': [0.16389, 0.084813, 0.046737, 0.01785, 0.001091, 0.0003578],
                           'rglint': [1.28037, 1.25722, 1.24089, 1.21893, 1.12406, 1.0],
-                          'ndwi_conf': [1, 3, NDWI_threshold]},
+                          'ndwi_conf': [1, 3, NDWI_threshold],
+                          'high_nir': [3,high_nir_threshold],
+                          'l1_flags': ['', '', '']
+                    },
 
             'LANDSAT_5': {'sensor': 'LANDSAT_5',
                           'resolution': 30,
@@ -141,11 +160,14 @@ class sensordata:
                           'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
                           'smac_dir': os.path.join(smac_root, 'coef_LANDSAT5_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
-                          'cirrus_band': 'no',
+                          'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L5/lut_L5_',
                           'rot': [0.163419, 0.085201, 0.046514, 0.017945, 0.001098, 0.0003576],
                           'rglint': [1.28046, 1.257556, 1.24096, 1.21924, 1.12462, 1.0],
-                          'ndwi_conf': [1, 3, NDWI_threshold]},
+                          'ndwi_conf': [1, 3, NDWI_threshold],
+                          'high_nir': [3,high_nir_threshold],
+                          'l1_flags': ['', '', '']
+                    },
 
             'LANDSAT_7': {'sensor': 'LANDSAT_7',
                           'resolution': 30,
@@ -161,11 +183,14 @@ class sensordata:
                           'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
                           'smac_dir': os.path.join(smac_root, 'coef_LANDSAT7_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
-                          'cirrus_band': 'no',
+                          'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L7/lut_L7_',
                           'rot': [0.174702, 0.091113, 0.046100, 0.018231, 0.001169, 0.0003645],
                           'rglint': [1.27891, 1.25551, 1.236695, 1.215597, 1.12477, 1.0],
-                          'ndwi_conf': [1, 3, NDWI_threshold]},
+                          'ndwi_conf': [1, 3, NDWI_threshold],
+                          'high_nir': [3,high_nir_threshold],
+                          'l1_flags': ['', '', '']
+                    },
 
             'LANDSAT_8': {'sensor': 'LANDSAT_8',
                           'resolution': 30,
@@ -182,11 +207,14 @@ class sensordata:
                           'ang_proc': os.path.join(grs_root, 'landsat_angles/OLI/l8_angles'),
                           'smac_dir': os.path.join(smac_root, 'Coef_LANDSAT8_'),
                           'smac_bands': ('440_1', '490_1', '560_1', 'PAN_1', '660_1', '860_1', '1630_1', '2250_1'),
-                          'cirrus_band': 'cirrus',
+                          'cirrus': ['cirrus',hcld_threshold],
                           'lut_name': 'L8/lut_L8_',
                           'rot': [0.22899, 0.16786, 0.08999, 0.077445, 0.04785, 0.015507, 0.00128, 0.000366],
                           'rglint': [1.28637, 1.271187, 1.249180, 1.243706, 1.231680, 1.206419, 1.125028, 1.000000],
-                          'ndwi_conf': [2, 5, NDWI_threshold]}
+                          'ndwi_conf': [2, 5, NDWI_threshold],
+                          'high_nir': [5,high_nir_threshold],
+                          'l1_flags': ['cloud_confidence_high', 'cirrus_confidence_high', 'cloud_shadow_confidence_high']
+                    }
         }
 
         info = InfoSat[sensor]
@@ -205,9 +233,11 @@ class sensordata:
         self.vza_name = info['vza_name']
         self.azi_name = info['azi_name']
         self.band_names = np.array(info['band_names'])[idx]
-        self.cirrus = info['cirrus_band']
         self.solar_irr = info['solar_irr']
         self.NDWI_vis, self.NDWI_nir, self.NDWI_threshold = info['ndwi_conf']
+        self.cloud_flag, self.cirrus_flag, self.shadow_flag = info['l1_flags']
+        self.cirrus = info['cirrus']
+        self.high_nir = info['high_nir']
 
 
 class cams:

@@ -329,13 +329,13 @@ class process:
             ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
                                  (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
             # set flags
-            l2h.flags = ((l2h.mask == 1) +
+            l2h.flags = l2h.flags+\
+                        ((l2h.mask == 1) +
                          (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
                          ((l2h.mask == 2) << 2) +
                          (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
                                  ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
-                         ((rcorrg[l2h.sensordata.NDWI_nir] > 5.) << 4)
-
+                         ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                          )
 
             for iband in range(l2h.N):

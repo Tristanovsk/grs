@@ -1,6 +1,7 @@
 grs/config.py
 
 # Byte-compiled / optimized / DLL files
+*/*.o
 *.o
 __pycache__/
 *.py[cod]
