@@ -6,7 +6,7 @@ import os, sys
 import numpy as np
 import pandas as pd
 import glob
-import datetime
+from datetime import datetime, timedelta
 from multiprocessing import Pool
 
 # sys.path.extend([os.path.abspath(__file__)])
@@ -21,8 +21,10 @@ from sid.config import *
 
 # --------------------------------------------------------------------------------
 # set parameters
-sitefile = 'exe/List_images_grs_template.csv'
-# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
+sitefile = sys.argv[1] #'exe/List_images_grs_template.csv'
+#sitefile = 'exe/List_images_grs_brazil.csv'
+
+# number of images to process within one jpy v- timedelta(days=1))irtual machine (i.e., for one load of snappy)
 Nimage = 1
 # number of processors to be used
 ncore = 2
@@ -60,14 +62,65 @@ for idx, site in sites.iterrows():
     if site.iloc[0] == 0:
         continue
     name, start, end, sat, tile, lat, lon, h, w, altitude, resolution = site.iloc[1:12]
+
+    if download:
+
+        cloudmax = str(60)
+
+        if 'S2' in sat:
+            productimage = 'S2_ESA'
+            mission = ''
+            script = dic[productimage]['script']
+            write = dic[productimage]['path']
+            auth = dic[productimage]['auth']
+            # due to modification of the nomemclature at the two following date,
+            # downloading is splitted into four cases:
+
+            tiledate1=datetime.strptime('2016-12-01', '%Y-%m-%d').date()
+            tiledate2=datetime.strptime('2017-04-01', '%Y-%m-%d').date()
+            date1=datetime.strptime(start, '%Y-%m-%d').date()
+            date2=datetime.strptime(end, '%Y-%m-%d').date()
+
+            if (date1 < tiledate1) & (date2 < tiledate2):
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate1- timedelta(days=1)).__str__(), productimage]
+                download_image.mp_worker(command)
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(), end, productimage]
+                download_image.mp_worker(command)
+            elif (date1 <= tiledate1) & (date2 >= tiledate2):
+                print(start, tiledate1.__str__())
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate1- timedelta(days=1)).__str__(), productimage]
+                download_image.mp_worker(command)
+                print(tiledate1.__str__(), tiledate2.__str__())
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(), (tiledate2- timedelta(days=1)).__str__(), productimage]
+                download_image.mp_worker(command)
+                print(tiledate2.__str__(), end)
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end, productimage]
+                download_image.mp_worker(command)
+            elif (date1 > tiledate1) & (date2 > tiledate2):
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate2- timedelta(days=1)).__str__(), productimage]
+                download_image.mp_worker(command)
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end, productimage]
+                download_image.mp_worker(command)
+            else:
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, end, productimage]
+                download_image.mp_worker(command)
+        else:
+            productimage = 'Landsat_USGS'
+            mission = 'LC8'
+            script = dic[productimage]['script']
+            write = dic[productimage]['path']
+            auth = dic[productimage]['auth']
+            command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, end, productimage]
+            download_image.mp_worker(command)
+    continue
     if name != name:
         name=''
     odir_sub = tile
     sat=sat.lower()
     resolution = int(resolution)
     # get date in pratical format
-    start = datetime.datetime.strptime(start, '%Y-%m-%d') #+ datetime.timedelta(hours=time)
-    end = datetime.datetime.strptime(end, '%Y-%m-%d')
+    start = datetime.strptime(start, '%Y-%m-%d') #+ datetime.timedelta(hours=time)
+    end = datetime.strptime(end, '%Y-%m-%d')
 
     files = glob.glob(os.path.join(idir_root[sat] ,'*' + tile + '*'))
     print(files.__len__())
@@ -87,7 +140,7 @@ for idx, site in sites.iterrows():
                     myfile.write(file + ' image is incomplete or missing \n')
                 continue
             date = basename.split('_')[3]
-        date = datetime.datetime.strptime(date,'%Y%m%d')
+        date = datetime.strptime(date,'%Y%m%d')
         if (date < start) | (date > end):
             continue
 

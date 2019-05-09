@@ -17,23 +17,29 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
-# number of processors to be used
-ncore = 12
+
 list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
+list_file = '/local/AIX/tristan.harmel/project/acix/ACIXII_Aqua_PhaseII_scene_tile_IDs_harmel.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
 
 missions = ['all', 'S2', 'Landsat']
-mission = missions[2]
+mission = missions[1]
+
+# number of processors to be used
+ncore = 12
+if mission == 'S2':
+    ncore = 2
 
 command = []
 list = []
+_file=''
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
     name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-
+    #print(name, lat, lon, date_raw, time, basename)
     # get date in pratical format
-    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
+    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') #+ datetime.timedelta(hours=time)
 
     sensor = misc.get_sensor(basename)
     if sensor == None:
@@ -57,7 +63,8 @@ for idx, site in sites.iterrows():
         file = file + '.tgz'
 
     # check if image is already downloaded
-    if not os.path.exists(file):
+    if (not os.path.exists(file)) & (file != _file):
+        _file=file
         print(sensor, name, file)
         list.append(file)
         fromdate = date.strftime('%Y-%m-%d')
