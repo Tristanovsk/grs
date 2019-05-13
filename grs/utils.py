@@ -1,5 +1,5 @@
 # coding=utf-8
-import re
+import re, shutil
 import numpy as np
 from dateutil import parser
 
@@ -276,7 +276,7 @@ class info:
             self.VAZI[i].unloadRasterData()
 
     def create_product(self):
-
+        # TODO write output directly in netcdf format
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
         # writer = ProductIO.getProductWriter('NetCDF4-CF')  #
@@ -357,8 +357,11 @@ class info:
         f1 = coding.addFlag("negative", 2, "negative values in visible ")
         f2 = coding.addFlag("ndwi", 4, "based on ndwi vis nir TOA ")
         f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
-        f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow) ")
-        f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band ")
+        f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
+                            self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
+            self.sensordata.high_nir[1]))
+        f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band; condition Rtoa at band " +
+                            self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
         f6 = coding.addFlag("L1_cloud", 64, "opaque cloud flag from L1 image ")
         f7 = coding.addFlag("L1_cirrus", 128, "cirrus cloud flag from L1 image ")
         f8 = coding.addFlag("L1_shadow", 256, "cloud-shadow flag from L1 image ")
@@ -478,12 +481,36 @@ class info:
 
     def finalize_product(self):
         # TODO improve checksum scheme
+        # TODO write output directly in netcdf format
         '''remove checksum file
-        remove extension ".incomplete" from output file name'''
+        remove extension ".incomplete" from output file name
+        convert into netcdf (compressed) from gpt and ncdump/nco tool'''
         os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
         final_name = os.path.splitext(name)[0]
         os.rename(name, final_name)
+
+        # --------------------------
+        # convert into netcdf-BEAM format
+        try:
+            final_name2 = final_name.replace('dim', 'beam.nc')
+            os.system(gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name)
+            # --------------------------
+            # cleaning up
+            os.remove(final_name)
+            shutil.rmtree(final_name.replace('dim', 'data'))
+        except:
+            print('Error in NetCDF conversion; check snap gpt absolute path')
+
+        # --------------------------
+        # convert into netCDF4 compressed format
+        try:
+            os.system('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
+            # --------------------------
+            # cleaning up
+            os.remove(final_name2)
+        except:
+            print('no compression was performed; nco tools should be installed')
 
     def print_info(self):
         ''' print info, can be used to check if object is complete'''
