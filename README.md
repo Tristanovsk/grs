@@ -13,6 +13,8 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
+[Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
+
 Download and install the [SNAP software](http://step.esa.int/main/download/). 
 Configure the [SNAP-python interface](https://senbox.atlassian.net/wiki/spaces/SNAP/pages/50855941/Configure+Python+to+use+the+SNAP-Python+snappy+interface) 
 and link the obtained `snappy` folder to your python site-packages as `esasnappy`. For example:
