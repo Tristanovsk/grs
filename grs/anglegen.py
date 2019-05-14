@@ -5,7 +5,7 @@ from esasnappy import ProductUtils, ProductIO
 from .s2_angle import *
 
 class angle_generator:
-    def landsat(self, l2h):
+    def landsat(self, l2h,tartmp=None):
         '''
         Generate files for sensor and solar angles if files do not exist.
         Copy angles data into l2h.product.
@@ -17,6 +17,10 @@ class angle_generator:
         # set no data value
         nodatavalue = -99
 
+        # anggen: True if angle file generated
+        # (used to add files to 'image.tgz' folder
+        anggen=False
+
         # Sun angles
         ang_type = 'solar'
         suff = ang_type + '_' + l2h.sensordata.angle_names[0] + '.img.hdr'
@@ -26,6 +30,11 @@ class angle_generator:
             arg = ' '.join([ang_header, 'SOLAR', '1', '-b', \
                             l2h.sensordata.angle_names[0][-1],'-f',str(nodatavalue)])
             call(l2h.sensordata.angle_processor + ' ' + arg, shell=True)
+            anggen=True
+            # add generated file to tartmp
+            if tartmp != None:
+                tartmp.add(ang_file)
+                tartmp.add(ang_file.replace('.hdr',''))
 
         #-- add to l2h.product
         ang = ProductIO.readProduct(ang_file)
@@ -48,6 +57,11 @@ class angle_generator:
             if not os.path.isfile(ang_file):
                 arg = ' '.join([ang_header, 'SATELLITE', '1', '-b', ang_name[-1],'-f',str(nodatavalue)])
                 call(l2h.sensordata.angle_processor + ' ' + arg, shell=True)
+                # add generated file to tartmp
+
+                if tartmp != None:
+                    tartmp.add(ang_file)
+                    tartmp.add(ang_file.replace('.hdr',''))
 
         #-- add to l2h.product
             ang = ProductIO.readProduct(ang_file)
@@ -58,7 +72,7 @@ class angle_generator:
                 l2h.product.getBand(bandname).setScalingFactor(0.01)
                 l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
                 l2h.product.getBand(bandname).setNoDataValueUsed(True)
-
+        return anggen
 
     def landsat_tm(self, l2h):
         '''
@@ -77,6 +91,7 @@ class angle_generator:
         # Call angle processor executable
         nodatavalue = 0
         ang_header = l2h.headerfile.replace('MTL.txt', 'ANG.txt')
+        ang_header = ang_header.replace('MTL.TXT', 'ANG.TXT')
         ang_file = os.path.join(os.path.dirname(l2h.headerfile),'angle_solar_B01.img.hdr')
 
         for band_name,ang_name in zip(l2h.band_names, l2h.sensordata.angle_names):

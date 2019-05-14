@@ -1,7 +1,8 @@
 subroutine main_algo(npix, nband, naot,                     &
 &                    vza, sza, azi, rtoa, mask, wl,         &
 &                    aotlut, rlut_f,rlut_c,Cext_f,Cext_c,   &
-&                    rg_ratio, F0, rot, aot, aot550, fine_coef, nodata, rrs, rcorr,rcorrg)
+&                    rg_ratio, F0, rot, aot, aot550, fine_coef, nodata, rrs, &
+&                    rcorr,rcorrg, aot550_est, brdf_est)
 !f2py -c -m main_algo main_algo.f95
 
 !--------------------------------------------------------------------
@@ -34,22 +35,23 @@ real(rtype),intent(in) :: nodata
 logical, intent(in) :: rrs
 
 real(rtype),dimension(npix,nband),intent(out) :: rcorr,rcorrg
-
+real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
 
 !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,rlut_f,rlut_c,Cext_f,Cext_c,rg_ratio,F0,rot,fine_coef,rrs
 !f2py intent(inout) aot, aot550, nodata
-!f2py intent(out) rcorr, rcorrg
-!f2py depend(npix) sza, aot550, mask
+!f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
+!f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est
 !f2py depend(nband) wl,aot,rot,Cext_f,Cext_c,rg_ratio, F0
 !f2py depend(npix,nband) vza, azi, rtoa, rcorr, rcorrg
 !f2py depend(naot) aotlut
 !f2py depend(naot,nband,npix) rlut_f,rlut_c
 
-integer :: iband, ipix
-real(rtype),dimension(nband) :: rsim,rsimf,rsimc,tud,brdf
+integer :: iband, ipix, i, success
+real(rtype),dimension(nband) :: rsim,rsimf,rsimc,tud,brdf,aot_
 real(rtype),dimension(npix) :: mu0
 real(rtype),dimension(npix,nband) :: muv,m
 real(rtype) :: rglint,tdiff_Ed,tdiff_Lu
+real(rtype) :: scale
 
 !----------------------------------------------
 ! set parameters for lut interpolation
@@ -70,8 +72,11 @@ real(rtype),  parameter :: degrad = pi / 180._rtype
 ! initialize outputs
 rcorr=nodata
 rcorrg=nodata
+brdf_est=nodata
+aot550_est=nodata
 !----------------------------------------------
 
+scale = 0.975
 
 do ipix=1,npix
     ! High cloud filter
@@ -81,9 +86,17 @@ do ipix=1,npix
     !if (rtoa(ipix,4) < rtoa(ipix,8) .and. rtoa(ipix,8) > 0.15) cycle
     mu0(ipix)=cos(sza(ipix)*degrad)
 
-    aotpt=aot550(ipix)
 
-    do iband=1,nband
+    aotpt=aot550(ipix)
+    !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
+    !TODO  and for AOT > 0.8
+    aotpt(:) = max(aotpt * scale,0.01)
+    aotpt(:) = min(aotpt * scale,0.8)
+
+    i=0
+    success=0
+    do
+     do iband=nband,1,-1
         muv(ipix,iband)=cos(vza(ipix,iband)*degrad)
         call rgrd1(naot, aotlut, rlut_f(:,iband,ipix), maot,aotpt,rsimf(iband),intpol,w,l_w,iw,l_iw,ier)
         call rgrd1(naot, aotlut, rlut_c(:,iband,ipix), maot,aotpt,rsimc(iband),intpol,w,l_w,iw,l_iw,ier)
@@ -94,16 +107,37 @@ do ipix=1,npix
             stop
         endif
         !write(*,*)iband,aotpt, rtoa(ipix,iband),rsimc(iband)
+
         rsim(iband)=fine_coef*rsimf(iband)+(1-fine_coef)*rsimc(iband)
         rcorrg(ipix,iband)=rtoa(ipix,iband)-rsim(iband)
-        m(ipix,iband) = 1./mu0(ipix) + 1./muv(ipix,iband)
-        tud(iband)=exp(-(rot(iband) + aot(iband)) * m(ipix,iband))
-        brdf(iband)=max(rcorrg(ipix,iband)/tud(iband),0.)
+
+        ! if negative values decrease aot
+        if(rcorrg(ipix,iband).lt.0. .and. iband .le. nband-2 .and. i .le. 8)then
+            aotpt(:) = max(aotpt * scale,0.01)
+
+            i=i+1
+            exit
+        else
+            m(ipix,iband) = 1./mu0(ipix) + 1./muv(ipix,iband)
+            tud(iband)=exp(-(rot(iband) + aot(iband)) * m(ipix,iband))
+            brdf(iband)=max(rcorrg(ipix,iband)/tud(iband),0.)
+        end if
+
+        if(iband==1)success=1
+     enddo
+
+     if(success==1)then
+         ! rescale aot values
+         aot_ = aot * aotpt(1)/aot550(ipix)
+         aot550_est(ipix)=aotpt(1)
+         brdf_est(ipix)=brdf(nband-2)
+         exit
+     endif
     enddo
 
     do iband=1,nband
-        tdiff_Ed = exp(-(0.52 * rot(iband) + 0.16 * aot(iband) ) * (1. / mu0(ipix)))
-        tdiff_Lu = exp(-(0.52 * rot(iband) + 0.16 * aot(iband) ) * (1. / muv(ipix,iband)))
+        tdiff_Ed = exp(-(0.52 * rot(iband) + 0.16 * aot_(iband) ) * (1. / mu0(ipix)))
+        tdiff_Lu = exp(-(0.52 * rot(iband) + 0.16 * aot_(iband) ) * (1. / muv(ipix,iband)))
 
         rglint = 0.5* (tud(iband) * rg_ratio(iband) * brdf(nband) + tud(iband) * rg_ratio(iband)/rg_ratio(nband-1) * brdf(nband-1))
         rcorr(ipix,iband) = rcorrg(ipix,iband) - rglint

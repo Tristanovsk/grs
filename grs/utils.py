@@ -1,10 +1,11 @@
 # coding=utf-8
+import re, shutil
 import numpy as np
 from dateutil import parser
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
-from esasnappy import FlagCoding, String
+from esasnappy import FlagCoding, String, Mask
 
 from .config import *
 
@@ -133,8 +134,20 @@ class info:
             # self.VZA[i].loadRasterData()
             # self.VAZI[i].loadRasterData()
 
+    def get_flag(self, flag_name, rownum):
+        '''get binary flag raster of row `rownum`'''
+
+        flag_raster = np.zeros(self.width, dtype=np.int32)
+        flag = self.product.getMaskGroup().get(flag_name)
+        flag = jpy.cast(flag, Mask)
+        flag.readPixels(0, rownum, self.width, 1, flag_raster)
+        return flag_raster
+
     def load_data(self, rownum):
+        # --------------------------------
         # construct arrays
+        # --------------------------------
+
         self.mask = np.zeros(self.width, dtype=np.uint8, order='F')
         self.flags = np.zeros(self.width, dtype=np.uint8, order='F')
 
@@ -168,20 +181,14 @@ class info:
         #     else:
         #         b.setValidPixelExpression(validexp)
 
+        # --------------------------------
         # load data
+        # --------------------------------
         # addValidPixelExpression(self.SZA,validexp)
         self.SZA.readPixels(0, rownum, self.width, 1, self.sza)
         # addValidPixelExpression(self.SAZI,validexp)
         self.SAZI.readPixels(0, rownum, self.width, 1, self.sazi)
         self.mu0 = np.cos(np.radians(self.sza))
-
-        try:
-            self.product.getBand(self.sensordata.cirrus).readPixels(0, rownum, self.width, 1, self.hcld)
-            # convert (if needed) into TOA reflectance
-            if 'LANDSAT' in self.sensor:
-                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
-        except:
-            pass  # print('No cirrus band available, high cloud flag discarded')
 
         def mask_array(arr, mask):
             return np.ma.array(arr, mask=mask, fill_value=np.nan)
@@ -215,6 +222,35 @@ class info:
             if 'LANDSAT' in self.sensor:
                 self.rs2[iband] = self.rs2[iband] * np.pi / (self.mu0 * self.U * self.solar_irr[iband] * 10)
 
+        # --------------------------------
+        # set mask cloud mask and/or export L1 flags
+        # --------------------------------
+        # TODO export L1 flags waiting for snap bug to be solved (subset remove mask info,
+        #  https://forum.step.esa.int/t/problems-with-selecting-masks-as-input-in-graph-builder/3494/7 )
+        try:
+            cloud = self.get_flag(self.sensordata.cloud_flag, rownum)
+            cirrus = self.get_flag(self.sensordata.cirrus_flag, rownum)
+            self.flags = self.flags + ((cloud << 6) + (cirrus << 7))
+        except:
+            pass
+
+        try:
+            if self.sensordata.shadow_flag != '':
+                shadow = self.get_flag(self.sensordata.shadow_flag, rownum)
+                self.flags = (self.flags + (shadow << 8))
+        except:
+            pass
+
+        # set high cloud cirrus mask
+        try:
+            self.product.getBand(self.sensordata.cirrus[0]).readPixels(0, rownum, self.width, 1, self.hcld)
+            # convert (if needed) into TOA reflectance
+            if 'LANDSAT' in self.sensor:
+                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
+            self.flags = (self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5))
+        except:
+            pass  # print('No cirrus band available, high cloud flag discarded')
+
         # convert into FORTRAN 2D arrays (here, np.array)
         self.rs2 = np.array(self.rs2, order='F').T
         self.razi = np.array(self.razi, order='F').T
@@ -240,7 +276,7 @@ class info:
             self.VAZI[i].unloadRasterData()
 
     def create_product(self):
-
+        # TODO write output directly in netcdf format
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
         # writer = ProductIO.getProductWriter('NetCDF4-CF')  #
@@ -321,9 +357,14 @@ class info:
         f1 = coding.addFlag("negative", 2, "negative values in visible ")
         f2 = coding.addFlag("ndwi", 4, "based on ndwi vis nir TOA ")
         f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
-        f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow) ")
-        f5 = coding.addFlag("empty", 32, "empty description ")
-        f6 = coding.addFlag("empty2", 64, "empty description ")
+        f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
+                            self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
+            self.sensordata.high_nir[1]))
+        f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band; condition Rtoa at band " +
+                            self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
+        f6 = coding.addFlag("L1_cloud", 64, "opaque cloud flag from L1 image ")
+        f7 = coding.addFlag("L1_cirrus", 128, "cirrus cloud flag from L1 image ")
+        f8 = coding.addFlag("L1_shadow", 256, "cloud-shadow flag from L1 image ")
 
         ac_product.getFlagCodingGroup().add(coding)
         flags.setSampleCoding(coding)
@@ -342,11 +383,15 @@ class info:
                            f5.getDescription(), Color.GREEN, 0.1)
         ac_product.addMask('mask_' + f6.getName(), 'flags.' + f6.getName(),
                            f6.getDescription(), Color.GRAY, 0.1)
+        ac_product.addMask('mask_' + f7.getName(), 'flags.' + f7.getName(),
+                           f7.getDescription(), Color.GRAY, 0.1)
+        ac_product.addMask('mask_' + f8.getName(), 'flags.' + f8.getName(),
+                           f8.getDescription(), Color.GRAY, 0.1)
 
         # set data
         # Water-leaving radiance + sunglint
         for iband in range(self.N):
-            bname = self.output+'_g_' + self.band_names[iband]
+            bname = self.output + '_g_' + self.band_names[iband]
             acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
             acband.setSpectralWavelength(self.wl[iband])
             acband.setSpectralBandwidth(self.B[iband].getSpectralBandwidth())
@@ -356,16 +401,16 @@ class info:
             acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
             if self.output == 'Lwn':
                 ac_product.getBand(bname).setDescription(
-                'Water-leaving plus sunglint normalized radiance (Lwn + Lg) in mW cm-2 sr-1 μm-1 at ' +
-                self.band_names[iband])
+                    'Water-leaving plus sunglint normalized radiance (Lwn + Lg) in mW cm-2 sr-1 μm-1 at ' +
+                    self.band_names[iband])
             else:
                 ac_product.getBand(bname).setDescription(
-                'Water-leaving plus sunglint remote sensing reflectance (Rrs + Lg/F0) in sr-1 at ' +
-                self.band_names[iband])
+                    'Water-leaving plus sunglint remote sensing reflectance (Rrs + Lg/F0) in sr-1 at ' +
+                    self.band_names[iband])
 
         # Water-leaving radiance
         for iband in range(self.N):
-            bname = self.output+'_' + self.band_names[iband]
+            bname = self.output + '_' + self.band_names[iband]
             acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
             acband.setSpectralWavelength(self.wl[iband])
             acband.setSpectralBandwidth(self.B[iband].getSpectralBandwidth())
@@ -375,11 +420,10 @@ class info:
             acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
             if self.output == 'Lwn':
                 ac_product.getBand(bname).setDescription(
-                'Normalized water-leaving radiance in mW cm-2 sr-1 μm-1 at ' + self.band_names[iband])
+                    'Normalized water-leaving radiance in mW cm-2 sr-1 μm-1 at ' + self.band_names[iband])
             else:
                 ac_product.getBand(bname).setDescription(
-                'Remote sensing reflectance in sr-1 at ' + self.band_names[iband])
-
+                    'Remote sensing reflectance in sr-1 at ' + self.band_names[iband])
         # Sunglint reflection factor
         # for iband in range(self.N):
         bname = 'BRDFg'  # + self.band_names[iband]
@@ -422,27 +466,51 @@ class info:
         acband.setNoDataValueUsed(True)
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
-        ac_product.setAutoGrouping(self.output+':'+self.output+'_g_')
+        ac_product.setAutoGrouping(self.output + ':' + self.output + '_g_')
 
         ac_product.writeHeader(String(self.outfile_ext))
         # next line needed since snap 'writeHeader' force the extension to be consistent with data type (e.g., .tif for GeoTIFF)
-        os.rename(self.outfile_ext,self.outfile_ext+'.incomplete')
+        os.rename(self.outfile_ext, self.outfile_ext + '.incomplete')
 
         self.l2_product = ac_product
 
     def checksum(self, info):
         # TODO improve checksum scheme
-        with open(self.outfile+'.checksum', "w") as f:
+        with open(self.outfile + '.checksum', "w") as f:
             f.write(info)
 
     def finalize_product(self):
         # TODO improve checksum scheme
+        # TODO write output directly in netcdf format
         '''remove checksum file
-        remove extension ".incomplete" from output file name'''
-        os.remove(self.outfile+'.checksum')
+        remove extension ".incomplete" from output file name
+        convert into netcdf (compressed) from gpt and ncdump/nco tool'''
+        os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
         final_name = os.path.splitext(name)[0]
         os.rename(name, final_name)
+
+        # --------------------------
+        # convert into netcdf-BEAM format
+        try:
+            final_name2 = final_name.replace('dim', 'beam.nc')
+            os.system(gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name)
+            # --------------------------
+            # cleaning up
+            os.remove(final_name)
+            shutil.rmtree(final_name.replace('dim', 'data'))
+        except:
+            print('Error in NetCDF conversion; check snap gpt absolute path')
+
+        # --------------------------
+        # convert into netCDF4 compressed format
+        try:
+            os.system('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
+            # --------------------------
+            # cleaning up
+            os.remove(final_name2)
+        except:
+            print('no compression was performed; nco tools should be installed')
 
     def print_info(self):
         ''' print info, can be used to check if object is complete'''
@@ -589,18 +657,23 @@ class utils:
 
         return GPF.createProduct('Reproject', parameters, product)
 
-    def get_sensor(self,file):
+    def get_sensor(self, file):
         '''
         Get sensor type from file name
         :param file: file in standard naming
         :return: sensor type
         '''
         file = os.path.basename(file)
-        if ('S2A' in file): sensor = 'S2A'
-        elif ('S2B' in file): sensor = 'S2B'
-        elif ('LC08' in file): sensor = 'LANDSAT_8'
-        elif ('LE07' in file): sensor = 'LANDSAT_7'
-        elif ('LT05' in file): sensor = 'LANDSAT_5'
+        if ('S2A' in file):
+            sensor = 'S2A'
+        elif ('S2B' in file):
+            sensor = 'S2B'
+        elif ('LC08' in file) | bool(re.search(r"L[C,O]8", file)):
+            sensor = 'LANDSAT_8'
+        elif ('LE07' in file) | ('LE7' in file):
+            sensor = 'LANDSAT_7'
+        elif ('LT05' in file) | ('LT5' in file):
+            sensor = 'LANDSAT_5'
         # TODO add to log file
         else:
             print('sensor not recognized from input file')
