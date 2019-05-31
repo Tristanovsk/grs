@@ -2,6 +2,7 @@
 import re, shutil
 import numpy as np
 from dateutil import parser
+import subprocess
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
@@ -493,12 +494,18 @@ class info:
         # --------------------------
         # convert into netcdf-BEAM format
         try:
+            # TODO call to gpt is a bit awkward due to memory leaks of snappy and gpt !!
+            # TODO if permitted in next snap update (e.g., 7) close snappy vm before calling gpt
             final_name2 = final_name.replace('dim', 'beam.nc')
-            os.system(gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name)
+            cmd = gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name
+            print(cmd)
+            exit_code = subprocess.call(cmd, shell=True)
+
+            print(exit_code)
             # --------------------------
             # cleaning up
-            os.remove(final_name)
-            shutil.rmtree(final_name.replace('dim', 'data'))
+            # os.remove(final_name)
+            # shutil.rmtree(final_name.replace('dim', 'data'))
         except:
             print('Error in NetCDF conversion; check snap gpt absolute path')
 
@@ -506,9 +513,10 @@ class info:
         # convert into netCDF4 compressed format
         try:
             os.system('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
+            print('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
             # --------------------------
             # cleaning up
-            os.remove(final_name2)
+            # os.remove(final_name2)
         except:
             print('no compression was performed; nco tools should be installed')
 
@@ -538,6 +546,8 @@ class utils:
         parameters.put('resampleOnPyramidLevels', True)
 
         return GPF.createProduct('Resample', parameters, s2_product)
+
+
 
     @staticmethod
     def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',

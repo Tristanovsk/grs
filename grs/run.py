@@ -17,7 +17,7 @@ Options:
   --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
   -o ofile         Full (absolute or relative) path to output L2 image.
-  --odir odir       Ouput directory [default: ./]
+  --odir odir      Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2grs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --shape shp      Process only data inside the given shape
@@ -104,8 +104,10 @@ def main():
         # else:
         #     print('Not recognized sensor, please try again!')
         #     sys.exit()
-
-    outfile = os.path.join(args['--odir'], outfile)
+    odir = args['--odir']
+    if odir == './':
+        odir = os.getcwd()
+    outfile = os.path.join(odir, outfile)
 
     if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
         print('File ' + outfile + ' already processed; skip!')
