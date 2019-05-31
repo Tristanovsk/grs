@@ -1,5 +1,7 @@
 '''
 command to process images over the aeronet-oc sites
+example:
+python3 exe/grs_from_list.py exe/List_images_grs_brazil.csv
 '''
 
 import os, sys
@@ -40,9 +42,9 @@ idir_root = {'s2': '/nfs/DD/S2/L1/ESA',
 odir_root = {'s2': '/nfs/DP/S2/L2/GRS/',
              'landsat': '/nfs/DP/Landsat/L2/GRS/'}
 
-download = True #False  # set to True if you want to download missing images
+download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True
+noclobber = False #True
 memory_safe= True
 aeronet_file = 'no'
 aot550 = 0.1
@@ -112,7 +114,7 @@ for idx, site in sites.iterrows():
             auth = dic[productimage]['auth']
             command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, end, productimage]
             download_image.mp_worker(command)
-    continue
+
     if name != name:
         name=''
     odir_sub = tile

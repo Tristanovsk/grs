@@ -11,7 +11,7 @@ from .utils import utils as u
 
 #------------------------
 # set threshold for masking
-high_nir_threshold = 0.1
+high_nir_threshold = 0.0275
 hcld_threshold = 0.003 # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)
 
 # -----------------

@@ -3,11 +3,13 @@ command to process images over the aeronet-oc sites
 '''
 
 import os, sys
+import re
 import numpy as np
 import pandas as pd
 import glob
 import datetime
 from multiprocessing import Pool
+import googlemaps
 
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
@@ -19,12 +21,18 @@ from sid import download_image
 # to get image provider info under variable 'dic'
 from sid.config import *
 
+google_key='AIzaSyAZj_t2R7qQhkPYlzK1Et26DT4VA6zGGyE'
+gmaps = googlemaps.Client(key=google_key)
+
 # --------------------------------------------------------------------------------
 # set parameters
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
 sites = pd.read_excel(sitefile)
 sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.csv'
 sites = pd.read_csv(sitefile)
+sitefile = '/local/AIX/tristan.harmel/project/acix/ACIXII_Aqua_PhaseII_scene_tile_IDs_harmel.xlsx'
+sites = pd.read_excel(sitefile)
+
 lev = 'L2grs'
 
 logdir = './tmp'
@@ -42,7 +50,7 @@ odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
 odir_sub = 'acix'
 resolution = None
 missions = ['all', 'S2', 'Landsat']
-mission = missions[1]
+mission = missions[2]
 if mission == 'Landsat':
     # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
     Nimage = 4
@@ -73,15 +81,22 @@ with open(fmissing, 'w'):
 # --------------------------------------------------------------------------------
 
 args_list = []
-
-idx, site = list(sites.iterrows())[1]
-for idx, site in sites.iterrows():
+sites_clean= sites.drop_duplicates(subset=sites.columns.values[1:])
+#idx, site = list(sites.iterrows())[1]
+for idx, site in sites_clean.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
-    name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    altitude = site.iloc[7]
-    # get date in pratical format
-    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
+
+    # for acix phase I
+    # name, lat, lon, date_raw, time, basename = site.iloc[0:6]
+    # date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
+    # for ACIX phase II
+    name, lat, lon, date_raw, time, basename, time_diff = site.iloc[0:7]
+    time_diff = re.sub(':.*','',str(time_diff))
+    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
+
+    # c = gmaps.elevation((lat, lon))
+    # altitude = max(0,c[0].get('elevation')) #site.iloc[7]
 
     #############
     if date.year > 2016:
@@ -110,7 +125,7 @@ for idx, site in sites.iterrows():
     # input file naming
     # Warning: only .zip images are permitted (for landsat, please use uncompressed images
     file = file.replace('SAFE', 'zip')
-    print(sensor, name, file)
+    # print(sensor, name, file)
 
     # ----------------------------------------------
     #  DOWNLOAD SECTION
@@ -125,6 +140,10 @@ for idx, site in sites.iterrows():
             if f != []:
                 file = f[0]
                 basename = os.path.basename(file)
+
+        else: # for Landsat, need to untar
+            # TODO untar L1C1/basename.tgz in uncompressed/basename
+            tarfile = file.replace('uncompressed', 'L1C1') + '.tgz'
 
     if not os.path.exists(file):
         fromdate = date.strftime('%Y-%m-%d')
@@ -207,6 +226,7 @@ for idx, site in sites.iterrows():
 
     print('-------------------------------')
     print('call grs for ', outfile, sensor)
+    print(site)
     print('-------------------------------')
 
     # check if already partially processed, if so get startrow value
@@ -224,6 +244,8 @@ for idx, site in sites.iterrows():
         except:
             pass
     # break
+    c = gmaps.elevation((lat, lon))
+    altitude = max(0, c[0].get('elevation'))  # site.iloc[7]
 
     args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
                       aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
