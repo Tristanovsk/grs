@@ -38,8 +38,8 @@ for format in formats:
 
     product.setProductWriter(writer)
     try:
-        product.writeHeader(file)
-
+        #product.writeHeader(file)
+        ProductIO.writeProduct(product, file, format[1])
         p = ProductIO.readProduct(file)
         try:
 
