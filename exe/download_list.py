@@ -3,6 +3,7 @@ command to download images from a datasheet list
 '''
 
 import os, sys
+import re
 import pandas as pd
 import glob
 import datetime
@@ -36,10 +37,11 @@ _file=''
 for idx, site in sites.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
-    name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    #print(name, lat, lon, date_raw, time, basename)
+    name, lat, lon, date_raw, time, basename, time_diff = site.iloc[0:7]
+    time_diff = re.sub(':.*','',str(time_diff))
+    # print(name, lat, lon, date_raw, time, basename, time_diff)
     # get date in pratical format
-    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') #+ datetime.timedelta(hours=time)
+    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
 
     sensor = misc.get_sensor(basename)
     if sensor == None:
@@ -68,7 +70,7 @@ for idx, site in sites.iterrows():
         print(sensor, name, file)
         list.append(file)
         fromdate = date.strftime('%Y-%m-%d')
-        todate = datetime.datetime.strftime(date + datetime.timedelta(days=1), '%Y-%m-%d')
+        todate = datetime.datetime.strftime(date + datetime.timedelta(days=2), '%Y-%m-%d')
         cloudmax = str(100)
 
         script = dic[productimage]['script']
@@ -78,7 +80,8 @@ for idx, site in sites.iterrows():
             auth = os.path.abspath('/local/AIX/tristan.harmel/git/sat/sid/auxdata/apihub_th.txt')
         tile = misc.get_tile(basename)
         command.append([script, lat, lon, write, auth, tile, sat, cloudmax, fromdate, todate, productimage])
-
+        print(fromdate,' to ',todate, basename)
+        print(site)
         # download image
         # download_image.mp_worker(command)
 
