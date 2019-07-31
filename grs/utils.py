@@ -504,8 +504,8 @@ class info:
             print(exit_code)
             # --------------------------
             # cleaning up
-            # os.remove(final_name)
-            # shutil.rmtree(final_name.replace('dim', 'data'))
+            os.remove(final_name)
+            shutil.rmtree(final_name.replace('dim', 'data'))
         except:
             print('Error in NetCDF conversion; check snap gpt absolute path')
 
@@ -516,7 +516,7 @@ class info:
             print('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
             # --------------------------
             # cleaning up
-            # os.remove(final_name2)
+            os.remove(final_name2)
         except:
             print('no compression was performed; nco tools should be installed')
 

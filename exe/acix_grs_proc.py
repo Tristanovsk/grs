@@ -26,12 +26,17 @@ gmaps = googlemaps.Client(key=google_key)
 
 # --------------------------------------------------------------------------------
 # set parameters
-sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
-sites = pd.read_excel(sitefile)
-sitefile = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.csv'
-sites = pd.read_csv(sitefile)
-sitefile = '/local/AIX/tristan.harmel/project/acix/ACIXII_Aqua_PhaseII_scene_tile_IDs_harmel.xlsx'
-sites = pd.read_excel(sitefile)
+aeronet = True
+if aeronet:
+    list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
+    sites = pd.read_excel(list_file)
+    list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.csv'
+    sites = pd.read_csv(list_file)
+else:
+    list_file = '/local/AIX/tristan.harmel/project/acix/ACIXII_Aqua_PhaseII_scene_tile_IDs_harmel.xlsx'
+    list_file = '/local/AIX/tristan.harmel/project/acix/ACIX_scene_tile_IDs_L1C_Updated_5_28_2019.xlsx'
+
+    sites = pd.read_excel(list_file)
 
 lev = 'L2grs'
 
@@ -87,13 +92,16 @@ for idx, site in sites_clean.iterrows():
     if site.iloc[0] != site.iloc[0]:
         continue
 
-    # for acix phase I
-    # name, lat, lon, date_raw, time, basename = site.iloc[0:6]
-    # date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
-    # for ACIX phase II
-    name, lat, lon, date_raw, time, basename, time_diff = site.iloc[0:7]
-    time_diff = re.sub(':.*','',str(time_diff))
-    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
+    if aeronet:# for acix phase I
+        name, lat, lon, date_raw, time, basename = site.iloc[0:6]
+        date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=time)
+    else:# for ACIX phase II
+        name, lat, lon, date_raw, time, basename, time_diff = site.iloc[0:7]
+        time_diff = re.sub(':.*','',str(time_diff))
+        try:
+            date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
+        except:
+            date = date_raw + datetime.timedelta(hours=int(time_diff))
 
     # c = gmaps.elevation((lat, lon))
     # altitude = max(0,c[0].get('elevation')) #site.iloc[7]
@@ -197,7 +205,8 @@ for idx, site in sites_clean.iterrows():
         continue
 
     # skip if already processed (the .dim exists)
-    if (os.path.isfile(outfile + ".dim") | os.path.isfile(outfile + ".nc")) & noclobber:
+    # if (os.path.isfile(outfile + ".dim") | os.path.isfile(outfile + ".nc")) & noclobber:
+    if os.path.isfile(outfile + ".nc") & noclobber:
         print('File ' + outfile + ' already processed; skipped!')
         continue
 
@@ -244,8 +253,11 @@ for idx, site in sites_clean.iterrows():
         except:
             pass
     # break
-    c = gmaps.elevation((lat, lon))
-    altitude = max(0, c[0].get('elevation'))  # site.iloc[7]
+    if aeronet:
+        altitude = site.iloc[7]
+    else:
+        c = gmaps.elevation((lat, lon))
+        altitude = max(0, c[0].get('elevation'))
 
     args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
                       aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])

@@ -21,6 +21,7 @@ from sid.config import *
 
 list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
 list_file = '/local/AIX/tristan.harmel/project/acix/ACIXII_Aqua_PhaseII_scene_tile_IDs_harmel.xlsx'
+list_file = '/local/AIX/tristan.harmel/project/acix/ACIX_scene_tile_IDs_L1C_Updated_5_28_2019.xlsx'
 sites = pd.read_excel(list_file)  # , sep=' ')
 
 missions = ['all', 'S2', 'Landsat']
@@ -39,10 +40,12 @@ for idx, site in sites.iterrows():
         continue
     name, lat, lon, date_raw, time, basename, time_diff = site.iloc[0:7]
     time_diff = re.sub(':.*','',str(time_diff))
-    # print(name, lat, lon, date_raw, time, basename, time_diff)
+    print(name, lat, lon, date_raw, time, basename, time_diff)
     # get date in pratical format
-    date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
-
+    try:
+        date = datetime.datetime.strptime(date_raw, '%d-%m-%Y') + datetime.timedelta(hours=int(time_diff))
+    except:
+        date = date_raw + datetime.timedelta(hours=int(time_diff))
     sensor = misc.get_sensor(basename)
     if sensor == None:
         print('non standard image, not processed: ', basename)
