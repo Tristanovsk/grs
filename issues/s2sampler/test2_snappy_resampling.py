@@ -64,7 +64,7 @@ def time_load(p_,angles=True):
         arr = np.empty((w,h))
         t=[]
         t.append(tt())
-        p_.getBand(band).readPixels(0,0,w,h,arr)
+        arr = p_.getBand(band).readPixels(0,0,w,h,arr)
         t.append(tt())
         tdiff.append(np.diff(t))
 

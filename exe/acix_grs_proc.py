@@ -113,7 +113,7 @@ for idx, site in sites_clean.iterrows():
     #############
     else:
         aerosol = 'cams_reanalysis'
-
+    ancillary = aerosol
     sensor = misc.get_sensor(basename)
     if sensor == None:
         print('non standard image, not processed: ', basename)
@@ -259,7 +259,7 @@ for idx, site in sites_clean.iterrows():
         c = gmaps.elevation((lat, lon))
         altitude = max(0, c[0].get('elevation'))
 
-    args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
+    args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, ancillary, resolution, \
                       aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
 
 # reshape args_list to process several images (Nimage) on each processor
