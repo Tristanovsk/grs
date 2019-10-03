@@ -126,7 +126,7 @@ for idx, row in sites.iterrows():
 
             try:
                 grs_process.process().execute(file, outfile, wkt, altitude=altitude, aerosol=aerosol,
-                                              gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                                              dem=None, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, unzip=unzip, startrow=startrow)
                 isuccess += 1
             except:

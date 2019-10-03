@@ -134,9 +134,9 @@ class multi_process:
             try:
                 from grs import grs_process
                 grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
-                                              gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                                              dem=None, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
-                                              startrow=startrow,angleonly=angleonly)
+                                              startrow=startrow, angleonly=angleonly)
             except:
                 print('-------------------------------')
                 print('error for file  ', file_tbp, ' skip')

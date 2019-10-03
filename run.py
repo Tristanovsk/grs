@@ -71,7 +71,7 @@ def main():
 
     from grs.grs_process import process
     process().execute(file, outfile, sensor, wkt, altitude=altitude, aerosol=aerosol,
-                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                      dem=None, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=args['--aot550'], angstrom=args['--angstrom'])
 
     return
@@ -112,7 +112,7 @@ def main():
 
     from grs.grs_process import process
     process().execute(file, wkt, altitude=altitude, aerosol='cams_forecast', noclobber=noclobber,
-                      gdm=None, aeronet_file=None, resolution=resolution, indband=None)
+                      dem=None, aeronet_file=None, resolution=resolution, indband=None)
 
 
 if __name__ == "__main__":

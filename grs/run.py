@@ -3,7 +3,7 @@
 Usage:
   grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
-   [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
+   [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
    [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
   grs -h | --help
@@ -27,6 +27,7 @@ Options:
                    [default: 180, -180, 90, -90]
   --altitude=alt   altitude of the scene to be processed in meters
                    [default: 0]
+  --dem            Use SRTM digital elevation model instead of --altitude (need internet connection)
   --aerosol=DB     aerosol data base to use within the processing
                    DB: cams_forecast, cams_reanalysis, aeronet, user_model
                    [default: cams_reanalysis]
@@ -71,6 +72,7 @@ def main():
     unzip = args['--unzip']
     memory_safe = args['--memory_safe']
     altitude = float(args['--altitude'])
+    dem = args['--dem']
     resolution = args['--resolution']
     aerosol = args['--aerosol']
     aot550 = float(args['--aot550'])
@@ -127,7 +129,7 @@ def main():
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
-                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                      dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=aot550, angstrom=angstrom, output=output, memory_safe=memory_safe,
                       unzip=unzip)
     return
