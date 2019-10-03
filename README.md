@@ -56,14 +56,21 @@ Usage:
 ```
 
 ## Running the tests
+From terminal:
+```
+grs test/data/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
+```
+You should get something like:
 
-Examples of output images
+![image_output](images/example_snap_grs_image.png)
+
+Another examples of output images before (1st column) and after  (2nd column) sunglint correction:
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
 
 ## Deployment
 
-Add additional notes about how to deploy this on a live system
+See examples in [exe](exe).
 
 ## Contributing
 
