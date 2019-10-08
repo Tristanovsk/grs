@@ -1,5 +1,7 @@
 '''
 command to process images over the aeronet-oc sites
+example:
+python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
 
 import os, sys
@@ -21,14 +23,13 @@ from sid.config import *
 
 # --------------------------------------------------------------------------------
 # set parameters
-sitefile = sys.argv[1] #'exe/List_images_grs_template.csv'
-#sitefile = 'exe/List_images_grs_brazil.csv'
+sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
+# sitefile = 'exe/List_images_grs_brazil.csv'
 
-# number of images to process within one jpy v- timedelta(days=1))irtual machine (i.e., for one load of snappy)
+# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
 Nimage = 1
 # number of processors to be used
 ncore = 2
-
 
 sites = pd.read_csv(sitefile)
 lev = 'L2grs'
@@ -40,13 +41,17 @@ idir_root = {'s2': '/nfs/DD/S2/L1/ESA',
 odir_root = {'s2': '/nfs/DP/S2/L2/GRS/',
              'landsat': '/nfs/DP/Landsat/L2/GRS/'}
 
-download = True #False  # set to True if you want to download missing images
+download = True  # set to True if you want to download missing images
+process = True # if True GRS is applied
+odatis = True # if true, put the result images in the odatis directory
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True
-memory_safe= True
+noclobber = False #True
+memory_safe = True
 aeronet_file = 'no'
-aot550 = 0.1
-angstrom = 0.5
+aerosol = 'cams'
+#aerosol = 'user_model'
+aot550 = 0.03 # used if aerosol = 'user_model'
+angstrom = 0.5 # used if aerosol = 'user_model'
 
 fmissing = os.path.join(logdir, 'list_missing_files.txt')
 fjunk = os.path.join(logdir, 'list_junk_files.txt')
@@ -56,7 +61,7 @@ with open(fmissing, 'w'):
 
 args_list = []
 
-#idx, site = list(sites.iterrows())[1]
+# idx, site = list(sites.iterrows())[1]
 for idx, site in sites.iterrows():
 
     if site.iloc[0] == 0:
@@ -76,30 +81,37 @@ for idx, site in sites.iterrows():
             # due to modification of the nomemclature at the two following date,
             # downloading is splitted into four cases:
 
-            tiledate1=datetime.strptime('2016-12-01', '%Y-%m-%d').date()
-            tiledate2=datetime.strptime('2017-04-01', '%Y-%m-%d').date()
-            date1=datetime.strptime(start, '%Y-%m-%d').date()
-            date2=datetime.strptime(end, '%Y-%m-%d').date()
+            tiledate1 = datetime.strptime('2016-12-01', '%Y-%m-%d').date()
+            tiledate2 = datetime.strptime('2017-04-01', '%Y-%m-%d').date()
+            date1 = datetime.strptime(start, '%Y-%m-%d').date()
+            date2 = datetime.strptime(end, '%Y-%m-%d').date()
 
             if (date1 < tiledate1) & (date2 < tiledate2):
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate1- timedelta(days=1)).__str__(), productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start,
+                           (tiledate1 - timedelta(days=1)).__str__(), productimage]
                 download_image.mp_worker(command)
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(), end, productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(), end,
+                           productimage]
                 download_image.mp_worker(command)
             elif (date1 <= tiledate1) & (date2 >= tiledate2):
                 print(start, tiledate1.__str__())
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate1- timedelta(days=1)).__str__(), productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start,
+                           (tiledate1 - timedelta(days=1)).__str__(), productimage]
                 download_image.mp_worker(command)
                 print(tiledate1.__str__(), tiledate2.__str__())
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(), (tiledate2- timedelta(days=1)).__str__(), productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate1.__str__(),
+                           (tiledate2 - timedelta(days=1)).__str__(), productimage]
                 download_image.mp_worker(command)
                 print(tiledate2.__str__(), end)
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end, productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end,
+                           productimage]
                 download_image.mp_worker(command)
-            elif (date1 > tiledate1) & (date2 > tiledate2):
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, (tiledate2- timedelta(days=1)).__str__(), productimage]
+            elif (date1 > tiledate1) & (date2 > tiledate2) & (date1 < tiledate2):
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, start,
+                           (tiledate2 - timedelta(days=1)).__str__(), productimage]
                 download_image.mp_worker(command)
-                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end, productimage]
+                command = [script, lat, lon, write, auth, tile, mission, cloudmax, tiledate2.__str__(), end,
+                           productimage]
                 download_image.mp_worker(command)
             else:
                 command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, end, productimage]
@@ -112,21 +124,27 @@ for idx, site in sites.iterrows():
             auth = dic[productimage]['auth']
             command = [script, lat, lon, write, auth, tile, mission, cloudmax, start, end, productimage]
             download_image.mp_worker(command)
-    continue
+
+    if not process:
+        continue
     if name != name:
-        name=''
-    odir_sub = tile
-    sat=sat.lower()
+        name = ''
+    if odatis:
+        odir_sub = os.path.join("odatis", name)
+    else:
+        odir_sub = tile
+
+    sat = sat.lower()
     resolution = int(resolution)
     # get date in pratical format
-    start = datetime.strptime(start, '%Y-%m-%d') #+ datetime.timedelta(hours=time)
+    start = datetime.strptime(start, '%Y-%m-%d')  # + datetime.timedelta(hours=time)
     end = datetime.strptime(end, '%Y-%m-%d')
 
-    files = glob.glob(os.path.join(idir_root[sat] ,'*' + tile + '*'))
+    files = glob.glob(os.path.join(idir_root[sat], '*' + tile + '*'))
     print(files.__len__())
 
     for file in files:
-        #------------------
+        # ------------------
         # get date and images within the given, date range
         basename = os.path.basename(file)
         if 's2' in sat:
@@ -140,16 +158,19 @@ for idx, site in sites.iterrows():
                     myfile.write(file + ' image is incomplete or missing \n')
                 continue
             date = basename.split('_')[3]
-        date = datetime.strptime(date,'%Y%m%d')
+        date = datetime.strptime(date, '%Y%m%d')
         if (date < start) | (date > end):
             continue
 
-        #------------------
+        # ------------------
         #  CAMS data selection
         if date.year > 2016:
-            aerosol = 'cams_forecast'
+            ancillary = 'cams_forecast'
         else:
-            aerosol = 'cams_reanalysis'
+            ancillary = 'cams_reanalysis'
+
+        if 'cams' in aerosol:
+            aerosol = ancillary
 
         basename = os.path.basename(file)
         sensor = misc.get_sensor(basename)
@@ -162,7 +183,6 @@ for idx, site in sites.iterrows():
         # Warning: only .zip images are permitted (for landsat, please use uncompressed images
         file = file.replace('SAFE', 'zip')
         print(sensor, name, file)
-
 
         # ----------------------------------------------
         #  PROCESS SECTION
@@ -231,7 +251,7 @@ for idx, site in sites.iterrows():
                 pass
         # break
 
-        args_list.append([file, outfile, wkt, altitude, aerosol, aeronet_file, resolution, \
+        args_list.append([file, outfile, wkt, altitude, aerosol, aeronet_file, ancillary, resolution, \
                           aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
 
 # reshape args_list to process several images (Nimage) on each processor

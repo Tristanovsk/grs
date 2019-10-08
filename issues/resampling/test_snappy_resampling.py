@@ -6,7 +6,7 @@ from esasnappy import ProductIO, GPF, jpy
 
 #file=sys.argv[1]
 file='/home/harmel/Dropbox/rus/S2/gernez/L1C/S2A_MSIL1C_20170210T082051_N0204_R121_T33HYD_20170210T083752.SAFE/'
-#file='/DATA/Satellite/LANDSAT/L8/L1TP/LC08_L1TP_196029_20180914_20180928_01_T1/LC08_L1TP_196029_20180914_20180928_01_T1_MTL.txt'
+file='/DATA/Satellite/LANDSAT/L8/L1TP/LC08_L1TP_196029_20180914_20180928_01_T1/LC08_L1TP_196029_20180914_20180928_01_T1_MTL.txt'
 
 
 def generic_resampler(product, resolution=20, method='Bilinear'):

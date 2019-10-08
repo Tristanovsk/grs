@@ -1,16 +1,28 @@
 import os
-import datetime
+import datetime as dt
+from dateutil.relativedelta import relativedelta
 import matplotlib
 
 from grs import auxdata
 
 lat, lon = 47, -1.5
-date=datetime.datetime(2018,4,17,12)
+
 cams_folder = os.path.abspath('/nfs/DP/ECMWF/CAMS')
 type='cams_forecast'
-type='cams_reanalysis'
-cams_file=os.path.join(cams_folder, date.strftime('%Y-%m') + '_month_'+type+'.nc')
+#type='cams_reanalysis'
 
+def datespan(startDate, endDate, delta=relativedelta(months=+1)):
+    currentDate = startDate
+    while currentDate < endDate:
+        yield currentDate
+        currentDate += delta
+
+for date in datespan(dt.datetime(2019,7,17,12),dt.datetime.now()+relativedelta(months=-1)):#.datetime(2019,8,17,12)):
+    print(date)
+    cams_file=os.path.join(cams_folder, date.strftime('%Y-%m') + '_month_'+type+'.nc')
+
+    cams = auxdata.cams()
+    cams.load_cams_data(cams_file, date, data_type=type)
 
 def wktbox(center_lon, center_lat, width=1, height=1):
     '''
@@ -44,8 +56,7 @@ def wktbox(center_lon, center_lat, width=1, height=1):
 
 wkt = wktbox(lon, lat,50,50)
 
-cams = auxdata.cams()
-cams.load_cams_data(cams_file, date, data_type=type)
+
 cams.get_cams_ancillary(cams_file, date, wkt)
 for i in range(4):
     date=date + datetime.timedelta(days=1)

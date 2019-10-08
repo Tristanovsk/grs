@@ -20,15 +20,15 @@ class process:
         pass
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary=None,
-                gdm=None, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
-                memory_safe=False, angleonly=False, output='Rrs', grs_a=False):
+                dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
+                memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
         '''
 
         :param file:
         :param sensor:
         :param wkt:
         :param output:
-        :param gdm:
+        :param dem: if True digital elevation model is applied for per-pixel pressure calculation (data from SNAP/SRTM)
         :param altitude:
         :param aeronet_file:
         :param resolution: pixel resolution in meters (integer)
@@ -153,6 +153,12 @@ class process:
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
 
         ##################################
+        ## ADD ELEVATION BAND
+        ##################################
+        if dem:
+            l2h.get_elevation()
+
+        ##################################
         # GET IMAGE AND RASTER PROPERTIES
         ##################################
         l2h.get_bands(l2h.band_names)
@@ -182,8 +188,10 @@ class process:
         #     l2h.aux.get_ecmwf_data()
 
         # get pressure at the scene altitude
-        l2h.pressure = acutils.misc.get_pressure(altitude, l2h.aux.msl)
-        l2h.aux.pressure = l2h.pressure
+        l2h.pressure_msl = l2h.aux.msl #acutils.misc.get_pressure(altitude, l2h.aux.msl)
+        if dem:
+            altitude = l2h.elevation
+        l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)#l2h.aux.pressure = l2h.pressure
 
         ##################################
         # GET ANCILLARY DATA (AEROSOL)
@@ -223,8 +231,6 @@ class process:
             sys.exit("No aerosol data provided, try again.")
 
         # set spectral aot for satellie bands
-        print('cams partam',target, l2h.date, l2h.wkt)
-        print('wl aero',l2h.aux.aot_wl, l2h.aux.aot)
         aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
         l2h.aot = aero.get_spectral_aot(np.array(l2h.wl))
         l2h.aot550 = l2h.aux.aot550
@@ -253,9 +259,10 @@ class process:
 
         # correction for pressure
         # scaling of the lut values and rayleigh optical thickness
-        rlut_f = [x * l2h.pressure / l2h.pressure_ref for x in lutf.refl]
-        rlut_c = [x * l2h.pressure / l2h.pressure_ref for x in lutc.refl]
-        l2h.rot = [x * l2h.pressure / l2h.pressure_ref for x in l2h.sensordata.rot]
+        # rlut_f = [x * l2h.pressure / l2h.pressure_ref for x in lutf.refl]
+        # rlut_c = [x * l2h.pressure / l2h.pressure_ref for x in lutc.refl]
+        # l2h.rot = [x * l2h.pressure / l2h.pressure_ref for x in l2h.sensordata.rot]
+        l2h.rot =l2h.sensordata.rot
 
         ####################################
         #     Set SMAC patrameters for
@@ -264,7 +271,7 @@ class process:
         smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
         smac.set_gas_param()
         smac.set_values(o3du=l2h.aux.o3du, h2o=l2h.aux.h2o)
-        smac.set_standard_values(l2h.pressure)
+        smac.set_standard_values(l2h.pressure_msl)
         l2h.aux.no2 = smac.uno2
 
         ######################################
@@ -277,8 +284,8 @@ class process:
         vzalut = np.array(lutf.vza, dtype=l2h.type, order='F')
         szalut = np.array(lutf.sza, dtype=l2h.type, order='F')
         razilut = np.array(lutf.azi, dtype=l2h.type, order='F')
-        rlut_f = np.array(rlut_f, dtype=l2h.type, order='F')
-        rlut_c = np.array(rlut_c, dtype=l2h.type, order='F')
+        rlut_f = np.array(lutf.refl, dtype=l2h.type, order='F')
+        rlut_c = np.array(lutc.refl, dtype=l2h.type, order='F')
         grid_lut = (szalut, razilut, vzalut)
 
         ######################################
@@ -288,13 +295,15 @@ class process:
         aot550guess = np.zeros(l2h.width, dtype=l2h.type)
         rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
         rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
+        elev = np.zeros(l2h.width, dtype=l2h.type)
 
         # set aot by hand
         aot550guess.fill(l2h.aot550)
 
         for i in range(startrow, l2h.height):
             print('process row ' + str(i))
-            # LOAD PIXELS DATA FOR ROW #i
+
+            #LOAD PIXELS DATA FOR ROW #i
             l2h.load_data(i)
 
             validx = (l2h.mask == 0)
@@ -305,6 +314,16 @@ class process:
             razi = l2h.razi[validx]
             vza = l2h.vza[validx]
 
+            if dem:
+                elev = l2h.elevation[i]
+                # l2h.product.getBand('elevation').readPixels(0, i, l2h.width, 1, elev)
+                #l2h.l2_product.getBand('elevation').writePixels(0, i, l2h.width, 1, elev)
+                pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
+                pressure_corr = pressure/l2h.pressure_ref
+            else:
+                pressure_corr = [l2h.pressure/l2h.pressure_ref] * l2h.width
+            pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
+
             for iband in range(l2h.N):
                 # preparing lut data
                 grid_pix = list(zip(sza, razi[..., iband], vza[..., iband]))
@@ -314,7 +333,7 @@ class process:
                     rtoac[iaot, iband, validx] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
 
                 # correct for gaseous absorption
-                tg = smac.compute_gas_trans(iband, l2h.pressure, l2h.mu0, l2h.muv[iband])
+                tg = smac.compute_gas_trans(iband, l2h.pressure_msl, l2h.mu0, l2h.muv[iband])
                 l2h.rs2[:, iband] = l2h.rs2[:, iband] / tg
 
             if grs_a:
@@ -327,7 +346,7 @@ class process:
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
                                             l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
-                                            aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
+                                            pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
                                             l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
                                             l2h.aot, aot550guess, l2h.fcoef, l2h.nodata, l2h.rrs)
 
@@ -365,6 +384,9 @@ class process:
 
             # TODO improve checksum scheme
             l2h.checksum('startrow ' + str(i))
+        if dem:
+            # add elevation band
+            l2h.l2_product.getBand('elevation').writePixels(0, 0, l2h.width, l2h.height, l2h.elevation)
 
         l2h.finalize_product()
 

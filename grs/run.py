@@ -3,7 +3,7 @@
 Usage:
   grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
-   [--altitude=alt] [--aerosol=DB] [--aeronet=<afile>] \
+   [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
    [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
   grs -h | --help
@@ -17,7 +17,7 @@ Options:
   --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
   -o ofile         Full (absolute or relative) path to output L2 image.
-  --odir odir       Ouput directory [default: ./]
+  --odir odir      Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2grs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --shape shp      Process only data inside the given shape
@@ -27,6 +27,7 @@ Options:
                    [default: 180, -180, 90, -90]
   --altitude=alt   altitude of the scene to be processed in meters
                    [default: 0]
+  --dem            Use SRTM digital elevation model instead of --altitude (need internet connection)
   --aerosol=DB     aerosol data base to use within the processing
                    DB: cams_forecast, cams_reanalysis, aeronet, user_model
                    [default: cams_reanalysis]
@@ -71,6 +72,7 @@ def main():
     unzip = args['--unzip']
     memory_safe = args['--memory_safe']
     altitude = float(args['--altitude'])
+    dem = args['--dem']
     resolution = args['--resolution']
     aerosol = args['--aerosol']
     aot550 = float(args['--aot550'])
@@ -104,8 +106,10 @@ def main():
         # else:
         #     print('Not recognized sensor, please try again!')
         #     sys.exit()
-
-    outfile = os.path.join(args['--odir'], outfile)
+    odir = args['--odir']
+    if odir == './':
+        odir = os.getcwd()
+    outfile = os.path.join(odir, outfile)
 
     if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
         print('File ' + outfile + ' already processed; skip!')
@@ -125,7 +129,7 @@ def main():
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
-                      gdm=None, aeronet_file=aeronet_file, resolution=resolution,
+                      dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=aot550, angstrom=angstrom, output=output, memory_safe=memory_safe,
                       unzip=unzip)
     return

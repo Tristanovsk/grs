@@ -2,6 +2,7 @@
 import re, shutil
 import numpy as np
 from dateutil import parser
+import subprocess
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
@@ -142,6 +143,17 @@ class info:
         flag = jpy.cast(flag, Mask)
         flag.readPixels(0, rownum, self.width, 1, flag_raster)
         return flag_raster
+
+    def get_elevation(self):
+        '''load elevation data into numpy array'''
+
+        self.elevation = np.zeros((self.width, self.height), dtype=self.type, order='F').T
+        self.product = utils().add_elevation(self.product)
+        dem = self.product.getBand('elevation')
+
+        dem.readPixels(0, 0, self.width, self.height, self.elevation)
+        self.elevation=np.array(self.elevation)
+        return
 
     def load_data(self, rownum):
         # --------------------------------
@@ -309,7 +321,7 @@ class info:
         att_.setDataElems(self.aerosol)
         meta.addAttribute(att_)
         att_ = att('cams_file', ProductData.TYPE_ASCII)
-        att_.setDataElems(self.aeronetfile)
+        att_.setDataElems(self.ancillary)
         meta.addAttribute(att_)
         att_ = att('aeronet_file', ProductData.TYPE_ASCII)
         att_.setDataElems(self.aeronetfile)
@@ -320,8 +332,8 @@ class info:
         att_ = att('aot550', ProductData.TYPE_ASCII)
         att_.setDataElems(str(self.aot550))
         meta.addAttribute(att_)
-        att_ = att('pressure', ProductData.TYPE_ASCII)
-        att_.setDataElems(str(self.pressure))
+        att_ = att('pressure_sea_level', ProductData.TYPE_ASCII)
+        att_.setDataElems(str(self.pressure_msl))
         att_.setUnit('hPa')
         meta.addAttribute(att_)
         att_ = att('ozone', ProductData.TYPE_ASCII)
@@ -466,6 +478,12 @@ class info:
         acband.setNoDataValueUsed(True)
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
+        acband = ac_product.addBand('elevation', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('elevation').setDescription('elevation from SRTM 3Sec in meters')
+
         ac_product.setAutoGrouping(self.output + ':' + self.output + '_g_')
 
         ac_product.writeHeader(String(self.outfile_ext))
@@ -485,6 +503,9 @@ class info:
         '''remove checksum file
         remove extension ".incomplete" from output file name
         convert into netcdf (compressed) from gpt and ncdump/nco tool'''
+        # jpy.destroy_jvm()
+        self.product.dispose()
+        self.l2_product.dispose()
         os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
         final_name = os.path.splitext(name)[0]
@@ -493,8 +514,14 @@ class info:
         # --------------------------
         # convert into netcdf-BEAM format
         try:
+            # TODO call to gpt is a bit awkward due to memory leaks of snappy and gpt !!
+            # TODO if permitted in next snap update (e.g., 7) close snappy vm before calling gpt
             final_name2 = final_name.replace('dim', 'beam.nc')
-            os.system(gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name)
+            cmd = gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name
+            print(cmd)
+            exit_code = subprocess.call(cmd, shell=True)
+
+            print(exit_code)
             # --------------------------
             # cleaning up
             os.remove(final_name)
@@ -506,6 +533,7 @@ class info:
         # convert into netCDF4 compressed format
         try:
             os.system('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
+            print('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
             # --------------------------
             # cleaning up
             os.remove(final_name2)
@@ -589,6 +617,15 @@ class utils:
         op.setParameter('resampleOnPyramidLevels', opt)
         op.setSourceProduct(product)
 
+        return op.getTargetProduct()
+
+    def add_elevation(self, product):
+
+        addelevation = jpy.get_type('org.esa.snap.dem.gpf.AddElevationOp')
+
+        op = addelevation()
+        op.setParameterDefaultValues()
+        op.setSourceProduct(product)
         return op.getTargetProduct()
 
     def get_subset(self, product, wkt):

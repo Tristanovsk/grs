@@ -303,7 +303,7 @@ class misc:
     @staticmethod
     def get_pressure(alt, psl):
         '''Compute the pressure for a given altitude
-           alt : altitude in meters
+           alt : altitude in meters (float or np.array)
            psl : pressure at sea level in hPa
            palt : pressure at the given altitude in hPa'''
         palt = psl * (1. - 0.0065 * alt / 288.15) ** 5.255
