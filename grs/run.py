@@ -1,7 +1,7 @@
 ''' Executable to process L1C images from Sentinel-2 and Landsat mission series
 
 Usage:
-  grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
+  grs <input_file> [--grs_a] [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
@@ -14,6 +14,7 @@ Options:
   -v --version     Show version.
 
   <input_file>     Input file to be processed
+  --grs_a          Apply the advanced (beta) version of GRS if set
   --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
   -o ofile         Full (absolute or relative) path to output L2 image.
@@ -63,6 +64,7 @@ def main():
     print(args)
 
     file = args['<input_file>']
+    grs_a = args['--grs_a']
     sensor = args['--sensor']
     shapefile = args['--shape']
     if (args['--shape'] == None):
@@ -128,7 +130,7 @@ def main():
 
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
-    process().execute(file, outfile, wkt, sensor=sensor, altitude=altitude, aerosol=aerosol,
+    process().execute(file, outfile, wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       aot550=aot550, angstrom=angstrom, output=output, memory_safe=memory_safe,
                       unzip=unzip)

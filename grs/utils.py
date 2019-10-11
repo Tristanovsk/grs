@@ -54,6 +54,10 @@ class info:
         # variables:
         #########################
         self.product = product
+        # set band to be used in the process
+        self.band_names = self.sensordata.band_names
+        self.N = len(self.sensordata.band_names)
+
         self.headerfile = ''
         self.l2_product = None
         self.aux = None
@@ -62,8 +66,7 @@ class info:
         self.height = 0
         self.name = ''
         self.description = ''
-        self.band_names = ''
-        self.N = 0
+
         self.nodata = -999.9
         self.wl = []
         self.b = []
@@ -107,11 +110,16 @@ class info:
         # self.band_names = product.getBandNames()
         self.date = parser.parse(str(product.getStartTime()))
 
-    def get_bands(self, band_names=['B1']):
+    def get_bands(self, band_names=None):
         '''get wavelengths, bands, geometries'''
+
         product = self.product
-        self.band_names = band_names
-        self.N = len(band_names)
+
+        if not (band_names is None):
+            self.band_names = band_names
+
+        band_names = self.band_names
+        self.N = len(self.band_names)
         N = range(self.N)
         self.VZA = [[] for i in N]
         self.VAZI = [[] for i in N]
@@ -135,13 +143,13 @@ class info:
             # self.VZA[i].loadRasterData()
             # self.VAZI[i].loadRasterData()
 
-    def get_flag(self, flag_name, rownum):
+    def get_flag(self, flag_name):
         '''get binary flag raster of row `rownum`'''
-
-        flag_raster = np.zeros(self.width, dtype=np.int32)
+        w, h = self.width, self.height
+        flag_raster = np.zeros((w, h), dtype=np.int32, order='F').T
         flag = self.product.getMaskGroup().get(flag_name)
         flag = jpy.cast(flag, Mask)
-        flag.readPixels(0, rownum, self.width, 1, flag_raster)
+        flag.readPixels(0, 0, w, h, flag_raster)
         return flag_raster
 
     def get_elevation(self):
@@ -152,87 +160,68 @@ class info:
         dem = self.product.getBand('elevation')
 
         dem.readPixels(0, 0, self.width, self.height, self.elevation)
-        self.elevation=np.array(self.elevation)
+        self.elevation = np.array(self.elevation)
         return
 
-    def load_data(self, rownum):
+    def load_data(self):
         # --------------------------------
         # construct arrays
         # --------------------------------
-
-        self.mask = np.zeros(self.width, dtype=np.uint8, order='F')
-        self.flags = np.zeros(self.width, dtype=np.uint8, order='F')
-
-        self.hcld = np.zeros(self.width, dtype=self.type, order='F')
-        self.rs2 = np.ma.zeros((self.N, self.width), dtype=self.type)
-        self.vza = np.ma.zeros((self.N, self.width), dtype=self.type)
-        self.razi = np.ma.zeros((self.N, self.width), dtype=self.type)
-        self.sza = np.ma.zeros(self.width, dtype=self.type)
-        self.sazi = np.ma.zeros(self.width, dtype=self.type)
-        self.muv = np.ma.zeros((self.N, self.width), dtype=self.type)
-
-        # set NDWI band
-        self.B[self.sensordata.NDWI_vis].readPixels(0, rownum, self.width, 1, self.rs2[self.sensordata.NDWI_vis])
-        self.B[self.sensordata.NDWI_nir].readPixels(0, rownum, self.width, 1, self.rs2[self.sensordata.NDWI_nir])
-        self.ndwi = np.array((self.rs2[self.sensordata.NDWI_vis] - self.rs2[self.sensordata.NDWI_nir]) / \
-                             (self.rs2[self.sensordata.NDWI_vis] + self.rs2[self.sensordata.NDWI_nir]))
-        self.ndwi_band.loadRasterData()
-        self.ndwi_band.setPixels(0, rownum, self.width, 1, self.ndwi)
-
-        # set ndwi mask
-        ndwi_ = (self.ndwi < self.sensordata.NDWI_threshold[0]) | (self.ndwi > self.sensordata.NDWI_threshold[1])
-        self.mask[ndwi_] = 2
-
-        # TODO for now not needed since SNAP API load all data irrespective of valid expression
-        # # set valid expression
-        # validexp = ' & ndwi >'+str(self.sensordata.NDWI_threshold[0])
-        # def addValidPixelExpression(b,validexp):
-        #     former = b.getValidPixelExpression()
-        #     if former != None:
-        #         b.setValidPixelExpression(former+validexp)
-        #     else:
-        #         b.setValidPixelExpression(validexp)
+        w, h = self.width, self.height
+        self.mask, self.flags = utils.init_fortran_array(2, (w, h), dtype=np.uint8)
+        self.sza, self.sazi, arr = utils.init_fortran_array(3, (w, h))
+        self.band_rad, self.vza, self.razi, self.muv = utils.init_arrayofarrays(4, [arr] * self.N)
 
         # --------------------------------
         # load data
         # --------------------------------
-        # addValidPixelExpression(self.SZA,validexp)
-        self.SZA.readPixels(0, rownum, self.width, 1, self.sza)
-        # addValidPixelExpression(self.SAZI,validexp)
-        self.SAZI.readPixels(0, rownum, self.width, 1, self.sazi)
+        self.SZA.readPixels(0, 0, w, h, self.sza)
+        self.SAZI.readPixels(0, 0, w, h, self.sazi)
         self.mu0 = np.cos(np.radians(self.sza))
 
-        def mask_array(arr, mask):
-            return np.ma.array(arr, mask=mask, fill_value=np.nan)
+        for i, band in enumerate(self.band_names):
 
-        for iband in range(self.N):
-            # addValidPixelExpression(self.B[iband],validexp)
-            self.B[iband].readPixels(0, rownum, self.width, 1, self.rs2[iband])
+            self.B[i].readPixels(0, 0, w, h, arr)
+            self.band_rad[i] = arr
 
-            # check for nodata pixels
-            nodata = self.B[iband].getGeophysicalNoDataValue()
-            nodata_ = (self.rs2[iband].data == nodata)
-
-            self.rs2[iband] = np.ma.array(self.rs2[iband],
-                                          mask=nodata_ | ndwi_, fill_value=np.nan)
-
-            mask = self.rs2[iband].mask
-            # pin nodata pixels
+            # check for nodata pixels and set mask
+            nodata = self.B[i].getGeophysicalNoDataValue()
+            nodata_ = (self.band_rad[i].data == nodata)
             self.mask[nodata_] = 1
-
-            self.VZA[iband].readPixels(0, rownum, self.width, 1, self.vza[iband])
-            self.vza[iband] = mask_array(self.vza[iband], mask)
-            self.VAZI[iband].readPixels(0, rownum, self.width, 1, self.razi[iband])
-            self.razi[iband] = mask_array(self.razi[iband], mask)
-
-            # get relative azimuth in OSOAA convention (=0 when sat and sun in opposition)
-            self.razi[iband] = (180. - (self.razi[iband] - self.sazi)) % 360
-            # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
-            self.muv[iband] = np.cos(np.radians(self.vza[iband]))
 
             # convert (if needed) into TOA reflectance
             if 'LANDSAT' in self.sensor:
-                self.rs2[iband] = self.rs2[iband] * np.pi / (self.mu0 * self.U * self.solar_irr[iband] * 10)
+                self.band_rad[i] = self.band_rad[i] * np.pi / (self.mu0 * self.U * self.solar_irr[i] * 10)
+
+            self.VZA[i].readPixels(0, 0, w, h, arr)
+            self.vza[i] = arr
+            self.muv[i] = np.cos(np.radians(self.vza[i]))
+            # get relative azimuth in OSOAA convention (=0 when sat and sun in opposition)
+            self.VAZI[i].readPixels(0, 0, w, h, arr)
+            self.razi[i] = arr
+            self.razi[i] = (180. - (self.razi[i] - self.sazi)) % 360
+            # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
+
+        # get cirrus band if exists
+        try:
+            self.product.getBand(self.sensordata.cirrus[0]).readPixels(0, 0, w, h, self.hcld)
+            # convert (if needed) into TOA reflectance
+            if 'LANDSAT' in self.sensor:
+                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
+        except:
+            pass
+
+    def load_flags(self):
+        '''
+        Set flags from L1 data (must be called after `load_data`
+        :return:
+        '''
+
+        # compute NDWI and set corresponding mask
+        self.ndwi = np.array((self.band_rad[self.sensordata.NDWI_vis] - self.band_rad[self.sensordata.NDWI_nir]) /
+                             (self.band_rad[self.sensordata.NDWI_vis] + self.band_rad[self.sensordata.NDWI_nir]))
+        ndwi_ = (self.ndwi < self.sensordata.NDWI_threshold[0]) | (self.ndwi > self.sensordata.NDWI_threshold[1])
+        self.mask[ndwi_] = 2
 
         # --------------------------------
         # set mask cloud mask and/or export L1 flags
@@ -240,40 +229,31 @@ class info:
         # TODO export L1 flags waiting for snap bug to be solved (subset remove mask info,
         #  https://forum.step.esa.int/t/problems-with-selecting-masks-as-input-in-graph-builder/3494/7 )
         try:
-            cloud = self.get_flag(self.sensordata.cloud_flag, rownum)
-            cirrus = self.get_flag(self.sensordata.cirrus_flag, rownum)
+            cloud = self.get_flag(self.sensordata.cloud_flag)
+            cirrus = self.get_flag(self.sensordata.cirrus_flag)
             self.flags = self.flags + ((cloud << 6) + (cirrus << 7))
         except:
             pass
 
         try:
             if self.sensordata.shadow_flag != '':
-                shadow = self.get_flag(self.sensordata.shadow_flag, rownum)
+                shadow = self.get_flag(self.sensordata.shadow_flag)
                 self.flags = (self.flags + (shadow << 8))
         except:
             pass
 
         # set high cloud cirrus mask
         try:
-            self.product.getBand(self.sensordata.cirrus[0]).readPixels(0, rownum, self.width, 1, self.hcld)
-            # convert (if needed) into TOA reflectance
-            if 'LANDSAT' in self.sensor:
-                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
             self.flags = (self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5))
         except:
             pass  # print('No cirrus band available, high cloud flag discarded')
-
-        # convert into FORTRAN 2D arrays (here, np.array)
-        self.rs2 = np.array(self.rs2, order='F').T
-        self.razi = np.array(self.razi, order='F').T
-        self.vza = np.array(self.vza, order='F').T
 
     #     print('multiproc')
     #     with closing(Pool(8)) as p:
     #         return(p.map(self.f, range(self.N)))
     #
     # def f(self,iband):
-    #     self.B[iband].readPixels(0, 0, self.width, self.height, self.rs2[iband])
+    #     self.B[iband].readPixels(0, 0, self.width, self.height, self.band_rad[iband])
 
     def unload_data(self):
 
@@ -550,6 +530,43 @@ class info:
 
 
 class utils:
+
+    @staticmethod
+    def init_arrayofarrays(number_of_array, dim):
+        '''
+        Initialize Nd array of Nd dimensions (given by dim)
+        example:
+            arr1, arr2 = init_array(2,(2,3,10))
+        gives
+            arr1.shape --> (2,3,10)
+            arr2.shape --> (2,3,10)
+
+        :param number_of_array: int
+        :param dim: list
+
+        :return: `number_of_array` numpy arrays of shape `dim`
+        '''
+        for i in range(number_of_array):
+            yield np.array(dim)
+
+    @staticmethod
+    def init_fortran_array(number_of_array, dim, dtype=np.float32):
+        '''
+        Initialize Nd array of Nd dimensions (given by dim) in FORTAN memory order
+        (i.e., compliant with JAVA order provided by snappy)
+        example:
+            arr1, arr2 = init_array(2,(2,3,10))
+        gives
+            arr1.shape --> (2,3,10)
+            arr2.shape --> (2,3,10)
+
+        :param number_of_array: int
+        :param dim: list
+        :param dtype: numpy type for arrays
+        :return: `number_of_array` numpy arrays of shape `dim`
+        '''
+        for i in range(number_of_array):
+            yield np.zeros(dim, dtype=dtype, order='F').T
 
     def generic_resampler(self, s2_product, resolution=20, method='Bilinear'):
         '''method: Nearest, Bilinear'''
