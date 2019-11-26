@@ -16,7 +16,7 @@ main_algo: $(MINPACK) $(INTERP) $(module) $(SRC)
 	$(FC) -c $(MINPACK) $(INTERP) $(module) $(SRC) 
 
 binding:
-	f2py -c -m main_algo main_algo.f95 $(MINPACK) $(INTERP) $(module) --opt='$(FFLAGS)'
+	$(F2PY) -c -m main_algo main_algo.f95 $(MINPACK) $(INTERP) $(module) --opt='$(FFLAGS)'
 
 clean :
 	rm -rf *.o *.mod

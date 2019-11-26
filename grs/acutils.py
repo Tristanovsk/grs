@@ -1,3 +1,7 @@
+'''
+Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)
+'''
+
 import numpy as np
 
 from matplotlib import pyplot as plt
@@ -112,6 +116,9 @@ class lut:
 
 
 class aerosol:
+    '''
+    aerosol parameters and parameterizations
+    '''
     def __init__(self):
         self.aot550 = 0.1
         self.wavelengths = []
@@ -299,7 +306,9 @@ class smac:
 
 
 class misc:
-
+    '''
+    Miscelaneous utilities
+    '''
     @staticmethod
     def get_pressure(alt, psl):
         '''Compute the pressure for a given altitude

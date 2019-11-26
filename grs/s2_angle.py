@@ -1,3 +1,6 @@
+'''
+Optional code to compute viewing configuration for S2
+'''
 import math
 import os
 import xml.etree.ElementTree as ET
@@ -8,6 +11,10 @@ from osgeo import gdal
 
 
 class s2angle:
+    '''
+    Calculations of the viewing geometries for each pixel and band
+    [kept for records; those calculations are now done through the ESA snappy library]
+    '''
     ############################################################################
     # Sudipta's addition to enable spatial subset
     ############################################################################

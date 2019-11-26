@@ -25,12 +25,26 @@ ln -s /FULL_PATH/.snap/snap-python/snappy /PATH_TO_LIB_PYTHON/lib/python3.6/site
 
 
 Compilers such gcc and gfortran are needed to install the package.
+ 
+Bindings are made based on F2PY. Please update the version of F2PY accordingly to your python version 
+in [Makefile](Makefile); for instance:
+
+``` 
+export F2PY=f2py3.6
+```
 
 Compile all C and fortran files into shared libraries:
 
 ```
 make
 ```
+
+Generate the `config.py` file:
+ * In the ./grs/grs folder, copy `config_local.py` to `config.py`. 
+ 
+ * Then, edit `config.py` according to your folders tree and path to your grs installation folder. 
+
+
 
 ### Installing
 

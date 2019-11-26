@@ -9,6 +9,9 @@ import datetime
 
 
 class misc:
+    '''
+    Miscellaneous utilities
+    '''
     def __init__(self):
         pass
 
@@ -122,6 +125,9 @@ class misc:
             yield xs
 
 class multi_process:
+    '''
+    Utilities for multicore processing
+    '''
     def __init__(self):
         pass
     def grs_call(self,p):

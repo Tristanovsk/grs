@@ -65,7 +65,7 @@ mode=1
 ftol=sqrt(epsilon(1._rtype)) !1d-12
 xtol=sqrt(epsilon(1._rtype))
 gtol=sqrt(epsilon(1._rtype))
-maxfev=200
+maxfev=100
 nprint=0
 ldfjac=m
 alpha=1d-3
@@ -86,12 +86,13 @@ x(3)=dsqrt(brdf)
 call lmdif(cost_func,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,&
 &                     diag,mode,factor,nprint,info,nfev,fjac,ldfjac,&
 &                     ipvt,qtf,wa1,wa2,wa3,wa4)
-print*,'info ',info,'m ',m,' nfev',nfev ,'  fvec ',sqrt(sum(fvec**2d0))/m
+!print*,'info ',info,'m ',m,' nfev',nfev ,'  fvec ',sqrt(sum(fvec**2d0))/m
 !write(*,'(7(f8.4,x))')exp(x)
 
 !print*,'fvec'
 !do i=1,m
-! write(*,'(f15.4)')fvec(i)
+ !write(*,'(f15.4)')fvec(i)
+   ! write(*,'(2(f12.5,x))')rmes(i),rsim(i)
 !enddo
 norm=dsqrt(sum(fvec**2d0))
 
@@ -102,10 +103,11 @@ do i=1,n
  l=ipvt(i)
  fjnorm(l)=enorm(i,fjac(1,i))
 enddo
-do i=1,n
+
+!do i=1,n
 !sigma(i)=sqrt(eps*(norm/fjnorm(i))**2d0)
 !print*,x(i),' +-',sigma(i)
-enddo
+!enddo
 
 aot550=(x(1))**2
 beta=1._rtype / ( 1._rtype + dexp(-alpha*x(2)))
@@ -116,6 +118,11 @@ print*,' aot, beta, brdf ',aot550,beta,brdf
 deallocate(fvec,fjac,wa4)
 return
 end subroutine aero_glint
+
+
+!-----------------------------------------------------------
+! Cost function
+!-----------------------------------------------------------
 
 subroutine cost_func(m,n,x,fvec,iflag)
 !Define cost function for Levenberg-Marquardt algo
@@ -139,9 +146,9 @@ beta=1._rtype / ( 1._rtype + dexp(-alpha*x(2)))
 brdf=x(3)**2
 
 do ib=1,lband
-    rsimf = 0.
-    rsimc = 0.
-    do i=0,norder
+    rsimf = s_af(ib,0)
+    rsimc = s_ac(ib,0)
+    do i=1,norder
        rsimf = rsimf + s_af(ib,i)*aot550**i
        rsimc = rsimc + s_ac(ib,i)*aot550**i
     enddo

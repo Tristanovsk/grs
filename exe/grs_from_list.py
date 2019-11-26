@@ -1,5 +1,6 @@
 '''
 command to process images over the aeronet-oc sites
+
 example:
 python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
@@ -11,9 +12,9 @@ import glob
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 
-# sys.path.extend([os.path.abspath(__file__)])
+sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
-from procutils import misc, multi_process
+from exe.procutils import misc, multi_process
 
 misc = misc()
 

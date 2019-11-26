@@ -65,6 +65,9 @@ def main():
 
     file = args['<input_file>']
     grs_a = args['--grs_a']
+    lev = args['--levname']
+    if grs_a and lev == "L2grs":
+        lev = "L2grsa"
     sensor = args['--sensor']
     shapefile = args['--shape']
     if (args['--shape'] == None):
@@ -91,7 +94,7 @@ def main():
 
     outfile = args['-o']
     if outfile == None:
-        lev = args['--levname']
+
         basename=os.path.basename(file)
         outfile = basename.replace('L1C', lev)
         outfile = outfile.replace('.SAFE', '').rstrip('/')

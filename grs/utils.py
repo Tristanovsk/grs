@@ -1,4 +1,8 @@
 # coding=utf-8
+'''
+Defines main python objects and image manipulation functions (linked to the ESA snappy library)
+'''
+
 import re, shutil
 import numpy as np
 from dateutil import parser
@@ -12,18 +16,20 @@ from .config import *
 
 
 class info:
-    def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast', output='Rrs'):
-        '''
+    '''
 
-        :param product:
-        :param sensordata:
-        :param aerosol:
-        :param ancillary:
-        :param output: set the unit of the retrievals:
-                 * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
-                 * 'Rrs', remote sensing reflectance (in sr-1)
-                 {default: 'Rrs']
-        '''
+            :param product:
+            :param sensordata:
+            :param aerosol:
+            :param ancillary:
+            :param output: set the unit of the retrievals:
+                     * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 \mum-1)
+                     * 'Rrs', remote sensing reflectance (in sr-1)
+                     {default: 'Rrs']
+            '''
+
+    def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast', output='Rrs'):
+
         self.processor = __package__ + ' ' + VERSION
         self.sensordata = sensordata
         self.sensor = sensordata.sensor
@@ -96,12 +102,26 @@ class info:
         self.hcld_threshold = 3e-3
 
     def set_outfile(self, file):
+        '''
+
+        :param file:
+        :return:
+        '''
         self.outfile = file
 
     def set_aeronetfile(self, file):
+        '''
+
+        :param file:
+        :return:
+        '''
         self.aeronetfile = file
 
     def get_product_info(self):
+        '''
+
+        :return:
+        '''
         product = self.product
         self.width = product.getSceneRasterWidth()
         self.height = product.getSceneRasterHeight()
@@ -111,7 +131,11 @@ class info:
         self.date = parser.parse(str(product.getStartTime()))
 
     def get_bands(self, band_names=None):
-        '''get wavelengths, bands, geometries'''
+        '''
+        get wavelengths, bands, geometries
+        :param band_names:
+        :return:
+        '''
 
         product = self.product
 
@@ -164,6 +188,10 @@ class info:
         return
 
     def load_data(self):
+        '''
+        load ta from input (subsetted) satellite image
+        :return:
+        '''
         # --------------------------------
         # construct arrays
         # --------------------------------
@@ -256,8 +284,9 @@ class info:
     #     self.B[iband].readPixels(0, 0, self.width, self.height, self.band_rad[iband])
 
     def unload_data(self):
+        '''unload data (not efficient due to ESA snappy issue with java jvm'''
 
-        # unload data
+        #
         self.product.getBand('B10').unloadRasterData()
         self.SZA.unloadRasterData()
         self.SAZI.unloadRasterData()
@@ -268,6 +297,10 @@ class info:
             self.VAZI[i].unloadRasterData()
 
     def create_product(self):
+        '''
+        Create output product dimensions, variables, attributes, flags....
+        :return:
+        '''
         # TODO write output directly in netcdf format
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
@@ -473,6 +506,11 @@ class info:
         self.l2_product = ac_product
 
     def checksum(self, info):
+        '''
+        Save info on the current processing stage
+        :param info:
+        :return:
+        '''
         # TODO improve checksum scheme
         with open(self.outfile + '.checksum', "w") as f:
             f.write(info)
@@ -530,11 +568,17 @@ class info:
 
 
 class utils:
+    ''' utils for arrays, images manipulations'''
+
+    def __init__(self):
+
+        pass
 
     @staticmethod
     def init_arrayofarrays(number_of_array, dim):
         '''
         Initialize Nd array of Nd dimensions (given by dim)
+
         example:
             arr1, arr2 = init_array(2,(2,3,10))
         gives
@@ -546,14 +590,16 @@ class utils:
 
         :return: `number_of_array` numpy arrays of shape `dim`
         '''
+
         for i in range(number_of_array):
             yield np.array(dim)
 
     @staticmethod
     def init_fortran_array(number_of_array, dim, dtype=np.float32):
         '''
-        Initialize Nd array of Nd dimensions (given by dim) in FORTAN memory order
+        Initialize Nd array of Nd dimensions (given by dim) in FORTRAN memory order
         (i.e., compliant with JAVA order provided by snappy)
+
         example:
             arr1, arr2 = init_array(2,(2,3,10))
         gives
@@ -565,6 +611,7 @@ class utils:
         :param dtype: numpy type for arrays
         :return: `number_of_array` numpy arrays of shape `dim`
         '''
+
         for i in range(number_of_array):
             yield np.zeros(dim, dtype=dtype, order='F').T
 
@@ -588,7 +635,9 @@ class utils:
     def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
                   flag='FlagMedianAnd', opt=True):
 
-        '''Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
+        '''
+        Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
+
         :param product: S2-msi product as provided by esasnappy ProductIO.readProduct()
         :param resolution: target resolution in meters
         :param upmethod: interpolation method ('Nearest', 'Bilinear', 'Bicubic')
@@ -613,7 +662,9 @@ class utils:
     def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
                      flag='FlagMedianAnd', opt=True):
 
-        '''Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
+        '''
+        Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
+
         :param product: S2-msi product as provided by esasnappy ProductIO.readProduct()
         :param resolution: target resolution in meters (10, 20, 60)
         :param upmethod: interpolation method ('Nearest', 'Bilinear', 'Bicubic')
@@ -670,8 +721,9 @@ class utils:
 
     def get_extent(self, product):
         '''Get corner coordinates of the ESA SNAP product(getextent)
-        ########
+
         # int step - the step given in pixels'''
+
         step = 1
         lonmin = 999.99
 

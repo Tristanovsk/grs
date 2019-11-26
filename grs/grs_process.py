@@ -1,3 +1,7 @@
+'''
+Main program
+'''
+
 from pathlib import Path
 from esasnappy import ProductData, ProductIO
 
@@ -16,6 +20,7 @@ from .fortran.grs_a import main_algo as grs_a_solver
 
 
 class process:
+    ''' '''
     def __init__(self):
         pass
 
@@ -24,14 +29,16 @@ class process:
                 startrow=0,
                 memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
         '''
+        Main program calling all GRS steps
 
-        :param file:
-        :param sensor:
-        :param wkt:
-        :param output:
+        :param file: Input file to be processed
+        :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
+                    (by default sensor type is retrieved from input file name)
+        :param wkt: Well-Known-Text format defining the area of interest for which the image is subsetted
+        :param outfile: Absolute path of the output file
         :param dem: if True digital elevation model is applied for per-pixel pressure calculation (data from SNAP/SRTM)
-        :param altitude:
-        :param aeronet_file:
+        :param altitude: provide altitude if `dem` is set as `False`
+        :param aeronet_file: optional aeronet file to be used for aerosol calculations
         :param resolution: pixel resolution in meters (integer)
         :param unzip: if True input file is unzipped before processing,
                       NB: unzipped files are removed at the end of the process
@@ -39,8 +46,11 @@ class process:
                         NB: this option is used to in the context of operational processing of massive dataset
         :param angleonly: if true, grs is used to compute angle parameters only (no atmo correction is applied)
         :param output: set the unit of the retrievals:
-                 * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
-                 * 'Rrs', remote sensing reflectance (in sr-1)
+
+                 * 'Lwn', normalized water-leaving radiance (in  :math:`mW cm^{-2} sr^{-1} \mu m^{-1})`
+
+                 * 'Rrs', remote sensing reflectance (in  :math:`sr^{-1}`)
+
                  {default: 'Rrs'}
         :param grs_a: switch to grs-a algorithm (Lwn and aerosol) if True
 
@@ -292,10 +302,8 @@ class process:
         # set aot by hand
         aot550guess.fill(l2h.aot550)
 
-
         l2h.load_data()
         l2h.load_flags()
-
 
         validx = (l2h.mask == 0)
         # l2h.sza[~validx]=np.nan
@@ -314,9 +322,8 @@ class process:
         #             ((l2h.mask == 1) +
         #              ((l2h.mask == 2) << 2)
         #              )
-        #l2h.l2_product.getBand('flags').writePixels(0, 0,w,h, np.array(l2h.flags, dtype=np.uint32,order='F').T)
-        #l2h.l2_product.getBand('flags').writePixels(0, 0,w,h, l2h.flags.astype(np.uint32))
-
+        # l2h.l2_product.getBand('flags').writePixels(0, 0,w,h, np.array(l2h.flags, dtype=np.uint32,order='F').T)
+        # l2h.l2_product.getBand('flags').writePixels(0, 0,w,h, l2h.flags.astype(np.uint32))
 
         for i in range(startrow, l2h.height):
             print('process row ' + str(i))
@@ -378,13 +385,13 @@ class process:
                                  (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
             # set flags
             flags = flags + \
-                        ((mask == 1) +
-                         (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                         ((mask == 2) << 2) +
-                         (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
-                                 ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
-                         ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
-                         )
+                    ((mask == 1) +
+                     (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
+                     ((mask == 2) << 2) +
+                     (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
+                             ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
+                     ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
+                     )
 
             for iband in range(l2h.N):
                 l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \

@@ -1,17 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: iso-8859-1 -*-
-# =============================================================================================
-# library for atmospheric correction using SMAC method (Rahman and Dedieu, 1994)
-# Contains :
-#      smac_inv : inverse smac model for atmospheric correction
-#                          TOA==>Surface
-#      smac dir : direct smac model
-#                          Surface==>TOA
-#      coefs : reads smac coefficients
-#      PdeZ : #      PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)
+'''Correction for gaseous absorption based on SMAC method (Rahman and Dedieu, 1994)
 
-# Written by O.Hagolle CNES, from the original SMAC C routine
-# =============================================================================================
+'''
 
 from math import *
 import numpy as np
@@ -31,6 +22,20 @@ def PdeZ(Z):
 # =============================================================================================
 
 class coeff:
+    '''
+    library for atmospheric correction using SMAC method (Rahman and Dedieu, 1994)
+    Contains :
+         smac_inv : inverse smac model for atmospheric correction
+                             TOA==>Surface
+         smac dir : direct smac model
+                             Surface==>TOA
+         coefs : reads smac coefficients
+         PdeZ : #      PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)
+
+    Written by O.Hagolle CNES, from the original SMAC C routine
+    =============================================================================================
+    '''
+
     def __init__(self, smac_filename):
         with file(smac_filename) as f:
             lines = f.readlines()
@@ -466,5 +471,4 @@ if __name__ == "__main__":
     r_surf = smac_inv(r_toa, theta_s, phi_s, theta_v, phi_v, 1013, 0.1, 0.3, 0.3, coefs)
     r_toa2 = smac_dir(r_surf, theta_s, phi_s, theta_v, phi_v, 1013, 0.1, 0.3, 0.3, coefs)
 
-    print
-    r_toa, r_surf, r_toa2
+    print(r_toa, r_surf, r_toa2)

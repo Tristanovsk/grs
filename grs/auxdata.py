@@ -241,31 +241,32 @@ class sensordata:
 
 
 class cams:
+    '''
+    Unit Conversion
+    PWC (Precipitable Water Content), Grib Unit [kg/m^2]
+    MSL (Mean Sea Level pressure),    Grib Unit [Pa]
+    OZO (Ozone),                      Grib Unit [kg/m^2]
+
+    calculation for Ozone according to R. Richter (20/1/2016):
+    ----------------------------------------------------------
+    GRIB_UNIT = [kg/m^2]
+    standard ozone column is 300 DU (Dobson Units),
+    equals to an air column of 3 mm at STP (standard temperature (0 degree C) and pressure of 1013 mbar).
+
+    Thus, molecular weight of O3 (M = 48): 2.24 g (equals to 22.4 liter at STP)
+
+    300 DU = 3 mm  (equals to (0.3*48 / 2.24) [g/m^2])
+     = 6.428 [g/m^2] = 6.428 E-3 [kg/m^2]
+
+    Example:
+
+    ozone (kg/m^2  = 300 /6.428E-3 DU )
+    pressure (Pa = 1/100 hPa)
+    water vapor (kg/m^2 = 10^3/10^4 = 0.1 g/cm^2)
+
+    '''
     def __init__(self):
-        '''
-        Unit Conversion
-        PWC (Precipitable Water Content), Grib Unit [kg/m^2]
-        MSL (Mean Sea Level pressure),    Grib Unit [Pa]
-        OZO (Ozone),                      Grib Unit [kg/m^2]
 
-        calculation for Ozone according to R. Richter (20/1/2016):
-        ----------------------------------------------------------
-        GRIB_UNIT = [kg/m^2]
-        standard ozone column is 300 DU (Dobson Units),
-        equals to an air column of 3 mm at STP (standard temperature (0 degree C) and pressure of 1013 mbar).
-
-        Thus, molecular weight of O3 (M = 48): 2.24 g (equals to 22.4 liter at STP)
-
-        300 DU = 3 mm  (equals to (0.3*48 / 2.24) [g/m^2])
-         = 6.428 [g/m^2] = 6.428 E-3 [kg/m^2]
-
-        Example:
-
-        ozone (kg/m^2  = 300 /6.428E-3 DU )
-        pressure (Pa = 1/100 hPa)
-        water vapor (kg/m^2 = 10^3/10^4 = 0.1 g/cm^2)
-
-        '''
         self.tile_dir = ''
         self.aux_dir = ''
         self.ecmwf_file = ''
@@ -310,9 +311,18 @@ class cams:
         self.tile_dir = os.path.join(granuleDir, filelist[0])
 
     def get_aux_dir(self):
+        '''
+
+        :return:
+        '''
         self.aux_dir = os.path.join(self.tile_dir, 'AUX_DATA')
 
     def get_ecmwf_file(self, product):
+        '''
+
+        :param product:
+        :return:
+        '''
         meta = product.getMetadataRoot().getElement('Level-1C_User_Product')
         ecmwf = meta.getElement('Auxiliary_Data_Info').getAttribute('ECMWF_DATA_REF')
         self.ecmwf_file = str(ecmwf.getData())

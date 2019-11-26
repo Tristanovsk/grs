@@ -116,7 +116,7 @@ subroutine main_algo(npix, nband, naot, &
                     &              weightaot, naot, norder, af(iband, 0 : norder), R2)
             if(R2 < 0.98)then
                 print*, 'FATAL ERROR IN POLYNOMIAL FITTING (f(aot)) IN SOLVER MODULE'
-                print*, 'fine mode R2 = ', R2, aotlut, rlut_f(:, iband, ipix),s_af(iband, 0 : norder)
+                print*, 'fine mode R2 = ', R2, aotlut, pressure_corr(ipix) *rlut_f(:, iband, ipix),af(iband, 0 : norder)
             endif
 
             call fit_poly(aotlut, pressure_corr(ipix) * rlut_c(:, iband, ipix), &
@@ -124,7 +124,7 @@ subroutine main_algo(npix, nband, naot, &
 
             if(R2 < 0.98)then
                 print*, 'FATAL ERROR IN POLYNOMIAL FITTING (f(aot)) IN SOLVER MODULE'
-                print*, 'R2 = ', R2, aotlut, rlut_c(:, iband, ipix), ac(iband, 0 : norder)
+                print*, 'R2 = ', R2, aotlut, pressure_corr(ipix) *rlut_c(:, iband, ipix), ac(iband, 0 : norder)
                 cycle
             endif
             rsimf = 0.
@@ -154,13 +154,15 @@ subroutine main_algo(npix, nband, naot, &
         s_af = af
         s_ac = ac
         s_rot = rot_corr
-        s_m = m(ipix, :)
-        rmes = rtoa(ipix, :)
+        s_m = m(:,ipix)
+        rmes = rtoa(:,ipix)
         sigma = 1._rtype
+
+
         !--- first guess
         brdf_swir = 1d-10 !max(1d-10, brdf(nband))
-
         beta = 0.5
+
         call aero_glint(aot550, beta, brdf_swir)
 
         aot550_est(ipix) = aot550
@@ -170,9 +172,10 @@ subroutine main_algo(npix, nband, naot, &
             aot_est(iband) = beta * cextf(iband) / s_cextf550 * aot550 + (1. - beta) * cextc(iband) / s_cextc550 * aot550
             tud(iband) = dexp(-(rot_corr(iband) + aot_est(iband)) / m(iband, ipix))
             rglint = tud(iband) * rg_ratio(iband) * brdf_swir
-            rsimf(iband) = 0.
-            rsimc(iband) = 0.
-            do i = 0, norder
+
+            rsimf(iband) = af(iband, 0)
+            rsimc(iband) = ac(iband, 0)
+            do i = 1, norder
                 rsimf(iband) = rsimf(iband) + af(iband, i) * aot550**i
                 rsimc(iband) = rsimc(iband) + ac(iband, i) * aot550**i
             enddo
