@@ -103,7 +103,7 @@ subroutine main_algo(npix, nband, naot, &
 
         mu0(ipix)=cos(sza(ipix)*degrad)
 
-        aot550=aot550_in(ipix)
+        aot550=0. !aot550_in(ipix)
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
 
@@ -167,6 +167,10 @@ subroutine main_algo(npix, nband, naot, &
 
         aot550_est(ipix) = aot550
         brdf_est(ipix) = brdf_swir
+ !-----------------------------------------------
+!       END SOLVER MODULE
+!-----------------------------------------------
+
 
         do iband = 1, nband
             aot_est(iband) = beta * cextf(iband) / s_cextf550 * aot550 + (1. - beta) * cextc(iband) / s_cextc550 * aot550

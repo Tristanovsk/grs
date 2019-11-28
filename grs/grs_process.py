@@ -193,6 +193,7 @@ class process:
         l2h.pressure_msl = l2h.aux.msl  # acutils.misc.get_pressure(altitude, l2h.aux.msl)
         if dem:
             altitude = l2h.elevation
+            altitude[altitude<-200]=0
         l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
 
         ##################################

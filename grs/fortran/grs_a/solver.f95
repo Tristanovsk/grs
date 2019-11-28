@@ -113,7 +113,7 @@ aot550=(x(1))**2
 beta=1._rtype / ( 1._rtype + dexp(-alpha*x(2)))
 brdf=x(3)**2
 
-print*,' aot, beta, brdf ',aot550,beta,brdf
+! print*,' aot, beta, brdf ',aot550,beta,brdf
 
 deallocate(fvec,fjac,wa4)
 return
@@ -167,7 +167,7 @@ enddo
 !--------------------------------------
 do i=1,m-Nconstrain
   if(i .ge. lband-2)then
-      fvec(i)= ( rmes(i) - rsim(i) ) / sigma(i)
+      fvec(i)= ( rmes(i) - rsim(i) ) / rmes(i) !sigma(i)
   else
       fvec(i)=0
       if((rmes(i) - rsim(i))<0.)fvec(i)= 1d-1 !( rmes(i) - rsim(i) ) / sigma(i)

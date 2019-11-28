@@ -227,7 +227,12 @@ class info:
             # get relative azimuth in OSOAA convention (=0 when sat and sun in opposition)
             self.VAZI[i].readPixels(0, 0, w, h, arr)
             self.razi[i] = arr
+
+            # convention RAZI = 0 when sun and satelite in opposition (Radiative transfer convention)
             self.razi[i] = (180. - (self.razi[i] - self.sazi)) % 360
+            # convention RAZI = 180 when sun and satelite in opposition
+           # self.razi[i] =  (self.razi[i] - self.sazi) % 360
+
             # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
 
         # get cirrus band if exists
