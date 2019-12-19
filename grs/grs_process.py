@@ -60,6 +60,8 @@ class process:
         ##################################
         # Get sensor auxiliary data
         ##################################
+
+        print('Get sensor auxiliary data')
         _utils = utils.utils()
         if sensor == None:
             sensor = _utils.get_sensor(file)
@@ -74,6 +76,8 @@ class process:
         ##################################
         # Read L1C product
         ##################################
+
+        print('unzipping...')
         file_orig = file
         # unzip if needed
         if unzip:
@@ -268,7 +272,7 @@ class process:
         l2h.rot = l2h.sensordata.rot
 
         ####################################
-        #     Set SMAC patrameters for
+        #     Set SMAC parameters for
         #    absorbing gases correction
         ####################################
         smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
@@ -306,9 +310,6 @@ class process:
         l2h.load_data()
         l2h.load_flags()
 
-        validx = (l2h.mask == 0)
-        # l2h.sza[~validx]=np.nan
-        # l2h.razi[~validx]=np.nan
         w, h = l2h.width, l2h.height
 
         l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)

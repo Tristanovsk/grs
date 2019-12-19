@@ -26,7 +26,7 @@ gmaps = googlemaps.Client(key=google_key)
 
 # --------------------------------------------------------------------------------
 # set parameters
-aeronet = True
+aeronet = False
 if aeronet:
     list_file = '/local/AIX/tristan.harmel/project/acix/AERONETOC_Matchups_List_harmel.xlsx'
     sites = pd.read_excel(list_file)
@@ -45,14 +45,14 @@ idir_root = {'S2A': '/nfs/DD/S2/L1/ESA',
              'S2B': '/nfs/DD/S2/L1/ESA',
              'LANDSAT_5': '/nfs/DD/Landsat/L1/uncompressed',
              'LANDSAT_7': '/nfs/DD/Landsat/L1/uncompressed',
-             'LANDSAT_8': '/nfs/DD/Landsat/L1/uncompressed'}
+             'LANDSAT_8': '/nfs/DD/Landsat/L1/L1C1/untar' } #uncompressed'}
 
 odir_root = {'S2A': '/nfs/DP/S2/L2/GRS/',
              'S2B': '/nfs/DP/S2/L2/GRS/',
              'LANDSAT_5': '/nfs/DP/Landsat/L2/GRS/',
              'LANDSAT_7': '/nfs/DP/Landsat/L2/GRS/',
              'LANDSAT_8': '/nfs/DP/Landsat/L2/GRS/'}
-odir_sub = 'acix'
+odir_sub = 'acix_test'
 resolution = None
 missions = ['all', 'S2', 'Landsat']
 mission = missions[2]
@@ -67,7 +67,7 @@ else:
     resolution = 10
 download = False  # set to True if you want to download missing images
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True
+noclobber = False #True
 memory_safe=False
 aeronet_file = 'no'
 aot550 = 0.1
@@ -133,7 +133,7 @@ for idx, site in sites_clean.iterrows():
     # input file naming
     # Warning: only .zip images are permitted (for landsat, please use uncompressed images
     file = file.replace('SAFE', 'zip')
-    # print(sensor, name, file)
+    print(sensor, name, file)
 
     # ----------------------------------------------
     #  DOWNLOAD SECTION
@@ -175,6 +175,7 @@ for idx, site in sites_clean.iterrows():
             # continue
     else:
         pass  # break
+
     # ----------------------------------------------
     #  PROCESS SECTION
     # ----------------------------------------------
@@ -256,8 +257,9 @@ for idx, site in sites_clean.iterrows():
     if aeronet:
         altitude = site.iloc[7]
     else:
-        c = gmaps.elevation((lat, lon))
-        altitude = max(0, c[0].get('elevation'))
+        # c = gmaps.elevation((lat, lon))
+        #altitude = max(0, c[0].get('elevation'))
+        altitude = 0
 
     args_list.append([file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, ancillary, resolution, \
                       aot550, angstrom, memory_safe, unzip, untar, startrow, angleonly])
@@ -268,5 +270,5 @@ for args in misc.chunk(iter(args_list), Nimage):
     command.append([args, fjunk])
 
 with Pool(processes=ncore) as pool:
-    pool.map(multi_process().grs_call, command, 1)
+    pool.map(multi_process().grs_call, command[0:10], 1)
     pool.close

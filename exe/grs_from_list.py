@@ -30,13 +30,13 @@ sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
 # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
 Nimage = 1
 # number of processors to be used
-ncore = 2
+ncore = 3
 
 sites = pd.read_csv(sitefile)
 lev = 'L2grs'
 
 logdir = './tmp'
-idir_root = {'s2': '/nfs/DD/S2/L1/ESA',
+idir_root = {'s2': '/nfs/DP/S2/L1C/',#D/S2/L1/ESA',
              'landsat': '/nfs/DD/landsat/L1/uncompressed'}
 
 odir_root = {'s2': '/nfs/DP/S2/L2/GRS/',
@@ -44,10 +44,10 @@ odir_root = {'s2': '/nfs/DP/S2/L2/GRS/',
 
 download = True  # set to True if you want to download missing images
 process = True # if True GRS is applied
-odatis = True # if true, put the result images in the odatis directory
+odatis = False # if true, put the result images in the odatis directory
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False #True
-memory_safe = True
+noclobber = True
+memory_safe = False #True
 aeronet_file = 'no'
 aerosol = 'cams'
 #aerosol = 'user_model'
@@ -77,7 +77,11 @@ for idx, site in sites.iterrows():
             productimage = 'S2_ESA'
             mission = ''
             script = dic[productimage]['script']
-            write = dic[productimage]['path']
+            #write = dic[productimage]['path']
+            write = os.path.join('/nfs/DP/S2/L1C/',tile)
+            if not os.path.exists(write):
+                os.makedirs(write)
+
             auth = dic[productimage]['auth']
             # due to modification of the nomemclature at the two following date,
             # downloading is splitted into four cases:
@@ -141,7 +145,7 @@ for idx, site in sites.iterrows():
     start = datetime.strptime(start, '%Y-%m-%d')  # + datetime.timedelta(hours=time)
     end = datetime.strptime(end, '%Y-%m-%d')
 
-    files = glob.glob(os.path.join(idir_root[sat], '*' + tile + '*'))
+    files = glob.glob(os.path.join(idir_root[sat], tile,'*' + tile + '*'))
     print(files.__len__())
 
     for file in files:
@@ -207,7 +211,7 @@ for idx, site in sites.iterrows():
         outfile = misc.set_ofile(basename, odir=odir, suffix='_' + name + '_GRS')
 
         # get area to be processed
-        wkt = misc.wktbox(lon, lat, width=w, height=h)
+        wkt = misc.wktbox(lon, lat, width=w/2, height=h/2)
 
         # skip file if listed in junkfile
         if file in junkfiles:
