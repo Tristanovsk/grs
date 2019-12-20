@@ -19,3 +19,9 @@ Version history:
 
 __package__ = 'grs'
 __version__ = '1.2.0'
+
+from .config import *
+from .acutils import aerosol, lut, misc, smac
+from .auxdata import Aeronet, cams, sensordata
+from .utils import info, utils
+from .grs_process import process

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas
 from scipy.interpolate import interp1d
@@ -6,7 +7,7 @@ import calendar, datetime
 
 from esasnappy import ProductIO
 
-from .config import *
+from . import config as cfg
 from .utils import utils as u
 
 #------------------------
@@ -77,7 +78,7 @@ class sensordata:
                     'vza_name': 'view_zenith_',
                     'azi_name': 'view_azimuth_',
                     'ang_proc': None,
-                    'smac_dir': os.path.join(smac_root, 'Coef_S2A_CONT_'),
+                    'smac_dir': os.path.join(cfg.smac_root, 'Coef_S2A_CONT_'),
                     'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
                     'cirrus': ['B10',hcld_threshold],
                     'lut_name': 'S2A/lut_',
@@ -109,7 +110,7 @@ class sensordata:
                     'azi_name': 'view_azimuth_',
                     'ang_proc': None,
                     #TODO update for S2B after update of SMAC by CESBIO
-                    'smac_dir': os.path.join(smac_root, 'Coef_S2A_CONT_'),
+                    'smac_dir': os.path.join(cfg.smac_root, 'Coef_S2A_CONT_'),
                     'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
                     'cirrus': ['B10',hcld_threshold],
                     'lut_name': 'S2B/lut_',
@@ -134,8 +135,8 @@ class sensordata:
                           'ang_names': ('B01', 'B02', 'B03', 'B04', 'B05', 'B07'),
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
-                          'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(smac_root, 'coef_LANDSAT4_'),
+                          'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
+                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT4_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L4/lut_L4_',
@@ -157,8 +158,8 @@ class sensordata:
                           'ang_names': ('B01', 'B02', 'B03', 'B04', 'B05', 'B07'),
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
-                          'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(smac_root, 'coef_LANDSAT5_'),
+                          'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
+                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT5_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L5/lut_L5_',
@@ -180,8 +181,8 @@ class sensordata:
                           'ang_names': ('B01', 'B02', 'B03', 'B04', 'B05', 'B07'),
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
-                          'ang_proc': os.path.join(grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(smac_root, 'coef_LANDSAT7_'),
+                          'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
+                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT7_'),
                           'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no',hcld_threshold],
                           'lut_name': 'L7/lut_L7_',
@@ -204,8 +205,8 @@ class sensordata:
                           'ang_names': ('B01', 'B02', 'B03', 'B09', 'B04', 'B05', 'B06', 'B07', 'B08'),
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
-                          'ang_proc': os.path.join(grs_root, 'landsat_angles/OLI/l8_angles'),
-                          'smac_dir': os.path.join(smac_root, 'Coef_LANDSAT8_'),
+                          'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/OLI/l8_angles'),
+                          'smac_dir': os.path.join(cfg.smac_root, 'Coef_LANDSAT8_'),
                           'smac_bands': ('440_1', '490_1', '560_1', 'PAN_1', '660_1', '860_1', '1630_1', '2250_1'),
                           'cirrus': ['cirrus',hcld_threshold],
                           'lut_name': 'L8/lut_L8_',

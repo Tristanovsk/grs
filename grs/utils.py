@@ -3,7 +3,7 @@
 Defines main python objects and image manipulation functions (linked to the ESA snappy library)
 '''
 
-import re, shutil
+import os, sys, re, shutil
 import numpy as np
 from dateutil import parser
 import subprocess
@@ -12,7 +12,7 @@ from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
 from esasnappy import FlagCoding, String, Mask
 
-from .config import *
+from . import config as cfg
 
 
 class info:
@@ -30,7 +30,7 @@ class info:
 
     def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast', output='Rrs'):
 
-        self.processor = __package__ + ' ' + VERSION
+        self.processor = __package__ + ' ' + cfg.VERSION
         self.sensordata = sensordata
         self.sensor = sensordata.sensor
         self.aerosol = aerosol
@@ -42,14 +42,14 @@ class info:
         #########################
         # LUT for atmosphere radiance
         aero = 'rg0.10_sig0.46'
-        self.lutfine = os.path.join(lut_root,
+        self.lutfine = os.path.join(cfg.lut_root,
                                     sensordata.lutname + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
         aero = 'rg0.80_sig0.60'
-        self.lutcoarse = os.path.join(lut_root,
+        self.lutcoarse = os.path.join(cfg.lut_root,
                                       sensordata.lutname + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
 
         # set path for CAMS/ECMWF dataset
-        self.cams_folder = cams_folder
+        self.cams_folder = cfg.cams_folder
 
         # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
         self.rrs = False
@@ -214,8 +214,11 @@ class info:
 
             # check for nodata pixels and set mask
             nodata = self.B[i].getGeophysicalNoDataValue()
-            nodata_ = (self.band_rad[i].data == nodata)
+            nodata_ = self.band_rad[i] == nodata
             self.mask[nodata_] = 1
+
+            if (self.mask==1).all():
+                raise('No data available for the given subset of the image; process halted')
 
             # convert (if needed) into TOA reflectance
             if 'LANDSAT' in self.sensor:
@@ -540,7 +543,7 @@ class info:
             # TODO call to gpt is a bit awkward due to memory leaks of snappy and gpt !!
             # TODO if permitted in next snap update (e.g., 7) close snappy vm before calling gpt
             final_name2 = final_name.replace('dim', 'beam.nc')
-            cmd = gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name
+            cmd = cfg.gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name
             print(cmd)
             exit_code = subprocess.call(cmd, shell=True)
 

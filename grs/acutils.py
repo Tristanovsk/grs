@@ -2,6 +2,7 @@
 Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)
 '''
 
+import os, sys
 import numpy as np
 
 from matplotlib import pyplot as plt
@@ -9,7 +10,7 @@ from netCDF4 import Dataset
 from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import curve_fit
 
-from .config import *
+from . import config as cfg
 
 
 class lut:
@@ -176,7 +177,7 @@ class smac:
 
         ##################
         # FROM SMAC CESBIO
-        self.smacdir = os.path.join(smac_root, smac_dir)
+        self.smacdir = os.path.join(cfg.smac_root, smac_dir)
         self.uh2o = 3  # Water vapour (g/cm2)
         self.ah2o = [0] * N  # coef from SMAC computed from 6S th2o  = np.exp ( (ah2o) * ( (uh2o*m)  ** (nh2o) ) )
         self.nh2o = [0] * N  # coef from SMAC computed from 6S
