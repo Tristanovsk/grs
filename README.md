@@ -1,7 +1,7 @@
 # GRS algorithm package
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
-see [GRS doc](docs2/build/html/page.html) for the code documentation.
+see [GRS doc](docs2/html/page.html) for the code documentation.
 
 see [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
  for scientific content. 
