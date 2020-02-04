@@ -1,0 +1,311 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.auxdata &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="grs.config" href="grs.config.html" />
+    <link rel="prev" title="grs.anglegen" href="grs.anglegen.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-grs.auxdata">
+<span id="grs-auxdata"></span><h1>grs.auxdata<a class="headerlink" href="#module-grs.auxdata" title="Permalink to this headline">¶</a></h1>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.auxdata.Aeronet" title="grs.auxdata.Aeronet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Aeronet</span></code></a></p></td>
+<td><p>Contains functions for importing AERONET measurements.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#grs.auxdata.cams" title="grs.auxdata.cams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cams</span></code></a>()</p></td>
+<td><p>Unit Conversion PWC (Precipitable Water Content), Grib Unit [kg/m^2] MSL (Mean Sea Level pressure),    Grib Unit [Pa] OZO (Ozone),                      Grib Unit [kg/m^2]</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.auxdata.sensordata" title="grs.auxdata.sensordata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sensordata</span></code></a>(sensor)</p></td>
+<td><p>Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="grs.auxdata.sensordata">
+<em class="property">class </em><code class="sig-prename descclassname">grs.auxdata.</code><code class="sig-name descname">sensordata</code><span class="sig-paren">(</span><em class="sig-param">sensor</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#sensordata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.sensordata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">sensor</span></code> – Name of the sensor to process:</dt><dd><ul>
+<li><p>LANDSAT_4</p></li>
+<li><p>LANDSAT_5</p></li>
+<li><p>LANDSAT_7</p></li>
+<li><p>LANDSAT_8</p></li>
+<li><p>S2A</p></li>
+<li><p>S2B</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">indband</span></code> – indexes of the requested bands (bands that will be processed)</p></li>
+</ul>
+</dd>
+<dt>Construct object with values:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">rot</span></code> – Rayleigh optical thickness for each band</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">band</span> <span class="pre">names</span></code> for angles files format</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">smac_band</span></code> – band names for SMAC files format</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rg</span></code> – Cox-Munk Fresnel reflection factor ratio (R(wl)/Rref(2190nm) [Harmel et al., 2018]</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">angle_generator</span></code> – function to compute angles from metadata</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.auxdata.cams">
+<em class="property">class </em><code class="sig-prename descclassname">grs.auxdata.</code><code class="sig-name descname">cams</code><a class="reference internal" href="../_modules/grs/auxdata.html#cams"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Unit Conversion
+PWC (Precipitable Water Content), Grib Unit [kg/m^2]
+MSL (Mean Sea Level pressure),    Grib Unit [Pa]
+OZO (Ozone),                      Grib Unit [kg/m^2]</p>
+<p>GRIB_UNIT = [kg/m^2]
+standard ozone column is 300 DU (Dobson Units),
+equals to an air column of 3 mm at STP (standard temperature (0 degree C) and pressure of 1013 mbar).</p>
+<p>Thus, molecular weight of O3 (M = 48): 2.24 g (equals to 22.4 liter at STP)</p>
+<dl class="simple">
+<dt>300 DU = 3 mm  (equals to (0.3*48 / 2.24) [g/m^2])</dt><dd><p>= 6.428 [g/m^2] = 6.428 E-3 [kg/m^2]</p>
+</dd>
+</dl>
+<p>Example:</p>
+<p>ozone (kg/m^2  = 300 /6.428E-3 DU )
+pressure (Pa = 1/100 hPa)
+water vapor (kg/m^2 = 10^3/10^4 = 0.1 g/cm^2)</p>
+<dl class="method">
+<dt id="grs.auxdata.cams.get_tile_dir">
+<code class="sig-name descname">get_tile_dir</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_tile_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_tile_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>file : absolute path of S2 directory
+set full path of tile</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_aux_dir">
+<code class="sig-name descname">get_aux_dir</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_aux_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_aux_dir" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_ecmwf_file">
+<code class="sig-name descname">get_ecmwf_file</code><span class="sig-paren">(</span><em class="sig-param">product</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_ecmwf_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_ecmwf_file" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>product</strong> – </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_ecmwf_data">
+<code class="sig-name descname">get_ecmwf_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_ecmwf_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_ecmwf_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.load_cams_data">
+<code class="sig-name descname">load_cams_data</code><span class="sig-paren">(</span><em class="sig-param">target</em>, <em class="sig-param">date</em>, <em class="sig-param">grid='0.125/0.125'</em>, <em class="sig-param">param='125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210'</em>, <em class="sig-param">data_type='cams_reanalysis'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.load_cams_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.load_cams_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate aerosol data from cams of ECMWF
+subset on the image grid (POLYGON wkt)
+reproject on the image coordinate reference system (crs)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_cams_aerosol">
+<code class="sig-name descname">get_cams_aerosol</code><span class="sig-paren">(</span><em class="sig-param">target, date, wkt, param=['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_cams_aerosol"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_cams_aerosol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Nearest neighbor in time
+:param target:
+:param date:
+:param wkt:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_cams_ancillary">
+<code class="sig-name descname">get_cams_ancillary</code><span class="sig-paren">(</span><em class="sig-param">target, date, wkt, param=['msl', 'tco3', 'tcwv', 'tcno2', 't2m']</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_cams_ancillary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_cams_ancillary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Nearest neighbor in time
+:param target:
+:param date:
+:param wkt:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.get_cams_aerosol_old">
+<code class="sig-name descname">get_cams_aerosol_old</code><span class="sig-paren">(</span><em class="sig-param">target</em>, <em class="sig-param">date</em>, <em class="sig-param">wkt</em>, <em class="sig-param">crs</em>, <em class="sig-param">data_type</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.get_cams_aerosol_old"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.get_cams_aerosol_old" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate aerosol data from cams of ECMWF
+subset on the image grid (POLYGON wkt)
+reproject on the image coordinate reference system (crs)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.cams.download_erainterim">
+<code class="sig-name descname">download_erainterim</code><span class="sig-paren">(</span><em class="sig-param">target</em>, <em class="sig-param">date</em>, <em class="sig-param">time='00:00:00'</em>, <em class="sig-param">grid='0.125/0.125'</em>, <em class="sig-param">param='137.128/151.128/206.210/207.210/213.210/214.210/215.210/216.210'</em>, <em class="sig-param">area=None</em>, <em class="sig-param">data_type=''</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#cams.download_erainterim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.cams.download_erainterim" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function open a connexion through an existing CAMS/ERAIterim account and download the requested data.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code> – path name for output file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time</span></code> – time of forecast or reanalysis</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">date</span></code> – acquisition date (ex: ‘2015-01-31’)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">grid</span></code> – resolution in degrees (ex: ‘0.125/0.125’)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">param</span></code> – ID numbers for the requsted data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area</span></code> – option to restrict area (for global dataset None or ‘90/-180/-90/180’)</p></li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>Notes:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">server</span></code> – connexion au server via API ECMWF</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">step</span></code> – forecast time hours</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.auxdata.Aeronet">
+<em class="property">class </em><code class="sig-prename descclassname">grs.auxdata.</code><code class="sig-name descname">Aeronet</code><a class="reference internal" href="../_modules/grs/auxdata.html#Aeronet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.Aeronet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Contains functions for importing AERONET measurements.
+Modifified from:</p>
+<blockquote>
+<div><p>Copyright 2012 Robin Wilson and contributors listed in the CONTRIBUTORS file.</p>
+</div></blockquote>
+<dl class="attribute">
+<dt id="grs.auxdata.Aeronet.pandas">
+<code class="sig-name descname">pandas</code><em class="property"> = &lt;module 'pandas' from '/home/harmel/.local/lib/python3.6/site-packages/pandas/__init__.py'&gt;</em><a class="headerlink" href="#grs.auxdata.Aeronet.pandas" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="grs.auxdata.Aeronet.import_aeronet_data">
+<em class="property">classmethod </em><code class="sig-name descname">import_aeronet_data</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">filename</em>, <em class="sig-param">time</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/auxdata.html#Aeronet.import_aeronet_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.auxdata.Aeronet.import_aeronet_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Imports data from an AERONET data file to a given <code class="docutils literal notranslate"><span class="pre">aeronet</span></code> object.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code> – Aeronet object to store the paramaters of interest (e.g., wavelenghts, aot, ozone)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filename</span></code> – The filename of the AERONET file described above</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time</span></code> – The date and time of the simulation you want to run, used to choose the AERONET data which is closest
+in time. Provide this as a string in almost any format, and Python will interpret it. For example, <code class="docutils literal notranslate"><span class="pre">'12/03/2010</span> <span class="pre">15:39'</span></code>. When dates are ambiguous, the parsing routine will favour DD/MM/YY rather than MM/DD/YY.</p></li>
+</ul>
+</dd>
+<dt>Return value:</dt><dd><p>The function will return <code class="docutils literal notranslate"><span class="pre">s</span></code> with the <code class="docutils literal notranslate"><span class="pre">aero_profile</span></code> and <code class="docutils literal notranslate"><span class="pre">aot550</span></code> fields filled in from the AERONET data.</p>
+</dd>
+</dl>
+<p>Notes: Beware, this function returns <code class="docutils literal notranslate"><span class="pre">data</span></code> from <code class="docutils literal notranslate"><span class="pre">filename</span></code> for the closest measurement time in the limit
+of plus or minus 2 days from <code class="docutils literal notranslate"><span class="pre">time</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules.html">Project Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="grs.acutils.html">grs.acutils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.anglegen.html">grs.anglegen</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">grs.auxdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.config.html">grs.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.grs_process.html">grs.grs_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.mask.html">grs.mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.run.html">grs.run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.s2_angle.html">grs.s2_angle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.smac.html">grs.smac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.utils.html">grs.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/_autosummary/grs.auxdata.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

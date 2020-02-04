@@ -1,0 +1,563 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.smac &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for grs.smac</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+<span class="c1"># -*- coding: iso-8859-1 -*-</span>
+<span class="sd">&#39;&#39;&#39;Correction for gaseous absorption based on SMAC method (Rahman and Dedieu, 1994)</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<span class="c1"># =============================================================================================</span>
+
+<div class="viewcode-block" id="PdeZ"><a class="viewcode-back" href="../../_autosummary/grs.smac.html#grs.smac.PdeZ">[docs]</a><span class="k">def</span> <span class="nf">PdeZ</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</span>
+<span class="sd"> </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="mf">1013.25</span> <span class="o">*</span> <span class="nb">pow</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">0.0065</span> <span class="o">*</span> <span class="n">Z</span> <span class="o">/</span> <span class="mf">288.15</span><span class="p">,</span> <span class="mf">5.31</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">p</span><span class="p">)</span></div>
+
+
+<span class="c1"># =============================================================================================</span>
+
+<div class="viewcode-block" id="coeff"><a class="viewcode-back" href="../../_autosummary/grs.smac.html#grs.smac.coeff">[docs]</a><span class="k">class</span> <span class="nc">coeff</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    library for atmospheric correction using SMAC method (Rahman and Dedieu, 1994)</span>
+<span class="sd">    Contains :</span>
+<span class="sd">         smac_inv : inverse smac model for atmospheric correction</span>
+<span class="sd">                             TOA==&gt;Surface</span>
+<span class="sd">         smac dir : direct smac model</span>
+<span class="sd">                             Surface==&gt;TOA</span>
+<span class="sd">         coefs : reads smac coefficients</span>
+<span class="sd">         PdeZ : #      PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</span>
+
+<span class="sd">    Written by O.Hagolle CNES, from the original SMAC C routine</span>
+<span class="sd">    =============================================================================================</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">smac_filename</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">file</span><span class="p">(</span><span class="n">smac_filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="c1"># H20</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ah2o</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nh2o</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># O3</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ao3</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no3</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># O2</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ao2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">po2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="c1"># CO2</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aco2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nco2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pco2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="c1"># NH4</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ach4</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nch4</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pch4</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="c1"># NO2</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ano2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nno2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pno2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="c1"># CO</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aco</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nco</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pco</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="c1"># rayleigh and aerosol scattering</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a0s</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a1s</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a2s</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a3s</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a0T</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a1T</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a2T</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a3T</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">taur</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sr</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a0taup</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a1taup</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wo</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a0P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a1P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a2P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a3P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a4P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">14</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rest1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rest2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rest3</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rest4</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resr1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resr2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resr3</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">17</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resa1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resa2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resa3</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resa4</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<span class="c1"># ======================================================================</span>
+<div class="viewcode-block" id="smac_inv"><a class="viewcode-back" href="../../_autosummary/grs.smac.html#grs.smac.smac_inv">[docs]</a><span class="k">def</span> <span class="nf">smac_inv</span><span class="p">(</span><span class="n">r_toa</span><span class="p">,</span> <span class="n">tetas</span><span class="p">,</span> <span class="n">phis</span><span class="p">,</span> <span class="n">tetav</span><span class="p">,</span> <span class="n">phiv</span><span class="p">,</span> <span class="n">pressure</span><span class="p">,</span> <span class="n">taup550</span><span class="p">,</span> <span class="n">uo3</span><span class="p">,</span> <span class="n">uh2o</span><span class="p">,</span> <span class="n">coef</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    r_surf=smac_inv( r_toa, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef)</span>
+<span class="sd">    Corrections atmosphÃ©riques</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ah2o</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ah2o</span>
+    <span class="n">nh2o</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nh2o</span>
+    <span class="n">ao3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ao3</span>
+    <span class="n">no3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">no3</span>
+    <span class="n">ao2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ao2</span>
+    <span class="n">no2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">no2</span>
+    <span class="n">po2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">po2</span>
+    <span class="n">aco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">aco2</span>
+    <span class="n">nco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nco2</span>
+    <span class="n">pco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pco2</span>
+    <span class="n">ach4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ach4</span>
+    <span class="n">nch4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nch4</span>
+    <span class="n">pch4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pch4</span>
+    <span class="n">ano2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ano2</span>
+    <span class="n">nno2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nno2</span>
+    <span class="n">pno2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pno2</span>
+    <span class="n">aco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">aco</span>
+    <span class="n">nco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nco</span>
+    <span class="n">pco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pco</span>
+    <span class="n">a0s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0s</span>
+    <span class="n">a1s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1s</span>
+    <span class="n">a2s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2s</span>
+    <span class="n">a3s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3s</span>
+    <span class="n">a0T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0T</span>
+    <span class="n">a1T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1T</span>
+    <span class="n">a2T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2T</span>
+    <span class="n">a3T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3T</span>
+    <span class="n">taur</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">taur</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">sr</span>
+    <span class="n">a0taup</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0taup</span>
+    <span class="n">a1taup</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1taup</span>
+    <span class="n">wo</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">wo</span>
+    <span class="n">gc</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">gc</span>
+    <span class="n">a0P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0P</span>
+    <span class="n">a1P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1P</span>
+    <span class="n">a2P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2P</span>
+    <span class="n">a3P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3P</span>
+    <span class="n">a4P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a4P</span>
+    <span class="n">Rest1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest1</span>
+    <span class="n">Rest2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest2</span>
+    <span class="n">Rest3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest3</span>
+    <span class="n">Rest4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest4</span>
+    <span class="n">Resr1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr1</span>
+    <span class="n">Resr2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr2</span>
+    <span class="n">Resr3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr3</span>
+    <span class="n">Resa1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa1</span>
+    <span class="n">Resa2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa2</span>
+    <span class="n">Resa3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa3</span>
+    <span class="n">Resa4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa4</span>
+
+    <span class="n">cdr</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+    <span class="n">crd</span> <span class="o">=</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span>
+
+    <span class="c1"># /*------:  calcul de la reflectance de surface  smac               :--------*/</span>
+
+    <span class="n">us</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">tetas</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)</span>
+    <span class="n">uv</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">tetav</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)</span>
+    <span class="n">Peq</span> <span class="o">=</span> <span class="n">pressure</span> <span class="o">/</span> <span class="mf">1013.25</span>
+
+    <span class="c1"># /*------:  1) air mass */</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">us</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">uv</span>
+
+    <span class="c1"># /*------:  2) aerosol optical depth in the spectral band, taup     :--------*/</span>
+    <span class="n">taup</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0taup</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1taup</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span>
+
+    <span class="c1"># /*------:  3) gaseous transmissions (downward and upward paths)    :--------*/</span>
+    <span class="n">to3</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">th2o</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">to2</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">tco2</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">tch4</span> <span class="o">=</span> <span class="mf">1.</span>
+
+    <span class="n">uo2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">po2</span><span class="p">))</span>
+    <span class="n">uco2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pco2</span><span class="p">))</span>
+    <span class="n">uch4</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pch4</span><span class="p">))</span>
+    <span class="n">uno2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pno2</span><span class="p">))</span>
+    <span class="n">uco</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pco</span><span class="p">))</span>
+
+    <span class="c1"># /*------:  4) if uh2o &lt;= 0 and uo3 &lt;=0 no gaseous absorption is computed  :--------*/</span>
+    <span class="n">to3</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ao3</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uo3</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">no3</span><span class="p">)))</span>
+    <span class="n">th2o</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ah2o</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uh2o</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nh2o</span><span class="p">)))</span>
+    <span class="n">to2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ao2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uo2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">no2</span><span class="p">)))</span>
+    <span class="n">tco2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">aco2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uco2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nco2</span><span class="p">)))</span>
+    <span class="n">tch4</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ach4</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uch4</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nch4</span><span class="p">)))</span>
+    <span class="n">tno2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ano2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uno2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nno2</span><span class="p">)))</span>
+    <span class="n">tco</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">aco</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uco</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nco</span><span class="p">)))</span>
+    <span class="n">tg</span> <span class="o">=</span> <span class="n">th2o</span> <span class="o">*</span> <span class="n">to3</span> <span class="o">*</span> <span class="n">to2</span> <span class="o">*</span> <span class="n">tco2</span> <span class="o">*</span> <span class="n">tch4</span> <span class="o">*</span> <span class="n">tco</span> <span class="o">*</span> <span class="n">tno2</span>
+
+    <span class="c1"># /*------:  5) Total scattering transmission                      :--------*/</span>
+    <span class="n">ttetas</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0T</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1T</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">/</span> <span class="n">us</span> <span class="o">+</span> <span class="p">((</span><span class="n">a2T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3T</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">us</span><span class="p">)</span>  <span class="c1"># /* downward */</span>
+    <span class="n">ttetav</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0T</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1T</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">/</span> <span class="n">uv</span> <span class="o">+</span> <span class="p">((</span><span class="n">a2T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3T</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">uv</span><span class="p">)</span>  <span class="c1"># /* upward   */</span>
+
+    <span class="c1"># /*------:  6) spherical albedo of the atmosphere                 :--------*/</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0s</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3s</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1s</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">+</span> <span class="p">(</span><span class="n">a2s</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">taup550</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  7) scattering angle cosine                            :--------*/</span>
+    <span class="n">cksi</span> <span class="o">=</span> <span class="o">-</span> <span class="p">((</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">((</span><span class="n">phis</span> <span class="o">-</span> <span class="n">phiv</span><span class="p">)</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">cksi</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">cksi</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+
+    <span class="c1"># /*------:  8) scattering angle in degree 			 :--------*/</span>
+    <span class="n">ksiD</span> <span class="o">=</span> <span class="n">crd</span> <span class="o">*</span> <span class="n">acos</span><span class="p">(</span><span class="n">cksi</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  9) rayleigh atmospheric reflectance 			 :--------*/</span>
+    <span class="n">ray_phase</span> <span class="o">=</span> <span class="mf">0.7190443</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="p">(</span><span class="n">cksi</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">))</span> <span class="o">+</span> <span class="mf">0.0412742</span>
+    <span class="n">ray_ref</span> <span class="o">=</span> <span class="p">(</span><span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">ray_ref</span> <span class="o">=</span> <span class="n">ray_ref</span> <span class="o">*</span> <span class="n">pressure</span> <span class="o">/</span> <span class="mf">1013.25</span>
+    <span class="n">taurz</span> <span class="o">=</span> <span class="p">(</span><span class="n">taur</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span>
+
+    <span class="c1"># /*------:  10) Residu Rayleigh 					 :--------*/</span>
+    <span class="n">Res_ray</span> <span class="o">=</span> <span class="n">Resr1</span> <span class="o">+</span> <span class="n">Resr2</span> <span class="o">*</span> <span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">+</span> <span class="n">Resr3</span> <span class="o">*</span> <span class="p">((</span><span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  11) aerosol atmospheric reflectance			 :--------*/</span>
+    <span class="n">aer_phase</span> <span class="o">=</span> <span class="n">a0P</span> <span class="o">+</span> <span class="n">a1P</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">+</span> <span class="n">a2P</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">+</span> <span class="n">a3P</span> <span class="o">*</span> <span class="p">(</span><span class="n">ksiD</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">a4P</span> <span class="o">*</span> <span class="p">(</span><span class="n">ksiD</span> <span class="o">**</span> <span class="mi">4</span><span class="p">)</span>
+
+    <span class="n">ak2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">ak</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">ak2</span><span class="p">)</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">wo</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">))</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">wo</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">))</span>
+    <span class="n">dp</span> <span class="o">=</span> <span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span> <span class="o">+</span> <span class="n">us</span> <span class="o">*</span> <span class="n">f</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">e</span> <span class="o">+</span> <span class="n">f</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span>
+    <span class="n">ww</span> <span class="o">=</span> <span class="n">wo</span> <span class="o">/</span> <span class="mf">4.</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="n">us</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q1</span> <span class="o">=</span> <span class="mf">2.</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="mf">2.</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q3</span> <span class="o">=</span> <span class="n">q2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="p">((</span><span class="n">ww</span> <span class="o">*</span> <span class="n">ss</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">q1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="n">q3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">))</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="o">-</span><span class="p">((</span><span class="n">ww</span> <span class="o">*</span> <span class="n">ss</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">q1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="n">q3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">))</span>
+    <span class="n">cp1</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">cp2</span> <span class="o">=</span> <span class="o">-</span><span class="n">c2</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">d</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">dp</span> <span class="o">+</span> <span class="n">wo</span> <span class="o">*</span> <span class="n">aer_phase</span> <span class="o">/</span> <span class="mf">4.</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">cp1</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">c2</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">cp2</span>
+    <span class="n">aa1</span> <span class="o">=</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">ak</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">aa2</span> <span class="o">=</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">aa3</span> <span class="o">=</span> <span class="n">us</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">+</span> <span class="n">uv</span><span class="p">)</span>
+
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">aa1</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa1</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">+</span> <span class="n">y</span> <span class="o">*</span> <span class="n">aa2</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa2</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">+</span> <span class="n">z</span> <span class="o">*</span> <span class="n">aa3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa3</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  12) Residu Aerosol  					:--------*/</span>
+    <span class="n">Res_aer</span> <span class="o">=</span> <span class="p">(</span><span class="n">Resa1</span> <span class="o">+</span> <span class="n">Resa2</span> <span class="o">*</span> <span class="p">(</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">+</span> <span class="n">Resa3</span> <span class="o">*</span> <span class="p">((</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">Resa4</span> <span class="o">*</span> <span class="p">((</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  13)  Terme de couplage molecule / aerosol		:--------*/</span>
+    <span class="n">tautot</span> <span class="o">=</span> <span class="n">taup</span> <span class="o">+</span> <span class="n">taurz</span>
+    <span class="n">Res_6s</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rest1</span> <span class="o">+</span> <span class="n">Rest2</span> <span class="o">*</span> <span class="p">(</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">+</span> <span class="n">Rest3</span> <span class="o">*</span> <span class="p">((</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">Rest4</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  14) total atmospheric reflectance  			:--------*/</span>
+    <span class="n">atm_ref</span> <span class="o">=</span> <span class="n">ray_ref</span> <span class="o">-</span> <span class="n">Res_ray</span> <span class="o">+</span> <span class="n">aer_ref</span> <span class="o">-</span> <span class="n">Res_aer</span> <span class="o">+</span> <span class="n">Res_6s</span>
+
+    <span class="c1"># /*------:  15) Surface reflectance  				:--------*/</span>
+
+    <span class="n">r_surf</span> <span class="o">=</span> <span class="n">r_toa</span> <span class="o">-</span> <span class="p">(</span><span class="n">atm_ref</span> <span class="o">*</span> <span class="n">tg</span><span class="p">)</span>
+    <span class="n">r_surf</span> <span class="o">=</span> <span class="n">r_surf</span> <span class="o">/</span> <span class="p">((</span><span class="n">tg</span> <span class="o">*</span> <span class="n">ttetas</span> <span class="o">*</span> <span class="n">ttetav</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">r_surf</span> <span class="o">*</span> <span class="n">s</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">r_surf</span></div>
+
+
+<span class="c1"># =======================================================================================================</span>
+<div class="viewcode-block" id="smac_dir"><a class="viewcode-back" href="../../_autosummary/grs.smac.html#grs.smac.smac_dir">[docs]</a><span class="k">def</span> <span class="nf">smac_dir</span><span class="p">(</span><span class="n">r_surf</span><span class="p">,</span> <span class="n">tetas</span><span class="p">,</span> <span class="n">phis</span><span class="p">,</span> <span class="n">tetav</span><span class="p">,</span> <span class="n">phiv</span><span class="p">,</span> <span class="n">pressure</span><span class="p">,</span> <span class="n">taup550</span><span class="p">,</span> <span class="n">uo3</span><span class="p">,</span> <span class="n">uh2o</span><span class="p">,</span> <span class="n">coef</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    r_toa=smac_dir ( r_surf, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef)</span>
+<span class="sd">    Application des effets atmosphÃ©riques</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ah2o</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ah2o</span>
+    <span class="n">nh2o</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nh2o</span>
+    <span class="n">ao3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ao3</span>
+    <span class="n">no3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">no3</span>
+    <span class="n">ao2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ao2</span>
+    <span class="n">no2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">no2</span>
+    <span class="n">po2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">po2</span>
+    <span class="n">aco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">aco2</span>
+    <span class="n">nco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nco2</span>
+    <span class="n">pco2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pco2</span>
+    <span class="n">ach4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ach4</span>
+    <span class="n">nch4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nch4</span>
+    <span class="n">pch4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pch4</span>
+    <span class="n">ano2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">ano2</span>
+    <span class="n">nno2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nno2</span>
+    <span class="n">pno2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pno2</span>
+    <span class="n">aco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">aco</span>
+    <span class="n">nco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">nco</span>
+    <span class="n">pco</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">pco</span>
+    <span class="n">a0s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0s</span>
+    <span class="n">a1s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1s</span>
+    <span class="n">a2s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2s</span>
+    <span class="n">a3s</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3s</span>
+    <span class="n">a0T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0T</span>
+    <span class="n">a1T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1T</span>
+    <span class="n">a2T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2T</span>
+    <span class="n">a3T</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3T</span>
+    <span class="n">taur</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">taur</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">sr</span>
+    <span class="n">a0taup</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0taup</span>
+    <span class="n">a1taup</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1taup</span>
+    <span class="n">wo</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">wo</span>
+    <span class="n">gc</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">gc</span>
+    <span class="n">a0P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a0P</span>
+    <span class="n">a1P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a1P</span>
+    <span class="n">a2P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a2P</span>
+    <span class="n">a3P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a3P</span>
+    <span class="n">a4P</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">a4P</span>
+    <span class="n">Rest1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest1</span>
+    <span class="n">Rest2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest2</span>
+    <span class="n">Rest3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest3</span>
+    <span class="n">Rest4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Rest4</span>
+    <span class="n">Resr1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr1</span>
+    <span class="n">Resr2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr2</span>
+    <span class="n">Resr3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resr3</span>
+    <span class="n">Resa1</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa1</span>
+    <span class="n">Resa2</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa2</span>
+    <span class="n">Resa3</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa3</span>
+    <span class="n">Resa4</span> <span class="o">=</span> <span class="n">coef</span><span class="o">.</span><span class="n">Resa4</span>
+
+    <span class="n">cdr</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+    <span class="n">crd</span> <span class="o">=</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span>
+
+    <span class="c1"># /*------:  calcul de la reflectance de surface  smac               :--------*/</span>
+
+    <span class="n">us</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">tetas</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)</span>
+    <span class="n">uv</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">tetav</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)</span>
+    <span class="n">Peq</span> <span class="o">=</span> <span class="n">pressure</span> <span class="o">/</span> <span class="mf">1013.25</span>
+
+    <span class="c1"># /*------:  1) air mass */</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">us</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">uv</span>
+
+    <span class="c1"># /*------:  2) aerosol optical depth in the spectral band, taup     :--------*/</span>
+    <span class="n">taup</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0taup</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1taup</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span>
+
+    <span class="c1"># /*------:  3) gaseous transmissions (downward and upward paths)    :--------*/</span>
+    <span class="n">to3</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">th2o</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">to2</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">tco2</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">tch4</span> <span class="o">=</span> <span class="mf">1.</span>
+
+    <span class="n">uo2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">po2</span><span class="p">))</span>
+    <span class="n">uco2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pco2</span><span class="p">))</span>
+    <span class="n">uch4</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pch4</span><span class="p">))</span>
+    <span class="n">uno2</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pno2</span><span class="p">))</span>
+    <span class="n">uco</span> <span class="o">=</span> <span class="p">(</span><span class="n">Peq</span> <span class="o">**</span> <span class="p">(</span><span class="n">pco</span><span class="p">))</span>
+
+    <span class="c1"># /*------:  4) if uh2o &lt;= 0 and uo3&lt;= 0 no gaseous absorption is computed  :--------*/</span>
+    <span class="n">to3</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ao3</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uo3</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">no3</span><span class="p">)))</span>
+    <span class="n">th2o</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ah2o</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uh2o</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nh2o</span><span class="p">)))</span>
+    <span class="n">to2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ao2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uo2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">no2</span><span class="p">)))</span>
+    <span class="n">tco2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">aco2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uco2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nco2</span><span class="p">)))</span>
+    <span class="n">tch4</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ach4</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uch4</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nch4</span><span class="p">)))</span>
+    <span class="n">tno2</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">ano2</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uno2</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nno2</span><span class="p">)))</span>
+    <span class="n">tco</span> <span class="o">=</span> <span class="n">exp</span><span class="p">((</span><span class="n">aco</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">uco</span> <span class="o">*</span> <span class="n">m</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">nco</span><span class="p">)))</span>
+    <span class="n">tg</span> <span class="o">=</span> <span class="n">th2o</span> <span class="o">*</span> <span class="n">to3</span> <span class="o">*</span> <span class="n">to2</span> <span class="o">*</span> <span class="n">tco2</span> <span class="o">*</span> <span class="n">tch4</span> <span class="o">*</span> <span class="n">tco</span> <span class="o">*</span> <span class="n">tno2</span>
+
+    <span class="c1"># /*------:  5) Total scattering transmission                      :--------*/</span>
+    <span class="n">ttetas</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0T</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1T</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">/</span> <span class="n">us</span> <span class="o">+</span> <span class="p">((</span><span class="n">a2T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3T</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">us</span><span class="p">)</span>  <span class="c1"># /* downward */</span>
+    <span class="n">ttetav</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0T</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1T</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">/</span> <span class="n">uv</span> <span class="o">+</span> <span class="p">((</span><span class="n">a2T</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3T</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">uv</span><span class="p">)</span>  <span class="c1"># /* upward   */</span>
+
+    <span class="c1"># /*------:  6) spherical albedo of the atmosphere                 :--------*/</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="p">(</span><span class="n">a0s</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span> <span class="o">+</span> <span class="p">(</span><span class="n">a3s</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">a1s</span><span class="p">)</span> <span class="o">*</span> <span class="n">taup550</span> <span class="o">+</span> <span class="p">(</span><span class="n">a2s</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">taup550</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  7) scattering angle cosine                            :--------*/</span>
+    <span class="n">cksi</span> <span class="o">=</span> <span class="o">-</span> <span class="p">((</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">((</span><span class="n">phis</span> <span class="o">-</span> <span class="n">phiv</span> <span class="o">-</span> <span class="mi">360</span><span class="p">)</span> <span class="o">*</span> <span class="n">cdr</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">cksi</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">cksi</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+
+        <span class="c1"># /*------:  8) scattering angle in degree            :--------*/</span>
+    <span class="n">ksiD</span> <span class="o">=</span> <span class="n">crd</span> <span class="o">*</span> <span class="n">acos</span><span class="p">(</span><span class="n">cksi</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  9) rayleigh atmospheric reflectance              :--------*/</span>
+    <span class="n">ray_phase</span> <span class="o">=</span> <span class="mf">0.7190443</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="p">(</span><span class="n">cksi</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">))</span> <span class="o">+</span> <span class="mf">0.0412742</span>
+    <span class="n">ray_ref</span> <span class="o">=</span> <span class="p">(</span><span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">ray_ref</span> <span class="o">=</span> <span class="n">ray_ref</span> <span class="o">*</span> <span class="n">pressure</span> <span class="o">/</span> <span class="mf">1013.25</span>
+    <span class="n">taurz</span> <span class="o">=</span> <span class="p">(</span><span class="n">taur</span><span class="p">)</span> <span class="o">*</span> <span class="n">Peq</span>
+
+    <span class="c1"># /*------:  10) Residu Rayleigh                      :--------*/</span>
+    <span class="n">Res_ray</span> <span class="o">=</span> <span class="n">Resr1</span> <span class="o">+</span> <span class="n">Resr2</span> <span class="o">*</span> <span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span> <span class="o">+</span> <span class="n">Resr3</span> <span class="o">*</span> <span class="p">((</span><span class="n">taur</span> <span class="o">*</span> <span class="n">ray_phase</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  11) aerosol atmospheric reflectance          :--------*/</span>
+    <span class="n">aer_phase</span> <span class="o">=</span> <span class="n">a0P</span> <span class="o">+</span> <span class="n">a1P</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">+</span> <span class="n">a2P</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">*</span> <span class="n">ksiD</span> <span class="o">+</span> <span class="n">a3P</span> <span class="o">*</span> <span class="p">(</span><span class="n">ksiD</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">a4P</span> <span class="o">*</span> <span class="p">(</span><span class="n">ksiD</span> <span class="o">**</span> <span class="mi">4</span><span class="p">)</span>
+
+    <span class="n">ak2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">ak</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">ak2</span><span class="p">)</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">wo</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">))</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">wo</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">))</span>
+    <span class="n">dp</span> <span class="o">=</span> <span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span> <span class="o">+</span> <span class="n">us</span> <span class="o">*</span> <span class="n">f</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">e</span> <span class="o">+</span> <span class="n">f</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span>
+    <span class="n">ww</span> <span class="o">=</span> <span class="n">wo</span> <span class="o">/</span> <span class="mf">4.</span>
+    <span class="n">ss</span> <span class="o">=</span> <span class="n">us</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak2</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q1</span> <span class="o">=</span> <span class="mf">2.</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">+</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="mf">2.</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">us</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">wo</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">us</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">q3</span> <span class="o">=</span> <span class="n">q2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">us</span><span class="p">)</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="p">((</span><span class="n">ww</span> <span class="o">*</span> <span class="n">ss</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">q1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="n">q3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">))</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="o">-</span><span class="p">((</span><span class="n">ww</span> <span class="o">*</span> <span class="n">ss</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">q1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">ak</span> <span class="o">*</span> <span class="n">taup</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="n">q3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">b</span><span class="p">))</span>
+    <span class="n">cp1</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">cp2</span> <span class="o">=</span> <span class="o">-</span><span class="n">c2</span> <span class="o">*</span> <span class="n">ak</span> <span class="o">/</span> <span class="p">(</span><span class="mf">3.</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">d</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">dp</span> <span class="o">+</span> <span class="n">wo</span> <span class="o">*</span> <span class="n">aer_phase</span> <span class="o">/</span> <span class="mf">4.</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">cp1</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">c2</span> <span class="o">-</span> <span class="n">wo</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">gc</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">*</span> <span class="n">cp2</span>
+    <span class="n">aa1</span> <span class="o">=</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">ak</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">aa2</span> <span class="o">=</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">ak</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+    <span class="n">aa3</span> <span class="o">=</span> <span class="n">us</span> <span class="o">*</span> <span class="n">uv</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">+</span> <span class="n">uv</span><span class="p">)</span>
+
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">aa1</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa1</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">+</span> <span class="n">y</span> <span class="o">*</span> <span class="n">aa2</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa2</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">+</span> <span class="n">z</span> <span class="o">*</span> <span class="n">aa3</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">taup</span> <span class="o">/</span> <span class="n">aa3</span><span class="p">))</span>
+    <span class="n">aer_ref</span> <span class="o">=</span> <span class="n">aer_ref</span> <span class="o">/</span> <span class="p">(</span><span class="n">us</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  12) Residu Aerosol                      :--------*/</span>
+    <span class="n">Res_aer</span> <span class="o">=</span> <span class="p">(</span><span class="n">Resa1</span> <span class="o">+</span> <span class="n">Resa2</span> <span class="o">*</span> <span class="p">(</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">+</span> <span class="n">Resa3</span> <span class="o">*</span> <span class="p">((</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">Resa4</span> <span class="o">*</span> <span class="p">((</span><span class="n">taup</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  13)  Terme de couplage molecule / aerosol       :--------*/</span>
+    <span class="n">tautot</span> <span class="o">=</span> <span class="n">taup</span> <span class="o">+</span> <span class="n">taurz</span>
+    <span class="n">Res_6s</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rest1</span> <span class="o">+</span> <span class="n">Rest2</span> <span class="o">*</span> <span class="p">(</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">+</span> <span class="n">Rest3</span> <span class="o">*</span> <span class="p">((</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="n">Rest4</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">tautot</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">cksi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># /*------:  14) total atmospheric reflectance           :--------*/</span>
+    <span class="n">atm_ref</span> <span class="o">=</span> <span class="n">ray_ref</span> <span class="o">-</span> <span class="n">Res_ray</span> <span class="o">+</span> <span class="n">aer_ref</span> <span class="o">-</span> <span class="n">Res_aer</span> <span class="o">+</span> <span class="n">Res_6s</span>
+
+    <span class="c1"># /*------:  15) TOA reflectance                 :--------*/</span>
+
+    <span class="n">r_toa</span> <span class="o">=</span> <span class="n">r_surf</span> <span class="o">*</span> <span class="n">tg</span> <span class="o">*</span> <span class="n">ttetas</span> <span class="o">*</span> <span class="n">ttetav</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">r_surf</span> <span class="o">*</span> <span class="n">s</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">atm_ref</span> <span class="o">*</span> <span class="n">tg</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">r_toa</span></div>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># example</span>
+    <span class="n">theta_s</span> <span class="o">=</span> <span class="mi">45</span>
+    <span class="n">theta_v</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">phi_s</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">phi_v</span> <span class="o">=</span> <span class="o">-</span><span class="mi">160</span>
+    <span class="n">r_toa</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="c1">######################################lecture des coefs_smac</span>
+    <span class="n">nom_smac</span> <span class="o">=</span> <span class="s1">&#39;COEFS/coef_FORMOSAT2_B1_CONT.dat&#39;</span>
+    <span class="n">coefs</span> <span class="o">=</span> <span class="n">coeff</span><span class="p">(</span><span class="n">nom_smac</span><span class="p">)</span>
+    <span class="n">bd</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">r_surf</span> <span class="o">=</span> <span class="n">smac_inv</span><span class="p">(</span><span class="n">r_toa</span><span class="p">,</span> <span class="n">theta_s</span><span class="p">,</span> <span class="n">phi_s</span><span class="p">,</span> <span class="n">theta_v</span><span class="p">,</span> <span class="n">phi_v</span><span class="p">,</span> <span class="mi">1013</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">coefs</span><span class="p">)</span>
+    <span class="n">r_toa2</span> <span class="o">=</span> <span class="n">smac_dir</span><span class="p">(</span><span class="n">r_surf</span><span class="p">,</span> <span class="n">theta_s</span><span class="p">,</span> <span class="n">phi_s</span><span class="p">,</span> <span class="n">theta_v</span><span class="p">,</span> <span class="n">phi_v</span><span class="p">,</span> <span class="mi">1013</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="n">coefs</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">r_toa</span><span class="p">,</span> <span class="n">r_surf</span><span class="p">,</span> <span class="n">r_toa2</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Project Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

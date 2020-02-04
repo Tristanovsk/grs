@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.acutils &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="grs.anglegen" href="grs.anglegen.html" />
+    <link rel="prev" title="Project Modules" href="../modules.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-grs.acutils">
+<span id="grs-acutils"></span><h1>grs.acutils<a class="headerlink" href="#module-grs.acutils" title="Permalink to this headline">¶</a></h1>
+<p>Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)</p>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.acutils.aerosol" title="grs.acutils.aerosol"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aerosol</span></code></a>()</p></td>
+<td><p>aerosol parameters and parameterizations</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#grs.acutils.lut" title="grs.acutils.lut"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lut</span></code></a>(band)</p></td>
+<td><p>Load LUT FROM RT COMPUTATION (OSOAA_h)</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.acutils.misc" title="grs.acutils.misc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">misc</span></code></a></p></td>
+<td><p>Miscelaneous utilities</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#grs.acutils.smac" title="grs.acutils.smac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smac</span></code></a>(smac_bands, smac_dir)</p></td>
+<td><p>Gaseous absorption and transmission from pre-calculated 6S/SMAC data</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="grs.acutils.lut">
+<em class="property">class </em><code class="sig-prename descclassname">grs.acutils.</code><code class="sig-name descname">lut</code><span class="sig-paren">(</span><em class="sig-param">band</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#lut"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.lut" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Load LUT FROM RT COMPUTATION (OSOAA_h)</p>
+<dl class="method">
+<dt id="grs.acutils.lut.load_lut">
+<code class="sig-name descname">load_lut</code><span class="sig-paren">(</span><em class="sig-param">lut_file, ind_wl, aot=[0.01, 0.05, 0.1, 0.3, 0.5, 0.8], vza_max=20, reflectance=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#lut.load_lut"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.lut.load_lut" title="Permalink to this definition">¶</a></dt>
+<dd><p>load lut calculated from OSOAA code</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lut_file</span></code> – netcdf file where lut data are stored for a given aerosol model</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ind_wl</span></code> – indices of the desired central wavelength in <code class="docutils literal notranslate"><span class="pre">lut_file</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aot</span></code> – aerosol optical thickness at 550 nm for which lut are loaded</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vza_max</span></code> – load all lut data for vza &lt;= vza_max</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reflectance</span></code> – if true: return data in reflectance unit, return normalized radiane otherwise</p></li>
+</ul>
+</dd>
+<dt>Construct object with:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">aot</span></code> – aerosol optical thickness at 550 nm for which lut are loaded</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Cext</span></code> – aerosol extinction coefficient (spectral)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Cext550</span></code> – aerosol extinction coefficient at 550 nm</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vza</span></code> – viewing zenith angle (in deg)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sza</span></code> – solar zenith angle (in deg)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">azi</span></code> – relative azimuth between sun and sensor (in opposition when azi = 0)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wl</span></code> – central wavelength of the sensor bands</p></li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">refl</span></code> – Top-of-atmosphere reflectance (or normalized radiance if reflectance == False);</dt><dd><p>array of dims: [wl, sza, azi, vza]</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.lut.interp_lut">
+<code class="sig-name descname">interp_lut</code><span class="sig-paren">(</span><em class="sig-param">points</em>, <em class="sig-param">values</em>, <em class="sig-param">x</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#lut.interp_lut"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.lut.interp_lut" title="Permalink to this definition">¶</a></dt>
+<dd><p>expected x dims: [[sza1, azi1, vza1],[sza2, azi2, vza2]…]</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.acutils.aerosol">
+<em class="property">class </em><code class="sig-prename descclassname">grs.acutils.</code><code class="sig-name descname">aerosol</code><a class="reference internal" href="../_modules/grs/acutils.html#aerosol"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>aerosol parameters and parameterizations</p>
+<dl class="method">
+<dt id="grs.acutils.aerosol.func">
+<code class="sig-name descname">func</code><span class="sig-paren">(</span><em class="sig-param">wl</em>, <em class="sig-param">a</em>, <em class="sig-param">b</em>, <em class="sig-param">c</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#aerosol.func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol.func" title="Permalink to this definition">¶</a></dt>
+<dd><p>function for spectral variation of AOT</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.aerosol.fit_spectral_aot">
+<code class="sig-name descname">fit_spectral_aot</code><span class="sig-paren">(</span><em class="sig-param">wl</em>, <em class="sig-param">aot</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#aerosol.fit_spectral_aot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol.fit_spectral_aot" title="Permalink to this definition">¶</a></dt>
+<dd><p>call to get fitting results on AOT data</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.aerosol.get_spectral_aot">
+<code class="sig-name descname">get_spectral_aot</code><span class="sig-paren">(</span><em class="sig-param">wl</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#aerosol.get_spectral_aot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol.get_spectral_aot" title="Permalink to this definition">¶</a></dt>
+<dd><p>set aot for a given set of wavelengths</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.aerosol.func_aero">
+<code class="sig-name descname">func_aero</code><span class="sig-paren">(</span><em class="sig-param">Cext</em>, <em class="sig-param">fcoef</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#aerosol.func_aero"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol.func_aero" title="Permalink to this definition">¶</a></dt>
+<dd><p>function to fit spectral behavior of bimodal aerosols
+onto aeronet optical thickness</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.aerosol.fit_aero">
+<code class="sig-name descname">fit_aero</code><span class="sig-paren">(</span><em class="sig-param">nCext_f</em>, <em class="sig-param">nCext_c</em>, <em class="sig-param">naot</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#aerosol.fit_aero"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.aerosol.fit_aero" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call to get fine mode coefficient based on fitting on AOT data.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nCext_f</span></code> – Normalized extinction coefficient of the fine mode aerosols</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nCext_c</span></code> – Normalized extinction coefficient of the coarse mode aerosols</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">naot</span></code>    – Normalized spectral aerosol optical thickness</p></li>
+</ul>
+</dd>
+<dt>Return values:</dt><dd><p>The mixing ratio of the fine mode aerosol</p>
+</dd>
+<dt>Notes:</dt><dd><p>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.acutils.smac">
+<em class="property">class </em><code class="sig-prename descclassname">grs.acutils.</code><code class="sig-name descname">smac</code><span class="sig-paren">(</span><em class="sig-param">smac_bands</em>, <em class="sig-param">smac_dir</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#smac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.smac" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Gaseous absorption and transmission from pre-calculated 6S/SMAC data</p>
+<dl class="method">
+<dt id="grs.acutils.smac.set_values">
+<code class="sig-name descname">set_values</code><span class="sig-paren">(</span><em class="sig-param">o3du=300</em>, <em class="sig-param">h2o=0</em>, <em class="sig-param">no2=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#smac.set_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.smac.set_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>set atmospheric concentration values:
+:param o3du: ozone in DU
+:param h2o: water vapor in g/cm^2
+:param no2: nitrous dioxide in …</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.smac.set_gas_param">
+<code class="sig-name descname">set_gas_param</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#smac.set_gas_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.smac.set_gas_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load gaseous absorption parameters as computed for SMAC from 6S RT code</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.acutils.smac.compute_gas_trans">
+<code class="sig-name descname">compute_gas_trans</code><span class="sig-paren">(</span><em class="sig-param">iband</em>, <em class="sig-param">pressure</em>, <em class="sig-param">mu0</em>, <em class="sig-param">muv</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#smac.compute_gas_trans"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.smac.compute_gas_trans" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute gaseous transmittances (up and down) from SMAC parameters and ancillary data
+pressure : actual pressure in hPA
+mu0 : cosine of solar zenith angle
+muv : cosine of viewing zenith angle</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.acutils.misc">
+<em class="property">class </em><code class="sig-prename descclassname">grs.acutils.</code><code class="sig-name descname">misc</code><a class="reference internal" href="../_modules/grs/acutils.html#misc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.misc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Miscelaneous utilities</p>
+<dl class="method">
+<dt id="grs.acutils.misc.get_pressure">
+<em class="property">static </em><code class="sig-name descname">get_pressure</code><span class="sig-paren">(</span><em class="sig-param">alt</em>, <em class="sig-param">psl</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/acutils.html#misc.get_pressure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.acutils.misc.get_pressure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the pressure for a given altitude
+alt : altitude in meters (float or np.array)
+psl : pressure at sea level in hPa
+palt : pressure at the given altitude in hPa</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules.html">Project Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">grs.acutils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.anglegen.html">grs.anglegen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.auxdata.html">grs.auxdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.config.html">grs.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.grs_process.html">grs.grs_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.mask.html">grs.mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.run.html">grs.run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.s2_angle.html">grs.s2_angle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.smac.html">grs.smac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.utils.html">grs.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/_autosummary/grs.acutils.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

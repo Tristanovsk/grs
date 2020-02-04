@@ -1,0 +1,246 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>exe.procutils &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for exe.procutils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&#39;&#39;&#39;utils module dedicated to processing of massive dataset&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+
+
+<div class="viewcode-block" id="misc"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc">[docs]</a><span class="k">class</span> <span class="nc">misc</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Miscellaneous utilities</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="misc.wktbox"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc.wktbox">[docs]</a>    <span class="k">def</span> <span class="nf">wktbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">        :param center_lon: decimal longitude</span>
+<span class="sd">        :param center_lat: decimal latitude</span>
+<span class="sd">        :param width: width of the box in km</span>
+<span class="sd">        :param height: height of the box in km</span>
+<span class="sd">        :return: wkt of the box centered on provided coordinates</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">sqrt</span><span class="p">,</span> <span class="n">atan</span><span class="p">,</span> <span class="n">pi</span>
+        <span class="kn">import</span> <span class="nn">pyproj</span>
+        <span class="n">geod</span> <span class="o">=</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">Geod</span><span class="p">(</span><span class="n">ellps</span><span class="o">=</span><span class="s1">&#39;WGS84&#39;</span><span class="p">)</span>
+        <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="n">width</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">rect_diag</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">width</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">height</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">azimuth1</span> <span class="o">=</span> <span class="n">atan</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">height</span><span class="p">)</span>
+        <span class="n">azimuth2</span> <span class="o">=</span> <span class="n">atan</span><span class="p">(</span><span class="o">-</span><span class="n">width</span> <span class="o">/</span> <span class="n">height</span><span class="p">)</span>
+        <span class="n">azimuth3</span> <span class="o">=</span> <span class="n">atan</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">height</span><span class="p">)</span> <span class="o">+</span> <span class="n">pi</span>  <span class="c1"># first point + 180 degrees</span>
+        <span class="n">azimuth4</span> <span class="o">=</span> <span class="n">atan</span><span class="p">(</span><span class="o">-</span><span class="n">width</span> <span class="o">/</span> <span class="n">height</span><span class="p">)</span> <span class="o">+</span> <span class="n">pi</span>  <span class="c1"># second point + 180 degrees</span>
+
+        <span class="n">pt1_lon</span><span class="p">,</span> <span class="n">pt1_lat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geod</span><span class="o">.</span><span class="n">fwd</span><span class="p">(</span><span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">,</span> <span class="n">azimuth1</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span><span class="p">,</span> <span class="n">rect_diag</span><span class="p">)</span>
+        <span class="n">pt2_lon</span><span class="p">,</span> <span class="n">pt2_lat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geod</span><span class="o">.</span><span class="n">fwd</span><span class="p">(</span><span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">,</span> <span class="n">azimuth2</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span><span class="p">,</span> <span class="n">rect_diag</span><span class="p">)</span>
+        <span class="n">pt3_lon</span><span class="p">,</span> <span class="n">pt3_lat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geod</span><span class="o">.</span><span class="n">fwd</span><span class="p">(</span><span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">,</span> <span class="n">azimuth3</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span><span class="p">,</span> <span class="n">rect_diag</span><span class="p">)</span>
+        <span class="n">pt4_lon</span><span class="p">,</span> <span class="n">pt4_lat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geod</span><span class="o">.</span><span class="n">fwd</span><span class="p">(</span><span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">,</span> <span class="n">azimuth4</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">/</span> <span class="n">pi</span><span class="p">,</span> <span class="n">rect_diag</span><span class="p">)</span>
+
+        <span class="n">wkt_point</span> <span class="o">=</span> <span class="s1">&#39;POINT (</span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">center_lon</span><span class="p">,</span> <span class="n">center_lat</span><span class="p">)</span>
+        <span class="n">wkt_poly</span> <span class="o">=</span> <span class="s1">&#39;POLYGON (( </span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1">, </span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1">, </span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1">, </span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1">, </span><span class="si">%.6f</span><span class="s1"> </span><span class="si">%.6f</span><span class="s1"> ))&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">pt1_lon</span><span class="p">,</span> <span class="n">pt1_lat</span><span class="p">,</span> <span class="n">pt2_lon</span><span class="p">,</span> <span class="n">pt2_lat</span><span class="p">,</span> <span class="n">pt3_lon</span><span class="p">,</span> <span class="n">pt3_lat</span><span class="p">,</span> <span class="n">pt4_lon</span><span class="p">,</span> <span class="n">pt4_lat</span><span class="p">,</span> <span class="n">pt1_lon</span><span class="p">,</span> <span class="n">pt1_lat</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">wkt_poly</span></div>
+
+<div class="viewcode-block" id="misc.get_sensor"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc.get_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Get sensor type from file name</span>
+<span class="sd">        :param file: file in standard naming</span>
+<span class="sd">        :return: sensor type</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;S2A&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;S2A&#39;</span><span class="p">,</span> <span class="s1">&#39;S2_ESA&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;S2B&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;S2B&#39;</span><span class="p">,</span> <span class="s1">&#39;S2_ESA&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;LC08&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;L[C,O]8&quot;</span><span class="p">,</span><span class="n">file</span><span class="p">)):</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;LANDSAT_8&#39;</span><span class="p">,</span> <span class="s1">&#39;Landsat_USGS&#39;</span><span class="p">,</span> <span class="s1">&#39;LC8&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;LE07&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LE7&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;LANDSAT_7&#39;</span><span class="p">,</span> <span class="s1">&#39;Landsat_USGS&#39;</span><span class="p">,</span> <span class="s1">&#39;LE7&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;LT05&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LT5&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;LANDSAT_5&#39;</span><span class="p">,</span> <span class="s1">&#39;Landsat_USGS&#39;</span><span class="p">,</span> <span class="s1">&#39;LT5&#39;</span><span class="p">)</span>
+        <span class="c1"># TODO add to log file</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;sensor not recognized from input file&#39;</span><span class="p">)</span>
+            <span class="n">sensor</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># sys.exit(-1)</span>
+        <span class="k">return</span> <span class="n">sensor</span></div>
+
+<div class="viewcode-block" id="misc.get_tile"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc.get_tile">[docs]</a>    <span class="k">def</span> <span class="nf">get_tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Get tile from file name</span>
+<span class="sd">        :param file: file in standard naming</span>
+<span class="sd">        :return: tile ID</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="n">sensor</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;S2A&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;S2B&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">tile</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">5</span><span class="p">][</span><span class="o">-</span><span class="mi">5</span><span class="p">:]</span>
+        <span class="k">elif</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;L[C,O]8&quot;</span><span class="p">,</span><span class="n">file</span><span class="p">))</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LE7&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LT5&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">tile</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">9</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="s1">&#39;LC08&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LE07&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;LT05&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">):</span>
+            <span class="n">tile</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">10</span><span class="p">]</span>
+        <span class="c1"># TODO add to log file</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;sensor not recognized from input file&#39;</span><span class="p">)</span>
+            <span class="c1"># sys.exit(-1)</span>
+        <span class="k">return</span> <span class="n">tile</span></div>
+
+<div class="viewcode-block" id="misc.set_ofile"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc.set_ofile">[docs]</a>    <span class="k">def</span> <span class="nf">set_ofile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">odir</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">level_name</span><span class="o">=</span><span class="s1">&#39;l2grs&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; get satellite type andset output file name&#39;&#39;&#39;</span>
+        <span class="c1">##################################</span>
+        <span class="c1"># File naming convention</span>
+        <span class="c1">##################################</span>
+
+        <span class="n">lev</span> <span class="o">=</span> <span class="n">level_name</span>
+
+        <span class="n">outfile</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;L1C&#39;</span><span class="p">,</span> <span class="n">lev</span><span class="p">)</span>
+        <span class="n">outfile</span> <span class="o">=</span> <span class="n">outfile</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;L1TP&#39;</span><span class="p">,</span> <span class="n">lev</span><span class="p">)</span>
+        <span class="c1"># remove extension</span>
+        <span class="n">outfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">outfile</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># outfile = outfile.replace(&#39;.SAFE&#39;, &#39;&#39;).rstrip(&#39;/&#39;)</span>
+        <span class="c1"># outfile = outfile.replace(&#39;.zip&#39;, &#39;&#39;).rstrip(&#39;/&#39;)</span>
+        <span class="c1"># outfile = outfile.replace(&#39;.txt&#39;, &#39;&#39;).rstrip(&#39;/&#39;)</span>
+
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">odir</span><span class="p">,</span> <span class="n">outfile</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="misc.chunk"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.misc.chunk">[docs]</a>    <span class="k">def</span> <span class="nf">chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">it</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        return a tuple of n items found in it</span>
+<span class="sd">        :param it:</span>
+<span class="sd">        :param n:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># The buffer to hold the next n items</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                    <span class="n">xs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">))</span>
+                <span class="k">yield</span> <span class="n">xs</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">xs</span></div></div>
+
+<div class="viewcode-block" id="multi_process"><a class="viewcode-back" href="../../_autosummary/exe.procutils.html#exe.procutils.multi_process">[docs]</a><span class="k">class</span> <span class="nc">multi_process</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Utilities for multicore processing</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">def</span> <span class="nf">grs_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">p</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span><span class="n">fjunk</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">file_tbp</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">wkt</span><span class="p">,</span> <span class="n">altitude</span><span class="p">,</span> <span class="n">aerosol</span><span class="p">,</span> <span class="n">aeronet_file</span><span class="p">,</span> <span class="n">ancillary</span><span class="p">,</span> <span class="n">resolution</span><span class="p">,</span> \
+            <span class="n">aot550</span><span class="p">,</span> <span class="n">angstrom</span><span class="p">,</span> <span class="n">mem_safe</span><span class="p">,</span> <span class="n">unzip</span><span class="p">,</span> <span class="n">untar</span><span class="p">,</span> <span class="n">startrow</span><span class="p">,</span> <span class="n">angleonly</span> <span class="o">=</span> <span class="n">arg</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;yop&#39;</span><span class="p">,</span><span class="n">file_tbp</span><span class="p">)</span>
+            <span class="c1">#return</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">grs</span> <span class="k">import</span> <span class="n">grs_process</span>
+                <span class="n">grs_process</span><span class="o">.</span><span class="n">process</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">file_tbp</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">wkt</span><span class="p">,</span> <span class="n">altitude</span><span class="o">=</span><span class="n">altitude</span><span class="p">,</span> <span class="n">aerosol</span><span class="o">=</span><span class="n">aerosol</span><span class="p">,</span> <span class="n">ancillary</span><span class="o">=</span><span class="n">ancillary</span><span class="p">,</span>
+                                              <span class="n">dem</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aeronet_file</span><span class="o">=</span><span class="n">aeronet_file</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="n">resolution</span><span class="p">,</span>
+                                              <span class="n">aot550</span><span class="o">=</span><span class="n">aot550</span><span class="p">,</span> <span class="n">angstrom</span><span class="o">=</span><span class="n">angstrom</span><span class="p">,</span> <span class="n">memory_safe</span><span class="o">=</span><span class="n">mem_safe</span><span class="p">,</span> <span class="n">unzip</span><span class="o">=</span><span class="n">unzip</span><span class="p">,</span> <span class="n">untar</span><span class="o">=</span><span class="n">untar</span><span class="p">,</span>
+                                              <span class="n">startrow</span><span class="o">=</span><span class="n">startrow</span><span class="p">,</span> <span class="n">angleonly</span><span class="o">=</span><span class="n">angleonly</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-------------------------------&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;error for file  &#39;</span><span class="p">,</span> <span class="n">file_tbp</span><span class="p">,</span> <span class="s1">&#39; skip&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-------------------------------&#39;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fjunk</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">myfile</span><span class="p">:</span>
+                    <span class="n">myfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">file_tbp</span> <span class="o">+</span> <span class="s1">&#39; error during grs </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+        <span class="c1"># here sys.exit instead of &quot;return&quot; to terminate and close snappy and free memory</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+        <span class="k">return</span></div>
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Project Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

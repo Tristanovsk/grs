@@ -1,0 +1,385 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.utils &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Fortran Modules" href="../fortran_modules.html" />
+    <link rel="prev" title="grs.smac" href="grs.smac.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-grs.utils">
+<span id="grs-utils"></span><h1>grs.utils<a class="headerlink" href="#module-grs.utils" title="Permalink to this headline">¶</a></h1>
+<p>Defines main python objects and image manipulation functions (linked to the ESA snappy library)</p>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.utils.info" title="grs.utils.info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">info</span></code></a>(product, sensordata[, aerosol, …])</p></td>
+<td><p><dl class="field-list simple">
+<dt class="field-odd">param product</dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#grs.utils.utils" title="grs.utils.utils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">utils</span></code></a>()</p></td>
+<td><p>utils for arrays, images manipulations</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="grs.utils.info">
+<em class="property">class </em><code class="sig-prename descclassname">grs.utils.</code><code class="sig-name descname">info</code><span class="sig-paren">(</span><em class="sig-param">product</em>, <em class="sig-param">sensordata</em>, <em class="sig-param">aerosol='cams_forecast'</em>, <em class="sig-param">ancillary='cams_forecast'</em>, <em class="sig-param">output='Rrs'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>product</strong> – </p></li>
+<li><p><strong>sensordata</strong> – </p></li>
+<li><p><strong>aerosol</strong> – </p></li>
+<li><p><strong>ancillary</strong> – </p></li>
+<li><p><strong>output</strong> – set the unit of the retrievals:
+* ‘Lwn’, normalized water-leaving radiance (in mW cm-2 sr-1 mum-1)
+* ‘Rrs’, remote sensing reflectance (in sr-1)
+{default: ‘Rrs’]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="method">
+<dt id="grs.utils.info.set_outfile">
+<code class="sig-name descname">set_outfile</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.set_outfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.set_outfile" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file</strong> – </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.set_aeronetfile">
+<code class="sig-name descname">set_aeronetfile</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.set_aeronetfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.set_aeronetfile" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file</strong> – </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.get_product_info">
+<code class="sig-name descname">get_product_info</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.get_product_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.get_product_info" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.get_bands">
+<code class="sig-name descname">get_bands</code><span class="sig-paren">(</span><em class="sig-param">band_names=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.get_bands"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.get_bands" title="Permalink to this definition">¶</a></dt>
+<dd><p>get wavelengths, bands, geometries
+:param band_names:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.get_flag">
+<code class="sig-name descname">get_flag</code><span class="sig-paren">(</span><em class="sig-param">flag_name</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.get_flag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.get_flag" title="Permalink to this definition">¶</a></dt>
+<dd><p>get binary flag raster of row <cite>rownum</cite></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.get_elevation">
+<code class="sig-name descname">get_elevation</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.get_elevation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.get_elevation" title="Permalink to this definition">¶</a></dt>
+<dd><p>load elevation data into numpy array</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.load_data">
+<code class="sig-name descname">load_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.load_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.load_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>load ta from input (subsetted) satellite image
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.load_flags">
+<code class="sig-name descname">load_flags</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.load_flags"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.load_flags" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set flags from L1 data (must be called after <cite>load_data</cite>
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.unload_data">
+<code class="sig-name descname">unload_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.unload_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.unload_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>unload data (not efficient due to ESA snappy issue with java jvm</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.create_product">
+<code class="sig-name descname">create_product</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.create_product"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.create_product" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create output product dimensions, variables, attributes, flags….
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.checksum">
+<code class="sig-name descname">checksum</code><span class="sig-paren">(</span><em class="sig-param">info</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.checksum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.checksum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save info on the current processing stage
+:param info:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.finalize_product">
+<code class="sig-name descname">finalize_product</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.finalize_product"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.finalize_product" title="Permalink to this definition">¶</a></dt>
+<dd><p>remove checksum file
+remove extension “.incomplete” from output file name
+convert into netcdf (compressed) from gpt and ncdump/nco tool</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.info.print_info">
+<code class="sig-name descname">print_info</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#info.print_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.info.print_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>print info, can be used to check if object is complete</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.utils.utils">
+<em class="property">class </em><code class="sig-prename descclassname">grs.utils.</code><code class="sig-name descname">utils</code><a class="reference internal" href="../_modules/grs/utils.html#utils"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>utils for arrays, images manipulations</p>
+<dl class="method">
+<dt id="grs.utils.utils.init_arrayofarrays">
+<em class="property">static </em><code class="sig-name descname">init_arrayofarrays</code><span class="sig-paren">(</span><em class="sig-param">number_of_array</em>, <em class="sig-param">dim</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.init_arrayofarrays"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.init_arrayofarrays" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize Nd array of Nd dimensions (given by dim)</p>
+<dl class="simple">
+<dt>example:</dt><dd><p>arr1, arr2 = init_array(2,(2,3,10))</p>
+</dd>
+<dt>gives</dt><dd><p>arr1.shape –&gt; (2,3,10)
+arr2.shape –&gt; (2,3,10)</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number_of_array</strong> – int</p></li>
+<li><p><strong>dim</strong> – list</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>number_of_array</cite> numpy arrays of shape <cite>dim</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.init_fortran_array">
+<em class="property">static </em><code class="sig-name descname">init_fortran_array</code><span class="sig-paren">(</span><em class="sig-param">number_of_array</em>, <em class="sig-param">dim</em>, <em class="sig-param">dtype=&lt;class 'numpy.float32'&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.init_fortran_array"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.init_fortran_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize Nd array of Nd dimensions (given by dim) in FORTRAN memory order
+(i.e., compliant with JAVA order provided by snappy)</p>
+<dl class="simple">
+<dt>example:</dt><dd><p>arr1, arr2 = init_array(2,(2,3,10))</p>
+</dd>
+<dt>gives</dt><dd><p>arr1.shape –&gt; (2,3,10)
+arr2.shape –&gt; (2,3,10)</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>number_of_array</strong> – int</p></li>
+<li><p><strong>dim</strong> – list</p></li>
+<li><p><strong>dtype</strong> – numpy type for arrays</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>number_of_array</cite> numpy arrays of shape <cite>dim</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.generic_resampler">
+<code class="sig-name descname">generic_resampler</code><span class="sig-paren">(</span><em class="sig-param">s2_product</em>, <em class="sig-param">resolution=20</em>, <em class="sig-param">method='Bilinear'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.generic_resampler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.generic_resampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>method: Nearest, Bilinear</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.resampler">
+<em class="property">static </em><code class="sig-name descname">resampler</code><span class="sig-paren">(</span><em class="sig-param">product</em>, <em class="sig-param">resolution=20</em>, <em class="sig-param">upmethod='Bilinear'</em>, <em class="sig-param">downmethod='First'</em>, <em class="sig-param">flag='FlagMedianAnd'</em>, <em class="sig-param">opt=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.resampler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.resampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>product</strong> – S2-msi product as provided by esasnappy ProductIO.readProduct()</p></li>
+<li><p><strong>resolution</strong> – target resolution in meters</p></li>
+<li><p><strong>upmethod</strong> – interpolation method (‘Nearest’, ‘Bilinear’, ‘Bicubic’)</p></li>
+<li><p><strong>downmethod</strong> – aggregation method (‘First’, ‘Min’, ‘Max’, ‘Mean’, ‘Median’)</p></li>
+<li><p><strong>flag</strong> – method for flags aggregation (‘First’, ‘FlagAnd’, ‘FlagOr’, ‘FlagMedianAnd’, ‘FlagMedianOr’)</p></li>
+<li><p><strong>opt</strong> – resample on pyramid levels (True/False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>interpolated target product</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.s2_resampler">
+<em class="property">static </em><code class="sig-name descname">s2_resampler</code><span class="sig-paren">(</span><em class="sig-param">product</em>, <em class="sig-param">resolution=20</em>, <em class="sig-param">upmethod='Bilinear'</em>, <em class="sig-param">downmethod='First'</em>, <em class="sig-param">flag='FlagMedianAnd'</em>, <em class="sig-param">opt=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.s2_resampler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.s2_resampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>product</strong> – S2-msi product as provided by esasnappy ProductIO.readProduct()</p></li>
+<li><p><strong>resolution</strong> – target resolution in meters (10, 20, 60)</p></li>
+<li><p><strong>upmethod</strong> – interpolation method (‘Nearest’, ‘Bilinear’, ‘Bicubic’)</p></li>
+<li><p><strong>downmethod</strong> – aggregation method (‘First’, ‘Min’, ‘Max’, ‘Mean’, ‘Median’)</p></li>
+<li><p><strong>flag</strong> – method for flags aggregation (‘First’, ‘FlagAnd’, ‘FlagOr’, ‘FlagMedianAnd’, ‘FlagMedianOr’)</p></li>
+<li><p><strong>opt</strong> – resample on pyramid levels (True/False)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>interpolated target product</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.get_subset">
+<code class="sig-name descname">get_subset</code><span class="sig-paren">(</span><em class="sig-param">product</em>, <em class="sig-param">wkt</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.get_subset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.get_subset" title="Permalink to this definition">¶</a></dt>
+<dd><p>subset from wkt POLYGON</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.get_extent">
+<code class="sig-name descname">get_extent</code><span class="sig-paren">(</span><em class="sig-param">product</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.get_extent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.get_extent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get corner coordinates of the ESA SNAP product(getextent)</p>
+<p># int step - the step given in pixels</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.getReprojected">
+<code class="sig-name descname">getReprojected</code><span class="sig-paren">(</span><em class="sig-param">product</em>, <em class="sig-param">crs='EPSG:4326'</em>, <em class="sig-param">method='Bilinear'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.getReprojected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.getReprojected" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reproject a esasnappy product on a given coordinate reference system (crs)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="grs.utils.utils.get_sensor">
+<code class="sig-name descname">get_sensor</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/utils.html#utils.get_sensor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.utils.utils.get_sensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get sensor type from file name
+:param file: file in standard naming
+:return: sensor type</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules.html">Project Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="grs.acutils.html">grs.acutils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.anglegen.html">grs.anglegen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.auxdata.html">grs.auxdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.config.html">grs.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.grs_process.html">grs.grs_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.mask.html">grs.mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.run.html">grs.run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.s2_angle.html">grs.s2_angle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.smac.html">grs.smac</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">grs.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/_autosummary/grs.utils.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

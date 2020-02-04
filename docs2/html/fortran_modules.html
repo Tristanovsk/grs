@@ -1,0 +1,137 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fortran Modules &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Deployment Modules" href="deployment_modules.html" />
+    <link rel="prev" title="grs.utils" href="_autosummary/grs.utils.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="fortran-modules">
+<h1>Fortran Modules<a class="headerlink" href="#fortran-modules" title="Permalink to this headline">¶</a></h1>
+<p>Use MINPACK and INTERP package</p>
+<dl class="subroutine">
+<dt id="f/_/main_algo">
+<em class="property">subroutine  </em><code class="sig-name descname">main_algo</code><span class="sig-paren">(</span><em class="sig-param">npix</em>, <em class="sig-param">nband</em>, <em class="sig-param">naot</em>, <em class="sig-param">vza</em>, <em class="sig-param">sza</em>, <em class="sig-param">azi</em>, <em class="sig-param">rtoa</em>, <em class="sig-param">mask</em>, <em class="sig-param">wl</em>, <em class="sig-param">pressure_corr</em>, <em class="sig-param">aotlut</em>, <em class="sig-param">rlut_f</em>, <em class="sig-param">rlut_c</em>, <em class="sig-param">cext_f</em>, <em class="sig-param">cext_c</em>, <em class="sig-param">rg_ratio</em>, <em class="sig-param">f0</em>, <em class="sig-param">rot</em>, <em class="sig-param">aot</em>, <em class="sig-param">aot550</em>, <em class="sig-param">fine_coef</em>, <em class="sig-param">nodata</em>, <em class="sig-param">rrs</em>, <em class="sig-param">rcorr</em>, <em class="sig-param">rcorrg</em>, <em class="sig-param">aot550_est</em>, <em class="sig-param">brdf_est</em><span class="sig-paren">)</span><a class="headerlink" href="#f/_/main_algo" title="Permalink to this definition">¶</a></dt>
+<dd><p>f2py -c -m main_algo main_algo.f95</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>npix</strong><em> [</em><em>integer</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>nband</strong><em> [</em><em>integer</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>naot</strong><em> [</em><em>integer</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>vza</strong> (nband,npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>sza</strong> (npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>azi</strong> (nband,npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rtoa</strong> (nband,npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>mask</strong> (npix)<em> [</em><em>integer</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>wl</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>pressure_corr</strong> (npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>aotlut</strong> (naot)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rlut_f</strong> (naot,nband,npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rlut_c</strong> (naot,nband,npix)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>cext_f</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>cext_c</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rg_ratio</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>f0</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rot</strong> (nband)<em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>aot</strong> (nband)<em> [</em><em>real</em><em>,</em><em>inout/in</em><em>]</em></p></li>
+<li><p><strong>aot550</strong> (npix)<em> [</em><em>real</em><em>,</em><em>inout/in</em><em>]</em></p></li>
+<li><p><strong>fine_coef</strong><em> [</em><em>real</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>nodata</strong><em> [</em><em>real</em><em>,</em><em>inout</em><em>]</em></p></li>
+<li><p><strong>rrs</strong><em> [</em><em>logical</em><em>,</em><em>in</em><em>]</em></p></li>
+<li><p><strong>rcorr</strong> (nband,npix)<em> [</em><em>real</em><em>,</em><em>out</em><em>]</em></p></li>
+<li><p><strong>rcorrg</strong> (nband,npix)<em> [</em><em>real</em><em>,</em><em>out</em><em>]</em></p></li>
+<li><p><strong>aot550_est</strong> (npix)<em> [</em><em>real</em><em>,</em><em>out</em><em>]</em></p></li>
+<li><p><strong>brdf_est</strong> (npix)<em> [</em><em>real</em><em>,</em><em>out</em><em>]</em></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p>#.. f:autosrcfile:: main_algo.f95</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Project Modules</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/fortran_modules.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

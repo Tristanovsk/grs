@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Documentation for the GRS algorithm. &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Project Modules" href="modules.html" />
+    <link rel="prev" title="Documentation for the grs processing" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="documentation-for-the-grs-algorithm">
+<h1>Documentation for the GRS algorithm.<a class="headerlink" href="#documentation-for-the-grs-algorithm" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="grs-glint-removal-for-sentinel-2-like-sensors">
+<h2>GRS (Glint Removal for Sentinel-2-like sensors)<a class="headerlink" href="#grs-glint-removal-for-sentinel-2-like-sensors" title="Permalink to this headline">¶</a></h2>
+<p>The GRS processing was designed to correct Sentinel-2-like satellite images for atmospheric effects and Sun reflection (sunglint) above water surfaces (e.g., ocean, coastal, estuary, river and lake waters).
+Theoretical background can be found in <a class="reference external" href="https://www.sciencedirect.com/science/article/pii/S0034425717304856/">[Harmel et al., 2018]</a>.</p>
+<p>The overall structure of the algorithm can be summarized by the following flowchart:</p>
+<div class="figure align-default" id="id2">
+<a class="reference internal image-reference" href="_images/flowchart_sunglint_S2.png"><img alt="check `README &lt;../../README.md&gt;`_" src="_images/flowchart_sunglint_S2.png" style="width: 783.0px; height: 867.0px;" /></a>
+<p class="caption"><span class="caption-text">Flowchart of the proposed GRS algorithm to remove the sunglint contribution from the MSI/Sentinel-2 images.</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>These instructions will get you a copy of the project up and running on
+your local machine for development and testing purposes. See deployment
+for notes on how to deploy the project on a live system.</p>
+<div class="section" id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://apps.ecmwf.int/registration/">Register</a> and <a class="reference external" href="https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key">ask for a
+key</a>
+to use ECMWF API</p>
+<p>Download and install the <a class="reference external" href="http://step.esa.int/main/download/">SNAP
+software</a>. Configure the
+<a class="reference external" href="https://senbox.atlassian.net/wiki/spaces/SNAP/pages/50855941/Configure+Python+to+use+the+SNAP-Python+snappy+interface">SNAP-python
+interface</a>
+and link the obtained <code class="docutils literal notranslate"><span class="pre">snappy</span></code> folder to your python site-packages as
+<code class="docutils literal notranslate"><span class="pre">esasnappy</span></code>. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ln -s /FULL_PATH/.snap/snap-python/snappy /PATH_TO_LIB_PYTHON/lib/python3.6/site-packages/esasnappy
+</pre></div>
+</div>
+<p>Compilers such gcc and gfortran are needed to install the package.</p>
+<p>Compile all C and fortran files into shared libraries:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span>
+</pre></div>
+</div>
+<p>Generate the <cite>config.py</cite> file:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>In the ./grs/grs folder, copy <cite>config_local.py</cite> to <cite>config.py</cite>.</p></li>
+<li><p>Then, edit <cite>config.py</cite> according to your folders tree and path to your grs installation folder.</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="installing">
+<h3>Installing<a class="headerlink" href="#installing" title="Permalink to this headline">¶</a></h3>
+<p>To install the package:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">install</span> <span class="o">--</span><span class="n">user</span>
+</pre></div>
+</div>
+<p>If the installation is successful, you should have:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ grs
+Usage:
+  grs &lt;input_file&gt; [--sensor &lt;sensor&gt;] [-o &lt;ofile&gt;] [--odir &lt;odir&gt;] [--shape &lt;shp&gt;] [--wkt &lt;wktfile&gt;]   [--longlat &lt;longmax,longmin,latmax,latmin&gt; ]    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=&lt;afile&gt;]    [--aot550=aot] [--angstrom=ang] [--output param]   [--resolution=res] [--levname &lt;lev&gt;] [--no_clobber] [--memory_safe] [--unzip]
+  grs -h | --help
+  grs -v | --version
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-the-tests">
+<h3>Running the tests<a class="headerlink" href="#running-the-tests" title="Permalink to this headline">¶</a></h3>
+<p>From terminal:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">grs</span> <span class="n">test</span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835</span><span class="o">.</span><span class="n">SAFE</span> <span class="o">--</span><span class="n">shape</span> <span class="n">test</span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">shape</span><span class="o">/</span><span class="n">SPO04</span><span class="o">.</span><span class="n">shp</span> <span class="o">--</span><span class="n">odir</span> <span class="n">test</span><span class="o">/</span><span class="n">results</span><span class="o">/</span> <span class="o">--</span><span class="n">aerosol</span> <span class="n">cams_forecast</span> <span class="o">--</span><span class="n">dem</span> <span class="o">--</span><span class="n">resolution</span> <span class="mi">20</span>
+</pre></div>
+</div>
+<p>You should get something like:</p>
+<div class="figure align-default" id="id3">
+<img alt="image\_output" src="_images/example_snap_grs_image.png" />
+<p class="caption"><span class="caption-text">Example of an output image visualized in the <a class="reference external" href="http://step.esa.int/main/download/">SNAP software</a>.</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
+</div>
+<p>Another examples of output images before (1st column) and after (2nd
+column) sunglint correction:</p>
+<div class="figure align-default" id="id4">
+<span id="fig3"></span><img alt="image\_output" src="_images/Fig_valid_qualit_sea_scale.png" />
+<p class="caption"><span class="caption-text">RGB images obtained after subtraction of the atmospheric radiance from TOA signal but before (left column) and after (right column) removing the sunglint radiance. These images correspond to the areas surrounding the AERONET-OC sites of (a, b) Venice (July 18, 2016) and (c, d) WaveCIS (April 23, 2016). Note that the same color scale was used to generate the RGB images before and after removing the sunglint radiance.</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
+</div>
+</div>
+<div class="section" id="deployment">
+<h3>Deployment<a class="headerlink" href="#deployment" title="Permalink to this headline">¶</a></h3>
+<p>See examples in <span class="xref std std-ref">exe</span>.</p>
+</div>
+</div>
+<div class="section" id="package-development">
+<h2>Package development<a class="headerlink" href="#package-development" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="contributing">
+<h3>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">¶</a></h3>
+<p>Please contact <a class="reference external" href="mailto:tristan&#46;harmel&#37;&#52;&#48;gmail&#46;com">authors</a> for details on our code of conduct, and the process for submitting pull requests to us.</p>
+</div>
+<div class="section" id="id1">
+<h3>Authors<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Tristan Harmel</strong> - <em>Initial work</em> - <a class="reference external" href="mailto:tristan&#46;harmel&#37;&#52;&#48;gmail&#46;com">contact</a></p></li>
+</ul>
+<p>See also the list of [contributors](…) who participated in this project.</p>
+</div>
+<div class="section" id="license">
+<h3>License<a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h3>
+<p>This project is licensed under the MIT License - see the <a class="reference download internal" download="" href="_downloads/45c67e110fdd21d2beb01832b61177ec/LICENSE.md"><code class="xref download docutils literal notranslate"><span class="pre">LICENSE.md</span></code></a> file for details.</p>
+</div>
+<div class="section" id="acknowledgments">
+<h3>Acknowledgments<a class="headerlink" href="#acknowledgments" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>The <a class="reference external" href="http://forum.step.esa.int">Step forum</a> and Marco Peters are acknowledged for their useful help to process Sentinel-2 data with the snappy API.</p></li>
+<li><p>The authors are very grateful to Olivier Hagolle for providing open source codes to perform gaseous absorption correction and massive Sentinel-2 data download.</p></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Documentation for the GRS algorithm.</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#grs-glint-removal-for-sentinel-2-like-sensors">GRS (Glint Removal for Sentinel-2-like sensors)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installing">Installing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-the-tests">Running the tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deployment">Deployment</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#package-development">Package development</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#contributing">Contributing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Authors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#license">License</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Project Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/page.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

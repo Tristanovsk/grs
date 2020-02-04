@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Project Modules &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="grs.acutils" href="_autosummary/grs.acutils.html" />
+    <link rel="prev" title="Documentation for the GRS algorithm." href="page.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-grs">
+<span id="project-modules"></span><h1>Project Modules<a class="headerlink" href="#module-grs" title="Permalink to this headline">¶</a></h1>
+<p>Version history:</p>
+<p>1.0.0 grs for Sentinel2</p>
+<p>1.1.0 adaptation to Landsat 4, 5, 7, 8</p>
+<p>1.1.1</p>
+<p>1.1.2 output in Rrs unit</p>
+<p>1.1.3</p>
+<p>1.1.4: set cloud mask; (compressed) netcdf4 output format</p>
+<p>1.2.0: load full data matrix from image instead of line by line pixel extraction (preparation for multipixel retrieval algorithm</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/grs.acutils.html#module-grs.acutils" title="grs.acutils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">acutils</span></code></a></p></td>
+<td><p>Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/grs.anglegen.html#module-grs.anglegen" title="grs.anglegen"><code class="xref py py-obj docutils literal notranslate"><span class="pre">anglegen</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/grs.auxdata.html#module-grs.auxdata" title="grs.auxdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">auxdata</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/grs.config.html#module-grs.config" title="grs.config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">config</span></code></a></p></td>
+<td><p>Set absolute path</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/grs.grs_process.html#module-grs.grs_process" title="grs.grs_process"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grs_process</span></code></a></p></td>
+<td><p>Main program</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/grs.mask.html#module-grs.mask" title="grs.mask"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mask</span></code></a></p></td>
+<td><p>Setting custom masks</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/grs.run.html#module-grs.run" title="grs.run"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code></a></p></td>
+<td><p>Executable to process L1C images from Sentinel-2 and Landsat mission series</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/grs.s2_angle.html#module-grs.s2_angle" title="grs.s2_angle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">s2_angle</span></code></a></p></td>
+<td><p>Optional code to compute viewing configuration for S2</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/grs.smac.html#module-grs.smac" title="grs.smac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smac</span></code></a></p></td>
+<td><p>Correction for gaseous absorption based on SMAC method (Rahman and Dedieu, 1994)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/grs.utils.html#module-grs.utils" title="grs.utils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">utils</span></code></a></p></td>
+<td><p>Defines main python objects and image manipulation functions (linked to the ESA snappy library)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Project Modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.acutils.html">grs.acutils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.anglegen.html">grs.anglegen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.auxdata.html">grs.auxdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.config.html">grs.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.grs_process.html">grs.grs_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.mask.html">grs.mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.run.html">grs.run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.s2_angle.html">grs.s2_angle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.smac.html">grs.smac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="_autosummary/grs.utils.html">grs.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/modules.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

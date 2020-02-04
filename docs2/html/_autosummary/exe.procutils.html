@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>exe.procutils &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Deployment Modules" href="../deployment_modules.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-exe.procutils">
+<span id="exe-procutils"></span><h1>exe.procutils<a class="headerlink" href="#module-exe.procutils" title="Permalink to this headline">¶</a></h1>
+<p>utils module dedicated to processing of massive dataset</p>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exe.procutils.misc" title="exe.procutils.misc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">misc</span></code></a>()</p></td>
+<td><p>Miscellaneous utilities</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exe.procutils.multi_process" title="exe.procutils.multi_process"><code class="xref py py-obj docutils literal notranslate"><span class="pre">multi_process</span></code></a>()</p></td>
+<td><p>Utilities for multicore processing</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="exe.procutils.misc">
+<em class="property">class </em><code class="sig-prename descclassname">exe.procutils.</code><code class="sig-name descname">misc</code><a class="reference internal" href="../_modules/exe/procutils.html#misc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Miscellaneous utilities</p>
+<dl class="method">
+<dt id="exe.procutils.misc.wktbox">
+<code class="sig-name descname">wktbox</code><span class="sig-paren">(</span><em class="sig-param">center_lon</em>, <em class="sig-param">center_lat</em>, <em class="sig-param">width=1</em>, <em class="sig-param">height=1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/exe/procutils.html#misc.wktbox"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc.wktbox" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>center_lon</strong> – decimal longitude</p></li>
+<li><p><strong>center_lat</strong> – decimal latitude</p></li>
+<li><p><strong>width</strong> – width of the box in km</p></li>
+<li><p><strong>height</strong> – height of the box in km</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>wkt of the box centered on provided coordinates</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="exe.procutils.misc.get_sensor">
+<code class="sig-name descname">get_sensor</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/exe/procutils.html#misc.get_sensor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc.get_sensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get sensor type from file name
+:param file: file in standard naming
+:return: sensor type</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="exe.procutils.misc.get_tile">
+<code class="sig-name descname">get_tile</code><span class="sig-paren">(</span><em class="sig-param">file</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/exe/procutils.html#misc.get_tile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc.get_tile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get tile from file name
+:param file: file in standard naming
+:return: tile ID</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="exe.procutils.misc.set_ofile">
+<code class="sig-name descname">set_ofile</code><span class="sig-paren">(</span><em class="sig-param">file</em>, <em class="sig-param">odir=''</em>, <em class="sig-param">level_name='l2grs'</em>, <em class="sig-param">suffix=''</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/exe/procutils.html#misc.set_ofile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc.set_ofile" title="Permalink to this definition">¶</a></dt>
+<dd><p>get satellite type andset output file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="exe.procutils.misc.chunk">
+<code class="sig-name descname">chunk</code><span class="sig-paren">(</span><em class="sig-param">it</em>, <em class="sig-param">n</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/exe/procutils.html#misc.chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.misc.chunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>return a tuple of n items found in it
+:param it:
+:param n:
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="exe.procutils.multi_process">
+<em class="property">class </em><code class="sig-prename descclassname">exe.procutils.</code><code class="sig-name descname">multi_process</code><a class="reference internal" href="../_modules/exe/procutils.html#multi_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#exe.procutils.multi_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Utilities for multicore processing</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Project Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../deployment_modules.html">Deployment Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">exe.procutils</a></li>
+</ul>
+</li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/_autosummary/exe.procutils.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

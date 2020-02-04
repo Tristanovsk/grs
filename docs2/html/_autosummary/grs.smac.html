@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.smac &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="grs.utils" href="grs.utils.html" />
+    <link rel="prev" title="grs.s2_angle" href="grs.s2_angle.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-grs.smac">
+<span id="grs-smac"></span><h1>grs.smac<a class="headerlink" href="#module-grs.smac" title="Permalink to this headline">¶</a></h1>
+<p>Correction for gaseous absorption based on SMAC method (Rahman and Dedieu, 1994)</p>
+<p class="rubric">Functions</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.smac.PdeZ" title="grs.smac.PdeZ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PdeZ</span></code></a>(Z)</p></td>
+<td><p>PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#grs.smac.smac_dir" title="grs.smac.smac_dir"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smac_dir</span></code></a>(r_surf, tetas, phis, tetav, phiv, …)</p></td>
+<td><p>r_toa=smac_dir ( r_surf, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef) Application des effets atmosphÃ©riques</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.smac.smac_inv" title="grs.smac.smac_inv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smac_inv</span></code></a>(r_toa, tetas, phis, tetav, phiv, …)</p></td>
+<td><p>r_surf=smac_inv( r_toa, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef) Corrections atmosphÃ©riques</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#grs.smac.coeff" title="grs.smac.coeff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">coeff</span></code></a>(smac_filename)</p></td>
+<td><p>library for atmospheric correction using SMAC method (Rahman and Dedieu, 1994) Contains :      smac_inv : inverse smac model for atmospheric correction                          TOA==&gt;Surface      smac dir : direct smac model                          Surface==&gt;TOA      coefs : reads smac coefficients      PdeZ : #      PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="grs.smac.PdeZ">
+<code class="sig-prename descclassname">grs.smac.</code><code class="sig-name descname">PdeZ</code><span class="sig-paren">(</span><em class="sig-param">Z</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/smac.html#PdeZ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.smac.PdeZ" title="Permalink to this definition">¶</a></dt>
+<dd><p>PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="grs.smac.coeff">
+<em class="property">class </em><code class="sig-prename descclassname">grs.smac.</code><code class="sig-name descname">coeff</code><span class="sig-paren">(</span><em class="sig-param">smac_filename</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/smac.html#coeff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.smac.coeff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>library for atmospheric correction using SMAC method (Rahman and Dedieu, 1994)
+Contains :</p>
+<blockquote>
+<div><dl class="simple">
+<dt>smac_inv<span class="classifier">inverse smac model for atmospheric correction</span></dt><dd><p>TOA==&gt;Surface</p>
+</dd>
+<dt>smac dir<span class="classifier">direct smac model</span></dt><dd><p>Surface==&gt;TOA</p>
+</dd>
+</dl>
+<p>coefs : reads smac coefficients
+PdeZ : #      PdeZ : Atmospheric pressure (in hpa) as a function of altitude (in meters)</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="grs.smac.smac_inv">
+<code class="sig-prename descclassname">grs.smac.</code><code class="sig-name descname">smac_inv</code><span class="sig-paren">(</span><em class="sig-param">r_toa</em>, <em class="sig-param">tetas</em>, <em class="sig-param">phis</em>, <em class="sig-param">tetav</em>, <em class="sig-param">phiv</em>, <em class="sig-param">pressure</em>, <em class="sig-param">taup550</em>, <em class="sig-param">uo3</em>, <em class="sig-param">uh2o</em>, <em class="sig-param">coef</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/smac.html#smac_inv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.smac.smac_inv" title="Permalink to this definition">¶</a></dt>
+<dd><p>r_surf=smac_inv( r_toa, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef)
+Corrections atmosphÃ©riques</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="grs.smac.smac_dir">
+<code class="sig-prename descclassname">grs.smac.</code><code class="sig-name descname">smac_dir</code><span class="sig-paren">(</span><em class="sig-param">r_surf</em>, <em class="sig-param">tetas</em>, <em class="sig-param">phis</em>, <em class="sig-param">tetav</em>, <em class="sig-param">phiv</em>, <em class="sig-param">pressure</em>, <em class="sig-param">taup550</em>, <em class="sig-param">uo3</em>, <em class="sig-param">uh2o</em>, <em class="sig-param">coef</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/grs/smac.html#smac_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#grs.smac.smac_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>r_toa=smac_dir ( r_surf, tetas, phis, tetav, phiv,pressure,taup550, uo3, uh2o, coef)
+Application des effets atmosphÃ©riques</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules.html">Project Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="grs.acutils.html">grs.acutils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.anglegen.html">grs.anglegen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.auxdata.html">grs.auxdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.config.html">grs.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.grs_process.html">grs.grs_process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.mask.html">grs.mask</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.run.html">grs.run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.s2_angle.html">grs.s2_angle</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">grs.smac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="grs.utils.html">grs.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/_autosummary/grs.smac.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

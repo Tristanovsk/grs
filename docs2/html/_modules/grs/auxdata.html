@@ -1,0 +1,837 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>grs.auxdata &#8212; grs 1 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for grs.auxdata</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">interp1d</span>
+<span class="kn">import</span> <span class="nn">netCDF4</span> <span class="k">as</span> <span class="nn">nc</span>
+<span class="kn">import</span> <span class="nn">calendar</span><span class="o">,</span> <span class="nn">datetime</span>
+
+<span class="kn">from</span> <span class="nn">esasnappy</span> <span class="k">import</span> <span class="n">ProductIO</span>
+
+<span class="kn">from</span> <span class="nn">.config</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">utils</span> <span class="k">as</span> <span class="n">u</span>
+
+<span class="c1">#------------------------</span>
+<span class="c1"># set threshold for masking</span>
+<span class="n">high_nir_threshold</span> <span class="o">=</span> <span class="mf">0.0275</span>
+<span class="n">hcld_threshold</span> <span class="o">=</span> <span class="mf">0.003</span> <span class="c1"># (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)</span>
+
+<span class="c1"># -----------------</span>
+<span class="c1"># set values bracketing the Normalized Difference Water Index for rough land/water masking</span>
+<span class="n">NDWI_threshold</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">]</span>
+
+<div class="viewcode-block" id="sensordata"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.sensordata">[docs]</a><span class="k">class</span> <span class="nc">sensordata</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        * ``sensor`` -- Name of the sensor to process:</span>
+<span class="sd">            * LANDSAT_4</span>
+<span class="sd">            * LANDSAT_5</span>
+<span class="sd">            * LANDSAT_7</span>
+<span class="sd">            * LANDSAT_8</span>
+<span class="sd">            * S2A</span>
+<span class="sd">            * S2B</span>
+<span class="sd">        * ``indband`` -- indexes of the requested bands (bands that will be processed)</span>
+
+<span class="sd">    Construct object with values:</span>
+<span class="sd">        * ``rot`` -- Rayleigh optical thickness for each band</span>
+<span class="sd">        * ``band names`` for angles files format</span>
+<span class="sd">        * ``smac_band`` -- band names for SMAC files format</span>
+<span class="sd">        * ``rg`` -- Cox-Munk Fresnel reflection factor ratio (R(wl)/Rref(2190nm) [Harmel et al., 2018]</span>
+<span class="sd">        * ``angle_generator`` -- function to compute angles from metadata</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sensor</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor</span> <span class="o">=</span> <span class="n">sensor</span>
+
+        <span class="c1">##################################</span>
+        <span class="c1"># Sensors characteristics</span>
+        <span class="c1">##################################</span>
+        <span class="c1"># Computed from Thuillier 2003 data set [Thuillier, G., M. Herse, P. C. Simon, D. Labs, H. Mandel, D. Gillotay,</span>
+        <span class="c1">#               and T. Foujols, 2003, &#39;The solar spectral irradiance from 200</span>
+        <span class="c1">#               to 2400 nm as measured by the SOLSPEC spectrometer from the</span>
+        <span class="c1">#               ATLAS 1-2-3 and EURECA missions, Solar Physics, 214(1): 1-22</span>
+        <span class="c1">#    [u&#39;CoastalAerosol&#39;, u&#39;Blue&#39;, u&#39;Green&#39;, u&#39;Red&#39;, u&#39;NIR&#39;, u&#39;Cirrus&#39;, u&#39;SWIR1&#39;, u&#39;SWIR2&#39;, u&#39;Pan&#39;]</span>
+        <span class="c1">#    [1895.42490193, 2004.57767987, 1820.64535207, 1549.46770711, 951.72893589, 366.97254025,</span>
+        <span class="c1">#     247.55307624, 85.46266307, 1723.80908067]</span>
+        <span class="n">LANDSAT8_ESUN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1895.42490193</span><span class="p">,</span> <span class="mf">2004.57767987</span><span class="p">,</span> <span class="mf">1820.64535207</span><span class="p">,</span> <span class="mf">1723.80908067</span><span class="p">,</span> <span class="mf">1549.46770711</span><span class="p">,</span>
+                         <span class="mf">951.72893589</span><span class="p">,</span> <span class="mf">247.55307624</span><span class="p">,</span> <span class="mf">85.46266307</span><span class="p">]</span>
+
+        <span class="c1"># From Chander, G., Markham, B.L., Helder, D.L. (2008)</span>
+        <span class="c1"># Summary of current radiometric calibration coefficients for Landsat MSS, TM, ETM+, and EO-1 ALI sensors</span>
+        <span class="c1"># http://landsathandbook.gsfc.nasa.gov/pdfs/Landsat_Calibration_Summary_RSE.pdf</span>
+        <span class="n">LANDSAT4_ESUN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1983.0</span><span class="p">,</span> <span class="mf">1795.0</span><span class="p">,</span> <span class="mf">1539.0</span><span class="p">,</span> <span class="mf">1028.0</span><span class="p">,</span> <span class="mf">219.8</span><span class="p">,</span> <span class="mf">83.49</span><span class="p">]</span>
+        <span class="n">LANDSAT5_ESUN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1983.0</span><span class="p">,</span> <span class="mf">1796.0</span><span class="p">,</span> <span class="mf">1536.0</span><span class="p">,</span> <span class="mf">1031.0</span><span class="p">,</span> <span class="mf">220.0</span><span class="p">,</span> <span class="mf">83.44</span><span class="p">]</span>
+        <span class="n">LANDSAT7_ESUN</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1997.0</span><span class="p">,</span> <span class="mf">1812.0</span><span class="p">,</span> <span class="mf">1533.0</span><span class="p">,</span> <span class="mf">1039.0</span><span class="p">,</span> <span class="mf">230.8</span><span class="p">,</span> <span class="mf">84.90</span><span class="p">]</span>
+
+        <span class="n">InfoSat</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;S2A&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;S2A&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+                    <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                    <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                    <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">442.7316</span><span class="p">,</span> <span class="mf">492.4410</span><span class="p">,</span> <span class="mf">559.8538</span><span class="p">,</span> <span class="mf">664.6208</span><span class="p">,</span> <span class="mf">704.1223</span><span class="p">,</span>
+                                           <span class="mf">740.4838</span><span class="p">,</span> <span class="mf">782.7510</span><span class="p">,</span> <span class="mf">832.7700</span><span class="p">,</span> <span class="mf">864.7027</span><span class="p">,</span> <span class="mf">1613.6594</span><span class="p">,</span> <span class="mf">2202.3662</span><span class="p">],</span>
+                    <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B1&#39;</span><span class="p">,</span> <span class="s1">&#39;B2&#39;</span><span class="p">,</span> <span class="s1">&#39;B3&#39;</span><span class="p">,</span> <span class="s1">&#39;B4&#39;</span><span class="p">,</span> <span class="s1">&#39;B5&#39;</span><span class="p">,</span> <span class="s1">&#39;B6&#39;</span><span class="p">,</span> <span class="s1">&#39;B7&#39;</span><span class="p">,</span> <span class="s1">&#39;B8&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B06&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">,</span> <span class="s1">&#39;B08&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;view_zenith_&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;view_azimuth_&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;Coef_S2A_CONT_&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B1&#39;</span><span class="p">,</span> <span class="s1">&#39;B2&#39;</span><span class="p">,</span> <span class="s1">&#39;B3&#39;</span><span class="p">,</span> <span class="s1">&#39;B4&#39;</span><span class="p">,</span> <span class="s1">&#39;B5&#39;</span><span class="p">,</span> <span class="s1">&#39;B6&#39;</span><span class="p">,</span> <span class="s1">&#39;B7&#39;</span><span class="p">,</span> <span class="s1">&#39;B8&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;B10&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;S2A/lut_&#39;</span><span class="p">,</span>
+                    <span class="c1"># rot and rglint from old RSR (now updated since Jan-2018)</span>
+                    <span class="c1"># &#39;rot&#39;: [0.23385, 0.14944, 0.09034, 0.0449976, 0.035565,</span>
+                    <span class="c1">#         0.02901, 0.023186, 0.018123,0.0154835, 0.0012656, 0.000365],</span>
+                    <span class="c1"># &#39;rglint&#39;: [1.286189, 1.266816, 1.249609, 1.230385, 1.224821,</span>
+                    <span class="c1">#            1.220275, 1.215545, 1.209850, 1.206606, 1.124581, 1.000000],</span>
+                    <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.23650534</span><span class="p">,</span> <span class="mf">0.15478519</span><span class="p">,</span> <span class="mf">0.09043935</span><span class="p">,</span> <span class="mf">0.04495076</span><span class="p">,</span> <span class="mf">0.0355168</span><span class="p">,</span>
+                            <span class="mf">0.02896814</span><span class="p">,</span> <span class="mf">0.02315269</span><span class="p">,</span> <span class="mf">0.01830901</span><span class="p">,</span> <span class="mf">0.01549064</span><span class="p">,</span> <span class="mf">0.00126556</span><span class="p">,</span> <span class="mf">0.00036496</span><span class="p">],</span>
+                    <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.28672512</span><span class="p">,</span> <span class="mf">1.26815692</span><span class="p">,</span> <span class="mf">1.24964349</span><span class="p">,</span> <span class="mf">1.23035937</span><span class="p">,</span> <span class="mf">1.22478961</span><span class="p">,</span>
+                               <span class="mf">1.2202435</span><span class="p">,</span> <span class="mf">1.21551569</span><span class="p">,</span> <span class="mf">1.21009995</span><span class="p">,</span> <span class="mf">1.206616</span><span class="p">,</span> <span class="mf">1.12458056</span><span class="p">,</span> <span class="mf">1.</span><span class="p">],</span>
+                    <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;opaque_clouds_10m&#39;</span><span class="p">,</span> <span class="s1">&#39;cirrus_clouds_10m&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span>
+                    <span class="p">},</span>
+
+            <span class="c1"># TODO update for S2B: lut_name, rot, rglint for RSR</span>
+            <span class="s1">&#39;S2B&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;S2B&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+                    <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                    <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                    <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">442.3110</span><span class="p">,</span> <span class="mf">492.1326</span><span class="p">,</span> <span class="mf">558.9499</span><span class="p">,</span> <span class="mf">664.9380</span><span class="p">,</span> <span class="mf">703.8308</span><span class="p">,</span> <span class="mf">739.1290</span><span class="p">,</span>
+                                           <span class="mf">779.7236</span><span class="p">,</span> <span class="mf">832.9462</span><span class="p">,</span> <span class="mf">863.9796</span><span class="p">,</span> <span class="mf">1610.4191</span><span class="p">,</span> <span class="mf">2185.6988</span><span class="p">],</span>
+                    <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B1&#39;</span><span class="p">,</span> <span class="s1">&#39;B2&#39;</span><span class="p">,</span> <span class="s1">&#39;B3&#39;</span><span class="p">,</span> <span class="s1">&#39;B4&#39;</span><span class="p">,</span> <span class="s1">&#39;B5&#39;</span><span class="p">,</span> <span class="s1">&#39;B6&#39;</span><span class="p">,</span> <span class="s1">&#39;B7&#39;</span><span class="p">,</span> <span class="s1">&#39;B8&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B06&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">,</span> <span class="s1">&#39;B08&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;view_zenith_&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;view_azimuth_&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="c1">#TODO update for S2B after update of SMAC by CESBIO</span>
+                    <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;Coef_S2A_CONT_&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B1&#39;</span><span class="p">,</span> <span class="s1">&#39;B2&#39;</span><span class="p">,</span> <span class="s1">&#39;B3&#39;</span><span class="p">,</span> <span class="s1">&#39;B4&#39;</span><span class="p">,</span> <span class="s1">&#39;B5&#39;</span><span class="p">,</span> <span class="s1">&#39;B6&#39;</span><span class="p">,</span> <span class="s1">&#39;B7&#39;</span><span class="p">,</span> <span class="s1">&#39;B8&#39;</span><span class="p">,</span> <span class="s1">&#39;B8A&#39;</span><span class="p">,</span> <span class="s1">&#39;B11&#39;</span><span class="p">,</span> <span class="s1">&#39;B12&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;B10&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;S2B/lut_&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.23745233</span><span class="p">,</span> <span class="mf">0.15521662</span><span class="p">,</span> <span class="mf">0.09104522</span><span class="p">,</span> <span class="mf">0.04485828</span><span class="p">,</span> <span class="mf">0.03557663</span><span class="p">,</span>
+                            <span class="mf">0.02918357</span><span class="p">,</span> <span class="mf">0.02351827</span><span class="p">,</span> <span class="mf">0.01829234</span><span class="p">,</span> <span class="mf">0.01554304</span><span class="p">,</span> <span class="mf">0.00127606</span><span class="p">,</span> <span class="mf">0.00037652</span><span class="p">],</span>
+                    <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.27878376</span><span class="p">,</span> <span class="mf">1.26024821</span><span class="p">,</span> <span class="mf">1.24195311</span><span class="p">,</span> <span class="mf">1.22253644</span><span class="p">,</span> <span class="mf">1.21708874</span><span class="p">,</span> <span class="mf">1.21269296</span><span class="p">,</span>
+                               <span class="mf">1.20815455</span><span class="p">,</span> <span class="mf">1.20243389</span><span class="p">,</span> <span class="mf">1.19906708</span><span class="p">,</span> <span class="mf">1.11793355</span><span class="p">,</span> <span class="mf">1.</span><span class="p">],</span>
+                    <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                    <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;opaque_clouds_10m&#39;</span><span class="p">,</span> <span class="s1">&#39;cirrus_clouds_10m&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span>
+                    <span class="p">},</span>
+
+            <span class="s1">&#39;LANDSAT_4&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;LANDSAT_4&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                          <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">485.9919</span><span class="p">,</span> <span class="mf">571.2153</span><span class="p">,</span> <span class="mf">659.8436</span><span class="p">,</span> <span class="mf">839.3312</span><span class="p">,</span>
+                                                 <span class="mf">1679.8097</span><span class="p">,</span> <span class="mf">2216.9931</span><span class="p">],</span>
+                          <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="n">LANDSAT4_ESUN</span><span class="p">,</span>
+                          <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span>
+                              <span class="s1">&#39;radiance_1&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_2&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_3&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_4&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_5&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_7&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Zenith_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Azimuth_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">grs_root</span><span class="p">,</span> <span class="s1">&#39;landsat_angles/TM/landsat_angles&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;coef_LANDSAT4_&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;b1_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b2_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b3_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b4_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b5_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b7_CONT&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;L4/lut_L4_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.16389</span><span class="p">,</span> <span class="mf">0.084813</span><span class="p">,</span> <span class="mf">0.046737</span><span class="p">,</span> <span class="mf">0.01785</span><span class="p">,</span> <span class="mf">0.001091</span><span class="p">,</span> <span class="mf">0.0003578</span><span class="p">],</span>
+                          <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.28037</span><span class="p">,</span> <span class="mf">1.25722</span><span class="p">,</span> <span class="mf">1.24089</span><span class="p">,</span> <span class="mf">1.21893</span><span class="p">,</span> <span class="mf">1.12406</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>
+                          <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span>
+                    <span class="p">},</span>
+
+            <span class="s1">&#39;LANDSAT_5&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;LANDSAT_5&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                          <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">486.2534</span><span class="p">,</span> <span class="mf">570.5804</span><span class="p">,</span> <span class="mf">660.6101</span><span class="p">,</span> <span class="mf">838.1482</span><span class="p">,</span> <span class="mf">1677.1762</span><span class="p">,</span> <span class="mf">2217.3553</span><span class="p">],</span>
+                          <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="n">LANDSAT5_ESUN</span><span class="p">,</span>
+                          <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span>
+                              <span class="s1">&#39;radiance_1&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_2&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_3&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_4&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_5&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_7&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Zenith_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Azimuth_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">grs_root</span><span class="p">,</span> <span class="s1">&#39;landsat_angles/TM/landsat_angles&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;coef_LANDSAT5_&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;b1_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b2_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b3_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b4_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b5_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b7_CONT&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;L5/lut_L5_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.163419</span><span class="p">,</span> <span class="mf">0.085201</span><span class="p">,</span> <span class="mf">0.046514</span><span class="p">,</span> <span class="mf">0.017945</span><span class="p">,</span> <span class="mf">0.001098</span><span class="p">,</span> <span class="mf">0.0003576</span><span class="p">],</span>
+                          <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.28046</span><span class="p">,</span> <span class="mf">1.257556</span><span class="p">,</span> <span class="mf">1.24096</span><span class="p">,</span> <span class="mf">1.21924</span><span class="p">,</span> <span class="mf">1.12462</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>
+                          <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span>
+                    <span class="p">},</span>
+
+            <span class="s1">&#39;LANDSAT_7&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;LANDSAT_7&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                          <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                          <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">478.7157</span><span class="p">,</span> <span class="mf">561.0342</span><span class="p">,</span> <span class="mf">661.4387</span><span class="p">,</span> <span class="mf">834.5691</span><span class="p">,</span> <span class="mf">1650.2731</span><span class="p">,</span> <span class="mf">2208.1606</span><span class="p">],</span>
+                          <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="n">LANDSAT7_ESUN</span><span class="p">,</span>
+                          <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span>
+                              <span class="s1">&#39;radiance_1&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_2&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_3&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_4&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_5&#39;</span><span class="p">,</span> <span class="s1">&#39;radiance_7&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Zenith_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Azimuth_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">grs_root</span><span class="p">,</span> <span class="s1">&#39;landsat_angles/TM/landsat_angles&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;coef_LANDSAT7_&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;b1_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b2_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b3_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b4_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b5_CONT&#39;</span><span class="p">,</span> <span class="s1">&#39;b7_CONT&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;L7/lut_L7_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.174702</span><span class="p">,</span> <span class="mf">0.091113</span><span class="p">,</span> <span class="mf">0.046100</span><span class="p">,</span> <span class="mf">0.018231</span><span class="p">,</span> <span class="mf">0.001169</span><span class="p">,</span> <span class="mf">0.0003645</span><span class="p">],</span>
+                          <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.27891</span><span class="p">,</span> <span class="mf">1.25551</span><span class="p">,</span> <span class="mf">1.236695</span><span class="p">,</span> <span class="mf">1.215597</span><span class="p">,</span> <span class="mf">1.12477</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>
+                          <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]</span>
+                    <span class="p">},</span>
+
+            <span class="s1">&#39;LANDSAT_8&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sensor&#39;</span><span class="p">:</span> <span class="s1">&#39;LANDSAT_8&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                          <span class="s1">&#39;indband&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
+                          <span class="s1">&#39;indlut&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
+                          <span class="s1">&#39;central_wavelength&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">442.9821</span><span class="p">,</span> <span class="mf">482.5889</span><span class="p">,</span> <span class="mf">561.3343</span><span class="p">,</span> <span class="mf">591.6667</span><span class="p">,</span> <span class="mf">654.6084</span><span class="p">,</span>
+                                                 <span class="mf">864.5711</span><span class="p">,</span> <span class="mf">1609.0906</span><span class="p">,</span> <span class="mf">2201.2492</span><span class="p">],</span>
+                          <span class="s1">&#39;solar_irr&#39;</span><span class="p">:</span> <span class="n">LANDSAT8_ESUN</span><span class="p">,</span>
+                          <span class="s1">&#39;band_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;coastal_aerosol&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;panchromatic&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;near_infrared&#39;</span><span class="p">,</span>
+                                         <span class="s1">&#39;swir_1&#39;</span><span class="p">,</span> <span class="s1">&#39;swir_2&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;ang_names&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;B01&#39;</span><span class="p">,</span> <span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B09&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">,</span> <span class="s1">&#39;B05&#39;</span><span class="p">,</span> <span class="s1">&#39;B06&#39;</span><span class="p">,</span> <span class="s1">&#39;B07&#39;</span><span class="p">,</span> <span class="s1">&#39;B08&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;vza_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Zenith_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;azi_name&#39;</span><span class="p">:</span> <span class="s1">&#39;Azimuth_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;ang_proc&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">grs_root</span><span class="p">,</span> <span class="s1">&#39;landsat_angles/OLI/l8_angles&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">smac_root</span><span class="p">,</span> <span class="s1">&#39;Coef_LANDSAT8_&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;smac_bands&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;440_1&#39;</span><span class="p">,</span> <span class="s1">&#39;490_1&#39;</span><span class="p">,</span> <span class="s1">&#39;560_1&#39;</span><span class="p">,</span> <span class="s1">&#39;PAN_1&#39;</span><span class="p">,</span> <span class="s1">&#39;660_1&#39;</span><span class="p">,</span> <span class="s1">&#39;860_1&#39;</span><span class="p">,</span> <span class="s1">&#39;1630_1&#39;</span><span class="p">,</span> <span class="s1">&#39;2250_1&#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;cirrus&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;cirrus&#39;</span><span class="p">,</span><span class="n">hcld_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;lut_name&#39;</span><span class="p">:</span> <span class="s1">&#39;L8/lut_L8_&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;rot&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.22899</span><span class="p">,</span> <span class="mf">0.16786</span><span class="p">,</span> <span class="mf">0.08999</span><span class="p">,</span> <span class="mf">0.077445</span><span class="p">,</span> <span class="mf">0.04785</span><span class="p">,</span> <span class="mf">0.015507</span><span class="p">,</span> <span class="mf">0.00128</span><span class="p">,</span> <span class="mf">0.000366</span><span class="p">],</span>
+                          <span class="s1">&#39;rglint&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.28637</span><span class="p">,</span> <span class="mf">1.271187</span><span class="p">,</span> <span class="mf">1.249180</span><span class="p">,</span> <span class="mf">1.243706</span><span class="p">,</span> <span class="mf">1.231680</span><span class="p">,</span> <span class="mf">1.206419</span><span class="p">,</span> <span class="mf">1.125028</span><span class="p">,</span> <span class="mf">1.000000</span><span class="p">],</span>
+                          <span class="s1">&#39;ndwi_conf&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">NDWI_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;high_nir&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="n">high_nir_threshold</span><span class="p">],</span>
+                          <span class="s1">&#39;l1_flags&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;cloud_confidence_high&#39;</span><span class="p">,</span> <span class="s1">&#39;cirrus_confidence_high&#39;</span><span class="p">,</span> <span class="s1">&#39;cloud_shadow_confidence_high&#39;</span><span class="p">]</span>
+                    <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="n">info</span> <span class="o">=</span> <span class="n">InfoSat</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;indband&#39;</span><span class="p">]</span>
+        <span class="c1"># set and reorganize data for the requested bands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indband</span> <span class="o">=</span> <span class="n">idx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">central_wavelength</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;central_wavelength&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resolution</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;resolution&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;rot&#39;</span><span class="p">])[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;rglint&#39;</span><span class="p">])[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lutname</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;lut_name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smac_dir</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;smac_dir&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smac_bands</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;smac_bands&#39;</span><span class="p">])[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angle_processor</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;ang_proc&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angle_names</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;ang_names&#39;</span><span class="p">])[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vza_name</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;vza_name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">azi_name</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;azi_name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;band_names&#39;</span><span class="p">])[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solar_irr</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;solar_irr&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">NDWI_vis</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">NDWI_nir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">NDWI_threshold</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;ndwi_conf&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cloud_flag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cirrus_flag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shadow_flag</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;l1_flags&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cirrus</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cirrus&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">high_nir</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;high_nir&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="cams"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams">[docs]</a><span class="k">class</span> <span class="nc">cams</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Unit Conversion</span>
+<span class="sd">    PWC (Precipitable Water Content), Grib Unit [kg/m^2]</span>
+<span class="sd">    MSL (Mean Sea Level pressure),    Grib Unit [Pa]</span>
+<span class="sd">    OZO (Ozone),                      Grib Unit [kg/m^2]</span>
+
+<span class="sd">    calculation for Ozone according to R. Richter (20/1/2016):</span>
+<span class="sd">    ----------------------------------------------------------</span>
+<span class="sd">    GRIB_UNIT = [kg/m^2]</span>
+<span class="sd">    standard ozone column is 300 DU (Dobson Units),</span>
+<span class="sd">    equals to an air column of 3 mm at STP (standard temperature (0 degree C) and pressure of 1013 mbar).</span>
+
+<span class="sd">    Thus, molecular weight of O3 (M = 48): 2.24 g (equals to 22.4 liter at STP)</span>
+
+<span class="sd">    300 DU = 3 mm  (equals to (0.3*48 / 2.24) [g/m^2])</span>
+<span class="sd">     = 6.428 [g/m^2] = 6.428 E-3 [kg/m^2]</span>
+
+<span class="sd">    Example:</span>
+
+<span class="sd">    ozone (kg/m^2  = 300 /6.428E-3 DU )</span>
+<span class="sd">    pressure (Pa = 1/100 hPa)</span>
+<span class="sd">    water vapor (kg/m^2 = 10^3/10^4 = 0.1 g/cm^2)</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_dir</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aux_dir</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecmwf_file</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nrTiles</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ozoneFactor</span> <span class="o">=</span> <span class="mf">46670.81518</span>  <span class="c1"># i.e., 300/6.428E-3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pressureFactor</span> <span class="o">=</span> <span class="mf">0.01</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">waterFactor</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="c1"># to convert in g/cm^2</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">h2o</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># in g/cm-2</span>
+        <span class="c1">#self.pressure = 1015.2  # in hPa</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">o3du</span> <span class="o">=</span> <span class="mi">300</span>  <span class="c1"># in DU</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no2</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">msl</span> <span class="o">=</span> <span class="mf">1015.2</span> <span class="c1"># in hPa</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tco3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcwv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcno2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t2m</span> <span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot550</span> <span class="o">=</span> <span class="mf">0.05</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot_wl</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="cams.get_tile_dir"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_tile_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_tile_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;file : absolute path of S2 directory</span>
+<span class="sd">           set full path of tile&#39;&#39;&#39;</span>
+        <span class="kn">import</span> <span class="nn">fnmatch</span>
+        <span class="kn">import</span> <span class="nn">os</span>
+        <span class="n">filemask</span> <span class="o">=</span> <span class="s1">&#39;S2A_*_L1C_*&#39;</span>
+        <span class="n">GRANULE</span> <span class="o">=</span> <span class="s1">&#39;GRANULE&#39;</span>
+        <span class="n">granuleDir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">GRANULE</span><span class="p">)</span>
+        <span class="n">filelist</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">granuleDir</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="n">filelist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fnmatch</span><span class="o">.</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">filemask</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nrTiles</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nrTiles</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># TODO implement for multiple tiles&#39;</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;several tiles are present, processing for single tile only&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">granuleDir</span><span class="p">,</span> <span class="n">filelist</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="cams.get_aux_dir"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_aux_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_aux_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aux_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_dir</span><span class="p">,</span> <span class="s1">&#39;AUX_DATA&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cams.get_ecmwf_file"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_ecmwf_file">[docs]</a>    <span class="k">def</span> <span class="nf">get_ecmwf_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">        :param product:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">product</span><span class="o">.</span><span class="n">getMetadataRoot</span><span class="p">()</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="s1">&#39;Level-1C_User_Product&#39;</span><span class="p">)</span>
+        <span class="n">ecmwf</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">getElement</span><span class="p">(</span><span class="s1">&#39;Auxiliary_Data_Info&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">getAttribute</span><span class="p">(</span><span class="s1">&#39;ECMWF_DATA_REF&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecmwf_file</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">ecmwf</span><span class="o">.</span><span class="n">getData</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="cams.get_ecmwf_data"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_ecmwf_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_ecmwf_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="kn">from</span> <span class="nn">osgeo.gdal_array</span> <span class="k">import</span> <span class="n">BandReadAsArray</span>
+        <span class="kn">from</span> <span class="nn">osgeo</span> <span class="k">import</span> <span class="n">gdal</span>
+        <span class="kn">import</span> <span class="nn">glob</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecmwf_file</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ecmwf_file</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aux_dir</span> <span class="o">+</span> <span class="s1">&#39;/*ECMWF*&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dataSet</span> <span class="o">=</span> <span class="n">gdal</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecmwf_file</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">msl</span> <span class="o">=</span> <span class="n">BandReadAsArray</span><span class="p">(</span><span class="n">dataSet</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="mi">100</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">o3du</span> <span class="o">=</span> <span class="n">BandReadAsArray</span><span class="p">(</span><span class="n">dataSet</span><span class="o">.</span><span class="n">GetRasterBand</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ozoneFactor</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;ERROR: reading ECMWF file!&#39;</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="cams.load_cams_data"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.load_cams_data">[docs]</a>    <span class="k">def</span> <span class="nf">load_cams_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="s1">&#39;0.125/0.125&#39;</span><span class="p">,</span>
+                       <span class="n">param</span><span class="o">=</span><span class="s1">&#39;125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210&#39;</span><span class="p">,</span>
+                       <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;cams_reanalysis&#39;</span><span class="p">):</span>
+
+        <span class="sd">&#39;&#39;&#39; generate aerosol data from cams of ECMWF</span>
+<span class="sd">            subset on the image grid (POLYGON wkt)</span>
+<span class="sd">            reproject on the image coordinate reference system (crs)&#39;&#39;&#39;</span>
+
+        <span class="n">day</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)))</span>
+        <span class="n">month</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m&#39;</span><span class="p">))</span>
+        <span class="n">year</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y&#39;</span><span class="p">))</span>
+
+        <span class="c1"># ------------download data</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">)):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;downloading CAMS files...&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+            <span class="n">startDate</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%04d%02d%02d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">numberOfDays</span> <span class="o">=</span> <span class="n">calendar</span><span class="o">.</span><span class="n">monthrange</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">lastDate</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%04d%02d%02d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">numberOfDays</span><span class="p">)</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># restricted access to data from the future</span>
+            <span class="c1"># set lastDate as today date</span>
+            <span class="c1"># TODO warning this will download incomplete data file for near real time data</span>
+            <span class="k">if</span> <span class="n">now</span> <span class="o">&lt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">lastDate</span><span class="p">,</span> <span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="n">lastDate</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">now</span><span class="p">,</span> <span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="n">requestDates</span> <span class="o">=</span> <span class="n">startDate</span> <span class="o">+</span> <span class="s1">&#39;/TO/&#39;</span> <span class="o">+</span> <span class="n">lastDate</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">download_erainterim</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">),</span> <span class="n">requestDates</span><span class="p">,</span> <span class="n">param</span><span class="o">=</span><span class="n">param</span><span class="p">,</span>
+                                     <span class="n">grid</span><span class="o">=</span><span class="n">grid</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="n">data_type</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="cams.get_cams_aerosol"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_cams_aerosol">[docs]</a>    <span class="k">def</span> <span class="nf">get_cams_aerosol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">wkt</span><span class="p">,</span>
+                         <span class="n">param</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;aod469&#39;</span><span class="p">,</span> <span class="s1">&#39;aod550&#39;</span><span class="p">,</span> <span class="s1">&#39;aod670&#39;</span><span class="p">,</span> <span class="s1">&#39;aod865&#39;</span><span class="p">,</span> <span class="s1">&#39;aod1240&#39;</span><span class="p">]):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Nearest neighbor in time</span>
+<span class="sd">        :param target:</span>
+<span class="sd">        :param date:</span>
+<span class="sd">        :param wkt:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># load netcdf file and get date-time index for further processing</span>
+        <span class="n">ncfile</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">ncfile</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span>
+
+        <span class="n">dates</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">num2date</span><span class="p">(</span><span class="n">time</span><span class="p">[:],</span> <span class="n">time</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">calendar</span><span class="p">)</span>
+        <span class="n">ncfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">idx_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">([</span><span class="n">d</span> <span class="o">-</span> <span class="n">date</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dates</span><span class="p">])</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># set band names from cams:</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="s1">&#39;_time&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">idx_time</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot_wl</span> <span class="o">=</span> <span class="p">[</span><span class="mi">469</span><span class="p">,</span> <span class="mi">550</span><span class="p">,</span> <span class="mi">670</span><span class="p">,</span> <span class="mi">865</span><span class="p">,</span> <span class="mi">1240</span><span class="p">]</span>
+
+        <span class="n">N</span> <span class="o">=</span> <span class="n">band_names</span><span class="o">.</span><span class="fm">__len__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># ------------read/subset/collocate data</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">ProductIO</span><span class="o">.</span><span class="n">readProduct</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+        <span class="c1">#print(wkt)</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">u</span><span class="p">()</span><span class="o">.</span><span class="n">get_subset</span><span class="p">(</span><span class="n">prod</span><span class="p">,</span> <span class="n">wkt</span><span class="p">)</span>
+
+        <span class="n">h</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterHeight</span><span class="p">()</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterWidth</span><span class="p">()</span>
+        <span class="n">aot_rast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">N</span><span class="p">,</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">loadRasterData</span><span class="p">()</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">readPixels</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">aot_rast</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="o">...</span><span class="p">])</span>
+            <span class="c1"># aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast&lt;0, aot_rast &gt;2), fill_value=np.nan)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">aot</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">aot_rast</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">aot_std</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">aot_rast</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">unloadRasterData</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot550</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aot</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot550_std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aot_std</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot_rast</span> <span class="o">=</span> <span class="n">aot_rast</span>
+
+
+        <span class="k">return</span>  <span class="c1"># u().getReprojected(prod, crs)</span></div>
+
+<div class="viewcode-block" id="cams.get_cams_ancillary"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_cams_ancillary">[docs]</a>    <span class="k">def</span> <span class="nf">get_cams_ancillary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">wkt</span><span class="p">,</span>
+                           <span class="n">param</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;msl&#39;</span><span class="p">,</span> <span class="s1">&#39;tco3&#39;</span><span class="p">,</span> <span class="s1">&#39;tcwv&#39;</span><span class="p">,</span> <span class="s1">&#39;tcno2&#39;</span><span class="p">,</span> <span class="s1">&#39;t2m&#39;</span><span class="p">]):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Nearest neighbor in time</span>
+<span class="sd">        :param target:</span>
+<span class="sd">        :param date:</span>
+<span class="sd">        :param wkt:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># load netcdf file and get date-time index for further processing</span>
+        <span class="n">ncfile</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">ncfile</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span>
+
+        <span class="n">dates</span> <span class="o">=</span> <span class="n">nc</span><span class="o">.</span><span class="n">num2date</span><span class="p">(</span><span class="n">time</span><span class="p">[:],</span> <span class="n">time</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">calendar</span><span class="p">)</span>
+        <span class="n">ncfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">idx_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">([</span><span class="n">d</span> <span class="o">-</span> <span class="n">date</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dates</span><span class="p">])</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># set band names from cams:</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="s1">&#39;_time&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">idx_time</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">param</span><span class="p">]</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">band_names</span><span class="o">.</span><span class="fm">__len__</span><span class="p">()</span>
+
+        <span class="c1"># ------------read/subset/collocate data</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">ProductIO</span><span class="o">.</span><span class="n">readProduct</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">u</span><span class="p">()</span><span class="o">.</span><span class="n">get_subset</span><span class="p">(</span><span class="n">prod</span><span class="p">,</span> <span class="n">wkt</span><span class="p">)</span>
+
+        <span class="n">h</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterHeight</span><span class="p">()</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterWidth</span><span class="p">()</span>
+        <span class="n">data_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">N</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">readPixels</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">data_</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="o">...</span><span class="p">])</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">unloadRasterData</span><span class="p">()</span>
+
+        <span class="c1"># TODO keep spatial resolution and export data as band product</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">msl</span> <span class="o">=</span> <span class="n">data_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tco3</span> <span class="o">=</span> <span class="n">data_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcwv</span> <span class="o">=</span> <span class="n">data_</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcno2</span> <span class="o">=</span> <span class="n">data_</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t2m</span> <span class="o">=</span> <span class="n">data_</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">msl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">msl</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pressureFactor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">o3du</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tco3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ozoneFactor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h2o</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcwv</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">waterFactor</span>
+
+        <span class="k">return</span>  <span class="c1"># u().getReprojected(prod, crs)</span></div>
+
+<div class="viewcode-block" id="cams.get_cams_aerosol_old"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.get_cams_aerosol_old">[docs]</a>    <span class="k">def</span> <span class="nf">get_cams_aerosol_old</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">wkt</span><span class="p">,</span> <span class="n">crs</span><span class="p">,</span> <span class="n">data_type</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; generate aerosol data from cams of ECMWF</span>
+<span class="sd">            subset on the image grid (POLYGON wkt)</span>
+<span class="sd">            reproject on the image coordinate reference system (crs)&#39;&#39;&#39;</span>
+        <span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">utils</span> <span class="k">as</span> <span class="n">u</span>
+        <span class="kn">import</span> <span class="nn">calendar</span>
+
+        <span class="n">day</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)))</span>
+        <span class="n">month</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m&#39;</span><span class="p">))</span>
+        <span class="n">year</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y&#39;</span><span class="p">))</span>
+
+        <span class="c1"># band names from cams:</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aod469&#39;</span><span class="p">,</span> <span class="s1">&#39;aod550&#39;</span><span class="p">,</span> <span class="s1">&#39;aod670&#39;</span><span class="p">,</span> <span class="s1">&#39;aod865&#39;</span><span class="p">,</span> <span class="s1">&#39;aod1240&#39;</span><span class="p">]</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="s1">&#39;_time&#39;</span> <span class="o">+</span> <span class="n">day</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">band_names</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot_wl</span> <span class="o">=</span> <span class="p">[</span><span class="mi">469</span><span class="p">,</span> <span class="mi">550</span><span class="p">,</span> <span class="mi">670</span><span class="p">,</span> <span class="mi">865</span><span class="p">,</span> <span class="mi">1240</span><span class="p">]</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">band_names</span><span class="o">.</span><span class="fm">__len__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># ------------download data</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;downloading CAMS files...&#39;</span><span class="p">)</span>
+            <span class="n">startDate</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%04d%02d%02d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">numberOfDays</span> <span class="o">=</span> <span class="n">calendar</span><span class="o">.</span><span class="n">monthrange</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">lastDate</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%04d%02d%02d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">numberOfDays</span><span class="p">)</span>
+
+            <span class="n">requestDates</span> <span class="o">=</span> <span class="n">startDate</span> <span class="o">+</span> <span class="s1">&#39;/TO/&#39;</span> <span class="o">+</span> <span class="n">lastDate</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">download_erainterim</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">),</span> <span class="n">requestDates</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="n">data_type</span><span class="p">)</span>
+
+        <span class="c1"># ------------read/subset/collocate data</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">ProductIO</span><span class="o">.</span><span class="n">readProduct</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">wkt</span><span class="p">)</span>
+        <span class="n">prod</span> <span class="o">=</span> <span class="n">u</span><span class="p">()</span><span class="o">.</span><span class="n">get_subset</span><span class="p">(</span><span class="n">prod</span><span class="p">,</span> <span class="n">wkt</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterHeight</span><span class="p">()</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">getRasterWidth</span><span class="p">()</span>
+        <span class="n">aot_rast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">loadRasterData</span><span class="p">()</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">readPixels</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">aot_rast</span><span class="p">)</span>
+            <span class="c1"># aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast&lt;0, aot_rast &gt;2), fill_value=np.nan)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">aot</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">aot_rast</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">prod</span><span class="o">.</span><span class="n">getBand</span><span class="p">(</span><span class="n">band_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">unloadRasterData</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aot550</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aot</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span>  <span class="c1"># u().getReprojected(prod, crs)</span></div>
+
+<div class="viewcode-block" id="cams.download_erainterim"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.cams.download_erainterim">[docs]</a>    <span class="k">def</span> <span class="nf">download_erainterim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="s1">&#39;00:00:00&#39;</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="s1">&#39;0.125/0.125&#39;</span><span class="p">,</span>
+                            <span class="n">param</span><span class="o">=</span><span class="s1">&#39;137.128/151.128/206.210/207.210/213.210/214.210/215.210/216.210&#39;</span><span class="p">,</span>
+                            <span class="n">area</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; This function open a connexion through an existing CAMS/ERAIterim account and download the requested data.</span>
+
+
+<span class="sd">        Arguments:</span>
+
+<span class="sd">            * ``target`` -- path name for output file</span>
+<span class="sd">            * ``time`` -- time of forecast or reanalysis</span>
+<span class="sd">            * ``date`` -- acquisition date (ex: &#39;2015-01-31&#39;)</span>
+<span class="sd">            * ``grid`` -- resolution in degrees (ex: &#39;0.125/0.125&#39;)</span>
+<span class="sd">            * ``param`` -- ID numbers for the requsted data</span>
+<span class="sd">            * ``area`` -- option to restrict area (for global dataset None or &#39;90/-180/-90/180&#39;)</span>
+
+
+<span class="sd">        Notes:</span>
+<span class="sd">            * ``server`` -- connexion au server via API ECMWF</span>
+<span class="sd">            * ``step`` -- forecast time hours</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="kn">from</span> <span class="nn">.ecmwfapi</span> <span class="k">import</span> <span class="n">ECMWFDataServer</span>
+
+        <span class="n">server</span> <span class="o">=</span> <span class="n">ECMWFDataServer</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">area</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">area</span> <span class="o">=</span> <span class="s1">&#39;90/-180/-90/180&#39;</span>
+
+        <span class="n">step</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+        <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s1">&#39;cams_forecast&#39;</span><span class="p">:</span>
+            <span class="n">class_</span> <span class="o">=</span> <span class="s1">&#39;mc&#39;</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="s1">&#39;cams_nrealtime&#39;</span>
+            <span class="n">time</span> <span class="o">=</span> <span class="s1">&#39;00:00:00&#39;</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="s1">&#39;0/6/12/18&#39;</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;fc&#39;</span>
+
+
+        <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s1">&#39;cams_reanalysis&#39;</span><span class="p">:</span>
+            <span class="n">class_</span> <span class="o">=</span> <span class="s1">&#39;mc&#39;</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="s1">&#39;cams_reanalysis&#39;</span>
+            <span class="n">time</span> <span class="o">=</span> <span class="s1">&#39;00:00:00/06:00:00/12:00:00/18:00:00&#39;</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;an&#39;</span>
+
+        <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s1">&#39;interim&#39;</span><span class="p">:</span>
+            <span class="n">class_</span> <span class="o">=</span> <span class="s1">&#39;ei&#39;</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="s1">&#39;interim&#39;</span>
+            <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;an&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error: not appropriate dataset for ecmwf/cams download&#39;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">server</span><span class="o">.</span><span class="n">retrieve</span><span class="p">({</span> \
+                <span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="n">class_</span><span class="p">,</span> \
+                <span class="s1">&#39;dataset&#39;</span><span class="p">:</span> <span class="n">dataset</span><span class="p">,</span> \
+                <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span> \
+                <span class="s1">&#39;grid&#39;</span><span class="p">:</span> <span class="n">grid</span><span class="p">,</span> \
+                <span class="s1">&#39;levtype&#39;</span><span class="p">:</span> <span class="s1">&#39;sfc&#39;</span><span class="p">,</span> \
+                <span class="s1">&#39;param&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">,</span> \
+                <span class="s1">&#39;step&#39;</span><span class="p">:</span> <span class="n">step</span><span class="p">,</span> \
+                <span class="s1">&#39;stream&#39;</span><span class="p">:</span> <span class="s1">&#39;oper&#39;</span><span class="p">,</span> \
+                <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">time</span><span class="p">,</span> \
+                <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span> \
+                <span class="s1">&#39;format&#39;</span><span class="p">:</span> <span class="s1">&#39;netcdf&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;area&#39;</span><span class="p">:</span> <span class="n">area</span><span class="p">,</span>
+                <span class="s1">&#39;target&#39;</span><span class="p">:</span> <span class="n">target</span><span class="p">})</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error: not appropriate cams settings for download&#39;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+        <span class="n">server</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span></div></div>
+
+
+<div class="viewcode-block" id="Aeronet"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.Aeronet">[docs]</a><span class="k">class</span> <span class="nc">Aeronet</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;Contains functions for importing AERONET measurements.</span>
+<span class="sd">    Modifified from:</span>
+<span class="sd">       Copyright 2012 Robin Wilson and contributors listed in the CONTRIBUTORS file.&#39;&#39;&#39;</span>
+    <span class="kn">import</span> <span class="nn">pandas</span>
+
+<div class="viewcode-block" id="Aeronet.import_aeronet_data"><a class="viewcode-back" href="../../_autosummary/grs.auxdata.html#grs.auxdata.Aeronet.import_aeronet_data">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">import_aeronet_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Imports data from an AERONET data file to a given ``aeronet`` object.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">          * ``data`` -- Aeronet object to store the paramaters of interest (e.g., wavelenghts, aot, ozone)</span>
+<span class="sd">          * ``filename`` -- The filename of the AERONET file described above</span>
+<span class="sd">          * ``time`` -- The date and time of the simulation you want to run, used to choose the AERONET data which is closest</span>
+<span class="sd">            in time. Provide this as a string in almost any format, and Python will interpret it. For example, ``&#39;12/03/2010 15:39&#39;``. When dates are ambiguous, the parsing routine will favour DD/MM/YY rather than MM/DD/YY.</span>
+
+<span class="sd">        Return value:</span>
+<span class="sd">          The function will return ``s`` with the ``aero_profile`` and ``aot550`` fields filled in from the AERONET data.</span>
+
+<span class="sd">        Notes: Beware, this function returns ``data`` from ``filename`` for the closest measurement time in the limit</span>
+<span class="sd">        of plus or minus 2 days from ``time``.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Load in the data from the file</span>
+        <span class="c1"># TODO read and get exact wavelengths of CIMEL sensor from the AERONET file</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># header = pandas.read_csv(filename, skiprows=6,header=None,nrows=1)</span>
+            <span class="c1"># df = pandas.read_csv(filename, skiprows=7, na_values=[&#39;N/A&#39;,-999.0], names = header.values[0].astype(&#39;str&#39;))</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">na_values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;N/A&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mf">999.0</span><span class="p">])</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Could not read file:&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="c1"># Parse the dates/times properly and set them up as the index</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date(dd-mm-yyyy)&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date(dd-mm-yyyy)&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_to_iso_date</span><span class="p">)</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">pandas</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;Date(dd-mm-yyyy)&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;Time(hh:mm:ss)&#39;</span><span class="p">]),</span>
+                                   <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span>
+
+        <span class="n">given_time</span> <span class="o">=</span> <span class="n">time</span>  <span class="c1"># dateutil.parser.parse(time, dayfirst=True)</span>
+
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;timediffs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">-</span> <span class="n">given_time</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;timedelta64[ns]&#39;</span><span class="p">)</span>
+        <span class="c1"># keep data within + or - 2 days</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="o">.</span><span class="n">timediffs</span> <span class="o">&lt;</span> <span class="n">pandas</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s1">&#39;2 day&#39;</span><span class="p">)]</span>
+
+        <span class="c1"># Get the AOT data</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">wavelengths</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">aot550</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">aot</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_aot</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">aot550</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">aot</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">o3du</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">no2du</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_gaseous_abs</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_model_columns</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="n">refr_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">refi_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">wvs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">radii_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">radii</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;REFR&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">refr_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="s1">&#39;REFI&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">refi_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">wv</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;REFI&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+                <span class="n">wvs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wv</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">rad</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">radii_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rad</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">refr_ind</span><span class="p">,</span> <span class="n">refi_ind</span><span class="p">,</span> <span class="n">wvs</span><span class="p">,</span> <span class="n">radii_ind</span><span class="p">,</span> <span class="n">radii</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_to_iso_date</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Converts the date which is, bizarrely, given as dd:mm:yyyy to the ISO standard</span>
+<span class="sd">        of yyyy-mm-dd.&#39;&#39;&#39;</span>
+        <span class="n">spl</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">spl</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">spl</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_aot</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Gets the AOT data from the AERONET dataset, choosing the AOT at the closest time</span>
+<span class="sd">        to the time requested, and choosing the AOT measurement at the wavelength closest</span>
+<span class="sd">        to 550nm.&#39;&#39;&#39;</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">aot</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;AOD_&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">inds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="n">inds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">inds</span><span class="p">)</span>
+
+        <span class="c1"># Remove the columns for AOT wavelengths with no data</span>
+        <span class="n">aot_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">ix</span><span class="p">[:,</span> <span class="n">inds</span><span class="p">]</span>
+
+        <span class="n">aot_df</span> <span class="o">=</span> <span class="n">aot_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span>
+        <span class="n">aot_df</span> <span class="o">=</span> <span class="n">aot_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;any&#39;</span><span class="p">)</span>
+
+        <span class="n">wvs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">aot_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">aot_df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;AOD_&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">wvs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;AOD_&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)))</span>
+                <span class="n">inds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="n">wvs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">wvs</span><span class="p">)</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">inds</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">wvs</span><span class="p">)</span>
+
+        <span class="c1"># wv_diffs = np.abs(wvs - 550)</span>
+        <span class="c1"># print(wv_diffs)</span>
+        <span class="c1"># aot_col_index = wv_diffs.argmin()</span>
+        <span class="c1">#</span>
+        <span class="c1"># if (wv_diffs[aot_col_index] &gt; 70):</span>
+        <span class="c1">#     warnings.warn(&#39;Using AOT measured more than 70nm away from 550nm as nothing closer available - could cause inaccurate results.&#39;)</span>
+
+        <span class="n">rowind</span> <span class="o">=</span> <span class="n">aot_df</span><span class="o">.</span><span class="n">timediffs</span><span class="o">.</span><span class="n">idxmin</span><span class="p">()</span>
+        <span class="c1"># aot550 = aot_df.ix[rowind, aot_col_index]</span>
+        <span class="n">aot</span> <span class="o">=</span> <span class="n">aot_df</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">rowind</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">wvs</span><span class="p">))]</span>
+        <span class="n">aot_interp</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">wvs</span><span class="p">,</span> <span class="n">aot</span><span class="p">)</span>
+        <span class="n">aot550</span> <span class="o">=</span> <span class="n">aot_interp</span><span class="p">(</span><span class="mf">550.0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">wvs</span><span class="p">,</span> <span class="n">aot550</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pandas</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">aot</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_gaseous_abs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="s1">&#39;ozone in dobson&#39;</span>
+        <span class="n">o3col</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">no2col</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;Ozone&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">o3col</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">elif</span> <span class="s1">&#39;NO2&#39;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">:</span>
+                <span class="n">no2col</span> <span class="o">=</span> <span class="n">i</span>
+
+        <span class="n">inds</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">o3col</span><span class="p">,</span> <span class="n">no2col</span><span class="p">,</span> <span class="n">inds</span><span class="p">])</span>
+
+        <span class="c1"># Remove the columns for AOT wavelengths with no data</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">ix</span><span class="p">[:,</span> <span class="n">inds</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;any&#39;</span><span class="p">)</span>
+
+        <span class="n">rowind</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">timediffs</span><span class="o">.</span><span class="n">idxmin</span><span class="p">()</span>
+
+        <span class="n">o3du</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">rowind</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">no2du</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">ix</span><span class="p">[</span><span class="n">rowind</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">o3du</span><span class="p">,</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">no2du</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">grs</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../page.html">Documentation for the GRS algorithm.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Project Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fortran_modules.html">Fortran Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../deployment_modules.html">Deployment Modules</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tristan Harmel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
