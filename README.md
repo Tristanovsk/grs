@@ -33,6 +33,16 @@ Compile all C and fortran files into shared libraries:
 make
 ```
 
+Set the absolute path of ancilary data, look-up tables and snap directory:
+
+- copy config_template.py to config.py
+
+```bash
+cp ./grs/config_template.py ./grs/config.py
+```
+
+- edit config.py to your paths for gpt executable of snap, GRS data, temporary folder and CAMS folder
+
 ### Installing
 
 To install the package:
