@@ -623,7 +623,7 @@ class utils:
         for i in range(number_of_array):
             yield np.zeros(dim, dtype=dtype, order='F').T
 
-    def generic_resampler(self, s2_product, resolution=20, method='Bilinear'):
+    def generic_resampler(self, s2_product, resolution=20, method='Nearest'):
         '''method: Nearest, Bilinear'''
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis()
 
@@ -640,7 +640,7 @@ class utils:
         return GPF.createProduct('Resample', parameters, s2_product)
 
     @staticmethod
-    def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
+    def resampler(product, resolution=20, upmethod='Nearest', downmethod='First',
                   flag='FlagMedianAnd', opt=True):
 
         '''
