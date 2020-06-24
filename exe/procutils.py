@@ -134,7 +134,7 @@ class multi_process:
         args,fjunk = p
         for arg in args:
             file_tbp, outfile, wkt, altitude, aerosol, aeronet_file, ancillary, resolution, \
-            aot550, angstrom, mem_safe, unzip, untar, startrow, angleonly = arg
+            aot550, angstrom, mem_safe, unzip, untar, startrow, allpixels, angleonly = arg
             print('yop',file_tbp)
             #return
 
@@ -143,7 +143,7 @@ class multi_process:
                 grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
                                               dem=True, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
-                                              startrow=startrow, angleonly=angleonly)
+                                              startrow=startrow, allpixels=allpixels, angleonly=angleonly)
             except:
                 print('-------------------------------')
                 print('error for file  ', file_tbp, ' skip')

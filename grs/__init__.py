@@ -15,10 +15,11 @@ Version history:
 
 1.2.0: load full data matrix from image instead of line by line pixel extraction (preparation for multipixel retrieval algorithm
 
+1.2.1: enable high latitude processing (change of DEM), option to process all pixels before masking "non-water" pixel
 '''
 
 __package__ = 'grs'
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac

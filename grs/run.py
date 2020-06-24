@@ -5,7 +5,8 @@ Usage:
    [--longlat <longmax,longmin,latmax,latmin> ] \
    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param]\
-   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
+   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]\
+   [--allpixels]
   grs -h | --help
   grs -v | --version
 
@@ -42,6 +43,7 @@ Options:
   --unzip          to process zipped images seamlessly
   --memory_safe    use generic resampler instead of S2resampler to save memory
                    (induces loss in angle resolution per pixel for S2)
+  --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
 
 '''
 
@@ -78,6 +80,7 @@ def main():
     memory_safe = args['--memory_safe']
     altitude = float(args['--altitude'])
     dem = args['--dem']
+    allpixels = args['--allpixels']
     resolution = args['--resolution']
     aerosol = args['--aerosol']
     aot550 = float(args['--aot550'])
@@ -135,7 +138,7 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
-                      aot550=aot550, angstrom=angstrom, output=output, memory_safe=memory_safe,
+                      aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,
                       unzip=unzip)
     return
 

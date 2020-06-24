@@ -78,7 +78,7 @@ subroutine main_algo(npix, nband, naot, &
     scale = 0.975
 
     do ipix = 1, npix
-        ! High cloud filter
+        ! do not process masked pixels
         if (mask(ipix) .ne. 0) cycle
 
         ! Land filter

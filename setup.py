@@ -2,7 +2,10 @@
 # ez_setup.use_setuptools()
 
 from setuptools import setup, find_packages
-from grs import __version__, __package__
+#from grs import __version__, __package__
+
+__package__ = 'grs'
+__version__ = '1.2.0'
 
 setup(
     name=__package__,

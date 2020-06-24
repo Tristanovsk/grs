@@ -26,7 +26,7 @@ class process:
 
     def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary=None,
                 dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
-                startrow=0,
+                startrow=0, allpixels=False,
                 memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
         '''
         Main program calling all GRS steps
@@ -44,6 +44,7 @@ class process:
                       NB: unzipped files are removed at the end of the process
         :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
                         NB: this option is used to in the context of operational processing of massive dataset
+        :param allpixels: force to process all pixels even they are flagged as "Vegetation" or "Non-water"
         :param angleonly: if true, grs is used to compute angle parameters only (no atmo correction is applied)
         :param output: set the unit of the retrievals:
 
@@ -155,14 +156,15 @@ class process:
         l2h.product = _utils.get_subset(l2h.product, wkt)
         l2h.get_product_info()
         l2h.set_outfile(outfile)
-        l2h.wkt = _utils.get_extent(l2h.product)
+        l2h.wkt, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
 
         ##################################
         ## ADD ELEVATION BAND
         ##################################
         if dem:
-            l2h.get_elevation()
+            high_latitude = (latmax>=60)|(latmin<=-60)
+            l2h.get_elevation(high_latitude)
 
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
@@ -338,6 +340,9 @@ class process:
             mask = l2h.mask[i]
             flags = l2h.flags[i]
             band_rad = l2h.band_rad[:, i]
+            maskpixels = mask
+            if allpixels:
+                maskpixels = maskpixels * 0
 
             if dem:
                 elev = l2h.elevation[i]
@@ -361,7 +366,7 @@ class process:
 
             if grs_a:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_a_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                                                           vza, sza, razi, band_rad, mask, l2h.wl,
+                                                                           vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                            pressure_corr, aotlut, rtoaf, rtoac,
                                                                            lutf.Cext, lutc.Cext, lutf.Cext550,
                                                                            lutc.Cext550,
@@ -370,7 +375,7 @@ class process:
                                                                            aot550guess, l2h.nodata, l2h.rrs)
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                                                         vza, sza, razi, band_rad, mask, l2h.wl,
+                                                                         vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
                                                                          lutc.Cext,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,

@@ -176,11 +176,14 @@ class info:
         flag.readPixels(0, 0, w, h, flag_raster)
         return flag_raster
 
-    def get_elevation(self):
-        '''load elevation data into numpy array'''
+    def get_elevation(self,high_latitude=False):
+        '''load elevation data into numpy array
+        :param high_latitude: for |lat| > 60 deg, SRTM is not defined,
+                if True, dem is set to GETASSE30
+                '''
 
         self.elevation = np.zeros((self.width, self.height), dtype=self.type, order='F').T
-        self.product = utils().add_elevation(self.product)
+        self.product = utils().add_elevation(self.product,high_latitude)
         dem = self.product.getBand('elevation')
 
         dem.readPixels(0, 0, self.width, self.height, self.elevation)
@@ -382,6 +385,7 @@ class info:
         flags.setDescription('Flags for aquatic color purposes')
         # vflags = ac_product.addBand('valid', ProductData.TYPE_UINT8)
         # vflags.setDescription('used to set valid data pixels')
+        expr_valid_pixel = 'mask_nodata == 0 && mask_negative == 0'
 
         # Also for each flag a layer should be created
         Color = jpy.get_type('java.awt.Color')
@@ -431,7 +435,7 @@ class info:
             acband.setModified(True)
             acband.setNoDataValue(np.nan)
             acband.setNoDataValueUsed(True)
-            acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
+            acband.setValidPixelExpression(expr_valid_pixel)
             if self.output == 'Lwn':
                 ac_product.getBand(bname).setDescription(
                     'Water-leaving plus sunglint normalized radiance (Lwn + Lg) in mW cm-2 sr-1 μm-1 at ' +
@@ -450,7 +454,7 @@ class info:
             acband.setModified(True)
             acband.setNoDataValue(np.nan)
             acband.setNoDataValueUsed(True)
-            acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
+            acband.setValidPixelExpression(expr_valid_pixel)
             if self.output == 'Lwn':
                 ac_product.getBand(bname).setDescription(
                     'Normalized water-leaving radiance in mW cm-2 sr-1 μm-1 at ' + self.band_names[iband])
@@ -466,7 +470,7 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
-        acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
+        acband.setValidPixelExpression(expr_valid_pixel)
         ac_product.getBand(bname).setDescription('Glint reflection factor (BRDF) ')  # + self.band_names[iband])
 
         # estimated aerosol optical thickness at 550 nm
@@ -477,7 +481,7 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
-        acband.setValidPixelExpression('mask_nodata == 0 && mask_ndwi == 0')
+        acband.setValidPixelExpression(expr_valid_pixel)
         ac_product.getBand(bname).setDescription('aerosol optical thickness at 550 nm ')  # + self.band_names[iband])
 
         # Viewing geometry
@@ -695,12 +699,21 @@ class utils:
 
         return op.getTargetProduct()
 
-    def add_elevation(self, product):
+    def add_elevation(self, product,high_latitude=False):
+        '''
+
+        :param product: product open with snappy
+        :param high_latitude: for |lat| > 60 deg, SRTM is not defined,
+                if True, dem is set to GETASSE30
+        :return:
+        '''
 
         addelevation = jpy.get_type('org.esa.snap.dem.gpf.AddElevationOp')
 
         op = addelevation()
         op.setParameterDefaultValues()
+        if high_latitude:
+            op.setParameter('demName','GETASSE30')
         op.setSourceProduct(product)
         return op.getTargetProduct()
 
@@ -757,7 +770,7 @@ class utils:
               + str(latmin) + ',' + str(lonmin) + ' ' + str(latmin) + ',' + str(lonmin) + ' ' \
               + str(latmax) + ',' + str(lonmax) + ' ' + str(latmax) + '))'
 
-        return wkt
+        return wkt, latmin, latmax
 
     def getReprojected(self, product, crs='EPSG:4326', method='Bilinear'):
         '''Reproject a esasnappy product on a given coordinate reference system (crs)'''
