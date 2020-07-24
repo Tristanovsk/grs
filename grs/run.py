@@ -119,7 +119,7 @@ def main():
         odir = os.getcwd()
     outfile = os.path.join(odir, outfile)
 
-    if os.path.isfile(outfile + ".dim") & os.path.isdir(outfile + ".data") & noclobber:
+    if os.path.isfile(outfile + ".nc") & noclobber:
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
 

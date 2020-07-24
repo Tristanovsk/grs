@@ -30,7 +30,7 @@ sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
 # number of images to process within one jpy virtual machine (i.e., for one load of snappy)
 Nimage = 1
 # number of processors to be used
-ncore = 3
+ncore = 2
 
 sites = pd.read_csv(sitefile)
 
@@ -47,15 +47,15 @@ download = True # False  #Fals set to True if you want to download missing image
 process = True # False # if True GRS is applied
 odatis = False # if true, put the result images in the odatis directory
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False #True #True
-memory_safe = False #True
+noclobber = True # False #True
+memory_safe = True # False #
 aeronet_file = 'no'
 aerosol = 'cams'
 # aerosol = 'user_model'
 aot550 = 0.08 # used if aerosol = 'user_model'
 angstrom = 1.6 # used if aerosol = 'user_model'
 
-allpixels=True
+allpixels=False # True
 
 fmissing = os.path.join(logdir, 'list_missing_files.txt')
 fjunk = os.path.join(logdir, 'list_junk_files.txt')
