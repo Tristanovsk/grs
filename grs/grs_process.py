@@ -372,7 +372,7 @@ class process:
                                                                            lutc.Cext550,
                                                                            l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
                                                                            l2h.aot,
-                                                                           aot550guess, l2h.nodata, l2h.rrs)
+                                                                           aot550guess, l2h.fcoef, l2h.nodata, l2h.rrs)
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,

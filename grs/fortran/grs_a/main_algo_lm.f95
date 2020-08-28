@@ -1,8 +1,8 @@
 subroutine main_algo(npix, nband, naot, &
 &                    vza, sza, azi, rtoa, mask, wl, &
 &                    pressure_corr, aotlut, rlut_f, rlut_c, cextf, cextc, cextf550, cextc550, &
-&                    rg_ratio, F0, rot, aot, aot550_in, beta_est, nodata, rrs, &
-&                    rcorr, rcorrg, aot550_est,  brdf_est)
+&                    rg_ratio, F0, rot, aot, aot550_in, nodata, rrs, &
+&                    rcorr, rcorrg, aot550_est, brdf_est)
     !f2py -c -m main_algo main_algo.f95
 
     !--------------------------------------------------------------------
@@ -29,14 +29,13 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(naot, nband, npix), intent(in) :: rlut_f, rlut_c
     real(rtype), dimension(nband), intent(in) :: cextf, cextc
     real(rtype), intent(in) :: cextf550, cextc550!!
-    real(rtype), intent(in) :: beta_est
     real(rtype), dimension(nband, npix), intent(out) :: rcorr, rcorrg
     real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
     real(rtype),intent(inout) :: nodata
     logical, intent(in) :: rrs
 
     !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,pressure_corr,aotlut,rlut_f,rlut_c, rrs
-    !f2py intent(in) cextf,cextc,cextf550,cextc550, beta_est
+    !f2py intent(in) cextf,cextc,cextf550,cextc550
     !f2py intent(in) aot,aot550_in,rg_ratio,F0,rot
     !f2py intent(inout) nodata
     !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
@@ -51,7 +50,6 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(npix) :: mu0
     real(rtype), dimension(nband, npix) :: muv, m
     real(rtype) :: rglint, tdiff_Ed, tdiff_Lu
-    real(rtype) :: a,b,c,delta
 
 
     !----------------------------------------------
@@ -77,7 +75,7 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), parameter :: pi = 4 * atan (1.0_rtype)
     real(rtype), parameter :: degrad = pi / 180._rtype
 
-    ! print*,'once again !'
+    print*,'once again !'
 
     !--- set common variables
     lband = nband
@@ -98,23 +96,19 @@ subroutine main_algo(npix, nband, naot, &
     !----------------------------------------------
     weightaot = 1.
 
+
     do ipix = 1, npix
         ! do not process masked pixels
         if (mask(ipix) .ne. 0) cycle
 
         mu0(ipix)=cos(sza(ipix)*degrad)
 
-        aot550 = aot550_in(ipix)
-        beta = beta_est !(ipix)
+        aot550=0. !aot550_in(ipix)
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
 
-    !------------------------------------------------------
-    ! initialize ToaRefl = Poly(aot) from LUT for each band
-    !------------------------------------------------------
         do iband = 1, nband
             muv(iband, ipix) = cos(vza(iband, ipix) * degrad)
-            m(iband, ipix) = 1. / mu0(ipix) + 1. / muv(iband, ipix)
             !----------------------------------------------
             !-- polynomial fitting onto aot grid
             !----------------------------------------------
@@ -133,25 +127,21 @@ subroutine main_algo(npix, nband, naot, &
                 print*, 'R2 = ', R2, aotlut, pressure_corr(ipix) *rlut_c(:, iband, ipix), ac(iband, 0 : norder)
                 cycle
             endif
-        enddo
-
-    !------------------------------------------------------
-    ! First assessment of aot550 and brdf values from SWIR bands
-    !------------------------------------------------------
-        do iband = nband-1,nband
             rsimf = 0.
             rsimc = 0.
             do i = 0, norder
                 rsimf = rsimf + af(iband, i) * aot550**i
                 rsimc = rsimc + ac(iband, i) * aot550**i
             enddo
+            !write(*,*)iband,rtoa(ipix,iband),rlut_f(iband,2,2,2,2)
             rsim(iband) = beta * rsimf(iband) + (1 - beta) * rsimc(iband)
-
             rcorr(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
-
+            m(iband, ipix) = 1. / mu0(ipix) + 1. / muv(iband, ipix)
+            tud(iband) = exp(-(rot_corr(iband) + aot(iband)) * m(iband, ipix))
+            brdf(iband) = rcorr(iband, ipix) / tud(iband)
         enddo
 
-        if (rcorr(nband, ipix) < 0  .or. rcorr(nband-1, ipix) < 0 ) then
+
 !-----------------------------------------------
 !       CALL SOLVER MODULE
 !-----------------------------------------------
@@ -167,17 +157,26 @@ subroutine main_algo(npix, nband, naot, &
         s_m = m(:,ipix)
         rmes = rtoa(:,ipix)
         sigma = 1._rtype
-        print*,'aot guess',aot550
-        call aero(aot550, beta)
-        print*,'aot est',aot550
 
-        endif
-        !aot550 = max(aot550,0.)
 
-    !------------------------------------------------------
-    ! Final step
-    !------------------------------------------------------
+        !--- first guess
+        brdf_swir = 1d-10 !max(1d-10, brdf(nband))
+        beta = 0.5
+
+        call aero_glint(aot550, beta, brdf_swir)
+
+        aot550_est(ipix) = aot550
+        brdf_est(ipix) = brdf_swir
+ !-----------------------------------------------
+!       END SOLVER MODULE
+!-----------------------------------------------
+
+
         do iband = 1, nband
+            aot_est(iband) = beta * cextf(iband) / s_cextf550 * aot550 + (1. - beta) * cextc(iband) / s_cextc550 * aot550
+            tud(iband) = dexp(-(rot_corr(iband) + aot_est(iband)) / m(iband, ipix))
+            rglint = tud(iband) * rg_ratio(iband) * brdf_swir
+
             rsimf(iband) = af(iband, 0)
             rsimc(iband) = ac(iband, 0)
             do i = 1, norder
@@ -185,17 +184,7 @@ subroutine main_algo(npix, nband, naot, &
                 rsimc(iband) = rsimc(iband) + ac(iband, i) * aot550**i
             enddo
             rsim(iband) = beta * rsimf(iband) + (1. - beta) * rsimc(iband)
-            rcorr(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
 
-
-
-            aot_est(iband) = beta * cextf(iband) / s_cextf550 * aot550 + (1. - beta) * cextc(iband) / s_cextc550 * aot550
-            tud(iband) = dexp(-(rot_corr(iband) + aot_est(iband)) / m(iband, ipix))
-            brdf(iband) = rcorr(iband, ipix) / tud(iband)
-        enddo
-        do iband = 1, nband
-            rglint = 0.5 * (tud(iband) * rg_ratio(iband) * brdf(nband) + tud(iband) * rg_ratio(iband) &
-                   & / rg_ratio(nband - 1) * brdf(nband - 1))
             ! TODO improve calculation of the atmospheric transmittances
             tdiff_Ed = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_est(iband)) * (1. / mu0(ipix)))
             tdiff_Lu = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_est(iband)) * (1. / muv(iband, ipix)))
@@ -213,8 +202,7 @@ subroutine main_algo(npix, nband, naot, &
             endif
             !write(*,*)"band",iband,';  rcorr',rcorr(ipix,iband),tdiff_Lu,tdiff_Ed,aot_est(iband)
         enddo
-        aot550_est(ipix) = aot550
-        brdf_est(ipix) = 0.5*(brdf(nband - 1)+brdf(nband))
+
     enddo
 
     deallocate(s_af,s_ac,s_cextf,s_cextc,s_rot,s_m,s_rg_ratio,rsim,rmes,sigma)

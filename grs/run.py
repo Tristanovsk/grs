@@ -56,8 +56,9 @@ from .config import *
 
 
 def shp2wkt(shapefile):
+    print(shapefile)
     tmp = gpd.GeoDataFrame.from_file(shapefile)
-    tmp.to_crs(epsg=4326, inplace=True)
+    #tmp.to_crs(epsg=4326, inplace=True)
     return tmp.geometry.values[0].to_wkt()
 
 

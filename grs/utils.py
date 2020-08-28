@@ -470,7 +470,7 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
-        acband.setValidPixelExpression(expr_valid_pixel)
+        acband.setValidPixelExpression(expr_valid_pixel+' && '+bname+' >= 0')
         ac_product.getBand(bname).setDescription('Glint reflection factor (BRDF) ')  # + self.band_names[iband])
 
         # estimated aerosol optical thickness at 550 nm
@@ -481,7 +481,7 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
-        acband.setValidPixelExpression(expr_valid_pixel)
+        acband.setValidPixelExpression(expr_valid_pixel +' && '+bname+' >= 0')
         ac_product.getBand(bname).setDescription('aerosol optical thickness at 550 nm ')  # + self.band_names[iband])
 
         # Viewing geometry

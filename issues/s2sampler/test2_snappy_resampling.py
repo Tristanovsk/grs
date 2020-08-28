@@ -2,9 +2,13 @@ import time,sys
 import numpy as np
 from esasnappy import ProductIO, GPF, jpy
 
+from grs import s2_angle
+
+file='/DATA/Satellite/SENTINEL2/venice/L1C/S2A_OPER_PRD_MSIL1C_PDMC_20170121T221023_R022_V20150902T101026_20150902T101026.SAFE'
 
 sampler=sys.argv[1]
 file=sys.argv[2]
+
 
 def generic_resampler(product, resolution=20, method='Bilinear'):
         '''method: Nearest, Bilinear'''
@@ -48,9 +52,19 @@ def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='Mean',
 
         return op.getTargetProduct()
 
+#------------
+# calculation
+import os
+xml=os.path.join(file,'GRANULE/S2A_OPER_MSI_L1C_TL_EPA__20161008T200750_A001020_T32TQR_N02.04/S2A_OPER_MTD_L1C_TL_EPA__20161008T200750_A001020_T32TQR.xml')
 
+
+
+s2_angle.s2angle_v2().angle_computation(xml)
 
 product = ProductIO.readProduct(file)
+product.getMetadataRoot().getElement('Granules').getElement('Level-1C_Tile_12QWM').getElement('Geometric_Info')
+
+
 p_core = generic_resampler(product)
 p_s2tbx = s2_resampler(product)
 w, h = product.getSceneRasterWidth(),product.getSceneRasterHeight()
