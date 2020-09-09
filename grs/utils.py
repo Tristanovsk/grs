@@ -210,9 +210,11 @@ class info:
         self.SAZI.readPixels(0, 0, w, h, self.sazi)
         self.mu0 = np.cos(np.radians(self.sza))
 
-        for i, band in enumerate(self.band_names):
-
+        #loop in reverse order to use the esasnappy "dispose()" function within the jvm
+        for i, band in list(enumerate(self.band_names))[::-1]:
+            print('loading band ',band)
             self.B[i].readPixels(0, 0, w, h, arr)
+            self.B[i].dispose()
             self.band_rad[i] = arr
 
             # check for nodata pixels and set mask
@@ -228,10 +230,12 @@ class info:
                 self.band_rad[i] = self.band_rad[i] * np.pi / (self.mu0 * self.U * self.solar_irr[i] * 10)
 
             self.VZA[i].readPixels(0, 0, w, h, arr)
+            self.VZA[i].dispose()
             self.vza[i] = arr
             self.muv[i] = np.cos(np.radians(self.vza[i]))
             # get relative azimuth in OSOAA convention (=0 when sat and sun in opposition)
             self.VAZI[i].readPixels(0, 0, w, h, arr)
+            self.VAZI[i].dispose()
             self.razi[i] = arr
 
             # convention RAZI = 0 when sun and satelite in opposition (Radiative transfer convention)

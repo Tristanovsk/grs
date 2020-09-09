@@ -6,7 +6,7 @@ from esasnappy import ProductIO, GPF, jpy
 sampler=sys.argv[1]
 file=sys.argv[2]
 
-def generic_resampler(product, resolution=20, method='Bilinear'):
+def generic_resampler(product, resolution=20, method='Nearest'):
         '''method: Nearest, Bilinear'''
 
         GPF.getDefaultInstance().getOperatorSpiRegistry().loadOperatorSpis()
@@ -22,7 +22,7 @@ def generic_resampler(product, resolution=20, method='Bilinear'):
 
         return GPF.createProduct('Resample', parameters, product)
 
-def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='Mean',
+def s2_resampler(product, resolution=20, upmethod='Nearest', downmethod='Mean',
                      flag='FlagMedianAnd', opt=False):
 
         '''Resampler operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
@@ -49,8 +49,9 @@ def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='Mean',
         return op.getTargetProduct()
 
 
-
+file='/DATA/Satellite/SENTINEL2/SPO04/L1C/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE'
 product = ProductIO.readProduct(file)
+bands = product.getBandNames()
 p_core = generic_resampler(product)
 p_s2tbx = s2_resampler(product)
 w, h = product.getSceneRasterWidth(),product.getSceneRasterHeight()
@@ -60,11 +61,19 @@ def time_load(p_,angles=True):
 
     tt=time.time
     tdiff=[]
-    for band in p_.getBandNames():
+    for band in list(bands)[::-1]:
+        print(band)
         arr = np.empty((w,h))
         t=[]
         t.append(tt())
-        p_.getBand(band).readPixels(0,0,w,h,arr)
+        if 'view' in band:
+            p_ = product
+        else:
+            p_ = product
+        p_ = p_core
+        p_.getBand(band).readPixels(0, 0, w, h, arr)
+        p_.getBand(band).dispose()
+        #p_.getBand(band).readPixels(0,0,w,h,arr)
         t.append(tt())
         tdiff.append(np.diff(t))
 
