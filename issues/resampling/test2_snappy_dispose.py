@@ -56,17 +56,26 @@ p_core = generic_resampler(product)
 p_s2tbx = s2_resampler(product)
 w, h = product.getSceneRasterWidth(),product.getSceneRasterHeight()
 
-h=512
+#h=512
 def time_load(p_,angles=True):
 
     tt=time.time
     tdiff=[]
     for band in list(bands)[::-1]:
+        print(band)
         arr = np.empty((w,h))
         t=[]
         t.append(tt())
-        p_.getBand(band).readPixels(0,0,w,h,arr)
+        if 'mean' in band:
+            continue
+        # if 'view' in band:
+        #     p_ = product
+        # else:
+        #     p_ = product
+        # p_ = p_core
+        p_.getBand(band).readPixels(0, 0, w, h, arr)
         p_.getBand(band).dispose()
+        #p_.getBand(band).readPixels(0,0,w,h,arr)
         t.append(tt())
         tdiff.append(np.diff(t))
 
@@ -75,7 +84,7 @@ def time_load(p_,angles=True):
 
 if sampler == 'core':
     print('1st call with angles from core sampler: ',time_load(p_core,angles=False))
-    print('2nd call with angles from core sampler: ',time_load(p_core,angles=False))
+
 else:
     print('1st call without angles from s2tbx sampler: ',time_load(p_s2tbx,angles=False))
-    print('2nd call without angles from s2tbx sampler: ',time_load(p_s2tbx,angles=False))
+
