@@ -153,8 +153,18 @@ class process:
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
-        l2h.product = _utils.get_subset(l2h.product, wkt)
-        l2h.get_product_info()
+        try:
+            l2h.product = _utils.get_subset(l2h.product, wkt)
+            l2h.get_product_info()
+        except:
+            if unzip:
+                # remove unzipped files (Sentinel files)
+                shutil.rmtree(file, ignore_errors=True)
+            if untar:
+                # remove untared files (Landsat files)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise NameError('No data available for requested area')
+
         l2h.set_outfile(outfile)
         l2h.wkt, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
