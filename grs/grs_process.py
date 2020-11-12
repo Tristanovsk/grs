@@ -169,6 +169,8 @@ class process:
         l2h.wkt, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
 
+
+
         ##################################
         ## ADD ELEVATION BAND
         ##################################

@@ -19,10 +19,13 @@ Version history:
 
 1.2.2:  - Interpolation based on nearest-neighbor to keep tile-edge pixels.
         - Implementation of product.dispose to minimize merory usage in the jvm of snap
+1.2.3: compliant with version 8 of SNAP:
+        - change output writing (now directly in NETCDF4, i.e., compressed, at the end of the process)
+        - new utils get_subset
 '''
 
 __package__ = 'grs'
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac

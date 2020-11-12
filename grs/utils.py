@@ -319,9 +319,9 @@ class info:
         # TODO write output directly in netcdf format
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
-        # writer = ProductIO.getProductWriter('NetCDF4-CF')  #
-        writer = ProductIO.getProductWriter('BEAM-DIMAP')
-        self.outfile_ext = self.outfile + '.dim'
+        writer = ProductIO.getProductWriter('NetCDF4-BEAM')  #
+        #writer = ProductIO.getProductWriter('BEAM-DIMAP')
+        self.outfile_ext = self.outfile + '.nc'#dim'
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
@@ -532,8 +532,6 @@ class info:
             f.write(info)
 
     def finalize_product(self):
-        # TODO improve checksum scheme
-        # TODO write output directly in netcdf format
         '''remove checksum file
         remove extension ".incomplete" from output file name
         convert into netcdf (compressed) from gpt and ncdump/nco tool'''
@@ -542,37 +540,8 @@ class info:
         self.l2_product.dispose()
         os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
-        final_name = os.path.splitext(name)[0]
-        os.rename(name, final_name)
-
-        # --------------------------
-        # convert into netcdf-BEAM format
-        try:
-            # TODO call to gpt is a bit awkward due to memory leaks of snappy and gpt !!
-            # TODO if permitted in next snap update (e.g., 7) close snappy vm before calling gpt
-            final_name2 = final_name.replace('dim', 'beam.nc')
-            cmd = cfg.gpt + ' Write -PformatName=NetCDF-BEAM -Pfile=' + final_name2 + ' -Ssource=' + final_name
-            print(cmd)
-            exit_code = subprocess.call(cmd, shell=True)
-
-            print(exit_code)
-            # --------------------------
-            # cleaning up
-            os.remove(final_name)
-            shutil.rmtree(final_name.replace('dim', 'data'))
-        except:
-            print('Error in NetCDF conversion; check snap gpt absolute path')
-
-        # --------------------------
-        # convert into netCDF4 compressed format
-        try:
-            os.system('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
-            print('nccopy -d5 ' + final_name2 + ' ' + final_name2.replace('.beam', ''))
-            # --------------------------
-            # cleaning up
-            os.remove(final_name2)
-        except:
-            print('no compression was performed; nco tools should be installed')
+        #final_name = os.path.splitext(name)[0]
+        os.rename(name, self.outfile_ext) #final_name)
 
     def print_info(self):
         ''' print info, can be used to check if object is complete'''
@@ -721,7 +690,7 @@ class utils:
         op.setSourceProduct(product)
         return op.getTargetProduct()
 
-    def get_subset(self, product, wkt):
+    def get_subset_old(self, product, wkt):
         '''subset from wkt POLYGON '''
         SubsetOp = jpy.get_type('org.esa.snap.core.gpf.common.SubsetOp')
         WKTReader = jpy.get_type('com.vividsolutions.jts.io.WKTReader')
@@ -732,6 +701,14 @@ class utils:
         op.setGeoRegion(grid)
         op.setCopyMetadata(True)
         return op.getTargetProduct()
+
+    def get_subset(self, product,wkt):
+        HashMap = jpy.get_type('java.util.HashMap')
+        parameters = HashMap()
+        #parameters.put('bandNames',product.getBandNames()[0])
+        parameters.put('geoRegion',wkt)
+        parameters.put('copyMetadata',True)
+        return GPF.createProduct('Subset',parameters,product)
 
     def print_array(self, arr):
         np.set_printoptions(threshold=np.nan)
