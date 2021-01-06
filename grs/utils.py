@@ -3,7 +3,7 @@
 Defines main python objects and image manipulation functions (linked to the ESA snappy library)
 '''
 
-import os, sys, re, shutil
+import os, sys, re, shutil, glob
 import numpy as np
 from dateutil import parser
 import subprocess
@@ -11,6 +11,8 @@ import subprocess
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
 from esasnappy import FlagCoding, String, Mask
+
+import pdb
 
 from . import config as cfg
 
@@ -37,7 +39,7 @@ class info:
         self.ancillary = ancillary
         self.output = output
 
-        #########################
+        ##########################
         # settings:
         #########################
         # LUT for atmosphere radiance
@@ -532,6 +534,8 @@ class info:
             f.write(info)
 
     def finalize_product(self):
+        # TODO improve checksum scheme
+        # TODO write output directly in netcdf format
         '''remove checksum file
         remove extension ".incomplete" from output file name
         convert into netcdf (compressed) from gpt and ncdump/nco tool'''
@@ -685,6 +689,11 @@ class utils:
 
         op = addelevation()
         op.setParameterDefaultValues()
+        op.setParameter("demName", "External DEM")
+        for f in glob.glob('/work/ALT/swot/aval/OBS2CO/git/grs/grsdata/dem/SRTM_90/*.tif'):
+              op.setParameter("externalDEMFile", f)
+              print(f)
+
         if high_latitude:
             op.setParameter('demName','GETASSE30')
         op.setSourceProduct(product)
