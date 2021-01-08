@@ -6,10 +6,6 @@
 #PBS -l select=1:ncpus=2:mem=8000mb
 #PBS -l walltime=48:00:00
 
-
-export https_proxy='http://betmontc:Yf2QdSW123!!!@proxy-surf.loc.cnes.fr:8050'
-export http_proxy='http://betmontc:Yf2QdSW123!!!@proxy-surf.loc.cnes.fr:8050'
-
 module load python
 
 python /work/ALT/swot/aval/OBS2CO/git/grs/ecmwf/download_cams_all.py cams_forecast all
