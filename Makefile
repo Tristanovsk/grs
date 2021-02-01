@@ -1,4 +1,4 @@
-export F2PY=f2py3
+export F2PY=f2py36
 
 DIRS = grs/fortran/grs grs/fortran/grs_a grs/landsat_angles/OLI grs/landsat_angles/TM
 

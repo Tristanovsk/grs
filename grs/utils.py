@@ -323,6 +323,7 @@ class info:
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
         writer = ProductIO.getProductWriter('NetCDF4-BEAM')  #
         #writer = ProductIO.getProductWriter('BEAM-DIMAP')
+        print("create product with name : "+self.outfile)
         self.outfile_ext = self.outfile + '.nc'#dim'
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
@@ -690,7 +691,8 @@ class utils:
         op = addelevation()
         op.setParameterDefaultValues()
         op.setParameter("demName", "External DEM")
-        for f in glob.glob('/work/ALT/swot/aval/OBS2CO/git/grs/grsdata/dem/SRTM_90/*.tif'):
+        srtm_path=cfg.srtm_path
+        for f in glob.glob(srtm_path+'/*.tif'):
               op.setParameter("externalDEMFile", f)
               print(f)
 

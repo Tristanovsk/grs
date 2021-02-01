@@ -3,26 +3,32 @@
 # Après installation de snap, faire un lien symbolique de esasnappy vers snappy (qui se trouve dans le .snap du home
 
 #desactivate conda s'il est activé
-conda deactivate
+conda deactivate 2>/dev/null
 
 #On récupère la connexion au proxy
 [ "$_" = "$0" ] && echo "Ce script doit être sourcé!" && exit 127
 
-read -s -p "Proxy password? " _passwd || exit 127
+read -s -p "Please enter your proxy password ? " _passwd || exit 127
 echo
 
 _user=${_user:-$USER}
 
-export http_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
-export https_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
+if [ -z ${_passwd} ]
+then
+	echo "No password"
+else
+
+	export http_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
+	export https_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
 
 #echo 'http_proxy variable has to be set : '$http_proxy
 
-export ftp_proxy="${http_proxy}"
-export no_proxy=cnes.fr,sis.cnes.fr,gitlab.cnes.fr
+	export ftp_proxy="${http_proxy}"
+	export no_proxy=cnes.fr,sis.cnes.fr,gitlab.cnes.fr
 
-unset _passwd
-unset _user
+	unset _passwd
+	unset _user
+fi
 
 #load avail module for conda, snap and jdk
 module load snap/8.0 conda jdk/1.8.0_112
@@ -55,14 +61,6 @@ then
 fi
 
 
-if [ -d $HOME/.snap/etc ] 
-then
-	mkdir -p $HOME/.snap/etc
-fi
-
-#Remove the check version
-#echo 'default_options="--branding snap --locale en_GB -J-XX:+AggressiveOpts -J-Xverify:none -J-Xms256M -J-Xmx20G -J-Dplugin.manager.check.interval=NEVER -J-Dnetbeans.mainclass=org.esa.snap.main.Main -J-Dsun.java2d.noddraw=true -J-Dsun.awt.nopixfmt=true -J-Dsun.java2d.dpiaware=false"' > $HOME/.snap/etc/snap.conf
-
 echo $'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=8000' > $HOME/.snap/etc/snap.properties
 
 #Install the jpy package used by snappy
@@ -76,11 +74,12 @@ then
 	sed -i 's/java_home/#java_home/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
 	sed -i 's/jvm_dll/#jvm_dll/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
 fi
+
 #if it is not already installed
 #conda install GDAL
 #compilation
 
-cd /work/ALT/swot/aval/OBS2CO/git/grs
+cd /work/ALT/swot/aval/OBS2CO/git/grs2/grs2
 
 #catch egm96 data
 cp /work/ALT/swot/aval/OBS2CO/git/grsdata/dem/ww15mgh_b.zip $HOME/.snap/auxdata/dem/egm96
