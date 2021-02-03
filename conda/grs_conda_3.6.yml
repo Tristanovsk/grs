@@ -1,4 +1,4 @@
-name: grs_py3.6_test
+name: grs_py3.6
 channels:
   - anaconda
   - conda-forge
