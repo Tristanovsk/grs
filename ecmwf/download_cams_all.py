@@ -54,9 +54,11 @@ def main(dic):
 
         import calendar
 
+
+        #specify the period to catch data
         #try:
-        for year in [2017]:
-            for month in range(10, 12):
+        for year in [2018]:
+            for month in range(2, 12):
                 numberOfDays = calendar.monthrange(year, month)[1]
                 date=str(year)+str(month).zfill(2)+"01/TO/"+str(year)+str(month).zfill(2)+str(numberOfDays)
                 print(date)

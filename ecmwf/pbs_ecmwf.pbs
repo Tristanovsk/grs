@@ -1,5 +1,5 @@
 #Recuperer les donnees ecmwf cams à travers un job PBS  :
-
+#To be launched with -V option
 #!/bin/bash
 
 #PBS -N ecmwf_cams
@@ -8,4 +8,4 @@
 
 module load python
 
-python /work/ALT/swot/aval/OBS2CO/git/grs/ecmwf/download_cams_all.py cams_forecast all
+python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all
