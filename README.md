@@ -61,11 +61,33 @@ python setup.py install --user
 
 If the installation is successful, you should have:
 ```
+
 $ grs
 Usage:
   grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]   [--longlat <longmax,longmin,latmax,latmin> ]    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>]    [--aot550=aot] [--angstrom=ang] [--output param]   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
   grs -h | --help
   grs -v | --version
+```
+
+### On the PBS cluster : installing from sources with conda on the cluster CNES
+
+Create the conda environment using the definition file available in the conda folder :
+```
+conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
+````
+The option -p set the directory where the conda environment will be installed
+
+To install the package grs in conda :
+
+```
+source conda/conda_grs.sh -ci
+```
+
+
+To launch GRS on a pbs node :
+
+```
+qsub launch_grs_exemple.pbs
 ```
 
 ## Running the tests
