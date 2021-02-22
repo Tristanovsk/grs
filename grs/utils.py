@@ -712,13 +712,16 @@ class utils:
 
         addelevation = jpy.get_type('org.esa.snap.dem.gpf.AddElevationOp')
 
+        print("toto")
         op = addelevation()
         op.setParameterDefaultValues()
         op.setParameter("demName", "External DEM")
+        
         srtm_path=cfg.srtm_path
+        print(srtm_path)
         for f in glob.glob(srtm_path+'/*.tif'):
               op.setParameter("externalDEMFile", f)
-
+              print(f)
         if high_latitude:
             op.setParameter('demName','GETASSE30')
         op.setSourceProduct(product)
