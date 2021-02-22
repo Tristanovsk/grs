@@ -17,14 +17,12 @@ def main(dic):
         data_type=dic['mode']
         month=dic['month']
         area="90/-180/-90/180"
-
  
         if month!='all':
             today = date.today()
             d1 = today.strftime("%Y%m%d")
 
         server = ECMWFDataServer()
-
 
         #dataset will be download by default from 2017 to 2020
         step = '0'
@@ -37,7 +35,7 @@ def main(dic):
 
 
         # data will be download by default from 2000 to 2017
-        elif data_type == 'cams_reanalysis':
+        elif data_type == 'cams-reanalysis':
             class_ = 'mc'
             dataset = 'cams_reanalysis'
             date='20150301/TO/20170101'
@@ -57,8 +55,8 @@ def main(dic):
 
         #specify the period to catch data
         #try:
-        for year in [2018]:
-            for month in range(2, 12):
+        for year in [2017, 2018]:
+            for month in range(1, 12):
                 numberOfDays = calendar.monthrange(year, month)[1]
                 date=str(year)+str(month).zfill(2)+"01/TO/"+str(year)+str(month).zfill(2)+str(numberOfDays)
                 print(date)

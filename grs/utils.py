@@ -15,7 +15,7 @@ from esasnappy import FlagCoding, String, Mask
 import pdb
 
 from . import config as cfg
-
+import os
 
 class info:
     '''
@@ -277,6 +277,7 @@ class info:
             cloud = self.get_flag(self.sensordata.cloud_flag)
             cirrus = self.get_flag(self.sensordata.cirrus_flag)
             self.flags = self.flags + ((cloud << 6) + (cirrus << 7))
+
         except:
             pass
 
@@ -322,9 +323,32 @@ class info:
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
         writer = ProductIO.getProductWriter('NetCDF4-BEAM')  #
-        #writer = ProductIO.getProductWriter('BEAM-DIMAP')
-        print("create product with name : "+self.outfile)
-        self.outfile_ext = self.outfile + '.nc'#dim'
+        dir_name=self.outfile
+
+        if (self.sensor == 'S2A' or self.sensor == 'S2B'):
+           product_name_list=self.outfile.split('/')
+           path_list=product_name_list[0:len(product_name_list)-1]
+           path = '/'.join(path_list)
+           #S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE
+        
+           tile=product_name_list[-1].split('_')[5]
+           dir_name=path+'/'+tile
+
+           try:
+              os.makedirs(dir_name)    
+              print("Directory " , dir_name ,  " Created ")
+           except FileExistsError:
+              print("Directory " , dir_name ,  " already exists")  
+           self.outfile_ext = dir_name + '/' + self.outfile.split('/')[-1] + '.nc'
+
+        else: 
+           self.outfile_ext = dir_name + '.nc'
+
+
+        owriter = ProductIO.getProductWriter('BEAM-DIMAP')
+
+        print('product name is : ' + self.outfile_ext)
+
         ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
@@ -694,7 +718,6 @@ class utils:
         srtm_path=cfg.srtm_path
         for f in glob.glob(srtm_path+'/*.tif'):
               op.setParameter("externalDEMFile", f)
-              print(f)
 
         if high_latitude:
             op.setParameter('demName','GETASSE30')

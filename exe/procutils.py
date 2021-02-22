@@ -106,7 +106,9 @@ class misc:
         # outfile = outfile.replace('.zip', '').rstrip('/')
         # outfile = outfile.replace('.txt', '').rstrip('/')
 
-        return os.path.join(odir, outfile + suffix)
+        path = os.path.join(odir, get_tile(file), outfile + suffix)
+        print(path)
+        return path
 
     def chunk(self, it, n):
         '''
