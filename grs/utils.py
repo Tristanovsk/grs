@@ -36,8 +36,6 @@ class info:
         self.aerosol = aerosol
         self.ancillary = ancillary
         self.output = output
-        self.maja_masks = False
-        self.waterdetect_mask = False
 
         #########################
         # settings:
@@ -102,6 +100,18 @@ class info:
 
         ### Define filtering thresholds
         self.hcld_threshold = 3e-3
+
+        # parameters for MAJA masks (CLM-cloud and MG2-geophysical)
+        # masks order must follow bit order
+        # CLM masks
+        self.clm_masks = ['CLM_cloud_shadow', 'CLM_opaque_cloud', 'CLM_cloud_from_blue',
+                          'CLM_cloud_multitemp', 'CLM_thin_cloud', 'CLM_shadow',
+                          'CLM_shadow_from_outer_cloud', 'CLM_cirrus']
+        # MG2 masks
+        self.mg2_masks = ['MG2_Water_Mask', 'MG2_Cloud_Mask_All_Cloud', 'MG2_Snow_Mask',
+                          'MG2_Shadow_Mask', 'MG2_Topographical_Shadows_Mask', 'MG2_Hidden_Areas_Mask',
+                          ]
+        self.maja_masks = np.concatenate([self.clm_masks, self.mg2_masks])
 
     def set_outfile(self, file):
         '''
@@ -211,7 +221,7 @@ class info:
         self.elevation = np.array(self.elevation)
         return
 
-    def load_data(self,maja=None):
+    def load_data(self):
         '''
         load ta from input (subset) satellite image
         :return:
@@ -220,6 +230,8 @@ class info:
         # construct arrays
         # --------------------------------
         w, h = self.width, self.height
+        # set watermask as water (i.e., 1) for all pixels
+        self.watermask = np.full((w, h), 1, dtype=np.uint8, order='F').T
         self.mask, self.flags = utils.init_fortran_array(2, (w, h), dtype=np.uint8)
         self.sza, self.sazi, arr = utils.init_fortran_array(3, (w, h))
         self.band_rad, self.vza, self.razi, self.muv = utils.init_arrayofarrays(4, [arr] * self.N)
@@ -277,8 +289,8 @@ class info:
 
         # if MAJA image provided, load (and write) AOT product band
         if self.maja:
-           self.aot_maja = self.get_raster(self.maja, 'AOT_R1')
-           self.l2_product.getBand('aot_maja').writePixels(0, 0, self.width, self.height, self.aot_maja )
+            self.aot_maja = self.get_raster(self.maja, 'AOT_R1')
+            self.l2_product.getBand('aot_maja').writePixels(0, 0, self.width, self.height, self.aot_maja)
 
     def load_flags(self):
         '''
@@ -301,19 +313,17 @@ class info:
         try:
             cloud = self.get_flag(self.product, self.sensordata.cloud_flag)
             cirrus = self.get_flag(self.product, self.sensordata.cirrus_flag)
-            self.flags = self.flags + (cloud == 0) << 6 + (cirrus == 0) << 7
+            self.flags = self.flags + (cloud << 6) + (cirrus << 7)
         except:
             pass
 
-
         if self.sensordata.shadow_flag != '':
             shadow = self.get_flag(self.product, self.sensordata.shadow_flag)
-            self.flags = self.flags + ((shadow == 0) << 8)
-
+            self.flags = self.flags + (shadow << 8)
 
         # set high cloud cirrus mask
         try:
-            self.flags = self.flags + (self.hcld > self.sensordata.cirrus[1]) << 5
+            self.flags = self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5)
         except:
             pass  # print('No cirrus band available, high cloud flag discarded')
 
@@ -322,16 +332,32 @@ class info:
         # if MAJA L2A image is provided load MAJA flags
         mask_id = 9
         if self.maja:
-            for i, mask in enumerate(self.maja_masks):
-                self.flags = self.flags + ((self.get_flag(self.maja, mask)==2**mask_id) << mask_id)
-                mask_id += 1
-            self.maja_masks = self.maja_masks
+            # CLM masks
+            masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
+            print('CLM', np.unique(masks << mask_id))
+            print('flags', np.unique(self.flags))
+            self.flags = self.flags + (masks << mask_id)
+            print('flags', np.unique(self.flags))
+            mask_id += len(self.clm_masks)
+
+            # MG2 masks
+            masks = self.get_raster(self.maja, 'Aux_Mask_MG2_R1', dtype=np.uint32)
+            print('MG2', np.unique(masks << mask_id))
+            self.flags = self.flags + (masks << mask_id)
+            print('flags', np.unique(self.flags))
+            mask_id += len(self.mg2_masks)
 
         # -------------------
         # for Sentinel 2
         # if WaterDetect image is provided load Water Mask
         if self.waterdetect:
-            self.flags = self.flags + ((self.get_raster(self.waterdetect, 'band_1', dtype=np.uint32)!=0) << mask_id)
+            water_true = (self.get_raster(self.waterdetect, 'band_1', dtype=np.uint32) == 1)
+            self.flags = self.flags + (water_true << mask_id)
+            # reinitialize watermask array to non-water
+            self.watermask.fill(0)
+            self.watermask[water_true] = 1
+
+        return
 
 
     def unload_data(self):
@@ -347,7 +373,7 @@ class info:
             self.VZA[i].unloadRasterData()
             self.VAZI[i].unloadRasterData()
 
-    def create_product(self, maja=None, maja_masks=[], waterdetect=None):
+    def create_product(self, maja=None, waterdetect=None):
         '''
         Create output product dimensions, variables, attributes, flags....
         :return:
@@ -355,8 +381,7 @@ class info:
 
         # allocate flags param
         self.maja = maja
-        self.maja_masks = maja_masks
-        self.waterdetect=waterdetect
+        self.waterdetect = waterdetect
 
         product = self.product
         ac_product = Product('L2grs', 'L2grs', self.width, self.height)
@@ -442,7 +467,7 @@ class info:
         f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
         f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
                             self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
-                            self.sensordata.high_nir[1]))
+            self.sensordata.high_nir[1]))
         f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band; condition Rtoa at band " +
                             self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
         f6 = coding.addFlag("L1_cloud", 64, "opaque cloud flag from L1 image ")
@@ -455,15 +480,15 @@ class info:
         # WARNING: mask_id must remain smaller than 32 (binary coding)
         mask_id = 9
         additional_f = []
-        if self.maja_masks:
+        if self.maja:
 
             for i, mask in enumerate(self.maja_masks):
-                print('Mask binary ',mask_id,2 ** mask_id )
+                print('Mask binary ', mask_id, 2 ** mask_id)
                 additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
                 mask_id += 1
 
         if self.waterdetect:
-            print('waterdetect mask ',mask_id,2 ** mask_id )
+            print('waterdetect mask ', mask_id, 2 ** mask_id)
             additional_f.append(
                 coding.addFlag('WaterDetect', 2 ** mask_id, 'Water mask imported from WaterDetect processing'))
 
@@ -492,21 +517,20 @@ class info:
         # for Sentinel 2
         # if MAJA L2A / WaterDetect provided, load respective flags
         # WARNING: mask_id must remain smaller than 32 (binary coding)
-        colors = [Color.BLACK, Color.YELLOW, Color.RED, Color.PINK, Color.MAGENTA, Color.GREEN, Color.GRAY] * 10
+        colors = [Color.BLUE, Color.YELLOW, Color.RED, Color.PINK, Color.MAGENTA, Color.GREEN, Color.GRAY] * 10
         mask_id = 0
-        if self.maja_masks:
+        if self.maja:
 
             for i, mask in enumerate(self.maja_masks):
-
                 f = additional_f[mask_id]
-                ac_product.addMask('mask_' + f.getName(), 'flags.' + f.getName(),
+                ac_product.addMask('' + f.getName(), 'flags.' + f.getName(),
                                    f.getDescription(), colors[mask_id], 0.3)
                 mask_id += 1
 
         if self.waterdetect:
             f = additional_f[mask_id]
             ac_product.addMask('mask_' + f.getName(), 'flags.' + f.getName(),
-                                   f.getDescription(), colors[mask_id], 0.3)
+                               f.getDescription(), colors[mask_id], 0.3)
 
         # set data
         # Water-leaving radiance + sunglint
@@ -569,7 +593,6 @@ class info:
 
         # if maja option is on, copy aerosol optical thickness product from MAJA L2A image
         if self.maja:
-
             bname = 'aot_maja'  # + self.band_names[iband]
             acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
             # acband.setSpectralWavelength(self.wl[iband])
@@ -578,7 +601,8 @@ class info:
             acband.setNoDataValue(np.nan)
             acband.setNoDataValueUsed(True)
             acband.setValidPixelExpression(expr_valid_pixel + ' && ' + bname + ' >= 0')
-            ac_product.getBand(bname).setDescription('AOT product from MAJA processing (L2A)')  # + self.band_names[iband])
+            ac_product.getBand(bname).setDescription(
+                'AOT product from MAJA processing (L2A)')  # + self.band_names[iband])
 
         # Viewing geometry
         acband = ac_product.addBand('SZA', ProductData.TYPE_FLOAT32)
@@ -709,7 +733,7 @@ class utils:
         return GPF.createProduct('Resample', parameters, s2_product)
 
     @staticmethod
-    def resampler(product, resolution=20, upmethod='Nearest', downmethod='First',
+    def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
                   flag='FlagMedianAnd', opt=True):
 
         '''
@@ -843,7 +867,7 @@ class utils:
               + str(latmin) + ',' + str(lonmin) + ' ' + str(latmin) + ',' + str(lonmin) + ' ' \
               + str(latmax) + ',' + str(lonmax) + ' ' + str(latmax) + '))'
 
-        return wkt, latmin, latmax
+        return wkt, lonmin, lonmax, latmin, latmax
 
     def getReprojected(self, product, crs='EPSG:4326', method='Bilinear'):
         '''Reproject a esasnappy product on a given coordinate reference system (crs)'''

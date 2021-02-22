@@ -3,6 +3,9 @@ import numpy as np
 import pandas
 from scipy.interpolate import interp1d
 import netCDF4 as nc
+import xarray as xr
+
+from dateutil import parser
 import calendar, datetime
 
 from esasnappy import ProductIO
@@ -239,11 +242,6 @@ class sensordata:
         self.cloud_flag, self.cirrus_flag, self.shadow_flag = info['l1_flags']
         self.cirrus = info['cirrus']
         self.high_nir = info['high_nir']
-        self.maja_masks = ['MG2_Cloud_Mask_All_Cloud_R1', 'MG2_Shadow_Mask_Of_Cloud_R1',
-                           'cloud_mask_refl_R1', 'cloud_mask_refl_var_R1', 'cloud_mask_extension_R1',
-                           'cloud_mask_sahdvar_R1', 'cloud_mask_cirrus_R1', 'MG2_Hidden_Areas_Mask_R1',
-                           'MG2_Snow_Mask_R1', 'MG2_Topographical_Shadows_Mask_R1', 'MG2_Water_Mask_R1']
-
 
 class cams:
     '''
@@ -391,7 +389,6 @@ class cams:
         :return:
         '''
 
-
         # load netcdf file and get date-time index for further processing
         ncfile = nc.Dataset(target)
         time = ncfile.variables['time']
@@ -413,20 +410,83 @@ class cams:
         # print(wkt)
         prod = u().get_subset(prod, wkt)
 
+        # SNAP resamplingOP does not work for CAMS product
+        # prod = u().resampler(prod, resolution=resolution)
+
         h = prod.getBand(band_names[0]).getRasterHeight()
         w = prod.getBand(band_names[0]).getRasterWidth()
-        aot_rast = np.zeros([N, w, h], dtype=np.float32)
+
+        aot_rast = [np.zeros([w, h], dtype=np.float32, order='F').T] * N
 
         for i in range(N):
-            prod.getBand(band_names[i]).loadRasterData()
-            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast[i, ...])
+            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast[i])
             # aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast<0, aot_rast >2), fill_value=np.nan)
             self.aot[i] = aot_rast[i].mean()
             self.aot_std[i] = aot_rast[i].std()
-            prod.getBand(band_names[i]).unloadRasterData()
+        prod.dispose()
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
-        self.aot_rast = aot_rast
+        self.aot550_rast = aot_rast[1]
+
+        return  # u().getReprojected(prod, crs)
+
+    def subset_xr(self, ds, lonmin, lonmax, latmin, latmax, lat='latitude', lon='longitude'):
+        '''
+
+        :param ds:
+        :param lonmin:
+        :param lonmax:
+        :param latmin:
+        :param latmax:
+        :param lat:
+        :param lon:
+        :return:
+        '''
+        mask_lon = (ds[lon] >= lonmin) & (ds[lon] <= lonmax)
+        mask_lat = (ds[lat] >= latmin) & (ds[lat] <= latmax)
+        return ds.where(mask_lon & mask_lat, drop=True)
+
+    def get_xr_cams_aerosol(self, cams_file, product,
+                            wls=[469, 550, 670, 865, 1240],
+                            params=['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']):
+        '''
+        Nearest neighbor in time
+        :param target:
+        :param date:
+        :param wkt:
+        :return:
+        '''
+
+        N = len(params)
+        date = parser.parse(str(product.getStartTime()))
+        wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
+        w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
+
+        self.aot = np.zeros(N, dtype=np.float32)
+        self.aot_std = np.zeros(N, dtype=np.float32)
+        self.aot_wl = [469, 550, 670, 865, 1240]
+
+        # load CAMS netcdf file
+        cams_xr = xr.open_dataset(cams_file)
+        cams_xr = self.subset_xr(cams_xr, lonmin, lonmax, latmin, latmax)
+        cams_xr = cams_xr.interp(time=date)
+
+        for i, param in enumerate(params):
+            self.aot[i] = cams_xr[param].mean().data
+            self.aot_std[i] = cams_xr[param].std().data
+        self.aot550 = self.aot[1]
+        self.aot550_std = self.aot_std[1]
+
+        print(h, w, cams_xr.aod550.coords)
+        r, c = cams_xr.aod550.shape
+        if (r > 1) and (c > 1):
+            cams_rast = cams_xr.interp(longitude=np.linspace(lonmin, lonmax, w),
+                                       latitude=np.linspace(latmax, latmin, h),
+                                       kwargs={"fill_value": "extrapolate"})
+
+            self.aot550_rast = cams_rast['aod550'].data
+        else:
+            self.aot550_rast = np.full((w, h), self.aot550)
 
         return  # u().getReprojected(prod, crs)
 

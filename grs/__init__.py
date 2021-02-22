@@ -26,6 +26,8 @@ Version history:
 
 1.2.4: - option to load MAJA and WaterDetect mask and export masks in output file
        - option to process WaterDetect Water pixels only
+
+2.0.0: - process image by rectangular chunks
 '''
 
 __package__ = 'grs'
