@@ -26,8 +26,13 @@ setup(
     description='scientific code for atmosphere and sunglint correction of Sentinel-2 and Landsat series',
 
     # Dependent packages (distributions)
-    install_requires=['pandas','geopandas','scipy','numpy','netCDF4',
-                      'matplotlib','docopt','GDAL','python-dateutil','pyproj'],
+    #install_requires=['pandas','geopandas','scipy','numpy','netCDF4',
+    #                  'matplotlib','docopt','GDAL','python-dateutil','pyproj'],
+
+   
+    install_requires=['pandas==1.1.3','geopandas','scipy==1.5.3','numpy','netCDF4',
+                      'matplotlib==3.3.3','docopt','GDAL','python-dateutil','pyproj'],
+
 
     entry_points={
           'console_scripts': [

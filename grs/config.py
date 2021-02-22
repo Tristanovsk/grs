@@ -17,7 +17,7 @@ gpt='$SNAPHOME/bin/gpt'
 grs_root = root
 
 # data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
-data_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs/grsdata')
+data_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata')
 # directory to store temporary unzipped files
 tmp_dir = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs/grsdata/tmp')
 lut_root = os.path.join(data_root, "LUT")
