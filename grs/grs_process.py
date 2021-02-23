@@ -280,8 +280,8 @@ class process:
             cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
                                      l2h.aerosol + '.nc')
             l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
-            aot550rast = l2h.aux.aot550_rast
-
+            aot550rast = l2h.aux.aot550rast #.T
+            print('aot550rast shape',aot550rast.shape)
         elif (l2h.aerosol == 'user_model'):
             l2h.aux.aot550 = aot550
             l2h.angstrom = angstrom

@@ -426,7 +426,7 @@ class cams:
         prod.dispose()
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
-        self.aot550_rast = aot_rast[1]
+        self.aot550rast = aot_rast[1]
 
         return  # u().getReprojected(prod, crs)
 
@@ -477,16 +477,17 @@ class cams:
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
 
+
         print(h, w, cams_xr.aod550.coords)
-        r, c = cams_xr.aod550.shape
+        r, c = cams_xr.aod550.data.shape
+
         if (r > 1) and (c > 1):
             cams_rast = cams_xr.interp(longitude=np.linspace(lonmin, lonmax, w),
                                        latitude=np.linspace(latmax, latmin, h),
                                        kwargs={"fill_value": "extrapolate"})
-
-            self.aot550_rast = cams_rast['aod550'].data
+            self.aot550rast = np.array(cams_rast['aod550'].data)
         else:
-            self.aot550_rast = np.full((w, h), self.aot550)
+            self.aot550rast = np.full((w, h), self.aot550, order='F').T
 
         return  # u().getReprojected(prod, crs)
 
