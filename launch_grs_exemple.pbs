@@ -3,7 +3,7 @@
 #!/bin/bash
 
 #PBS -N grs
-#PBS -l select=1:ncpus=10:mem=105gb
+#PBS -l select=1:ncpus=12:mem=60gb
 #PBS -l walltime=24:00:00
 
 #load avail module for conda, snap and jdk
