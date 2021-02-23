@@ -86,10 +86,6 @@ subroutine main_algo(npix, nband, naot, &
         mu0(ipix) = cos(sza(ipix) * degrad)
 
         aotpt = aot550(ipix)
-        !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
-        !TODO  and for AOT > 0.8
-        aotpt(:) = max(aotpt * scale, 0.01)
-        aotpt(:) = min(aotpt * scale, 0.8)
 
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
@@ -97,6 +93,10 @@ subroutine main_algo(npix, nband, naot, &
         i = 0
         success = 0
         do
+            !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
+            !TODO  and for AOT > 0.8
+            aotpt(:) = max(aotpt * scale, 0.01)
+            aotpt(:) = min(aotpt * scale, 0.8)
             do iband = nband, 1, -1
                 muv(iband, ipix) = cos(vza(iband, ipix) * degrad)
                 call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_f(:, iband, ipix),&
@@ -106,7 +106,7 @@ subroutine main_algo(npix, nband, naot, &
                 if(ier/=0)then
                     print*, 'FATAL ERROR IN LUT INTERPOLATION IN SOLVER MODULE'
                     print*, 'ERROR = ', ier
-                    print*, 'AOT', aotpt
+                    print*, 'AOT', aotpt,max(aotpt * scale, 0.01)
                     stop
                 endif
                 !write(*,*)iband,aotpt, rtoa(ipix,iband),rsimc(iband)

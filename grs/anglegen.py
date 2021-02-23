@@ -2,7 +2,7 @@ import sys
 from subprocess import call
 from esasnappy import ProductUtils, ProductIO
 
-from .s2_angle import *
+
 
 class angle_generator:
     def landsat(self, l2h,tartmp=None):
@@ -123,50 +123,50 @@ class angle_generator:
             l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
             l2h.product.getBand(bandname).setNoDataValueUsed(True)
 
-    def sentinel2(self, l2h):
-        ''' Generate files for sensor angles if files do not exist.
-        Copy angles data into l2h.product.
-
-
-        Arguments:
-          * ``l2h`` -- Object for level 2 data; see "utils" module '''
-
-
-        import glob
-
-        ##################################
-        # GENERATE BAND ANGLES
-        ##################################
-        # get xml file of tile to be processed
-        root = os.path.abspath(str(l2h.product.getFileLocation()))
-        root = os.path.join(root, 'GRANULE')
-        granule = glob.glob1(root, '*L1C*')
-        if granule.__len__() > 1:
-            print('STOP! should process single tile but several tiles found')
-            sys.exit()
-        root = os.path.join(root, granule[0])
-        XML_File = os.path.join(root, glob.glob1(root, '*MTD*xml')[0])
-
-        outdir = os.path.join(root, 'ANG_DATA')
-        print(outdir)
-        if not os.path.exists(outdir) or os.listdir(outdir) == "":
-            print('creating angle files for ', outdir)
-            s2angle().angle_writer(XML_File)
-
-        ##################################
-        # ADD BAND ANGLES TO PRODUCT
-        ##################################
-        angroot = os.path.join(root, 'ANG_DATA')
-        angfiles = glob.glob1(angroot, '*hdr')
-
-        for angfile in angfiles:
-            bandname = angfile[-7:-4].replace('B0', 'B')
-            ang = ProductIO.readProduct(os.path.join(angroot, angfile))
-            # ProductUtils.copyGeoCoding(product, ang)
-            for band in ang.getBandNames():
-                print("copying " + band + '_' + bandname)
-                ProductUtils.copyBand(band, ang, band + '_' + bandname, l2h.product, True)
-
+    # def sentinel2(self, l2h):
+    #     ''' Generate files for sensor angles if files do not exist.
+    #     Copy angles data into l2h.product.
+    #
+    #
+    #     Arguments:
+    #       * ``l2h`` -- Object for level 2 data; see "utils" module '''
+    #
+    #     from .s2_angle import *
+    #     import glob
+    #
+    #     ##################################
+    #     # GENERATE BAND ANGLES
+    #     ##################################
+    #     # get xml file of tile to be processed
+    #     root = os.path.abspath(str(l2h.product.getFileLocation()))
+    #     root = os.path.join(root, 'GRANULE')
+    #     granule = glob.glob1(root, '*L1C*')
+    #     if granule.__len__() > 1:
+    #         print('STOP! should process single tile but several tiles found')
+    #         sys.exit()
+    #     root = os.path.join(root, granule[0])
+    #     XML_File = os.path.join(root, glob.glob1(root, '*MTD*xml')[0])
+    #
+    #     outdir = os.path.join(root, 'ANG_DATA')
+    #     print(outdir)
+    #     if not os.path.exists(outdir) or os.listdir(outdir) == "":
+    #         print('creating angle files for ', outdir)
+    #         s2angle().angle_writer(XML_File)
+    #
+    #     ##################################
+    #     # ADD BAND ANGLES TO PRODUCT
+    #     ##################################
+    #     angroot = os.path.join(root, 'ANG_DATA')
+    #     angfiles = glob.glob1(angroot, '*hdr')
+    #
+    #     for angfile in angfiles:
+    #         bandname = angfile[-7:-4].replace('B0', 'B')
+    #         ang = ProductIO.readProduct(os.path.join(angroot, angfile))
+    #         # ProductUtils.copyGeoCoding(product, ang)
+    #         for band in ang.getBandNames():
+    #             print("copying " + band + '_' + bandname)
+    #             ProductUtils.copyBand(band, ang, band + '_' + bandname, l2h.product, True)
+    #
 
     def add_band(self,):
         print()

@@ -3,7 +3,7 @@
 # Après installation de snap, faire un lien symbolique de esasnappy vers snappy (qui se trouve dans le .snap du home
 
 #desactivate conda s'il est activé
-#conda deactivate 2>/dev/null
+conda deactivate 2>/dev/null
 
 #On récupère la connexion au proxy
 [ "$_" = "$0" ] && echo "Ce script doit être sourcé!" && exit 127
@@ -45,13 +45,17 @@ export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 #activate conda environement python 3.6
-conda activate /work/scratch/$USER/grs_py3.6
+conda activate /work/scratch/$USER/grs_py3.6_test
 #conda activate py3.7.2
 
 #configuration for snap
 # go to the $SNAPHOME environment and configure snappy
 pythonpath=$(which python)
 echo $pythonpath
+
+#install xarray if not exists in pythonpath
+pip install xarray
+
 #Install snappy
 #$SNAPHOME/bin/snappy-conf $pythonpath 
 

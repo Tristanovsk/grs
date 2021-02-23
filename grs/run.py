@@ -3,9 +3,10 @@
 Usage:
   grs <input_file> [--grs_a] [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
    [--longlat <longmax,longmin,latmax,latmin> ] \
-   [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>] \
-   [--aot550=aot] [--angstrom=ang] [--output param]\
-   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]\
+   [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet <afile>] \
+   [--aot550=aot] [--angstrom=ang] [--output param] [--resolution=res] \
+   [--maja <maja_xml_file>] [--waterdetect <waterdetect_file>] [--waterdetect_pixels] \
+   [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]\
    [--allpixels]
   grs -h | --help
   grs -v | --version
@@ -32,19 +33,22 @@ Options:
   --dem            Use SRTM digital elevation model instead of --altitude (need internet connection)
   --aerosol=DB     aerosol data base to use within the processing
                    DB: cams_forecast, cams_reanalysis, aeronet, user_model
-                   [default: cams_reanalysis]
+                   [default: cams_forecast]
   --aeronet=afile  if `--aerosol` set to 'aeronet', provide aeronet file to use
   --aot550=aot     if `--aerosol` set to 'user_model', provide aot550 value to be used
                    [default: 0.1]
   --angstrom=ang     if `--aerosol` set to 'user_model', provide aot550 value to be used
                    [default: 1]
+  --maja maja_xml_file   use of mask from MAJA L2A images, path to xml ID of the L2A image
+  --waterdetect waterdetect_file  use of water mask from waterdetect algorithm,
+                    path to the appropriate WaterDetect data file
   --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
-  --resolution=res spatial resolution of the scene pixels
+  --resolution=res  spatial resolution of the scene pixels
   --unzip          to process zipped images seamlessly
   --memory_safe    use generic resampler instead of S2resampler to save memory
                    (induces loss in angle resolution per pixel for S2)
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
-
+  --waterdetect_pixels  if waterdetect file is provided, process only the pixels masked as "water"
 '''
 
 import netCDF4 as nc # imported here to avoid conflicts on mistraou
@@ -86,11 +90,14 @@ def main():
     aerosol = args['--aerosol']
     aot550 = float(args['--aot550'])
     angstrom = float(args['--angstrom'])
-    aeronet_file = 'no'
+    aeronet_file = None
     if aerosol == 'aeronet':
-        aeronet_file = args['--aeronet_file']
+        aeronet_file = args['--aeronet']
+    maja_xml = args['--maja']
+    waterdetect_file = args['--waterdetect']
+    waterdetect_only = args['--waterdetect_pixels']
+
     output=args['--output']
-    print(args)
 
     ##################################
     # File naming convention
@@ -139,6 +146,7 @@ def main():
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
     process().execute(file, outfile, wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
+                      maja_xml=maja_xml, waterdetect_file=waterdetect_file, waterdetect_only=waterdetect_only,
                       aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,
                       unzip=unzip)
     return
