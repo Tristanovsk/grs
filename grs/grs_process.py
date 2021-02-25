@@ -142,10 +142,23 @@ class process:
         ##################################
         # GENERATE BAND ANGLES (LANDSAT)
         ##################################
+        anggen = False
         if 'LANDSAT_8' in sensor:
             anggen = angle_generator().landsat(l2h)
         elif 'LANDSAT' in sensor:
-            angle_generator().landsat_tm(l2h)
+            anggen = angle_generator().landsat_tm(l2h)
+        print('anggen = {}'.format(anggen))
+        if anggen:
+            if tartmp:
+                print('writing angles to input file: ' + file_orig)
+                # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
+                # copy tgz image and add angle files
+                shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
+                for filename in os.listdir(tmp_dir):
+                    tartmp.add(os.path.join(tmp_dir, filename), filename)
+                tartmp.close()
+                shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
+
         # stop process for landsat angle computation only
         if angleonly:
             return
