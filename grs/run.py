@@ -6,7 +6,7 @@ Usage:
    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet <afile>] \
    [--aot550=aot] [--angstrom=ang] [--output param] [--resolution=res] \
    [--maja <maja_xml_file>] [--waterdetect <waterdetect_file>] [--waterdetect_pixels] \
-   [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]\
+   [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip] [--untar]\
    [--allpixels]
   grs -h | --help
   grs -v | --version
@@ -45,6 +45,7 @@ Options:
   --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res  spatial resolution of the scene pixels
   --unzip          to process zipped images seamlessly
+  --untar          to process tar files seamlessly
   --memory_safe    use generic resampler instead of S2resampler to save memory
                    (induces loss in angle resolution per pixel for S2)
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
@@ -82,6 +83,7 @@ def main():
 
     noclobber = args['--no_clobber']
     unzip = args['--unzip']
+    untar = args['--untar']
     memory_safe = args['--memory_safe']
     altitude = float(args['--altitude'])
     dem = args['--dem']
@@ -148,7 +150,7 @@ def main():
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       maja_xml=maja_xml, waterdetect_file=waterdetect_file, waterdetect_only=waterdetect_only,
                       aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,
-                      unzip=unzip)
+                      unzip=unzip, untar=untar)
     return
 
 
