@@ -88,6 +88,8 @@ Generate the `config.py` file:
  
  * Then, edit `config.py` according to your folders tree and path to your grs installation folder. 
 
+Load the data folder `grsdata` containing the auxiliary data and look-up tables (LUT) from [here](https://www.dropbox.com/sh/s6r3vwjfbjdogt6/AABaNnPuEqWsJ3xV_j5I9JGta?dl=0), 
+unzip and edit the variable `data_root` with the full path of your `grsdata` folder.
 
 
 ### Installing
