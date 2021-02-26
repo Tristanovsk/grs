@@ -1,3 +1,7 @@
+'''
+Main program
+'''
+
 from pathlib import Path
 from esasnappy import ProductData, ProductIO
 
@@ -5,47 +9,70 @@ import os, shutil
 import zipfile
 import tarfile
 import glob
+import numpy as np
+import xarray as xr
 
 from . import config as cfg
 from . import acutils
 from . import auxdata
 from . import utils
 from .anglegen import *
-from .fortran import main_algo as f
+from .fortran.grs import main_algo as grs_solver
+from .fortran.grs_a import main_algo as grs_a_solver
 
 
 class process:
+    ''' '''
+
     def __init__(self):
         pass
 
-    def execute(self, file, outfile, wkt, sensor=None, altitude=0, aerosol='cams_forecast', ancillary=None,
-                dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False, startrow=0,
-                memory_safe=False, angleonly=False, output='Rrs'):
+    def execute(self, file, outfile, wkt, sensor=None, aerosol='default', ancillary=None, altitude=0,
+                dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
+                startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
+                memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
         '''
+        Main program calling all GRS steps
 
-        :param file:
-        :param sensor:
-        :param wkt:
-        :param output:
+        :param file: Input file to be processed
+        :param outfile: Absolute path of the output file
+        :param wkt: Well-Known-Text format defining the area of interest for which the image is subset
+        :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
+                    (by default sensor type is retrieved from input file name)
+        :param aerosol: aerosol data base to use within the processing
+                   DB: cams_forecast, cams_reanalysis, aeronet, user_model, default
+        :param ancillary: if None, value is set to that of aerosol
+        :param altitude: provide altitude if `dem` is set as `False`
         :param dem: if True digital elevation model is applied for per-pixel pressure calculation (data from SNAP/SRTM)
-        :param altitude:
-        :param aeronet_file:
+        :param aeronet_file: optional aeronet file to be used for aerosol calculations
+        :param maja_xml: optional use of mask from MAJA L2A images, path to xml ID of the L2A image
+        :param waterdetect_file: optional use of water mask from waterdetect algorithm,
+                    path to the appropriate WaterDetect data file
+        :param waterdetect_only: if True and waterdetect file is provided, process only the pixels masked as "water"
         :param resolution: pixel resolution in meters (integer)
         :param unzip: if True input file is unzipped before processing,
                       NB: unzipped files are removed at the end of the process
         :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
                         NB: this option is used to in the context of operational processing of massive dataset
+        :param allpixels: force to process all pixels even they are flagged as "Vegetation" or "Non-water"
         :param angleonly: if true, grs is used to compute angle parameters only (no atmo correction is applied)
         :param output: set the unit of the retrievals:
-                 * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 μm-1)
-                 * 'Rrs', remote sensing reflectance (in sr-1)
-                 {default: 'Rrs']
+
+                 * 'Lwn', normalized water-leaving radiance (in  :math:`mW cm^{-2} sr^{-1} \mu m^{-1})`
+
+                 * 'Rrs', remote sensing reflectance (in  :math:`sr^{-1}`)
+
+                 {default: 'Rrs'}
+        :param grs_a: switch to grs-a algorithm (Lwn and aerosol) if True
+
         :return:
         '''
 
         ##################################
         # Get sensor auxiliary data
         ##################################
+
+        print('Get sensor auxiliary data')
         _utils = utils.utils()
         if sensor == None:
             sensor = _utils.get_sensor(file)
@@ -60,6 +87,8 @@ class process:
         ##################################
         # Read L1C product
         ##################################
+
+        print('unzipping...')
         file_orig = file
         # unzip if needed
         if unzip:
@@ -67,16 +96,17 @@ class process:
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
         tartmp = None
-        anggen=False
         if untar:
-            basename = os.path.basename(file).replace('.tgz','')
-            tmp_dir = os.path.join(cfg.tmp_dir,basename)
-            # open tar archive to add potential file (e.g., angle files)
-            tartmp = tarfile.open(file,'a')
+            basename = os.path.basename(file).replace('.tgz', '')
+            basename = os.path.basename(basename).replace('.tar.gz', '')
+            tmp_dir = os.path.join(cfg.tmp_dir, basename)
             # open tar archive to extract files for data loading
             tmpzip = tarfile.open(file)
             tmpzip.extractall(tmp_dir)
-            file = glob.glob(tmp_dir+'/*MTL.txt')[0]
+            file = glob.glob(os.path.join(tmp_dir, '*MTL.*'))[0]
+            # open tar archive to add potential file (e.g., angle files) - InvalidHeaderError
+            if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
+                tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
 
         print("Reading...")
         print(file)
@@ -86,12 +116,7 @@ class process:
         # Generate l2h object
         ##################################
         l2h = utils.info(product, sensordata, aerosol, ancillary, output)
-
-        ##################################
-        # Set bands to be processed including NIR and SWIR
-        ##################################
         l2h.headerfile = file
-        l2h.band_names = l2h.sensordata.band_names
 
         ##################################
         # GET METADATA
@@ -115,17 +140,26 @@ class process:
         l2h.solar_irr = l2h.solar_irr / 10
 
         ##################################
-        # GENERATE BAND ANGLES
+        # GENERATE BAND ANGLES (LANDSAT)
         ##################################
-        if 'S2' in sensor:
-            # TODO remove next line when the S2resampler is fixed up by ESA (hopefully soon, 05/10/2018)
-            # angle_generator().sentinel2(l2h)
-            pass
-        elif 'LANDSAT_8' in sensor:
+        anggen = False
+        if 'LANDSAT_8' in sensor:
             anggen = angle_generator().landsat(l2h)
-        else:
-            angle_generator().landsat_tm(l2h)
+        elif 'LANDSAT' in sensor:
+            anggen = angle_generator().landsat_tm(l2h)
+        print('anggen = {}'.format(anggen))
+        if anggen:
+            if tartmp:
+                print('writing angles to input file: ' + file_orig)
+                # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
+                # copy tgz image and add angle files
+                shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
+                for filename in os.listdir(tmp_dir):
+                    tartmp.add(os.path.join(tmp_dir, filename), filename)
+                tartmp.close()
+                shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
 
+        # stop process for landsat angle computation only
         if angleonly:
             return
 
@@ -143,17 +177,54 @@ class process:
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
-        l2h.product = _utils.get_subset(l2h.product, wkt)
-        l2h.get_product_info()
+        try:
+            l2h.product = _utils.get_subset(l2h.product, wkt)
+            l2h.get_product_info()
+        except:
+            if unzip:
+                # remove unzipped files (Sentinel files)
+                shutil.rmtree(file, ignore_errors=True)
+            if untar:
+                # remove untared files (Landsat files)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise NameError('No data available for requested area')
+
         l2h.set_outfile(outfile)
-        l2h.wkt = _utils.get_extent(l2h.product)
+        l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
+
+        ##################################
+        # Fetch optional mask products
+        # resample for common resolution
+        # subset to ROI
+        ##################################
+        maja, waterdetect = None, None
+        if maja_xml:
+            try:
+                maja = ProductIO.readProduct(maja_xml)
+                maja = _utils.resampler(maja, resolution=resolution)
+                maja = _utils.get_subset(maja, wkt)
+
+            except:
+                print('!!! issues with ' + maja_xml + '; please check if file exists')
+                raise
+
+        if waterdetect_file:
+            try:
+                waterdetect = ProductIO.readProduct(waterdetect_file)
+                waterdetect = _utils.get_subset(waterdetect, wkt)
+                waterdetect = _utils.resampler(waterdetect, resolution=resolution)
+
+            except:
+                print('!!! issues with ' + waterdetect_file + '; please check if file exists')
+                raise
 
         ##################################
         ## ADD ELEVATION BAND
         ##################################
         if dem:
-            l2h.get_elevation()
+            high_latitude = (latmax >= 60) | (latmin <= -60)
+            l2h.get_elevation(high_latitude)
 
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
@@ -174,9 +245,12 @@ class process:
         ##################################
         l2h.aux = auxdata.cams()
 
-        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
-        l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
-        l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
+        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                                   l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+
+        if ancillary != 'default':
+            l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
+            l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
         # if 'S2' in sensor:
@@ -185,16 +259,17 @@ class process:
         #     l2h.aux.get_ecmwf_data()
 
         # get pressure at the scene altitude
-        l2h.pressure_msl = l2h.aux.msl #acutils.misc.get_pressure(altitude, l2h.aux.msl)
+        l2h.pressure_msl = l2h.aux.msl  # acutils.misc.get_pressure(altitude, l2h.aux.msl)
         if dem:
             altitude = l2h.elevation
-        l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)#l2h.aux.pressure = l2h.pressure
+            altitude[altitude < -200] = 0
+        l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
 
         ##################################
         # GET ANCILLARY DATA (AEROSOL)
         ##################################
         aero = acutils.aerosol()
-
+        aot550rast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
         # AERONET data
         if (l2h.aerosol == 'aeronet'):
             l2h.set_aeronetfile(aeronet_file)
@@ -207,25 +282,33 @@ class process:
             l2h.aux.aot_wl = aero.wavelengths
             l2h.aux.aot = aero.aot
             l2h.aux.aot550 = aero.aot550
+            aot550rast.fill(l2h.aux.aot550)
 
-        # CAMS (ECMWF)
+        # CAMS dataset
         elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
-            # daily file
-            # target=Path(os.path.join(l2h.ecmwf_root,l2h.date.strftime('%Y-%m-%d')+'_cams_aero.nc'))
-            # cams=aux.get_cams_aerosol(target,l2h.date.strftime('%Y-%m-%d'),l2h.wkt,l2h.crs)
-            # monthly file
-            target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' +
-                                       l2h.aerosol + '.nc'))
-            l2h.aux.get_cams_aerosol(target, l2h.date, l2h.wkt)
 
+            # monthly file
+            # target = Path(
+            #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+            #                  l2h.aerosol + '.nc'))
+            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+                                     l2h.aerosol + '.nc')
+            l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
+            aot550rast = l2h.aux.aot550rast #.T
+            print('aot550rast shape',aot550rast.shape)
         elif (l2h.aerosol == 'user_model'):
             l2h.aux.aot550 = aot550
             l2h.angstrom = angstrom
             l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
             l2h.aux.aot_wl = l2h.wl
-
+            aot550rast.fill(l2h.aux.aot550)
         else:
-            sys.exit("No aerosol data provided, try again.")
+            l2h.aux.aot550 = 0.1
+            l2h.angstrom = 1
+            l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+            l2h.aux.aot_wl = l2h.wl
+            aot550rast.fill(l2h.aux.aot550)
+            print("No aerosol data provided, set to default: aot550=01, angstrom=1")
 
         # set spectral aot for satellie bands
         aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
@@ -245,7 +328,7 @@ class process:
         # normalization of Cext to get spectral dependence of fine and coarse modes
         nCext_f = lutf.Cext / lutf.Cext550
         nCext_c = lutc.Cext / lutc.Cext550
-        print('param aerosol',nCext_f, nCext_c, l2h.aot)
+        print('param aerosol', nCext_f, nCext_c, l2h.aot)
         aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
         l2h.fcoef = aero.fcoef
         # rlut = [x + y for x, y in zip([fcoef * x for x in rlut_f], [(1. - fcoef) * x for x in rlut_c])]
@@ -259,10 +342,10 @@ class process:
         # rlut_f = [x * l2h.pressure / l2h.pressure_ref for x in lutf.refl]
         # rlut_c = [x * l2h.pressure / l2h.pressure_ref for x in lutc.refl]
         # l2h.rot = [x * l2h.pressure / l2h.pressure_ref for x in l2h.sensordata.rot]
-        l2h.rot =l2h.sensordata.rot
+        l2h.rot = l2h.sensordata.rot
 
         ####################################
-        #     Set SMAC patrameters for
+        #     Set SMAC parameters for
         #    absorbing gases correction
         ####################################
         smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
@@ -275,8 +358,25 @@ class process:
         #      Create output l2 product
         #          'l2_product'
         ######################################
-        l2h.create_product()
+
+        l2h.create_product(maja=maja, waterdetect=waterdetect)
+        try:
+            l2h.load_data()
+        except:
+            if unzip:
+                # remove unzipped files (Sentinel files)
+                shutil.rmtree(file, ignore_errors=True)
+            if untar:
+                # remove untared files (Landsat files)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise NameError('No data available for requested area')
+        l2h.load_flags()
+
+        ######################################
+        # arrays allocation
         # reshaping for fortran binding
+        ######################################
+
         aotlut = np.array(lutf.aot, dtype=l2h.type, order='F')
         vzalut = np.array(lutf.vza, dtype=l2h.type, order='F')
         szalut = np.array(lutf.sza, dtype=l2h.type, order='F')
@@ -285,106 +385,124 @@ class process:
         rlut_c = np.array(lutc.refl, dtype=l2h.type, order='F')
         grid_lut = (szalut, razilut, vzalut)
 
-        ######################################
-        #      MAIN LOOP
-        ######################################
-        # arrays allocation
         aot550guess = np.zeros(l2h.width, dtype=l2h.type)
         rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
         rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-        elev = np.zeros(l2h.width, dtype=l2h.type)
+        maskpixels_ = np.full(l2h.width, 1, dtype=l2h.type, order='F')
 
-        # set aot by hand
-        aot550guess.fill(l2h.aot550)
+        w, h = l2h.width, l2h.height
+
+        l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)
+        l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
+        l2h.l2_product.getBand('AZI').writePixels(0, 0, w, h, np.array(l2h.razi[1]))
+
+        if dem:
+            # add elevation band
+            l2h.l2_product.getBand('elevation').writePixels(0, 0, w, h, l2h.elevation)
+
+        ######################################
+        #      MAIN LOOP
+        ######################################
 
         for i in range(startrow, l2h.height):
-            print('process row ' + str(i))
+            print('process row ' + str(i) + ' / ' + str(l2h.height))
 
-            #LOAD PIXELS DATA FOR ROW #i
-            l2h.load_data(i)
+            sza = l2h.sza[i]
+            razi = l2h.razi[:, i]
+            vza = l2h.vza[:, i]
+            muv = l2h.muv[:, i]
+            mu0 = l2h.mu0[i]
+            mask = l2h.mask[i]
+            flags = l2h.flags[i]
+            band_rad = l2h.band_rad[:, i]
 
-            validx = (l2h.mask == 0)
-            # l2h.sza[~validx]=np.nan
-            # l2h.razi[~validx]=np.nan
-
-            sza = l2h.sza[validx]
-            razi = l2h.razi[validx]
-            vza = l2h.vza[validx]
+            maskpixels = maskpixels_
+            if allpixels:
+                maskpixels = maskpixels * 0
+            elif waterdetect_only:
+                maskpixels[l2h.watermask[i]==1] = 0
+            else:
+                maskpixels = mask
 
             if dem:
                 elev = l2h.elevation[i]
-                # l2h.product.getBand('elevation').readPixels(0, i, l2h.width, 1, elev)
-                #l2h.l2_product.getBand('elevation').writePixels(0, i, l2h.width, 1, elev)
                 pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
-                pressure_corr = pressure/l2h.pressure_ref
+                pressure_corr = pressure / l2h.pressure_ref
             else:
-                pressure_corr = [l2h.pressure/l2h.pressure_ref] * l2h.width
+                pressure_corr = [l2h.pressure / l2h.pressure_ref] * l2h.width
             pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
+
+            # ---------
+            # if maja L2A image provided, use AOT_MAJA product
+            if maja:
+                aot550guess = l2h.aot_maja[i]
+                # aot550guess[aot550guess < 0.01] = 0.01
+            else:
+                aot550guess = aot550rast[i]
 
             for iband in range(l2h.N):
                 # preparing lut data
-                grid_pix = list(zip(sza, razi[..., iband], vza[..., iband]))
+                grid_pix = list(zip(sza, razi[iband], vza[iband]))
 
                 for iaot in range(aotlut.__len__()):
-                    rtoaf[iaot, iband, validx] = lutf.interp_lut(grid_lut, rlut_f[iband][iaot, ...], grid_pix)
-                    rtoac[iaot, iband, validx] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
+                    rtoaf[iaot, iband] = lutf.interp_lut(grid_lut, rlut_f[iband][iaot, ...], grid_pix)
+                    rtoac[iaot, iband] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
 
                 # correct for gaseous absorption
-                tg = smac.compute_gas_trans(iband, l2h.pressure_msl, l2h.mu0, l2h.muv[iband])
-                l2h.rs2[:, iband] = l2h.rs2[:, iband] / tg
+                tg = smac.compute_gas_trans(iband, l2h.pressure_msl, mu0, muv[iband])
+                band_rad[iband] = band_rad[iband] / tg
 
-            rcorr, rcorrg, aot550pix, brdfpix = f.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                        l2h.vza, l2h.sza, l2h.razi, l2h.rs2, l2h.mask, l2h.wl,
-                                        pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext, lutc.Cext,
-                                        l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                        l2h.aot, aot550guess, l2h.fcoef, l2h.nodata, l2h.rrs)
+            if grs_a:
+                rcorr, rcorrg, aot550pix, brdfpix = grs_a_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                                                                           vza, sza, razi, band_rad, maskpixels, l2h.wl,
+                                                                           pressure_corr, aotlut, rtoaf, rtoac,
+                                                                           lutf.Cext, lutc.Cext, lutf.Cext550,
+                                                                           lutc.Cext550,
+                                                                           l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
+                                                                           l2h.aot,
+                                                                           aot550guess, l2h.fcoef, l2h.nodata, l2h.rrs)
+            else:
+                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                                                                         vza, sza, razi, band_rad, maskpixels, l2h.wl,
+                                                                         pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
+                                                                         lutc.Cext,
+                                                                         l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
+                                                                         l2h.aot, aot550guess, l2h.fcoef, l2h.nodata,
+                                                                         l2h.rrs)
 
             # reshape for snap modules
             rcorr[rcorr == l2h.nodata] = np.nan
             rcorrg[rcorrg == l2h.nodata] = np.nan
-            rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
-            rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
+            # rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
+            # rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
             ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
                                  (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
             # set flags
-            l2h.flags = l2h.flags+\
-                        ((l2h.mask == 1) +
-                         (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                         ((l2h.mask == 2) << 2) +
-                         (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
-                                 ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
-                         ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
-                         )
+
+            flags = flags + \
+                    ((mask == 1) +
+                     (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
+                     ((mask == 2) << 2) +
+                     (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
+                             ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
+                     ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
+                     )
 
             for iband in range(l2h.N):
                 l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
-                    writePixels(0, i, l2h.width, 1, rcorr[iband])
+                    writePixels(0, i, l2h.width, 1, np.array(rcorr[iband]))
                 l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
-                    writePixels(0, i, l2h.width, 1, rcorrg[iband])
+                    writePixels(0, i, l2h.width, 1, np.array(rcorrg[iband]))
 
-            l2h.l2_product.getBand('flags').writePixels(0, i, l2h.width, 1, np.array(l2h.flags, dtype=np.uint32))
+            l2h.l2_product.getBand('flags').writePixels(0, i, l2h.width, 1, flags.astype(np.uint32))
             l2h.l2_product.getBand('BRDFg').writePixels(0, i, l2h.width, 1, brdfpix)
             l2h.l2_product.getBand("aot550").writePixels(0, i, l2h.width, 1, aot550pix)
 
-            l2h.l2_product.getBand('SZA').writePixels(0, i, l2h.width, 1, l2h.sza)
-            l2h.l2_product.getBand('VZA').writePixels(0, i, l2h.width, 1, np.array(l2h.vza[:, 1]))
-            l2h.l2_product.getBand('AZI').writePixels(0, i, l2h.width, 1, np.array(l2h.razi[:, 1]))
-
             # TODO improve checksum scheme
             l2h.checksum('startrow ' + str(i))
-        if dem:
-            # add elevation band
-            l2h.l2_product.getBand('elevation').writePixels(0, 0, l2h.width, l2h.height, l2h.elevation)
 
         l2h.finalize_product()
-
-        if anggen:
-            # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
-            # copy tgz image and add angle files
-            landsat_file = file_orig.replace('.tgz', '')
-            shutil.make_archive(landsat_file, 'gztar', tmp_dir)
-            #os.rename(landsat_file,landsat_file.replace('.tar.gz','.tgz'))
 
         if unzip:
             # remove unzipped files (Sentinel files)
@@ -393,5 +511,3 @@ class process:
         if untar:
             # remove untared files (Landsat files)
             shutil.rmtree(tmp_dir, ignore_errors=True)
-
-

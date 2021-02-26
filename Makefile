@@ -1,4 +1,7 @@
-DIRS = grs/fortran grs/landsat_angles/OLI grs/landsat_angles/TM
+export F2PY=f2py3.8
+
+DIRS = grs/fortran/grs grs/fortran/grs_a grs/landsat_angles/OLI grs/landsat_angles/TM
+
 
 CLEANDIRS = $(DIRS:%=clean-%)
 

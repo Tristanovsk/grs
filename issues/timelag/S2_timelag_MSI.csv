@@ -1,0 +1,27 @@
+Inter-band Pair Temporal offset between bands (seconds)
+data from https://earth.esa.int/web/sentinel/technical-guides/sentinel-2-msi/msi-instrument
+date: 2020-06-25
+band1,band2,timelag
+B08,B02,0.264
+B03,B08,0.264
+B03,B02,0.527
+B10,B03,0.324
+B10,B02,0.851
+B04,B10,0.154
+B04,B02,1.005
+B05,B04,0.264
+B05,B02,1.269
+B11,B05,0.199
+B11,B02,1.468
+B06,B11,0.057
+B06,B02,1.525
+B07,B06,0.265
+B07,B02,1.79
+B8a,B07,0.265
+B8a,B02,2.055
+B12,B8a,0.03
+B12,B02,2.085
+B01,B12,0.229
+B01,B02,2.314
+B09,B01,0.271
+B09,B02,2.586

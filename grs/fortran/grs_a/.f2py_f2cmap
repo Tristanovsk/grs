@@ -1,0 +1,2 @@
+dict(real=dict(rsp='float', rdp='double', rtype='double'),
+complex = dict(sp='complex_float',dp="complex_double"))

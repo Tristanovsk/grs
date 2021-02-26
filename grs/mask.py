@@ -1,4 +1,6 @@
-
+'''
+Setting custom masks
+'''
 import numpy as np
 from skimage.filters import threshold_otsu
 
@@ -18,6 +20,9 @@ from skimage.filters import threshold_otsu
 
 
 class mask:
+    '''
+    Class for coding supplementary masks
+    '''
     def __init__(self):
         pass
 
