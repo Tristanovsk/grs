@@ -45,8 +45,7 @@ export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 #activate conda environement python 3.6
-conda activate /work/scratch/$USER/grs_py3.6_test
-#conda activate py3.7.2
+conda activate /work/scratch/$USER/grs_py3.6
 
 #configuration for snap
 # go to the $SNAPHOME environment and configure snappy

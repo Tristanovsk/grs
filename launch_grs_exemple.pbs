@@ -18,19 +18,14 @@ export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 ##activate conda environement python 3.6
-conda activate grs_py3.6_test
+conda activate grs_py3.6
 cd /work/ALT/swot/aval/OBS2CO/git/grs2
 
-#module load conda
-#conda activate grs_py3.6
+grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 
-#source /work/ALT/swot/aval/OBS2CO/git/grs/conda/conda_grs.sh
+#grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2B_MSIL1C_20201214T092309_N0209_R093_T33PVP_20201214T113135.SAFE --odir test_cluster/results/ --aerosol cams_forecast --dem --resolution 20
 
-#grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
-
-grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2B_MSIL1C_20201214T092309_N0209_R093_T33PVP_20201214T113135.SAFE --odir test/results/ --aerosol cams_forecast --dem --resolution 20
-
-#grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2A_MSIL1C_20190602T104031_N0207_R008_T31TFJ_20190602T125323.SAFE --odir test/results/ --aerosol cams_forecast --dem --resolution 20
+#grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2A_MSIL1C_20190602T104031_N0207_R008_T31TFJ_20190602T125323.SAFE --odir testi_cluster/results/ --aerosol cams_forecast --dem --resolution 20
 
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVQ_20201219T103844.SAFE --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 
