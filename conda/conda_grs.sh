@@ -53,7 +53,7 @@ pythonpath=$(which python)
 echo $pythonpath
 
 #install xarray if not exists in pythonpath
-pip install xarray
+#pip install xarray
 
 #Install snappy
 #$SNAPHOME/bin/snappy-conf $pythonpath 
