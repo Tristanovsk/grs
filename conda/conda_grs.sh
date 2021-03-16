@@ -112,4 +112,4 @@ then
 fi
 
 
-echo "Tester GRS sur une tuile sentinel 2 : grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20"
+echo "Tester GRS sur une tuile sentinel 2 : grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20 \nPreciser le répertoire de sortie dans --odir"
