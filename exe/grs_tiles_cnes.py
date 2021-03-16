@@ -31,9 +31,9 @@ lev = 'L2grs'
 logdir = './tmp'
 
 dirsat = '/datalake/'
-idir_root = {'s2': '/nfs/DD/S2/L1/ESA',  # P/S2/L1C/',#D/S2/L1/ESA',
-             'landsat': '/nfs/DD/landsat/L1/uncompressed'}
 
+l1cdir = {'s2': '/datalake/S2-L1C',
+             'landsat': '/datalake/L8-L1C/'}
 odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
@@ -48,7 +48,7 @@ angstrom = 1.6  # used if aerosol = 'user_model'
 allpixels = False  # True
 
 sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
-sitefile = 'exe/List_images_grs_template.csv'
+sitefile = 'exe/list_grs_cnes_template.csv'
 sites = pd.read_csv(sitefile)
 # --------------------------------------------------------------------------------
 
@@ -58,7 +58,7 @@ for idx, site in sites.iterrows():
     # load row of list file
     if site.iloc[0] == 0:
         continue
-    name, start_date, end_date, sat, tile, lat, lon, h, w, altitude, resolution = site.iloc[1:12]
+    name, start_date, end_date, sat, tile, resolution = site.iloc[1:]
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
@@ -68,27 +68,34 @@ for idx, site in sites.iterrows():
     # setting up loop on dates
     daterange = pd.date_range(start_date, end_date)
     for date in daterange:
+        # TODO add AMALTHEE call to load requested data
+
 
         # ------------------
         # check if L1C exists and set directories / files
         subdir = opj(tile, '{:04d}'.format(date.year), '{:02d}'.format(date.month), '{:02d}'.format(date.day))
-        l1c_dir = opj(dirsat, 'S2-L1C', subdir)
+        l1c_dir = opj(l1cdir[sat], subdir)
         if not os.path.exists(l1c_dir):
-            print('no file ' + l1c_dir)
             continue
-        l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir,'*')
-        print(l2a_dir)
+
+        # TODO modify for landsat images
         l1c = glob.glob(opj(l1c_dir, 'S2*.SAFE'))
         if not l1c:
             print('WARNING, '+l1c_dir+' not loaded on /datalake')
             continue
         else:
             l1c=l1c[0]
-        l2a_maja = glob.glob(opj(l2a_dir, '*','S*MTD_ALL.xml'))[0]
+        l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
+        l2a_maja = glob.glob(opj(l2a_dir, '*','S*MTD_ALL.xml'))
+        if not l2a_maja:
+            print('WARNING, '+l2a_dir+' not loaded on /datalake')
+            continue
+        else:
+            l2a_maja=l2a_maja[0]
 
         # TODO clean up files on HPC-CNES for easy access
         # For the moment waterdetect set as None
-        wd_dir = opj(dirsat, 'S2-LAA-THEIA', subdir)
+        wd_dir = opj(dirsat, 'S2-L2A-THEIA', subdir)
         waterdetect = None  # glob.glob(opj(wd_dir, '*.tif'))[0]
 
         # ------------------
