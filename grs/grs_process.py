@@ -96,16 +96,17 @@ class process:
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
         tartmp = None
-        anggen = False
         if untar:
             basename = os.path.basename(file).replace('.tgz', '')
+            basename = os.path.basename(basename).replace('.tar.gz', '')
             tmp_dir = os.path.join(cfg.tmp_dir, basename)
-            # open tar archive to add potential file (e.g., angle files)
-            tartmp = tarfile.open(file, 'a')
             # open tar archive to extract files for data loading
             tmpzip = tarfile.open(file)
             tmpzip.extractall(tmp_dir)
-            file = glob.glob(tmp_dir + '/*MTL.txt')[0]
+            file = glob.glob(os.path.join(tmp_dir, '*MTL.*'))[0]
+            # open tar archive to add potential file (e.g., angle files) - InvalidHeaderError
+            if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
+                tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
 
         print("Reading...")
         print(file)
@@ -141,10 +142,23 @@ class process:
         ##################################
         # GENERATE BAND ANGLES (LANDSAT)
         ##################################
+        anggen = False
         if 'LANDSAT_8' in sensor:
             anggen = angle_generator().landsat(l2h)
         elif 'LANDSAT' in sensor:
-            angle_generator().landsat_tm(l2h)
+            anggen = angle_generator().landsat_tm(l2h)
+        print('anggen = {}'.format(anggen))
+        if anggen:
+            if tartmp:
+                print('writing angles to input file: ' + file_orig)
+                # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
+                # copy tgz image and add angle files
+                shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
+                for filename in os.listdir(tmp_dir):
+                    tartmp.add(os.path.join(tmp_dir, filename), filename)
+                tartmp.close()
+                shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
+
         # stop process for landsat angle computation only
         if angleonly:
             return
@@ -231,7 +245,8 @@ class process:
         ##################################
         l2h.aux = auxdata.cams()
 
-        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                                   l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
 
         if ancillary != 'default':
             l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
@@ -272,7 +287,11 @@ class process:
         # CAMS dataset
         elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
 
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y-%m') + '_month_' +
+            # monthly file
+            # target = Path(
+            #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+            #                  l2h.aerosol + '.nc'))
+            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
                                      l2h.aerosol + '.nc')
             l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
             aot550rast = l2h.aux.aot550rast #.T
@@ -341,7 +360,16 @@ class process:
         ######################################
 
         l2h.create_product(maja=maja, waterdetect=waterdetect)
-        l2h.load_data()
+        try:
+            l2h.load_data()
+        except:
+            if unzip:
+                # remove unzipped files (Sentinel files)
+                shutil.rmtree(file, ignore_errors=True)
+            if untar:
+                # remove untared files (Landsat files)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise NameError('No data available for requested area')
         l2h.load_flags()
 
         ######################################
@@ -475,13 +503,6 @@ class process:
             l2h.checksum('startrow ' + str(i))
 
         l2h.finalize_product()
-
-        if anggen:
-            # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
-            # copy tgz image and add angle files
-            landsat_file = file_orig.replace('.tgz', '')
-            shutil.make_archive(landsat_file, 'gztar', tmp_dir)
-            # os.rename(landsat_file,landsat_file.replace('.tar.gz','.tgz'))
 
         if unzip:
             # remove unzipped files (Sentinel files)

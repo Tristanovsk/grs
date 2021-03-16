@@ -5,7 +5,7 @@ from esasnappy import ProductUtils, ProductIO
 
 
 class angle_generator:
-    def landsat(self, l2h,tartmp=None):
+    def landsat(self, l2h, tartmp=None):
         '''
         Generate files for sensor and solar angles if files do not exist.
         Copy angles data into l2h.product.
@@ -19,7 +19,7 @@ class angle_generator:
 
         # anggen: True if angle file generated
         # (used to add files to 'image.tgz' folder
-        anggen=False
+        anggen = False
 
         # Sun angles
         ang_type = 'solar'
@@ -57,13 +57,13 @@ class angle_generator:
             if not os.path.isfile(ang_file):
                 arg = ' '.join([ang_header, 'SATELLITE', '1', '-b', ang_name[-1],'-f',str(nodatavalue)])
                 call(l2h.sensordata.angle_processor + ' ' + arg, shell=True)
+                anggen = True
                 # add generated file to tartmp
-
                 if tartmp != None:
                     tartmp.add(ang_file)
-                    tartmp.add(ang_file.replace('.hdr',''))
+                    tartmp.add(ang_file.replace('.hdr', ''))
 
-        #-- add to l2h.product
+            #-- add to l2h.product
             ang = ProductIO.readProduct(ang_file)
             for band in ang.getBandNames():
                 bandname=band+'_'+band_name
@@ -72,9 +72,10 @@ class angle_generator:
                 l2h.product.getBand(bandname).setScalingFactor(0.01)
                 l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
                 l2h.product.getBand(bandname).setNoDataValueUsed(True)
+
         return anggen
 
-    def landsat_tm(self, l2h):
+    def landsat_tm(self, l2h, tartmp=None):
         '''
         Angles computation for Landsat 4, 5, 7
         Generate files for sensor and solar angles if files do not exist.
@@ -87,6 +88,9 @@ class angle_generator:
           * ``-s 1`` -- subsampling option set to 1 (no subsampling)
 
         '''
+        # anggen: True if angle file generated
+        # (used to add files to 'image.tgz' folder
+        anggen = False
 
         # Call angle processor executable
         nodatavalue = 0
@@ -100,6 +104,11 @@ class angle_generator:
             if not os.path.isfile(solfile) or not os.path.isfile(senfile):
                 arg = ' '.join([ang_header, '-s 1'])
                 call(l2h.sensordata.angle_processor + ' ' + arg, shell=True)
+                anggen = True
+                # add generated file to tartmp
+                if tartmp != None:
+                    tartmp.add(ang_file)
+                    tartmp.add(ang_file.replace('.hdr', ''))
 
             #-- add to l2h.product
 
@@ -122,6 +131,8 @@ class angle_generator:
             l2h.product.getBand(bandname).setScalingFactor(0.01)
             l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
             l2h.product.getBand(bandname).setNoDataValueUsed(True)
+
+        return anggen
 
     # def sentinel2(self, l2h):
     #     ''' Generate files for sensor angles if files do not exist.
