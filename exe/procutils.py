@@ -157,4 +157,28 @@ class multi_process:
         sys.exit()
         return
 
+    def grs_cnes(self,args):
+
+        for arg in args:
+            file_tbp, outfile, aerosol, aeronet_file, ancillary, resolution, \
+            maja_xml, waterdetect_file, \
+            aot550, angstrom, mem_safe, unzip, untar, startrow, allpixels, angleonly = arg
+            print('yop',file_tbp)
+            #return
+
+            try:
+                from grs import grs_process
+                grs_process.process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
+                                              dem=True, aeronet_file=aeronet_file, resolution=resolution,
+                                              maja_xml=maja_xml, waterdetect_file=waterdetect_file,
+                                              aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
+                                              startrow=startrow, allpixels=allpixels, angleonly=angleonly)
+            except:
+                print('-------------------------------')
+                print('error for file  ', file_tbp, ' skip')
+                print('-------------------------------')
+                continue
+        # here sys.exit instead of "return" to terminate and close snappy and free memory
+        sys.exit()
+        return
 
