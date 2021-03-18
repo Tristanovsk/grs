@@ -21,10 +21,9 @@ misc = misc()
 
 # --------------------------------------------------------------------------------
 # set parameters
-# number of images to process within one jpy virtual machine (i.e., for one load of snappy)
-Nimage = 1
+
 # number of processors to be used
-ncore = 2
+ncore = 1
 
 lev = 'L2grs'
 
@@ -33,7 +32,7 @@ logdir = './tmp'
 dirsat = '/datalake/'
 
 l1cdir = {'s2': '/datalake/S2-L1C',
-             'landsat': '/datalake/L8-L1C/'}
+          'landsat': '/datalake/L8-L1C/'}
 odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
@@ -47,7 +46,7 @@ aot550 = 0.08  # used if aerosol = 'user_model'
 angstrom = 1.6  # used if aerosol = 'user_model'
 allpixels = False  # True
 
-sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
+# sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
 sitefile = 'exe/list_grs_cnes_template.csv'
 sites = pd.read_csv(sitefile)
 # --------------------------------------------------------------------------------
@@ -70,7 +69,6 @@ for idx, site in sites.iterrows():
     for date in daterange:
         # TODO add AMALTHEE call to load requested data
 
-
         # ------------------
         # check if L1C exists and set directories / files
         subdir = opj(tile, '{:04d}'.format(date.year), '{:02d}'.format(date.month), '{:02d}'.format(date.day))
@@ -81,17 +79,17 @@ for idx, site in sites.iterrows():
         # TODO modify for landsat images
         l1c = glob.glob(opj(l1c_dir, 'S2*.SAFE'))
         if not l1c:
-            print('WARNING, '+l1c_dir+' not loaded on /datalake')
+            #print(l1c_dir + ' not loaded on /datalake')
             continue
         else:
-            l1c=l1c[0]
+            l1c = l1c[0]
         l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
-        l2a_maja = glob.glob(opj(l2a_dir, '*','S*MTD_ALL.xml'))
+        l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
-            print('WARNING, '+l2a_dir+' not loaded on /datalake')
+            print(l2a_dir + ' not loaded on /datalake')
             continue
         else:
-            l2a_maja=l2a_maja[0]
+            l2a_maja = l2a_maja[0]
 
         # TODO clean up files on HPC-CNES for easy access
         # For the moment waterdetect set as None
@@ -101,18 +99,20 @@ for idx, site in sites.iterrows():
         # ------------------
         # check / create output directory
         odir = opj(odir_root[sat.lower()], subdir)
-        print(odir)
+
         if not os.path.exists(odir):
             os.makedirs(odir)
 
         # if bad definition of suffix
         if name != name:
             name = ''
-
+        # force no suffix
+        name = ''
         # ------------------
         # get image basename for output naming
         basename = os.path.basename(l1c)
         outfile = misc.set_ofile(basename, odir=odir, suffix=name)
+        print(outfile)
 
         sensor = misc.get_sensor(basename)
         if sensor == None:
@@ -137,7 +137,10 @@ for idx, site in sites.iterrows():
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
                           l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
+command = []
+for args in misc.chunk(iter(args_list), 1):
+    command.append(args)
 
 with Pool(processes=ncore) as pool:
-    pool.map(multi_process().grs_cnes, args_list, 1)
+    pool.map(multi_process().grs_cnes, command,1)
     pool.close
