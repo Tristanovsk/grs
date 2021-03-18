@@ -6,6 +6,15 @@
 #PBS -l select=1:ncpus=2:mem=8000mb
 #PBS -l walltime=48:00:00
 
-module load python
+module load snap/8.0 conda jdk/1.8.0_112
+#otb-depends/7.0-python3.6.5
+
+#set the variable environment for je jpy and snap use
+export JDK_HOME=$JDKHOME
+export JAVAHOME=$JAVA_HOME
+export SNAP_HOME=$SNAPHOME
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+
+conda activate /work/scratch/harmelt/grs_py3.6
 
 python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all
