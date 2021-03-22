@@ -17,4 +17,30 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 conda activate /work/scratch/harmelt/grs_py3.6
 
-python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all
+# ln -s /etc/pki/tls $C
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+o
+
+
+
+
+.......0000ONDA_PREFIX/ssl
+$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all

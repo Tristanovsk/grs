@@ -38,7 +38,7 @@ def main(dic):
     elif data_type == 'cams-reanalysis':
         class_ = 'mc'
         dataset = 'cams_reanalysis'
-        date = '20150301/TO/20170101'
+        #date = '20150301/TO/20170101'
         time = '00:00:00/06:00:00/12:00:00/18:00:00'
         type = 'an'
 
@@ -55,7 +55,7 @@ def main(dic):
     # specify the period to catch data
     # try:
     for year in [2020, 2020]:
-        for month in range(1, 12):
+        for month in range(1, 13):
             numberOfDays = calendar.monthrange(year, month)[1]
             date = str(year) + str(month).zfill(2) + "01/TO/" + str(year) + str(month).zfill(2) + str(numberOfDays)
             print(date)
@@ -68,6 +68,7 @@ def main(dic):
                 'param': "125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210", \
                 'step': "0",
                 'stream': 'oper',
+                'step': step,
                 'time': time,
                 'type': type,
                 'format': 'netcdf',
