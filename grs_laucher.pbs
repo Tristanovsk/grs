@@ -3,7 +3,7 @@
 #!/bin/bash
 
 #PBS -N grs
-#PBS -l select=8:ncpus=12:mem=60gb
+#PBS -l select=4:ncpus=4:mem=60gb
 #PBS -l walltime=24:00:00
 
 #load avail module for conda, snap and jdk
@@ -20,9 +20,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 ##activate conda environement python 3.6
 conda activate /work/scratch/harmelt/grs_py3.6
 cd /work/ALT/swot/aval/OBS2CO/git/grs2
-python exe/grs_tiles_cnes.py
+#python exe/grs_tiles_cnes.py
 
-grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
+# grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2B_MSIL1C_20201214T092309_N0209_R093_T33PVP_20201214T113135.SAFE --odir test_cluster/results/ --aerosol cams_forecast --dem --resolution 20
 
@@ -31,3 +31,4 @@ grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVQ_20201219T103844.SAFE --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2B_MSIL1C_20190607T104029_N0207_R008_T31TFJ_20190607T125247.SAFE --odir test/results/ --aerosol cams_forecast --dem --resolution 20
+grs /datalake/S2-L1C/33PVR/2020/12/19/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVR_20201219T103844.SAFE -o /datalake/watcal/S2-L2GRS/33PVR/2020/12/19/33PVR/S2A_MSIl2grs_20201219T092411_N0209_R093_T33PVR_20201219T103844 --aerosol cams_forecast --maja /datalake/S2-L2A-THEIA/33PVR/2020/12/19/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2_MTD_ALL.xml --dem
