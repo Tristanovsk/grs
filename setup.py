@@ -30,7 +30,7 @@ setup(
     #                  'matplotlib','docopt','GDAL','python-dateutil','pyproj'],
 
    
-    install_requires=['pandas==1.1.3','geopandas==0.9.0','scipy==1.5.3','numpy==1.19.1','netCDF4==1.5.5',
+    install_requires=['cdsapi','pandas==1.1.3','geopandas==0.9.0','scipy==1.5.3','numpy==1.19.1','netCDF4==1.5.5',
                       'matplotlib==3.3.3','docopt==0.6.2','GDAL==3.0.2','python-dateutil==2.8.1','pyproj==3.0.0.post1', 'Shapely==1.7.1', 'xarray'],
 
 

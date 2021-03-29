@@ -93,11 +93,14 @@ subroutine main_algo(npix, nband, naot, &
         i = 0
         success = 0
         do
-            !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
-            !TODO  and for AOT > 0.8
-            aotpt(:) = max(aotpt * scale, 0.01)
-            aotpt(:) = min(aotpt * scale, 0.8)
+            aotpt(:) = aotpt * scale
+            aotpt(:) = max(aotpt, 0.01)
+            aotpt(:) = min(aotpt, 0.8)
             do iband = nband, 1, -1
+                !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
+                !TODO  and for AOT > 0.8
+
+
                 muv(iband, ipix) = cos(vza(iband, ipix) * degrad)
                 call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_f(:, iband, ipix),&
                         &  maot, aotpt, rsimf(iband), intpol, w, l_w, iw, l_iw, ier)

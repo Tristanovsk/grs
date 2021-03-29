@@ -417,7 +417,7 @@ class info:
         #
         # print('product name is : ' + self.outfile_ext)
 
-        ac_product.setProductWriter(writer)
+        #ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
         ac_product.setStartTime(product.getStartTime())

@@ -1,46 +1,25 @@
 #Recuperer les donnees ecmwf cams à travers un job PBS  :
 #To be launched with -V option
 #!/bin/bash
-
+#PBS -V
 #PBS -N ecmwf_cams
-#PBS -l select=1:ncpus=2:mem=8000mb
+#PBS -l select=6:ncpus=2:mem=2000mb
 #PBS -l walltime=48:00:00
 
-module load snap/8.0 conda jdk/1.8.0_112
-#otb-depends/7.0-python3.6.5
-
-#set the variable environment for je jpy and snap use
-export JDK_HOME=$JDKHOME
-export JAVAHOME=$JAVA_HOME
-export SNAP_HOME=$SNAPHOME
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+module load conda
 
 conda activate /work/scratch/harmelt/grs_py3.6
 
-# ln -s /etc/pki/tls $C
+# ln -s /etc/pki/tls $CONDA_PREFIX/ssl
+for year in 2016 2017 2018; do
+$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-forecast all $year $year &
+done
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2003 2006 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2007 2009 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2010 2012 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2013 2015 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2016 2018
+
+wait
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-o
-
-
-
-
-.......0000ONDA_PREFIX/ssl
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all

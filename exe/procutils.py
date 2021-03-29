@@ -105,8 +105,8 @@ class misc:
         # outfile = outfile.replace('.SAFE', '').rstrip('/')
         # outfile = outfile.replace('.zip', '').rstrip('/')
         # outfile = outfile.replace('.txt', '').rstrip('/')
-
-        path = os.path.join(odir, self.get_tile(file), outfile + suffix)
+        #self.get_tile(file),
+        path = os.path.join(odir, outfile + suffix)
         print(path)
         return path
 
