@@ -146,7 +146,7 @@ def main():
 
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
-    process().execute(file, outfile, wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
+    process().execute(file, outfile, wkt=wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       maja_xml=maja_xml, waterdetect_file=waterdetect_file, waterdetect_only=waterdetect_only,
                       aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,

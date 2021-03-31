@@ -23,7 +23,7 @@ misc = misc()
 # set parameters
 
 # number of processors to be used
-ncore = 4
+ncore = 2
 
 lev = 'L2grs'
 
@@ -142,5 +142,6 @@ for args in misc.chunk(iter(args_list), 1):
     command.append(args)
 
 with Pool(processes=ncore) as pool:
-    pool.map(multi_process().grs_cnes, command,1)
-    pool.close
+    print(pool.map(multi_process().grs_cnes, command,1))
+    pool.close()
+    pool.join()

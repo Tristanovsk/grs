@@ -27,7 +27,7 @@ class process:
     def __init__(self):
         pass
 
-    def execute(self, file, outfile, wkt, sensor=None, aerosol='default', ancillary=None, altitude=0,
+    def execute(self, file, outfile, wkt=None, sensor=None, aerosol='default', ancillary=None, altitude=0,
                 dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
                 startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
                 memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
@@ -178,7 +178,8 @@ class process:
         # SUBSET TO AREA OF INTEREST
         ##################################
         try:
-            l2h.product = _utils.get_subset(l2h.product, wkt)
+            if wkt is not None:
+                l2h.product = _utils.get_subset(l2h.product, wkt)
             l2h.get_product_info()
         except:
             if unzip:

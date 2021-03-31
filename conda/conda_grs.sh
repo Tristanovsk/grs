@@ -44,14 +44,18 @@ export JAVAHOME=$JAVA_HOME
 export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
+
 #activate conda environement python 3.6
 conda activate /work/scratch/$USER/grs_py3.6
-
+echo $USER
 
 #configuration for snap
 # go to the $SNAPHOME environment and configure snappy
 pythonpath=$(which python)
 echo $pythonpath
+
+pippath=$(which pip)
+echo $pippath
 
 #Install snappy
 #$SNAPHOME/bin/snappy-conf $pythonpath 
@@ -62,7 +66,7 @@ then
 fi
 
 
-echo $'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=8000' > $HOME/.snap/etc/snap.properties
+echo $'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > $HOME/.snap/etc/snap.properties
 
 #Install the jpy package used by snappy
 pip install /work/ALT/swot/aval/OBS2CO/snap/snappy/lib/jpy-0.9.0-cp36-cp36m-linux_x86_64.whl nco

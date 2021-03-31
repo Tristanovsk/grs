@@ -169,17 +169,18 @@ class multi_process:
 
             #try:
             from grs import grs_process
+            print('------GRS loaded !!')
             grs_process.process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
                                           dem=True, aeronet_file=aeronet_file, resolution=resolution,
                                           maja_xml=maja_xml, waterdetect_file=waterdetect_file,
                                           aot550=aot550, angstrom=angstrom, memory_safe=mem_safe,
                                            allpixels=allpixels, angleonly=angleonly)
             # except:
-            #     print('-------------------------------')
+            print('-------------------------------')
             #     print('error for file  ', file_tbp, ' skip')
             #     print('-------------------------------')
             #     continue
         # here sys.exit instead of "return" to terminate and close snappy and free memory
-        sys.exit()
+        # sys.exit()
         return
 

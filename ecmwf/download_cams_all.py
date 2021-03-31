@@ -31,7 +31,7 @@ def main(dic):
 
     # dataset will be download by default from 2017 to 2020
     step = '0'
-    if data_type == 'cams-forecast':
+    if data_type == 'cams_forecast':
         class_ = 'mc'
         dataset = 'cams_nrealtime'
         time = '00:00:00'
@@ -40,7 +40,7 @@ def main(dic):
 
 
     # data will be download by default from 2000 to 2017
-    elif data_type == 'cams-reanalysis':
+    elif data_type == 'cams_reanalysis':
         class_ = 'mc'
         dataset = 'cams_reanalysis'
         # date = '20150301/TO/20170101'

@@ -21,6 +21,8 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 conda activate grs_py3.6
 cd /work/ALT/swot/aval/OBS2CO/git/grs2
 
+grs /datalake/S2-L1C/48QWE/2020/04/28/S2A_MSIL1C_20200428T032541_N0209_R018_T48QWE_20200428T062927.SAFE --aerosol cams_forecast --odir /work/ALT/swot/aval/OBS2CO/Test-GRS-sisppeo/results/ --dem --resolution 20 --waterdetect /work/ALT/swot/aval/OBS2CO/Output_WaterDetect/Mekong/2020-04/T48QWE/SENTINEL2A_20200428-034316-659_L2A_T48QWE_C_V2-2/AC_NB_mndwindwi/AC_NB_mndwindwi_water_mask.tif
+
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 
 #grs /work/ALT/swot/aval/OBS2CO/git/grsdata/INPUT_DATA/IMAGES/S2B_MSIL1C_20201214T092309_N0209_R093_T33PVP_20201214T113135.SAFE --odir test_cluster/results/ --aerosol cams_forecast --dem --resolution 20
