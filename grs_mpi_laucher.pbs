@@ -3,7 +3,7 @@
 #!/bin/bash
 
 #PBS -N mpi_grs
-#PBS -l select=1:ncpus=6:mpiprocs=4:mem=80gb
+#PBS -l select=1:ncpus=12:mpiprocs=8:mem=180gb
 #PBS -l walltime=24:00:00
 
 #load avail module for conda, snap and jdk
@@ -21,7 +21,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 conda activate /work/scratch/harmelt/grs_py3.6
 cd /work/ALT/swot/aval/OBS2CO/git/grs2
 
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=8
 python exe/grs_tiles_cnes.py
 
 #grs /datalake/S2-L1C/48QWE/2020/04/28/S2A_MSIL1C_20200428T032541_N0209_R018_T48QWE_20200428T062927.SAFE --maja /datalake/S2-L2A-THEIA/48QWE/2020/04/28/SENTINEL2A_20200428-034316-659_L2A_T48QWE_C_V2-2/SENTINEL2A_20200428-034316-659_L2A_T48QWE_C_V2-2_MTD_ALL.xml --aerosol cams_forecast --odir /work/ALT/swot/aval/OBS2CO/Test-GRS-sisppeo/results/ --dem --resolution 20 --waterdetect /work/ALT/swot/aval/OBS2CO/Output_WaterDetect/Mekong/2020-04/T48QWE/SENTINEL2A_20200428-034316-659_L2A_T48QWE_C_V2-2/AC_NB_mndwindwi/AC_NB_mndwindwi_water_mask.tif

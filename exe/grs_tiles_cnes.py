@@ -23,7 +23,7 @@ misc = misc()
 # set parameters
 
 # number of processors to be used
-ncore = 2
+ncore = 8
 
 lev = 'L2grs'
 
