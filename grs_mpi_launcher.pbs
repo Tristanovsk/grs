@@ -1,0 +1,47 @@
+# launch with qsub (PBS job)
+#!/bin/bash
+
+#PBS -N grs_tile
+#PBS -l select=1:ncpus=24:mpiprocs=8:mem=180gb
+#PBS -l walltime=48:00:00
+
+module load conda
+
+# set file path with list of images to process
+# format/header of the file in csv:
+# process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
+list_file=list_grs_cnes_obs2mod.csv
+GRSHOME=/home/eh/harmelt/scratch/dev/grs2
+list_filepath=$GRSHOME/exe/$list_file
+
+# ------------------------
+# first section: load L1C and L2A images with Amalthee
+# ------------------------
+
+conda activate /softs/rh7/conda-envs/amalthee_qualif_client
+python $GRSHOME/exe/call_amalthee.py $list_filepath
+
+# ------------------------
+# second section: process available couples of L1C/L2A images with GRS
+# ------------------------
+
+#load modules snap and jdk
+module load snap/8.0 jdk/1.8.0_112
+
+#set the variable environment for je jpy and snap use
+export JDK_HOME=$JDKHOME
+export JAVAHOME=$JAVA_HOME
+export SNAP_HOME=$SNAPHOME
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+
+##activate conda environement python 3.6
+conda activate /work/scratch/harmelt/grs_py3.6
+
+## Put the path of your favorite GRS implementation (ex: cd /work/ALT/swot/aval/OBS2CO/git/grs2)
+# cd /work/scratch/harmelt/dev/grs2
+#cd /work/ALT/swot/aval/OBS2CO/git/grs2
+
+export OMP_NUM_THREADS=8
+python $GRSHOME/exe/grs_tiles_cnes.py $list_filepath $OMP_NUM_THREADS
+
+# grs /datalake/S2-L1C/33PVR/2020/12/19/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVR_20201219T103844.SAFE -o /datalake/watcal/S2-L2GRS/33PVR/2020/12/19/33PVR/S2A_MSIl2grs_20201219T092411_N0209_R093_T33PVR_20201219T103844 --aerosol cams_forecast --maja /datalake/S2-L2A-THEIA/33PVR/2020/12/19/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2_MTD_ALL.xml --dem

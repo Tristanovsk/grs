@@ -435,11 +435,13 @@ class process:
 
             # ---------
             # if maja L2A image provided, use AOT_MAJA product
-            if maja:
-                aot550guess = l2h.aot_maja[i]
-                # aot550guess[aot550guess < 0.01] = 0.01
-            else:
-                aot550guess = aot550rast[i]
+            # AOT_maja seems to be largely overestimated, before further analyses: force usage of CAMS instead
+            # if maja:
+            #     aot550guess = l2h.aot_maja[i]
+            #     # aot550guess[aot550guess < 0.01] = 0.01
+            # else:
+            #     aot550guess = aot550rast[i]
+            aot550guess = aot550rast[i]
 
             for iband in range(l2h.N):
                 # preparing lut data

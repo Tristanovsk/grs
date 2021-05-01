@@ -1,6 +1,7 @@
 #Recuperer les donnees ecmwf cams à travers un job PBS  :
 #To be launched with -V option
 #!/bin/bash
+
 #PBS -V
 #PBS -N ecmwf_cams
 #PBS -l select=6:ncpus=2:mem=2000mb
@@ -11,8 +12,8 @@ module load conda
 conda activate /work/scratch/harmelt/grs_py3.6
 
 # ln -s /etc/pki/tls $CONDA_PREFIX/ssl
-for year in 2016 2017 2018; do
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-forecast all $year $year &
+for year in 2012 2013 2014 2015; do
+$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all $year $year &
 done
 #$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2003 2006 &
 #$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2007 2009 &

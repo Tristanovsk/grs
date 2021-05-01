@@ -1,11 +1,8 @@
-
-
-
 import os, sys
 
 import argparse
 from datetime import date
-
+import calendar
 from ecmwfapi import ECMWFDataServer
 
 """
@@ -38,7 +35,6 @@ def main(dic):
         step = '0/6/12/18'
         type = 'fc'
 
-
     # data will be download by default from 2000 to 2017
     elif data_type == 'cams_reanalysis':
         class_ = 'mc'
@@ -55,15 +51,19 @@ def main(dic):
         print('Error: not appropriate dataset for ecmwf/cams download')
         sys.exit()
 
-    import calendar
-
     # specify the period to catch data
     # try:
-    for year in range(year_start, year_end+1):
+    for year in range(year_start, year_end + 1):
         odir = "/datalake/watcal/ECMWF/CAMS/" + str(year) + "/"
         if not os.path.exists(odir):
             os.makedirs(odir)
         for month in range(1, 13):
+            target = odir + str(year) + "-" + str(month).zfill(
+                2) + "_month_" + data_type + ".nc"
+
+            if os.path.exists(target):
+                continue
+
             numberOfDays = calendar.monthrange(year, month)[1]
             date = str(year) + str(month).zfill(2) + "01/TO/" + str(year) + str(month).zfill(2) + str(numberOfDays)
             print(date)
@@ -73,16 +73,16 @@ def main(dic):
                 'date': date,
                 'grid': "0.125/0.125",
                 'levtype': 'sfc',
-                'param': "125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210", \
- \
+                'param': "125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210",
                 'stream': 'oper',
                 'step': step,
                 'time': time,
                 'type': type,
                 'format': 'netcdf',
                 'area': "90/-180/-90/180",
-                'target': odir + str(year) + "-" + str(month).zfill(
-                    2) + "_month_" + data_type + ".nc"})
+                'target': target
+            })
+    return
     # except:
     #    print('Error: not appropriate cams settings for download. Refers to ecmwf.')
     #    sys.exit()

@@ -12,6 +12,10 @@ import glob
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 
+# CNES lib for datalake managment
+# import lxml
+# from libamalthee import Amalthee
+
 sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
 from exe.procutils import misc, multi_process
@@ -21,9 +25,16 @@ misc = misc()
 
 # --------------------------------------------------------------------------------
 # set parameters
+# data source to fill datalake
+# amalthee = Amalthee('peps')
+
+sitefile = sys.argv[1]
 
 # number of processors to be used
-ncore = 8
+ncore =int(sys.argv[2])
+
+# sitefile = 'exe/list_grs_cnes_obs2mod.csv'
+sites = pd.read_csv(sitefile)
 
 lev = 'L2grs'
 
@@ -37,7 +48,7 @@ odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True  # False #True
+noclobber = True # False #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'
@@ -46,9 +57,7 @@ aot550 = 0.08  # used if aerosol = 'user_model'
 angstrom = 1.6  # used if aerosol = 'user_model'
 allpixels = False  # True
 
-# sitefile = sys.argv[1]  # 'exe/List_images_grs_template.csv'
-sitefile = 'exe/list_grs_cnes_template.csv'
-sites = pd.read_csv(sitefile)
+
 # --------------------------------------------------------------------------------
 
 args_list = []
@@ -57,7 +66,7 @@ for idx, site in sites.iterrows():
     # load row of list file
     if site.iloc[0] == 0:
         continue
-    name, start_date, end_date, sat, tile, resolution = site.iloc[1:]
+    name, start_date, end_date, sat, tile, lat, lon, resolution = site.iloc[1:]
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
@@ -79,7 +88,7 @@ for idx, site in sites.iterrows():
         # TODO modify for landsat images
         l1c = glob.glob(opj(l1c_dir, 'S2*.SAFE'))
         if not l1c:
-            #print(l1c_dir + ' not loaded on /datalake')
+            # print(l1c_dir + ' not loaded on /datalake')
             continue
         else:
             l1c = l1c[0]
@@ -113,6 +122,9 @@ for idx, site in sites.iterrows():
         basename = os.path.basename(l1c)
         outfile = misc.set_ofile(basename, odir=odir, suffix=name)
         print(outfile)
+        if noclobber & os.path.exists(outfile + '.nc'):
+            print(basename, ' already processed; skipping image; set noclobber as False to force processing')
+            continue
 
         sensor = misc.get_sensor(basename)
         if sensor == None:
@@ -142,6 +154,6 @@ for args in misc.chunk(iter(args_list), 1):
     command.append(args)
 
 with Pool(processes=ncore) as pool:
-    print(pool.map(multi_process().grs_cnes, command,1))
+    print(pool.map(multi_process().grs_cnes, command, 1))
     pool.close()
     pool.join()

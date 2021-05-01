@@ -316,5 +316,6 @@ class misc:
            alt : altitude in meters (float or np.array)
            psl : pressure at sea level in hPa
            palt : pressure at the given altitude in hPa'''
-        palt = psl * (1. - 0.0065 * alt / 288.15) ** 5.255
+
+        palt = psl * (1. - 0.0065 * np.nan_to_num(alt) / 288.15) ** 5.255
         return palt
