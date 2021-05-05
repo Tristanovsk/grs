@@ -89,7 +89,7 @@ def main(dic):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Downlad Cams datasets.')
+    parser = argparse.ArgumentParser(description='Download Cams datasets.')
     parser.add_argument('mode',
                         help='the cams_forecast or cams_reanalysis mode')
     parser.add_argument('month',

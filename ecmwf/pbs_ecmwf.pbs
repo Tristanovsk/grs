@@ -12,7 +12,7 @@ module load conda
 conda activate /work/scratch/harmelt/grs_py3.6
 
 # ln -s /etc/pki/tls $CONDA_PREFIX/ssl
-for year in 2012 2013 2014 2015; do
+for year in 2021 2015; do
 $CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all $year $year &
 done
 #$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams-reanalysis all 2003 2006 &

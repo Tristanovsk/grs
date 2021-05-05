@@ -1,7 +1,8 @@
 # launch with qsub (PBS job)
 #!/bin/bash
 
-#PBS -N grs_tile
+#PBS -V
+#PBS -N grs_nice_obs2mod
 #PBS -l select=1:ncpus=24:mpiprocs=8:mem=180gb
 #PBS -l walltime=48:00:00
 
@@ -11,6 +12,8 @@ module load conda
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
 list_file=list_grs_cnes_obs2mod.csv
+# list_file=list_grs_cnes_gernez.csv
+
 GRSHOME=/home/eh/harmelt/scratch/dev/grs2
 list_filepath=$GRSHOME/exe/$list_file
 

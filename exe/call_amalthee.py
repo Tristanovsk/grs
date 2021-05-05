@@ -23,7 +23,7 @@ L1C = Amalthee('peps')
 # start_date, end_date = '2018-01-01', '2018-01-20'
 # tile, lon, lat = '33PVR', '14.6', '14'
 
-sitefile = 'list_grs_cnes_obs2mod.csv'
+sitefile = 'exe/list_grs_cnes_obs2mod.csv'
 sitefile = sys.argv[1]
 sites = pd.read_csv(sitefile)
 
@@ -49,6 +49,7 @@ for idx, site in sites.iterrows():
     while not finished:
         L1C.check_datalake()
         L2A.check_datalake()
+        L2A.products.loc[L2A.products.state == 'failed','available']=True
         finished = all(L2A.products.available) and all(L1C.products.available)
         time.sleep(3)
     print('Finished!!')
