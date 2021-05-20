@@ -46,10 +46,21 @@ for idx, site in sites.iterrows():
     L2A.fill_datalake()
 
     finished = False
+    finished_L1C = False
+    iwait = 0
     while not finished:
-        L1C.check_datalake()
+        res = L1C.check_datalake()
+        try:
+            if res['status'] == 'job_status: CANCELED':
+                finished_L1C = True
+        except:
+            pass
         L2A.check_datalake()
-        L2A.products.loc[L2A.products.state == 'failed','available']=True
-        finished = all(L2A.products.available) and all(L1C.products.available)
+        L2A.products.loc[L2A.products.state == 'failed', 'available'] = True
+        finished = all(L2A.products.available) and (all(L1C.products.available) or finished_L1C)
         time.sleep(3)
+        iwait += 1
+        if iwait > 2000:
+            finished = True
+
     print('Finished!!')
