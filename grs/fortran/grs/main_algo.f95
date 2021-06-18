@@ -94,7 +94,7 @@ subroutine main_algo(npix, nband, naot, &
         i = 0
         success = 0
         do
-            aotpt(:) = aotpt * scale
+            !aotpt(:) = aotpt * scale
             aotpt(:) = max(aotpt, 0.01)
             aotpt(:) = min(aotpt, 0.8)
             do iband = nband, 1, -1
@@ -119,7 +119,7 @@ subroutine main_algo(npix, nband, naot, &
                 rcorrg(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
 
                 ! if negative values decrease aot
-                if(rcorrg(iband, ipix).lt.0. .and. iband .le. nband - 2 .and. i .le. 8)then
+                if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ipix) .lt. 0. .and. i .le. 8) then !iband .le. nband - 2 .and.
                     aotpt(:) = max(aotpt * scale, 0.01)
 
                     i = i + 1
