@@ -78,7 +78,7 @@ subroutine main_algo(npix, nband, naot, &
     ! scale = 0.975
 
     do ipix = 1, npix
-        scale = (0.01/aot550(ipix))**(1/8)*1.02
+        scale = (0.01/aot550(ipix))**(1d0/8)*1.02
         ! do not process masked pixels
         if (mask(ipix) .ne. 0) cycle
 
@@ -120,6 +120,7 @@ subroutine main_algo(npix, nband, naot, &
 
                 ! if negative values decrease aot
                 if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ipix) .lt. 0. .and. i .le. 8) then !iband .le. nband - 2 .and.
+                    print*,'aot adjustment',aotpt ,aotpt * scale,scale
                     aotpt(:) = max(aotpt * scale, 0.01)
 
                     i = i + 1
