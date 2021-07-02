@@ -48,7 +48,7 @@ odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False # True #True
+noclobber = True # False #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'
@@ -96,7 +96,7 @@ for idx, site in sites.iterrows():
         l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
             print(l2a_dir + ' not loaded on /datalake')
-            # continue
+            continue
             l2a_maja = None
         else:
             l2a_maja = l2a_maja[0]
@@ -105,6 +105,15 @@ for idx, site in sites.iterrows():
         # For the moment waterdetect set as None
         wd_dir = opj(dirsat, 'S2-L2A-THEIA', subdir)
         waterdetect = None  # glob.glob(opj(wd_dir, '*.tif'))[0]
+        #for David processing
+        if "guimaraes" in sitefile:
+            wd_dir = opj('/work/datalake/watcal/GRS/wd_masks', subdir)
+
+            waterdetect = glob.glob(opj(wd_dir, '*.tif'))
+            if len(waterdetect)==0:
+                continue
+            else:
+                waterdetect =waterdetect[0]
 
         # ------------------
         # check / create output directory

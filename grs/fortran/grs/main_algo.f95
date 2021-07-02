@@ -75,10 +75,10 @@ subroutine main_algo(npix, nband, naot, &
     aot550_est = nodata
     !----------------------------------------------
 
-    ! scale = 0.975
+    scale = 0.95
 
     do ipix = 1, npix
-        scale = (0.01/aot550(ipix))**(1d0/8)*1.02
+        ! scale = (0.01/aot550(ipix))**(1d0/8)*1.02
         ! do not process masked pixels
         if (mask(ipix) .ne. 0) cycle
 
