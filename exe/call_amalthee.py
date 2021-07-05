@@ -67,7 +67,7 @@ for idx, site in sites.iterrows():
         except:
             pass
         # L2A.products.loc[L2A.products.state == 'failed', 'available'] = True
-        finished = all(L2A.products.available or finished_L2A) and (all(L1C.products.available) or finished_L1C)
+        finished = (all(L2A.products.available) or finished_L2A) and (all(L1C.products.available) or finished_L1C)
         time.sleep(3)
 
         iwait += 1
