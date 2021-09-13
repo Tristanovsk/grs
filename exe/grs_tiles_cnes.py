@@ -96,7 +96,7 @@ for idx, site in sites.iterrows():
         l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
             print(l2a_dir + ' not loaded on /datalake')
-            continue
+            #continue
             l2a_maja = None
         else:
             l2a_maja = l2a_maja[0]

@@ -2,7 +2,7 @@
 #!/bin/bash
 
 #PBS -V
-#PBS -N grs_ge
+#PBS -N grs_s
 #PBS -l select=1:ncpus=24:mpiprocs=8:mem=180gb
 #PBS -l walltime=48:00:00
 
@@ -13,7 +13,7 @@ module load conda
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
 list_file=list_grs_cnes_obs2mod.csv
 list_file=list_grs_cnes_guimaraes.csv
-#list_file=list_grs_cnes_seine.csv
+list_file=list_grs_cnes_seine.csv
 list_file=list_grs_gernez_juillet_2021.csv
 #list_file=list_grs_cnes_gernez.csv
 
@@ -23,9 +23,9 @@ list_filepath=$GRSHOME/exe/$list_file
 # ------------------------
 # first section: load L1C and L2A images with Amalthee
 # ------------------------
-
-conda activate /softs/rh7/conda-envs/amalthee_qualif_client
-/softs/rh7/conda-envs/amalthee_qualif_client/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
+path_of_env=/softs/rh7/conda-envs/amalthee_prod_client
+conda activate $path_of_env
+$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 
 # ------------------------
 # second section: process available couples of L1C/L2A images with GRS

@@ -12,9 +12,9 @@ conda activate /work/scratch/harmelt/grs_py3.6
 
 # ln -s /etc/pki/tls $CONDA_PREFIX/ssl
 
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2016 2017 &
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2018 2019 &
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2020 2020 &
+$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2021 2021 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2018 2019 &
+#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2020 2020 &
 
 wait
 
