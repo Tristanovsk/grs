@@ -465,7 +465,7 @@ class cams:
 
         self.aot = np.zeros(N, dtype=np.float32)
         self.aot_std = np.zeros(N, dtype=np.float32)
-        self.aot_wl = [469, 550, 670, 865, 1240]
+        self.aot_wl = wls
 
         # load CAMS netcdf file
         cams_xr = xr.open_dataset(cams_file)

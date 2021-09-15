@@ -5,6 +5,8 @@ done
 
 
 list_file="exe/list_grs_cnes_gernez.csv"
+
+list_file="exe/list_grs_gernez_juillet_2021.csv"
 for tile in `awk -F ',' '{print $6}'  $list_file`; do
   dropbox_uploader.sh -s upload /datalake/watcal/S2-L2GRS/$tile /satellite/S2/cnes/
 done

@@ -9,12 +9,16 @@
 module load conda
 
 conda activate /work/scratch/harmelt/grs_py3.6
+# using gitlab package
+api_call=/work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py
+# or personal package:
+api_call=/work/scratch/harmelt/dev/grs2/ecmwf/download_cams_cds.py
 
 # ln -s /etc/pki/tls $CONDA_PREFIX/ssl
 
-$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2021 2021 &
-#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2018 2019 &
-#$CONDA_PREFIX/bin/python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_cds.py  2020 2020 &
+$CONDA_PREFIX/bin/python $api_call 2021 2021 forecast &
+#$CONDA_PREFIX/bin/python $api_call  2018 2019 &
+#$CONDA_PREFIX/bin/python $api_call  2020 2020 &
 
 wait
 

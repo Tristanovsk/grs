@@ -36,9 +36,9 @@ def main(dic):
                 data_type = 'cams-global-reanalysis-eac4'
                 datafile = odir + str(year) + '-' + str(month).zfill(
                     2) + '_month_' + data_type + '.nc'
-                if os.path.exist(datafile):
+                if os.path.exists(datafile):
                     continue
-                print('processing '+datafile+'...')
+                print('processing ' + datafile + '...')
 
                 c.retrieve(
                     data_type,
@@ -56,7 +56,8 @@ def main(dic):
                             'mean_sea_level_pressure',
                             'organic_matter_aerosol_optical_depth_550nm', 'sea_salt_aerosol_optical_depth_550nm',
                             'sulphate_aerosol_optical_depth_550nm',
-                            'surface_pressure', 'total_aerosol_optical_depth_1240nm', 'total_aerosol_optical_depth_469nm',
+                            'surface_pressure', 'total_aerosol_optical_depth_1240nm',
+                            'total_aerosol_optical_depth_469nm',
                             'total_aerosol_optical_depth_550nm', 'total_aerosol_optical_depth_670nm',
                             'total_aerosol_optical_depth_865nm',
                             'total_column_carbon_monoxide', 'total_column_methane', 'total_column_nitrogen_dioxide',
@@ -68,10 +69,11 @@ def main(dic):
             else:
                 data_type = 'cams-global-atmospheric-composition-forecasts'
                 datafile = odir + str(year) + '-' + str(month).zfill(
-                        2) + '_month_' + data_type + '.nc'
+                    2) + '_month_' + data_type + '.nc'
 
-                if os.path.exist(datafile):
-                    continue
+                if os.path.exists(datafile):
+                    print('!!' + datafile + 'already exists !!')
+                    # continue
                 print('processing ' + datafile + '...')
 
                 c.retrieve(
@@ -82,19 +84,38 @@ def main(dic):
                         'format': 'netcdf',
                         'variable': [
                             '10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature',
-                            'mean_sea_level_pressure', 'surface_pressure', 'total_absorption_aerosol_optical_depth_1020nm',
-                            'total_absorption_aerosol_optical_depth_1240nm',
-                            'total_absorption_aerosol_optical_depth_2130nm', 'total_absorption_aerosol_optical_depth_340nm',
-                            'total_absorption_aerosol_optical_depth_380nm', 'total_absorption_aerosol_optical_depth_440nm',
-                            'total_absorption_aerosol_optical_depth_500nm',
-                            'total_absorption_aerosol_optical_depth_550nm', 'total_absorption_aerosol_optical_depth_670nm',
-                            'total_absorption_aerosol_optical_depth_858nm',
-                            'total_aerosol_optical_depth_1064nm', 'total_aerosol_optical_depth_2130nm',
+                            'mean_sea_level_pressure', 'surface_pressure',
+                            'single_scattering_albedo_1020nm',
+                            'single_scattering_albedo_1240nm',
+                            'single_scattering_albedo_1640nm',
+                            'single_scattering_albedo_2130nm',
+                            'single_scattering_albedo_355nm',
+                            'single_scattering_albedo_380nm',
+                            'single_scattering_albedo_400nm',
+                            'single_scattering_albedo_440nm',
+                            'single_scattering_albedo_500nm',
+                            'single_scattering_albedo_550nm',
+                            'single_scattering_albedo_645nm',
+                            'single_scattering_albedo_670nm',
+                            'single_scattering_albedo_800nm',
+                            'single_scattering_albedo_865nm',
+                            'total_aerosol_optical_depth_1020nm',
+                            'total_aerosol_optical_depth_1064nm',
+                            'total_aerosol_optical_depth_1240nm',
+                            'total_aerosol_optical_depth_1640nm',
+                            'total_aerosol_optical_depth_2130nm',
                             'total_aerosol_optical_depth_355nm',
-                            'total_aerosol_optical_depth_400nm', 'total_aerosol_optical_depth_500nm',
+                            'total_aerosol_optical_depth_380nm',
+                            'total_aerosol_optical_depth_400nm',
+                            'total_aerosol_optical_depth_440nm',
+                            'total_aerosol_optical_depth_469nm',
+                            'total_aerosol_optical_depth_500nm',
+                            'total_aerosol_optical_depth_550nm',
                             'total_aerosol_optical_depth_645nm',
-                            'total_aerosol_optical_depth_858nm', 'total_column_carbon_monoxide',
-                            'total_column_formaldehyde',
+                            'total_aerosol_optical_depth_670nm',
+                            'total_aerosol_optical_depth_800nm',
+                            'total_aerosol_optical_depth_865nm',
+                            'total_column_carbon_monoxide', 'total_column_formaldehyde',
                             'total_column_hydroxyl_radical', 'total_column_methane', 'total_column_nitrogen_dioxide',
                             'total_column_ozone', 'total_column_propane', 'total_column_water_vapour',
                         ],
@@ -105,7 +126,7 @@ def main(dic):
                         ],
                         'time': '00:00',
                     },
-                     datafile)
+                    datafile)
 
 
 # except:
