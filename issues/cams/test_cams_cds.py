@@ -14,13 +14,12 @@ cams_file = '/datalake/watcal/ECMWF/CAMS/2021/2021-03_month_cams-global-atmosphe
 lonmin, lonmax, latmin, latmax = 113.9, 114.9, 21.6, 22.6
 
 
-
 class lut:
     '''Load LUT FROM RT COMPUTATION (OSOAA_h)
     '''
 
     def __init__(self, wls=[442.3110, 492.1326, 558.9499, 664.9380, 703.8308, 739.1290,
-                                    779.7236, 832.9462, 863.9796, 1610.4191, 2185.6988]):
+                            779.7236, 832.9462, 863.9796, 1610.4191, 2185.6988]):
 
         self.smac_bands = []
         self.N = len(wls)
@@ -35,7 +34,8 @@ class lut:
         self.aot = []
         self.refl = []
 
-    def load_lut(self, lut_file, ind_wl=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], aot=[0.01, 0.05, 0.1, 0.3, 0.5, 0.8], vza_max=20, reflectance=True):
+    def load_lut(self, lut_file, ind_wl=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], aot=[0.01, 0.05, 0.1, 0.3, 0.5, 0.8],
+                 vza_max=20, reflectance=True):
         '''load lut calculated from OSOAA code
 
             Arguments:
@@ -123,6 +123,7 @@ class aerosol:
     '''
     aerosol parameters and parameterizations
     '''
+
     def __init__(self):
         self.aot550 = 0.1
         self.wavelengths = []
@@ -167,6 +168,7 @@ class aerosol:
               .
             '''
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
+        return self.fcoef
 
 
 def subset_xr(ds, lonmin, lonmax, latmin, latmax, lat='latitude', lon='longitude'):
@@ -185,90 +187,175 @@ def subset_xr(ds, lonmin, lonmax, latmin, latmax, lat='latitude', lon='longitude
     mask_lat = (ds[lat] >= latmin) & (ds[lat] <= latmax)
     return ds.where(mask_lon & mask_lat, drop=True)
 
-lut_root=os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata/LUT')
+
+lut_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata/LUT')
 aero = 'rg0.10_sig0.46'
 lutfine = os.path.join(lut_root,
-                            'S2B/lut_' + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
+                       'S2B/lut_' + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
 aero = 'rg0.80_sig0.60'
 lutcoarse = os.path.join(lut_root,
-                              'S2B/lut_' + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
+                         'S2B/lut_' + 'osoaa_band_integrated_aot0.01_aero_' + aero + '_ws2_pressure1015.2.nc')
 
 lutf = lut()
 lutc = lut()
 lutf.load_lut(lutfine)
 lutc.load_lut(lutcoarse)
-wlsat=lutf.wl
+wlsat = lutf.wl
 date = dt.datetime(2021, 3, 25, 2, 55)
 day = date.strftime(date.strftime('%Y-%m-%d'))
-wls=[380, 400,440,500,550,645,670,800,865,1020,1240,1640,2130]
-idx550=4
-N = len(wls)
-aot = np.zeros(N, dtype=float)
-ssa = np.zeros(N, dtype=float)
+wls = [380, 400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]
+idx550 = 4
+N = len(wlsat)
 
-params=[]
+param_ssa, param_aod = [], []
 for wl in wls:
-    wl_=str(wl)
-    params.append('aod'+wl_)
-    params.append('ssa'+wl_)
+    wl_ = str(wl)
+    param_aod.append('aod' + wl_)
+    param_ssa.append('ssa' + wl_)
+params = param_ssa + param_aod
+
+# ---------------------------------
+# open/load desired parameters
+# ---------------------------------
 cams_xr = xr.open_dataset(cams_file)[params]
 cams_daily = cams_xr.sel(time=day)
 
-#cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
+# ---------------------------------
+# subset
+# ---------------------------------
+# cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
 cams_sub = subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
 
-cams_grs = cams_sub.interp(time=date,kwargs={"fill_value": "extrapolate"})
-for i, wl in enumerate(wls):
-    param = 'ssa' + str(wl)
-    ssa[i] = cams_grs[param].mean().data
-    param = 'aod'+str(wl)
-    aot[i]= cams_grs[param].mean().data
+# ---------------------------------
+# interpolate through dates
+# ---------------------------------
+cams_grs = cams_sub.interp(time=date, kwargs={"fill_value": "extrapolate"})
 
-aot_sca = ssa*aot
-aot550=aot[idx550]
+# ---------------------------------
+# reshape to get ssa and aod as f(lon,lat,wavelength)
+# ---------------------------------
+cams_ssa = cams_grs[param_ssa].to_array(dim='wavelength')
+wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
+cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
+cams_aod = cams_grs[param_aod].to_array(dim='wavelength')
+wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
+cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
+
 aero = aerosol()
-aero_sca = aerosol()
 
-aero_sca.fit_spectral_aot(wls,aot_sca)
+r, c = cams_grs.aod550.shape
+aot_550 = np.zeros((r, c), dtype=float)
+fcoef = np.zeros((r, c), dtype=float)
+aot_ = np.zeros((N,r, c), dtype=float)
+ssa_grs = np.zeros((r, c, N), dtype=float)
+for ir in range(r):
+    for ic in range(c):
+        aero.fit_spectral_aot(cams_aod.wavelength, cams_aod.data[...,ir,ic])
+        aot_[:,ir,ic] = aero.get_spectral_aot(wlsat)
+
+ssa_grs = cams_ssa.interp(wavelength=wlsat,kwargs={"fill_value": "extrapolate"})
+aot_grs = ssa_grs.copy(data=aot_)
+aot_sca_grs = ssa_grs * aot_grs
+aot_sca_550 = aot_sca_grs.interp(wavelength=550,method='cubic')
+
+
+# normalization of Cext to get spectral dependence of fine and coarse modes
+nCext_f = lutf.Cext / lutf.Cext550
+nCext_c = lutc.Cext / lutc.Cext550
+for ir in range(r):
+    for ic in range(c):
+        fcoef[ir,ic] = aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[...,ir,ic] / aot_sca_550[ir,ic])
+fcoef = aot_sca_550.copy(data=fcoef)
+
+
+w, h = 512, 512
+fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
+
+fcoef.plot(ax=axs[0,0],cmap=plt.cm.Spectral_r)
+fcoef.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                       latitude=np.linspace(latmax, latmin, 12),
+                       kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[0,1],cmap=plt.cm.Spectral_r)
+aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,0],cmap=plt.cm.Spectral_r)
+aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, 12),
+                       latitude=np.linspace(latmax, latmin, 12),
+                       kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,1],cmap=plt.cm.Spectral_r)
+
+################################
+#########""
+###############################
+
+
+
+aot_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=0.61)
+ssa_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r) #, vmin=0.8, vmax=1)
+
+
+aero_sca.fit_spectral_aot(wls, aot_sca[0, 0])
 aot_grs = aero_sca.get_spectral_aot
-aot_grs550=aot_grs(550)
-aero.fit_spectral_aot(wls,aot)
+aot_grs550 = aot_grs(550)
+aero.fit_spectral_aot(wls, aot)
 aot_tot = aero.get_spectral_aot
-aot_tot550=aot_tot(550)
+aot_tot550 = aot_tot(550)
 
 # normalization of Cext to get spectral dependence of fine and coarse modes
 nCext_f = lutf.Cext / lutf.Cext550
 nCext_c = lutc.Cext / lutc.Cext550
 print('param aerosol', nCext_f, nCext_c, aot)
 
-aero_sca.fit_aero(nCext_f, nCext_c, aot_grs(wlsat) / aot_grs550)
+aero.fit_aero(nCext_f, nCext_c, aot_grs(wlsat) / aot_grs550)
+
 aero_sca.fcoef
 aero.fit_aero(nCext_f, nCext_c, aot_tot(wlsat) / aot_tot550)
 aero.fcoef
+
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.plot(wls,aot/aot550,'--ok')
-ax1.plot(wlsat,aot_tot(wlsat) / aot_tot550,'--og')
-ax1.plot(wlsat,nCext_f,':ob')
-ax1.plot(wlsat,nCext_c,':or')
+ax1.plot(wls, aot / aot550, '--ok')
+ax1.plot(wlsat, aot_tot(wlsat) / aot_tot550, '--og')
+ax1.plot(wlsat, nCext_f, ':ob')
+ax1.plot(wlsat, nCext_c, ':or')
+ax1.plot(wlsat, aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c, '*')
 
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax1.plot(wls, aot, '--ok')
+ax1.plot(wlsat, aot_tot(wlsat) , '--og')
 
-wl_ = np.linspace(400,2500,1001)
+ax1.plot(wlsat,( aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c), '*')
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax1.plot(wls, aot_sca / aot_grs550, '--ok')
+ax1.plot(wlsat, aot_grs(wlsat) / aot_grs550, '--og')
+ax1.plot(wlsat, nCext_f, ':ob')
+ax1.plot(wlsat, nCext_c, ':or')
+ax1.plot(wlsat, aero_sca.fcoef * nCext_f + (1 - aero_sca.fcoef) * nCext_c, '*')
+
+wl_ = np.linspace(400, 2500, 1001)
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
 ax2 = ax1.twinx()
-ax1.plot(wls,aot,'--o')
-ax1.plot(wlsat,aot_grs(wlsat),'--og')
-ax1.plot(wl_,aot_tot(wl_),'-r')
-ax1.plot(wl_,aot_grs(wl_),'-g')
+ax1.plot(wls, aot, '--o')
+ax1.plot(wlsat, aot_grs(wlsat), '--og')
+ax1.plot(wl_, aot_tot(wl_), '-r')
+ax1.plot(wl_, aot_grs(wl_), '-g')
 
-#ax1.plot(wls,ssa,'-or')
+# ax1.plot(wls,ssa,'-or')
 
-w,h = 512,512
+w, h = 512, 512
 plt.figure()
-cams_grs.aod500.plot(cmap=plt.cm.Spectral_r,vmin=0.4,vmax=1)
+cams_grs.aod500.plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=1)
 plt.figure()
 cams_grs.aod500.interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
-                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r,vmin=0.4,vmax=1)
+                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=1)
 aero = acutils.aerosol()
