@@ -244,6 +244,7 @@ class sensordata:
         self.cirrus = info['cirrus']
         self.high_nir = info['high_nir']
 
+
 class cams:
     '''
     Unit Conversion
@@ -448,44 +449,58 @@ class cams:
         return ds.where(mask_lon & mask_lat, drop=True)
 
     def get_xr_cams_aerosol(self, cams_file, product,
-                            wls=[469, 550, 670, 865, 1240],
-                            params=['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']):
+                            wls=[380, 400,440,500,550,645,670,800,865,1020,1240,1640,2130],
+                            idx550=4
+                            ):
         '''
-        Nearest neighbor in time
-        :param target:
-        :param date:
-        :param wkt:
+        CAMS aerosol data loading, subset and Interpolation
+        :param cams_file: absolute path of the CAMS netcdf file
+        :param product: l2grs object
+        :param wls: desired wavelengths to extract from database
+        :param i550: index of 550 nm wavelength in wls
         :return:
         '''
 
-        N = len(params)
+        N = len(wls)
         date = parser.parse(str(product.getStartTime()))
+        day = date.strftime(date.strftime('%Y-%m-%d'))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
         w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
 
-        self.aot = np.zeros(N, dtype=np.float32)
-        self.aot_std = np.zeros(N, dtype=np.float32)
+        self.aot = np.zeros(N, dtype=float)
+        self.aot_std = np.zeros(N, dtype=float)
         self.aot_wl = wls
+        self.ssa = np.zeros(N, dtype=float)
 
         # load CAMS netcdf file
-        cams_xr = xr.open_dataset(cams_file)
-        cams_xr = self.subset_xr(cams_xr, lonmin, lonmax, latmin, latmax)
-        cams_xr = cams_xr.interp(time=date)
+        params = []
+        for wl in wls:
+            wl_ = str(wl)
+            params.append('aod' + wl_)
+            params.append('ssa' + wl_)
+        cams_xr = xr.open_dataset(cams_file)[params]
 
-        for i, param in enumerate(params):
-            self.aot[i] = cams_xr[param].mean().data
-            self.aot_std[i] = cams_xr[param].std().data
-        self.aot550 = self.aot[1]
-        self.aot550_std = self.aot_std[1]
+        cams_daily = cams_xr.sel(time=day)
+        cams_ = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+        cams_ = cams_.interp(time=date, kwargs={"fill_value": "extrapolate"})
 
+        for i, wl in enumerate(wls):
+            param = 'aod' + str(wl)
+            self.aot[i] = cams_[param].mean().data
+            self.aot_std[i] = cams_[param].std().data
+            param = 'ssa' + str(wl)
+            self.ssa[i] = cams_[param].mean().data
+
+        self.aot550 = self.aot[idx550]
+        self.aot550_std = self.aot_std[idx550]
 
         print(h, w, cams_xr.aod550.coords)
         r, c = cams_xr.aod550.data.shape
 
         if (r > 1) and (c > 1):
-            cams_rast = cams_xr.interp(longitude=np.linspace(lonmin, lonmax, w),
-                                       latitude=np.linspace(latmax, latmin, h),
-                                       kwargs={"fill_value": "extrapolate"})
+            cams_rast = cams_.interp(longitude=np.linspace(lonmin, lonmax, w),
+                                     latitude=np.linspace(latmax, latmin, h),
+                                     kwargs={"fill_value": "extrapolate"})
             self.aot550rast = np.array(cams_rast['aod550'].data)
         else:
             self.aot550rast = np.full((w, h), self.aot550, order='F').T
