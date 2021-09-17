@@ -22,14 +22,13 @@ subroutine main_algo(npix, nband, naot, &
 
     integer, intent(in) :: npix, nband, naot
     integer, dimension(npix), intent(in) :: mask
-    real(rtype), dimension(npix), intent(in) :: sza, aot550, pressure_corr
+    real(rtype), dimension(npix), intent(in) :: sza, aot550, pressure_corr, fine_coef
     real(rtype), dimension(nband), intent(in) :: wl, aot, rot, rg_ratio, F0
     real(rtype), dimension(nband, npix), intent(in) :: vza, azi
     real(rtype), dimension(nband, npix), intent(in) :: rtoa
     real(rtype), dimension(naot), intent(in) :: aotlut
     real(rtype), dimension(naot, nband, npix), intent(in) :: rlut_f, rlut_c
     real(rtype), dimension(nband), intent(in) :: Cext_f, Cext_c
-    real(rtype), intent(in) :: fine_coef
     real(rtype), intent(inout) :: nodata
     logical, intent(in) :: rrs
 
@@ -39,7 +38,7 @@ subroutine main_algo(npix, nband, naot, &
     !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,pressure_corr,rlut_f,rlut_c,Cext_f,Cext_c,rg_ratio,F0,rot,fine_coef,rrs
     !f2py intent(inout) aot, aot550, nodata
     !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
-    !f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est, pressure_corr
+    !f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
     !f2py depend(nband) wl,aot,rot,Cext_f,Cext_c,rg_ratio, F0
     !f2py depend(nband,npix) vza, azi, rtoa, rcorr, rcorrg
     !f2py depend(naot) aotlut
@@ -115,7 +114,7 @@ subroutine main_algo(npix, nband, naot, &
                 endif
                 !write(*,*)iband,aotpt, rtoa(ipix,iband),rsimc(iband)
 
-                rsim(iband) = fine_coef * rsimf(iband) + (1 - fine_coef) * rsimc(iband)
+                rsim(iband) = fine_coef(ipix) * rsimf(iband) + (1 - fine_coef(ipix)) * rsimc(iband)
                 rcorrg(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
 
                 ! if negative values decrease aot

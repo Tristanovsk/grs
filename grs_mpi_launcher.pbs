@@ -15,7 +15,7 @@ list_file=list_grs_cnes_obs2mod.csv
 list_file=list_grs_cnes_guimaraes.csv
 list_file=list_grs_cnes_seine.csv
 list_file=list_grs_gernez_juillet_2021.csv
-# list_file=list_grs_cnes_hafeez.csv
+list_file=list_grs_cnes_hafeez.csv
 
 GRSHOME=/home/eh/harmelt/scratch/dev/grs2
 list_filepath=$GRSHOME/exe/$list_file

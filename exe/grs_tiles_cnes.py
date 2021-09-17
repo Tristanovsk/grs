@@ -126,7 +126,7 @@ for idx, site in sites.iterrows():
         if name != name:
             name = ''
         # force no suffix
-        name = ''
+        #name = ''
         # ------------------
         # get image basename for output naming
         basename = os.path.basename(l1c)
@@ -143,7 +143,9 @@ for idx, site in sites.iterrows():
 
         # ------------------
         #  CAMS data selection
-        if date.year > 2016:
+        if date.year > 2018:
+            ancillary = 'cds_forecast'
+        elif date.year > 2016:
             ancillary = 'cams_forecast'
         else:
             ancillary = 'cams_reanalysis'

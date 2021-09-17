@@ -577,47 +577,15 @@ class cams:
         self.aot_grs = u().raster_regrid(aot_grs)
         self.aot_sca_grs = u().raster_regrid(aot_sca_grs)
         self.aot_sca_550 = u().raster_regrid(aot_sca_550)
+        self.fcoef = np.array(u().raster_regrid(fcoef).data)
 
-        self.aot = np.zeros(N, dtype=float)
-        self.aot_std = np.zeros(N, dtype=float)
-        self.aot_wl = wls
-        self.ssa = np.zeros(N, dtype=float)
-
-        # load CAMS netcdf file
-        params = []
-        for wl in wls:
-            wl_ = str(wl)
-            params.append('aod' + wl_)
-            params.append('ssa' + wl_)
-        cams_xr = xr.open_dataset(cams_file)[params]
-
-        cams_daily = cams_xr.sel(time=day)
-        cams_ = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
-        cams_ = cams_.interp(time=date, kwargs={"fill_value": "extrapolate"})
-
-        for i, wl in enumerate(wls):
-            param = 'aod' + str(wl)
-            self.aot[i] = cams_[param].mean().data
-            self.aot_std[i] = cams_[param].std().data
-            param = 'ssa' + str(wl)
-            self.ssa[i] = cams_[param].mean().data
-
-        self.aot550 = self.aot[idx550]
-        self.aot550_std = self.aot_std[idx550]
-
-        print(h, w, cams_xr.aod550.coords)
-        r, c = cams_xr.aod550.data.shape
-
-        if (r > 1) and (c > 1):
-            cams_rast = cams_.interp(longitude=np.linspace(lonmin, lonmax, w),
-                                     latitude=np.linspace(latmax, latmin, h),
-                                     kwargs={"fill_value": "extrapolate"})
-            self.aot550rast = np.array(cams_rast['aod550'].data)
-        else:
-            self.aot550rast = np.full((w, h), self.aot550, order='F').T
+        # self.aot550rast = np.array(cams_rast['aod550'].data)
+        #
+        # self.aot550rast = np.full((w, h), self.aot550, order='F').T
 
         return  # u().getReprojected(prod, crs)
 
+    # TODO improve data access and interpolation (see get_xr_cams_cds_aerosol)
     def get_cams_ancillary(self, target, date, wkt,
                            param=['msl', 'tco3', 'tcwv', 'tcno2', 't2m']):
         '''

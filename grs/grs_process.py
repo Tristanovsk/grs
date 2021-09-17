@@ -40,7 +40,7 @@ class process:
         :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
         :param aerosol: aerosol data base to use within the processing
-                   DB: cams_forecast, cams_reanalysis, aeronet, user_model, default
+                   DB: cams_forecast, cams_reanalysis, cds_forecast, aeronet, user_model, default
         :param ancillary: if None, value is set to that of aerosol
         :param altitude: provide altitude if `dem` is set as `False`
         :param dem: if True digital elevation model is applied for per-pixel pressure calculation (data from SNAP/SRTM)
@@ -250,7 +250,8 @@ class process:
                                    l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
 
         if ancillary != 'default':
-            l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
+            # do not load here since already implemented elsewhere in CNES HPC
+            # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
             l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
@@ -280,13 +281,17 @@ class process:
         ##################################
         aero = acutils.aerosol()
         aot550rast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
+        #ssarast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
+        fcoefrast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
         if l2h.aerosol == 'cds_forecast':
 
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-                                     l2h.aerosol + '.nc')
-            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h.product)
-            aot550rast = l2h.aux.aot550rast #.T
+            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
+            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h,lutf,lutc)
+            aot550rast = l2h.aux.aot_sca_550 #.T
+            fcoefrast = l2h.aux.fcoef
             print('aot550rast shape',aot550rast.shape)
+
         else:
             # AERONET data
             if (l2h.aerosol == 'aeronet'):
@@ -322,6 +327,7 @@ class process:
                 l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
                 l2h.aux.aot_wl = l2h.wl
                 aot550rast.fill(l2h.aux.aot550)
+
             else:
                 l2h.aux.aot550 = 0.1
                 l2h.angstrom = 1
@@ -341,6 +347,7 @@ class process:
             print('param aerosol', nCext_f, nCext_c, l2h.aot)
             aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
             l2h.fcoef = aero.fcoef
+            fcoefrast.fill(l2h.fcoef)
 
         l2h.rot = l2h.sensordata.rot
 
@@ -441,7 +448,7 @@ class process:
             # else:
             #     aot550guess = aot550rast[i]
             aot550guess = aot550rast[i]
-
+            fcoef = fcoefrast[i]
             for iband in range(l2h.N):
                 # preparing lut data
                 grid_pix = list(zip(sza, razi[iband], vza[iband]))
@@ -462,14 +469,14 @@ class process:
                                                                            lutc.Cext550,
                                                                            l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
                                                                            l2h.aot,
-                                                                           aot550guess, l2h.fcoef, l2h.nodata, l2h.rrs)
+                                                                           aot550guess, fcoef, l2h.nodata, l2h.rrs)
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
                                                                          lutc.Cext,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                         l2h.aot, aot550guess, l2h.fcoef, l2h.nodata,
+                                                                         l2h.aot, aot550guess, fcoef, l2h.nodata,
                                                                          l2h.rrs)
 
             # reshape for snap modules

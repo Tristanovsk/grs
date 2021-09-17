@@ -27,7 +27,7 @@ Version history:
 1.2.4: - option to load MAJA and WaterDetect mask and export masks in output file
        - option to process WaterDetect Water pixels only
 
-1.2.5: update for CAMS data (cds version):
+1.3.0: update for CAMS data (cds version):
        - new aod wavelengths and spectral ssa from 2018 onwards
        - adjustment for absorbing aerosol through ssa
 
