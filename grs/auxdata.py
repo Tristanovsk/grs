@@ -448,8 +448,10 @@ class cams:
         mask_lat = (ds[lat] >= latmin) & (ds[lat] <= latmax)
         return ds.where(mask_lon & mask_lat, drop=True)
 
-    def get_xr_cams_aerosol(self, cams_file, product,
-                            wls=[380, 400,440,500,550,645,670,800,865,1020,1240,1640,2130],
+
+
+    def get_xr_cams_cds_aerosol(self, cams_file, product,
+                            wls=[400,440,500,550,645,670,800,865,1020,1240,1640,2130],
                             idx550=4
                             ):
         '''

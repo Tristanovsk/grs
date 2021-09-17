@@ -203,7 +203,7 @@ lutc.load_lut(lutcoarse)
 wlsat = lutf.wl
 date = dt.datetime(2021, 3, 25, 2, 55)
 day = date.strftime(date.strftime('%Y-%m-%d'))
-wls = [380, 400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]
+wls = [ 400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]
 idx550 = 4
 N = len(wlsat)
 
