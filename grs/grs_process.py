@@ -266,83 +266,82 @@ class process:
             altitude[altitude < -200] = 0
         l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
 
-        ##################################
-        # GET ANCILLARY DATA (AEROSOL)
-        ##################################
-        aero = acutils.aerosol()
-        aot550rast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
-        # AERONET data
-        if (l2h.aerosol == 'aeronet'):
-            l2h.set_aeronetfile(aeronet_file)
-            try:
-                l2h.aux.Aeronet.import_aeronet_data(aero, l2h.aeronetfile, l2h.date)
-            except:
-                print('Error: No aeronet data in the +/- 2day time window.')
-                sys.exit()
-
-            l2h.aux.aot_wl = aero.wavelengths
-            l2h.aux.aot = aero.aot
-            l2h.aux.aot550 = aero.aot550
-            aot550rast.fill(l2h.aux.aot550)
-
-        # CAMS dataset
-        elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
-
-            # monthly file
-            # target = Path(
-            #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-            #                  l2h.aerosol + '.nc'))
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-                                     l2h.aerosol + '.nc')
-            l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
-            aot550rast = l2h.aux.aot550rast #.T
-            print('aot550rast shape',aot550rast.shape)
-        elif (l2h.aerosol == 'user_model'):
-            l2h.aux.aot550 = aot550
-            l2h.angstrom = angstrom
-            l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
-            l2h.aux.aot_wl = l2h.wl
-            aot550rast.fill(l2h.aux.aot550)
-        else:
-            l2h.aux.aot550 = 0.1
-            l2h.angstrom = 1
-            l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
-            l2h.aux.aot_wl = l2h.wl
-            aot550rast.fill(l2h.aux.aot550)
-            print("No aerosol data provided, set to default: aot550=01, angstrom=1")
-
-        # set spectral aot for satellie bands
-        aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
-        l2h.aot = aero.get_spectral_aot(np.array(l2h.wl))
-        l2h.aot550 = l2h.aux.aot550
-
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
-        # load lut
         print('loading lut...', l2h.lutfine)
         lutf = acutils.lut(l2h.band_names)
         lutc = acutils.lut(l2h.band_names)
         lutf.load_lut(l2h.lutfine, indband)
         lutc.load_lut(l2h.lutcoarse, indband)
 
-        # normalization of Cext to get spectral dependence of fine and coarse modes
-        nCext_f = lutf.Cext / lutf.Cext550
-        nCext_c = lutc.Cext / lutc.Cext550
-        print('param aerosol', nCext_f, nCext_c, l2h.aot)
-        aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
-        l2h.fcoef = aero.fcoef
-        # rlut = [x + y for x, y in zip([fcoef * x for x in rlut_f], [(1. - fcoef) * x for x in rlut_c])]
+        ##################################
+        # GET ANCILLARY DATA (AEROSOL)
+        ##################################
+        aero = acutils.aerosol()
+        aot550rast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
+        if l2h.aerosol == 'cds_forecast':
 
-        # acutils.plot_lut(grid_lut[3], grid_lut[2], rlut_c[9][2, 13, :, :])
-        # acutils.plot_lut(grid_lut[3], grid_lut[2], rlut_f[9][2, 13, :, :])
-        # acutils.plot_lut(grid_lut[3], grid_lut[2], rlut[9][2, 13, :, :])
+            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+                                     l2h.aerosol + '.nc')
+            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h.product)
+            aot550rast = l2h.aux.aot550rast #.T
+            print('aot550rast shape',aot550rast.shape)
+        else:
+            # AERONET data
+            if (l2h.aerosol == 'aeronet'):
+                l2h.set_aeronetfile(aeronet_file)
+                try:
+                    l2h.aux.Aeronet.import_aeronet_data(aero, l2h.aeronetfile, l2h.date)
+                except:
+                    print('Error: No aeronet data in the +/- 2day time window.')
+                    sys.exit()
 
-        # correction for pressure
-        # scaling of the lut values and rayleigh optical thickness
-        # rlut_f = [x * l2h.pressure / l2h.pressure_ref for x in lutf.refl]
-        # rlut_c = [x * l2h.pressure / l2h.pressure_ref for x in lutc.refl]
-        # l2h.rot = [x * l2h.pressure / l2h.pressure_ref for x in l2h.sensordata.rot]
+                l2h.aux.aot_wl = aero.wavelengths
+                l2h.aux.aot = aero.aot
+                l2h.aux.aot550 = aero.aot550
+                aot550rast.fill(l2h.aux.aot550)
+
+            # CAMS dataset
+            elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
+
+                # monthly file
+                # target = Path(
+                #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+                #                  l2h.aerosol + '.nc'))
+                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+                                         l2h.aerosol + '.nc')
+                l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
+                aot550rast = l2h.aux.aot550rast #.T
+                print('aot550rast shape',aot550rast.shape)
+            # CAMS new cds dataset (available from 26 June 2018 12UTC)
+
+            elif (l2h.aerosol == 'user_model'):
+                l2h.aux.aot550 = aot550
+                l2h.angstrom = angstrom
+                l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+                l2h.aux.aot_wl = l2h.wl
+                aot550rast.fill(l2h.aux.aot550)
+            else:
+                l2h.aux.aot550 = 0.1
+                l2h.angstrom = 1
+                l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+                l2h.aux.aot_wl = l2h.wl
+                aot550rast.fill(l2h.aux.aot550)
+                print("No aerosol data provided, set to default: aot550=01, angstrom=1")
+
+            # set spectral aot for satellite bands
+            aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
+            l2h.aot = aero.get_spectral_aot(np.array(l2h.wl))
+            l2h.aot550 = l2h.aux.aot550
+
+            # normalization of Cext to get spectral dependence of fine and coarse modes
+            nCext_f = lutf.Cext / lutf.Cext550
+            nCext_c = lutc.Cext / lutc.Cext550
+            print('param aerosol', nCext_f, nCext_c, l2h.aot)
+            aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
+            l2h.fcoef = aero.fcoef
+
         l2h.rot = l2h.sensordata.rot
 
         ####################################

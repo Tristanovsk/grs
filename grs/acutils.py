@@ -166,6 +166,7 @@ class aerosol:
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
 
 
+
 class smac:
     ''' Gaseous absorption and transmission from pre-calculated 6S/SMAC data '''
 

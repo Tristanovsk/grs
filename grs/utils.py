@@ -3,19 +3,17 @@
 Defines main python objects and image manipulation functions (linked to the ESA snappy library)
 '''
 
-import os, sys, re, shutil, glob
+import os, sys, re, glob
 import numpy as np
+import xarray as xr
 from dateutil import parser
-import subprocess
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
 from esasnappy import FlagCoding, String, Mask
 
-import pdb
-
 from . import config as cfg
-import os
+
 
 class info:
     '''
@@ -361,7 +359,6 @@ class info:
 
         return
 
-
     def unload_data(self):
         '''unload data (not efficient due to ESA snappy issue with java jvm'''
 
@@ -417,7 +414,7 @@ class info:
         #
         # print('product name is : ' + self.outfile_ext)
 
-        #ac_product.setProductWriter(writer)
+        # ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
         ac_product.setStartTime(product.getStartTime())
@@ -939,3 +936,20 @@ class utils:
             print('sensor not recognized from input file')
             sys.exit(-1)
         return sensor
+
+    @staticmethod
+    def raster_regrid(raster: xr.DataArray, lonslats: list[float], h: int, w: int):
+        '''
+        regrid cams raster onto satellite image grid of dim h,w
+        TODO for the moment basic 2-step bilinear interpolation,
+        TODO can be improved by using appropriate regridder, see: xESMF
+        :param raster:
+        :param h: height of image grid
+        :param w: width of image grid
+        '''
+        lonmin, lonmax, latmin, latmax = lonslats
+        return raster.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                             latitude=np.linspace(latmax, latmin, 12),
+                             kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
+                                                                          latitude=np.linspace(latmax, latmin, h),
+                                                                          kwargs={"fill_value": "extrapolate"})
