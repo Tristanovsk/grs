@@ -131,18 +131,20 @@ class aerosol:
         self.fcoef = 0.5
         self.popt = []
 
-    def func(self, wl, a, b, c):
+    def func(self, lnwl, a, b, c):
         '''function for spectral variation of AOT'''
-        lnwl = np.log(wl)
-        return np.exp(a + b * lnwl + c * lnwl ** 2)
+
+        return (a + b * lnwl + c * lnwl ** 2)
 
     def fit_spectral_aot(self, wl, aot):
         '''call to get fitting results on AOT data'''
-        self.popt, pcov = curve_fit(self.func, wl, aot)
+        lnwl = np.log(wl)
+        self.popt, pcov = curve_fit(self.func, lnwl, aot)
 
     def get_spectral_aot(self, wl):
         '''set aot for a given set of wavelengths'''
-        return self.func(wl, *self.popt)
+        lnwl = np.log(wl)
+        return np.exp(self.func(wl, *self.popt))
 
     def func_aero(self, Cext, fcoef):
         '''function to fit spectral behavior of bimodal aerosols
