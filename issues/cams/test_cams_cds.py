@@ -2,7 +2,9 @@ import os
 
 import numpy as np
 import pandas as pd
+import dask
 import xarray as xr
+
 import datetime as dt
 import matplotlib.pyplot as plt
 
@@ -135,18 +137,20 @@ class aerosol:
         self.fcoef = 0.5
         self.popt = []
 
-    def func(self, wl, a, b, c):
+    def func(self, lnwl, a, b, c):
         '''function for spectral variation of AOT'''
-        lnwl = np.log(wl)
-        return np.exp(a + b * lnwl + c * lnwl ** 2)
+        #lnwl = np.log(wl)
+        return (a + b * lnwl + c * lnwl ** 2)
 
     def fit_spectral_aot(self, wl, aot):
         '''call to get fitting results on AOT data'''
-        self.popt, pcov = curve_fit(self.func, wl, aot)
+        lnwl = np.log(wl)
+        self.popt, pcov = curve_fit(self.func, lnwl, np.log(aot))
 
     def get_spectral_aot(self, wl):
         '''set aot for a given set of wavelengths'''
-        return self.func(wl, *self.popt)
+        lnwl = np.log(wl)
+        return np.exp(self.func(lnwl, *self.popt))
 
     def func_aero(self, Cext, fcoef):
         '''function to fit spectral behavior of bimodal aerosols
@@ -168,6 +172,7 @@ class aerosol:
               .
             '''
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
+        print('fit aero', pcov)
         return self.fcoef
 
 
@@ -224,7 +229,10 @@ cams_daily = cams_xr.sel(time=day)
 # subset
 # ---------------------------------
 # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
-cams_sub = subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+#cams_sub = subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                       latitude=np.linspace(latmax, latmin, 12),
+                       kwargs={"fill_value": "extrapolate"})
 
 # ---------------------------------
 # interpolate through dates
@@ -250,12 +258,13 @@ aot_ = np.zeros((N,r, c), dtype=float)
 ssa_grs = np.zeros((r, c, N), dtype=float)
 for ir in range(r):
     for ic in range(c):
+        print(ir)
         aero.fit_spectral_aot(cams_aod.wavelength, cams_aod.data[...,ir,ic])
         aot_[:,ir,ic] = aero.get_spectral_aot(wlsat)
 
-ssa_grs = cams_ssa.interp(wavelength=wlsat,kwargs={"fill_value": "extrapolate"})
-aot_grs = ssa_grs.copy(data=aot_)
-aot_sca_grs = ssa_grs * aot_grs
+ssa_grs = cams_ssa.interp(wavelength=wlsat,kwargs={"fill_value": "extrapolate"}).chunk({'wavelength':1})
+aot_grs = ssa_grs.copy(data=aot_).chunk({'wavelength':1})
+aot_sca_grs = (ssa_grs * aot_grs).chunk({'wavelength':1})
 aot_sca_550 = aot_sca_grs.interp(wavelength=550,method='cubic')
 
 
@@ -264,25 +273,25 @@ nCext_f = lutf.Cext / lutf.Cext550
 nCext_c = lutc.Cext / lutc.Cext550
 for ir in range(r):
     for ic in range(c):
-        fcoef[ir,ic] = aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[...,ir,ic] / aot_sca_550[ir,ic])
+        fcoef[ir,ic] = aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[...,ir,ic] / aot_sca_550[ir,ic])[0]
 fcoef = aot_sca_550.copy(data=fcoef)
 
 
-w, h = 512, 512
+w, h = 549, 549
 fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
 
 fcoef.plot(ax=axs[0,0],cmap=plt.cm.Spectral_r)
 fcoef.interp(longitude=np.linspace(lonmin, lonmax, 12),
                        latitude=np.linspace(latmax, latmin, 12),
+                       kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, 512),
+                       latitude=np.linspace(latmax, latmin, 512),
                        kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
-                       latitude=np.linspace(latmax, latmin, h),
+                       latitude=np.linspace(latmax, latmin, h),method="nearest",
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[0,1],cmap=plt.cm.Spectral_r)
 aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,0],cmap=plt.cm.Spectral_r)
-aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, 12),
-                       latitude=np.linspace(latmax, latmin, 12),
-                       kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
+aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,1],cmap=plt.cm.Spectral_r)
 

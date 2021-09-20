@@ -5,6 +5,7 @@ import pandas
 from scipy.interpolate import interp1d
 import netCDF4 as nc
 import xarray as xr
+import dask
 
 from dateutil import parser
 import calendar, datetime
@@ -506,8 +507,9 @@ class cams:
         :param i550: index of 550 nm wavelength in wls
         :return:
         '''
+
         wlsat, product = l2h.wl, l2h.product
-        N = len(wls)
+        N = len(wlsat)
         date = parser.parse(str(product.getStartTime()))
         day = date.strftime(date.strftime('%Y-%m-%d'))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
@@ -531,7 +533,11 @@ class cams:
         # subset
         # ---------------------------------
         # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
-        cams_sub = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+        print('cams cds',lonmin, lonmax, latmin, latmax)
+        #cams_sub = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+        cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                       latitude=np.linspace(latmax, latmin, 12),
+                       kwargs={"fill_value": "extrapolate"})
 
         # ---------------------------------
         # interpolate through dates
@@ -542,29 +548,31 @@ class cams:
         # reshape to get ssa and aod as f(lon,lat,wavelength)
         # ---------------------------------
         cams_ssa = cams_grs[param_ssa].to_array(dim='wavelength')
-        wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
+        wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(l2h.type)
         cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
         cams_aod = cams_grs[param_aod].to_array(dim='wavelength')
-        wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
+        wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(l2h.type)
         cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
-
+        print(cams_aod)
         aero = aerosol()
 
         r, c = cams_grs.aod550.shape
-        aot_550 = np.zeros((r, c), dtype=float)
-        fcoef = np.zeros((r, c), dtype=float)
-        aot_ = np.zeros((N, r, c), dtype=float)
-        ssa_grs = np.zeros((r, c, N), dtype=float)
+        #aot_550 = np.zeros((r, c), dtype=l2h.type)
+        fcoef = np.zeros((r, c), dtype=l2h.type)
+        aot_ = np.zeros((N, r, c), dtype=l2h.type)
+        #ssa_grs = np.zeros((r, c, N), dtype=l2h.type)
+
         for ir in range(r):
             for ic in range(c):
+                print(cams_aod.wavelength, cams_aod.data[..., ir, ic])
                 aero.fit_spectral_aot(cams_aod.wavelength, cams_aod.data[..., ir, ic])
                 aot_[:, ir, ic] = aero.get_spectral_aot(wlsat)
 
-        ssa_grs = cams_ssa.interp(wavelength=wlsat, kwargs={"fill_value": "extrapolate"})
-        aot_grs = ssa_grs.copy(data=aot_)
-        aot_sca_grs = ssa_grs * aot_grs
+        ssa_grs = cams_ssa.interp(wavelength=wlsat, kwargs={"fill_value": "extrapolate"}).chunk({'wavelength':N})
+        aot_grs = ssa_grs.copy(data=aot_).chunk({'wavelength':N})
+        aot_sca_grs = (ssa_grs * aot_grs).chunk({'wavelength':N})
         aot_sca_550 = aot_sca_grs.interp(wavelength=550, method='cubic')
-
+        print(np.array(aot_sca_550))
         # normalization of Cext to get spectral dependence of fine and coarse modes
         nCext_f = lutf.Cext / lutf.Cext550
         nCext_c = lutc.Cext / lutc.Cext550
@@ -572,12 +580,14 @@ class cams:
             for ic in range(c):
                 fcoef[ir, ic] = aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[..., ir, ic] / aot_sca_550[ir, ic])
         fcoef = aot_sca_550.copy(data=fcoef)
-
-        self.ssa_grs = u().raster_regrid(ssa_grs)
-        self.aot_grs = u().raster_regrid(aot_grs)
-        self.aot_sca_grs = u().raster_regrid(aot_sca_grs)
-        self.aot_sca_550 = u().raster_regrid(aot_sca_550)
-        self.fcoef = np.array(u().raster_regrid(fcoef).data)
+        print('xr interp, for dims: ',h,w)
+        self.ssa_grs = u().raster_regrid(ssa_grs,lonslats,h,w).values
+        self.aot_grs = u().raster_regrid(aot_grs,lonslats,h,w).values
+        self.aot_sca_grs = u().raster_regrid(aot_sca_grs,lonslats,h,w).values
+        self.aot_sca_550 = u().raster_regrid(aot_sca_550,lonslats,h,w).values
+        self.fcoef = u().raster_regrid(fcoef,lonslats,h,w).values
+        # print('auxdata, fcoef',self.fcoef)
+        # print('auxdata, aot_sca_550',self.aot_sca_550)
 
         # self.aot550rast = np.array(cams_rast['aod550'].data)
         #

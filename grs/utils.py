@@ -938,7 +938,7 @@ class utils:
         return sensor
 
     @staticmethod
-    def raster_regrid(raster: xr.DataArray, lonslats: list[float], h: int, w: int):
+    def raster_regrid(raster: xr.DataArray, lonslats: list, h: int, w: int):
         '''
         regrid cams raster onto satellite image grid of dim h,w
         TODO for the moment basic 2-step bilinear interpolation,
@@ -950,6 +950,10 @@ class utils:
         lonmin, lonmax, latmin, latmax = lonslats
         return raster.interp(longitude=np.linspace(lonmin, lonmax, 12),
                              latitude=np.linspace(latmax, latmin, 12),
-                             kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
-                                                                          latitude=np.linspace(latmax, latmin, h),
-                                                                          kwargs={"fill_value": "extrapolate"})
+                             kwargs={"fill_value": "extrapolate"}).interp(
+                             longitude=np.linspace(lonmin, lonmax, 512),
+                             latitude=np.linspace(latmax, latmin, 512),
+                             kwargs={"fill_value": "extrapolate"}).interp(
+                             longitude=np.linspace(lonmin, lonmax, w),
+                             latitude=np.linspace(latmax, latmin, h),method="nearest",
+                             kwargs={"fill_value": "extrapolate"})

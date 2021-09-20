@@ -18,8 +18,8 @@ import time
 from libamalthee import Amalthee
 
 
-# start_date, end_date = '2018-01-01', '2018-01-20'
-# tile, lon, lat = '33PVR', '14.6', '14'
+# start_date, end_date = '2021-03-01', '2021-03-30'
+# tile, lon, lat = '31TGK', '14.6', '14'
 
 sitefile = 'exe/list_grs_gernez_juillet_2021.csv' # 'exe/list_grs_cnes_seine.csv' #
 sitefile = sys.argv[1]

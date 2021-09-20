@@ -23,9 +23,9 @@ subroutine main_algo(npix, nband, naot, &
     integer, intent(in) :: npix, nband, naot
     integer, dimension(npix), intent(in) :: mask
     real(rtype), dimension(npix), intent(in) :: sza, aot550, pressure_corr, fine_coef
-    real(rtype), dimension(nband), intent(in) :: wl, aot, rot, rg_ratio, F0
+    real(rtype), dimension(nband), intent(in) :: wl, rot, rg_ratio, F0
     real(rtype), dimension(nband, npix), intent(in) :: vza, azi
-    real(rtype), dimension(nband, npix), intent(in) :: rtoa
+    real(rtype), dimension(nband, npix), intent(in) :: rtoa, aot
     real(rtype), dimension(naot), intent(in) :: aotlut
     real(rtype), dimension(naot, nband, npix), intent(in) :: rlut_f, rlut_c
     real(rtype), dimension(nband), intent(in) :: Cext_f, Cext_c
@@ -39,8 +39,8 @@ subroutine main_algo(npix, nband, naot, &
     !f2py intent(inout) aot, aot550, nodata
     !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
     !f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
-    !f2py depend(nband) wl,aot,rot,Cext_f,Cext_c,rg_ratio, F0
-    !f2py depend(nband,npix) vza, azi, rtoa, rcorr, rcorrg
+    !f2py depend(nband) wl,rot,Cext_f,Cext_c,rg_ratio, F0
+    !f2py depend(nband,npix) vza, azi, aot, rtoa, rcorr, rcorrg
     !f2py depend(naot) aotlut
     !f2py depend(naot,nband,npix) rlut_f,rlut_c
 
@@ -86,7 +86,7 @@ subroutine main_algo(npix, nband, naot, &
         mu0(ipix) = cos(sza(ipix) * degrad)
 
         aotpt = aot550(ipix)
-
+        print*,aotpt
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
 
@@ -126,7 +126,7 @@ subroutine main_algo(npix, nband, naot, &
                     exit
                 else
                     m(iband, ipix) = 1. / mu0(ipix) + 1. / muv(iband, ipix)
-                    tud(iband) = exp(-(rot_corr(iband) + aot(iband)) * m(iband, ipix))
+                    tud(iband) = exp(-(rot_corr(iband) + aot(iband,ipix)) * m(iband, ipix))
                     brdf(iband) = max(rcorrg(iband, ipix) / tud(iband), 0.)
                 end if
 
@@ -135,7 +135,7 @@ subroutine main_algo(npix, nband, naot, &
 
             if(success==1)then
                 ! rescale aot values
-                aot_ = aot * aotpt(1) / aot550(ipix)
+                aot_ = aot(:,ipix) * aotpt(1) / aot550(ipix)
                 aot550_est(ipix) = aotpt(1)
                 brdf_est(ipix) = brdf(nband - 2)
                 exit

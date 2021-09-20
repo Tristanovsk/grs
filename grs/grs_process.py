@@ -166,6 +166,7 @@ class process:
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION
         ##################################
+        print('resampling...')
         if 'S2' in sensor:
             if memory_safe:
                 l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution)  # , method='Nearest')
@@ -177,6 +178,7 @@ class process:
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
+        print('subsetting...')
         try:
             if wkt is not None:
                 l2h.product = _utils.get_subset(l2h.product, wkt)
@@ -224,18 +226,21 @@ class process:
         ## ADD ELEVATION BAND
         ##################################
         if dem:
+            print('add elevation band')
             high_latitude = (latmax >= 60) | (latmin <= -60)
             l2h.get_elevation(high_latitude)
 
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
         ##################################
+        print('load raster data...')
         l2h.get_bands(l2h.band_names)
         l2h.print_info()
 
         ##################################
         # SET NEW BAND FOR MASKING
         ##################################
+        print('add ndwi mask')
         l2h.product.addBand('ndwi', ProductData.TYPE_FLOAT32)
         l2h.ndwi_band = l2h.product.getBand('ndwi')
         l2h.ndwi_band.ensureRasterData()
@@ -245,17 +250,18 @@ class process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         l2h.aux = auxdata.cams()
-        if l2h.aerosol == 'cds_forecast':
-            target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
-        else:
-            target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
-                                   l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
 
         if ancillary != 'default':
-            # do not load here since already implemented elsewhere in CNES HPC
-            # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
-            l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
+            if l2h.aerosol == 'cds_forecast':
+                target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                                      '_month_cams-global-atmospheric-composition-forecasts.nc')
+                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
+            else:
+                target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                                           l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+                # do not load here since already implemented elsewhere in CNES HPC
+                # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
+                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
         # if 'S2' in sensor:
@@ -283,17 +289,20 @@ class process:
         # GET ANCILLARY DATA (AEROSOL)
         ##################################
         aero = acutils.aerosol()
-        aot550rast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
-        #ssarast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
-        fcoefrast = np.zeros([l2h.width, l2h.height], dtype=l2h.type)
+        aot550rast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
+        # ssarast = np.zeros([l2h.N,l2h.width, l2h.height], dtype=l2h.type)
+        aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h.type, order='F')
+        fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
+
         if l2h.aerosol == 'cds_forecast':
 
             cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                      '_month_cams-global-atmospheric-composition-forecasts.nc')
-            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h,lutf,lutc)
-            aot550rast = l2h.aux.aot_sca_550 #.T
+            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h, lutf, lutc)
+            aot550rast = l2h.aux.aot_sca_550  # .T
             fcoefrast = l2h.aux.fcoef
-            print('aot550rast shape',aot550rast.shape)
+            aotrast = l2h.aux.aot_grs
+            print('aot550rast shape', aot550rast.shape)
 
         else:
             # AERONET data
@@ -317,11 +326,12 @@ class process:
                 # target = Path(
                 #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
                 #                  l2h.aerosol + '.nc'))
-                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
+                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                                         l2h.date.strftime('%Y-%m') + '_month_' +
                                          l2h.aerosol + '.nc')
                 l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
-                aot550rast = l2h.aux.aot550rast #.T
-                print('aot550rast shape',aot550rast.shape)
+                aot550rast = l2h.aux.aot550rast  # .T
+                print('aot550rast shape', aot550rast.shape)
             # CAMS new cds dataset (available from 26 June 2018 12UTC)
 
             elif (l2h.aerosol == 'user_model'):
@@ -349,8 +359,11 @@ class process:
             nCext_c = lutc.Cext / lutc.Cext550
             print('param aerosol', nCext_f, nCext_c, l2h.aot)
             aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
-            l2h.fcoef = aero.fcoef
-            fcoefrast.fill(l2h.fcoef)
+            print(aero.fcoef, aero.fcoef.astype(l2h.type))
+            l2h.fcoef = aero.fcoef.astype(l2h.type)
+            fcoefrast.fill(l2h.fcoef[0])
+            for i in range(l2h.N):
+                aotrast[i].fill(l2h.aot[i])
 
         l2h.rot = l2h.sensordata.rot
 
@@ -368,7 +381,7 @@ class process:
         #      Create output l2 product
         #          'l2_product'
         ######################################
-
+        print('creating L2 output product')
         l2h.create_product(maja=maja, waterdetect=waterdetect)
         try:
             l2h.load_data()
@@ -430,7 +443,7 @@ class process:
             if allpixels:
                 maskpixels = maskpixels * 0
             elif waterdetect_only:
-                maskpixels[l2h.watermask[i]==1] = 0
+                maskpixels[l2h.watermask[i] == 1] = 0
             else:
                 maskpixels = mask
 
@@ -450,8 +463,12 @@ class process:
             #     # aot550guess[aot550guess < 0.01] = 0.01
             # else:
             #     aot550guess = aot550rast[i]
-            aot550guess = aot550rast[i]
-            fcoef = fcoefrast[i]
+
+            aot550guess = np.array(aot550rast[i])
+            fcoef = np.array(fcoefrast[i])
+            aot_tot = np.array(aotrast[:, i])
+            print(np.mean(aot550guess))
+
             for iband in range(l2h.N):
                 # preparing lut data
                 grid_pix = list(zip(sza, razi[iband], vza[iband]))
@@ -471,7 +488,7 @@ class process:
                                                                            lutf.Cext, lutc.Cext, lutf.Cext550,
                                                                            lutc.Cext550,
                                                                            l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                           l2h.aot,
+                                                                           aot_tot,
                                                                            aot550guess, fcoef, l2h.nodata, l2h.rrs)
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
@@ -479,7 +496,7 @@ class process:
                                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
                                                                          lutc.Cext,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                         l2h.aot, aot550guess, fcoef, l2h.nodata,
+                                                                         aot_tot, aot550guess, fcoef, l2h.nodata,
                                                                          l2h.rrs)
 
             # reshape for snap modules
