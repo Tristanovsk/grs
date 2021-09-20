@@ -467,7 +467,6 @@ class process:
             aot550guess = np.array(aot550rast[i])
             fcoef = np.array(fcoefrast[i])
             aot_tot = np.array(aotrast[:, i])
-            print(np.mean(aot550guess))
 
             for iband in range(l2h.N):
                 # preparing lut data

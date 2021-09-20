@@ -245,8 +245,9 @@ cams_grs = cams_sub.interp(time=date, kwargs={"fill_value": "extrapolate"})
 cams_ssa = cams_grs[param_ssa].to_array(dim='wavelength')
 wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
 cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
+
 cams_aod = cams_grs[param_aod].to_array(dim='wavelength')
-wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
+wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(np.float64)
 cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
 
 aero = aerosol()

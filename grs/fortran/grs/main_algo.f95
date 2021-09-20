@@ -86,7 +86,7 @@ subroutine main_algo(npix, nband, naot, &
         mu0(ipix) = cos(sza(ipix) * degrad)
 
         aotpt = aot550(ipix)
-        print*,aotpt
+        print*,aotpt,fine_coef(ipix)
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
 
