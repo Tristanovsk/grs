@@ -41,7 +41,7 @@ export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 ##activate conda environement python 3.6
-path_of_env=/work/scratch/harmelt/grs_py3.6
+path_of_env=.00<wder
 conda activate $path_of_env
 
 ## Put the path of your favorite GRS implementation (ex: cd /work/ALT/swot/aval/OBS2CO/git/grs2)

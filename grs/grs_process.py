@@ -245,8 +245,11 @@ class process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         l2h.aux = auxdata.cams()
-
-        target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+        if l2h.aerosol == 'cds_forecast':
+            target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
+        else:
+            target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
                                    l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
 
         if ancillary != 'default':
