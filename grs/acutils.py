@@ -26,6 +26,8 @@ class lut:
         self.wl = []
         self.Cext = []
         self.Cext550 = 0
+        self.Csca = []
+        self.Csca550 = 0
         self.vza = []
         self.sza = []
         self.azi = []

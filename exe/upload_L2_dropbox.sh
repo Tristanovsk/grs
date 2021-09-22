@@ -11,4 +11,6 @@ for tile in `awk -F ',' '{print $6}'  $list_file`; do
   dropbox_uploader.sh -s upload /datalake/watcal/S2-L2GRS/$tile /satellite/S2/cnes/
 done
 
-
+year=2021
+tile=31TFJ
+dropbox_uploader.sh -s -x .incomplete upload /datalake/watcal/S2-L2GRS/$tile/$year /satellite/S2/cnes/$tile

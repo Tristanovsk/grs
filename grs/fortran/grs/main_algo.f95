@@ -1,7 +1,7 @@
 subroutine main_algo(npix, nband, naot, &
         &                    vza, sza, azi, rtoa, mask, wl, &
         &                    pressure_corr, aotlut, rlut_f, rlut_c, Cext_f, Cext_c, &
-        &                    rg_ratio, F0, rot, aot, aot550, fine_coef, nodata, rrs, &
+        &                    rg_ratio, F0, rot, aot_tot, aot_sca, aot550, fine_coef, nodata, rrs, &
         &                    rcorr, rcorrg, aot550_est, brdf_est)
     !f2py -c -m main_algo main_algo.f95
 
@@ -25,7 +25,7 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(npix), intent(in) :: sza, aot550, pressure_corr, fine_coef
     real(rtype), dimension(nband), intent(in) :: wl, rot, rg_ratio, F0
     real(rtype), dimension(nband, npix), intent(in) :: vza, azi
-    real(rtype), dimension(nband, npix), intent(in) :: rtoa, aot
+    real(rtype), dimension(nband, npix), intent(in) :: rtoa, aot_tot, aot_sca
     real(rtype), dimension(naot), intent(in) :: aotlut
     real(rtype), dimension(naot, nband, npix), intent(in) :: rlut_f, rlut_c
     real(rtype), dimension(nband), intent(in) :: Cext_f, Cext_c
@@ -35,17 +35,18 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(nband, npix), intent(out) :: rcorr, rcorrg
     real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
 
-    !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,pressure_corr,rlut_f,rlut_c,Cext_f,Cext_c,rg_ratio,F0,rot,fine_coef,rrs
-    !f2py intent(inout) aot, aot550, nodata
+    !f2py intent(in) npix,nband,naot,vza,sza,azi,rtoa,mask,wl,pressure_corr,rlut_f,rlut_c
+    !f2py intent(in) Cext_f,Cext_c,rg_ratio,F0, aot_sca,rot,fine_coef,rrs
+    !f2py intent(inout) aot_tot, aot550, nodata
     !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
     !f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
     !f2py depend(nband) wl,rot,Cext_f,Cext_c,rg_ratio, F0
-    !f2py depend(nband,npix) vza, azi, aot, rtoa, rcorr, rcorrg
+    !f2py depend(nband,npix) vza, azi, aot_tot, aot_sca, rtoa, rcorr, rcorrg
     !f2py depend(naot) aotlut
     !f2py depend(naot,nband,npix) rlut_f,rlut_c
 
     integer :: iband, ipix, i, success
-    real(rtype), dimension(nband) :: rsim, rsimf, rsimc, tud, brdf, aot_, rot_corr
+    real(rtype), dimension(nband) :: rsim, rsimf, rsimc, tud, brdf, aot_, rot_corr,ssa_tot
     real(rtype), dimension(npix) :: mu0
     real(rtype), dimension(nband, npix) :: muv, m
     real(rtype) :: rglint, tdiff_Ed, tdiff_Lu
@@ -89,17 +90,19 @@ subroutine main_algo(npix, nband, naot, &
         ! print*,aotpt,fine_coef(ipix)
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
-
+        aot_ = aot_tot(:,ipix)
         i = 0
         success = 0
         do
             !aotpt(:) = aotpt * scale
             aotpt(:) = max(aotpt, 0.01)
             aotpt(:) = min(aotpt, 0.8)
+           ! print*,'grs algo',aot_sca(:,ipix)
+           ! print*,'grs algo aottot *rot',aot_sca(:,ipix),aot_sca(:,ipix)+rot_corr
+            ssa_tot = (aot_sca(:,ipix)+rot_corr)/(aot_(:)+rot_corr)
             do iband = nband, 1, -1
                 !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
                 !TODO  and for AOT > 0.8
-
 
                 muv(iband, ipix) = cos(vza(iband, ipix) * degrad)
                 call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_f(:, iband, ipix),&
@@ -115,6 +118,8 @@ subroutine main_algo(npix, nband, naot, &
                 !write(*,*)iband,aotpt, rtoa(ipix,iband),rsimc(iband)
 
                 rsim(iband) = fine_coef(ipix) * rsimf(iband) + (1 - fine_coef(ipix)) * rsimc(iband)
+                ! correction for absorbing aerosol
+                rsim(iband) = ssa_tot(iband) * rsim(iband)
                 rcorrg(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
 
                 ! if negative values decrease aot
@@ -126,7 +131,7 @@ subroutine main_algo(npix, nband, naot, &
                     exit
                 else
                     m(iband, ipix) = 1. / mu0(ipix) + 1. / muv(iband, ipix)
-                    tud(iband) = exp(-(rot_corr(iband) + aot(iband,ipix)) * m(iband, ipix))
+                    tud(iband) = exp(-(rot_corr(iband) + aot_(iband)) * m(iband, ipix))
                     brdf(iband) = max(rcorrg(iband, ipix) / tud(iband), 0.)
                 end if
 
@@ -135,7 +140,7 @@ subroutine main_algo(npix, nband, naot, &
 
             if(success==1)then
                 ! rescale aot values
-                aot_ = aot(:,ipix) * aotpt(1) / aot550(ipix)
+                aot_ = aot_tot(:,ipix) * aotpt(1) / aot550(ipix)
                 aot550_est(ipix) = aotpt(1)
                 brdf_est(ipix) = brdf(nband - 2)
                 exit

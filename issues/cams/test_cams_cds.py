@@ -172,7 +172,6 @@ class aerosol:
               .
             '''
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
-        print('fit aero', pcov)
         return self.fcoef
 
 
@@ -193,6 +192,12 @@ def subset_xr(ds, lonmin, lonmax, latmin, latmax, lat='latitude', lon='longitude
     return ds.where(mask_lon & mask_lat, drop=True)
 
 
+# hongkong
+lonmin, lonmax, latmin, latmax = 113.9, 114.9, 21.6, 22.6
+date = dt.datetime(2021, 3, 20, 10, 35)
+#serponcon
+lonmin, lonmax, latmin, latmax = 6.2,6.5, 44.4, 44.6
+date = dt.datetime(2021, 3, 20, 10, 35)
 lut_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata/LUT')
 aero = 'rg0.10_sig0.46'
 lutfine = os.path.join(lut_root,
@@ -206,9 +211,12 @@ lutc = lut()
 lutf.load_lut(lutfine)
 lutc.load_lut(lutcoarse)
 wlsat = lutf.wl
-date = dt.datetime(2021, 3, 25, 2, 55)
+
+
 day = date.strftime(date.strftime('%Y-%m-%d'))
 wls = [ 400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]
+rot=np.array([0.23745233, 0.15521662, 0.09104522, 0.04485828, 0.03557663,
+              0.02918357, 0.02351827, 0.01829234, 0.01554304, 0.00127606, 0.00037652])
 idx550 = 4
 N = len(wlsat)
 
@@ -268,6 +276,7 @@ aot_grs = ssa_grs.copy(data=aot_).chunk({'wavelength':1})
 aot_sca_grs = (ssa_grs * aot_grs).chunk({'wavelength':1})
 aot_sca_550 = aot_sca_grs.interp(wavelength=550,method='cubic')
 
+ssa = np.array((aot_sca_grs[:,0,0]+rot)/(aot_grs[:,0,0]+rot))
 
 # normalization of Cext to get spectral dependence of fine and coarse modes
 nCext_f = lutf.Cext / lutf.Cext550
@@ -279,7 +288,7 @@ fcoef = aot_sca_550.copy(data=fcoef)
 
 
 w, h = 549, 549
-fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(12, 12))
+fig, axs = plt.subplots(nrows=3, ncols=2, figsize=(12, 18))
 
 fcoef.plot(ax=axs[0,0],cmap=plt.cm.Spectral_r)
 fcoef.interp(longitude=np.linspace(lonmin, lonmax, 12),
@@ -296,26 +305,22 @@ aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,1],cmap=plt.cm.Spectral_r)
 
+aot_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[2,0],cmap=plt.cm.Spectral_r, vmin=0.4, vmax=0.61)
+ssa_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
+                       latitude=np.linspace(latmax, latmin, h),
+                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[2,1],cmap=plt.cm.Spectral_r) #, vmin=0.8, vmax=1)
+
 ################################
 #########""
 ###############################
-
-
-
-aot_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
-                       latitude=np.linspace(latmax, latmin, h),
-                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=0.61)
-ssa_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
-                       latitude=np.linspace(latmax, latmin, h),
-                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r) #, vmin=0.8, vmax=1)
-
-
-aero_sca.fit_spectral_aot(wls, aot_sca[0, 0])
-aot_grs = aero_sca.get_spectral_aot
-aot_grs550 = aot_grs(550)
+ir,ic=0,0
+aot=cams_aod.data[:,ir,ic]
 aero.fit_spectral_aot(wls, aot)
-aot_tot = aero.get_spectral_aot
-aot_tot550 = aot_tot(550)
+aot_grs = aero.get_spectral_aot
+aot_grs550 = aot_grs(550)
+
 
 # normalization of Cext to get spectral dependence of fine and coarse modes
 nCext_f = lutf.Cext / lutf.Cext550
@@ -323,49 +328,44 @@ nCext_c = lutc.Cext / lutc.Cext550
 print('param aerosol', nCext_f, nCext_c, aot)
 
 aero.fit_aero(nCext_f, nCext_c, aot_grs(wlsat) / aot_grs550)
-
-aero_sca.fcoef
-aero.fit_aero(nCext_f, nCext_c, aot_tot(wlsat) / aot_tot550)
 aero.fcoef
 
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax1.plot(wls, aot / aot550, '--ok')
-ax1.plot(wlsat, aot_tot(wlsat) / aot_tot550, '--og')
-ax1.plot(wlsat, nCext_f, ':ob')
-ax1.plot(wlsat, nCext_c, ':or')
-ax1.plot(wlsat, aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c, '*')
 
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax1.plot(wls, aot, '--ok')
-ax1.plot(wlsat, aot_tot(wlsat) , '--og')
+fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+axs[0].plot(wlsat, aot_grs(wlsat) / aot_grs550, '--ok')
+axs[0].plot(wlsat, nCext_f, ':ob')
+axs[0].plot(wlsat, nCext_c, ':or')
+axs[0].plot(wlsat, aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c, '*',label='fcoef:'+str(aero.fcoef[0]))
+axs[0].set_xlabel('Wavelength (nm)')
+axs[0].set_ylabel('nCext or naot')
 
-ax1.plot(wlsat,( aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c), '*')
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax1.plot(wls, aot_sca / aot_grs550, '--ok')
-ax1.plot(wlsat, aot_grs(wlsat) / aot_grs550, '--og')
-ax1.plot(wlsat, nCext_f, ':ob')
-ax1.plot(wlsat, nCext_c, ':or')
-ax1.plot(wlsat, aero_sca.fcoef * nCext_f + (1 - aero_sca.fcoef) * nCext_c, '*')
+axs[0].legend()
+axs[1].plot(wlsat, ssa_grs[:,ir,ic], '--ok',label='ssa')
+axs[1].plot(wlsat, lutf.Cext, ':ob',label='Cext fine')
+axs[1].plot(wlsat, lutc.Cext, ':or',label='Cext coarse')
+axs[1].plot(wlsat, aero.fcoef * lutf.Cext + (1 - aero.fcoef) * lutc.Cext, ':*',label='Cext mixture')
 
-wl_ = np.linspace(400, 2500, 1001)
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax2 = ax1.twinx()
-ax1.plot(wls, aot, '--o')
-ax1.plot(wlsat, aot_grs(wlsat), '--og')
-ax1.plot(wl_, aot_tot(wl_), '-r')
-ax1.plot(wl_, aot_grs(wl_), '-g')
+axs[1].set_xlabel('Wavelength (nm)')
+axs[1].set_ylabel('Cext or ssa')
+axs[1].legend()
 
-# ax1.plot(wls,ssa,'-or')
+cams_aod.plot(col='wavelength',col_wrap=4)
+cams_ssa.plot(col='wavelength',col_wrap=4)
 
-w, h = 512, 512
-plt.figure()
-cams_grs.aod500.plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=1)
-plt.figure()
-cams_grs.aod500.interp(longitude=np.linspace(lonmin, lonmax, w),
-                       latitude=np.linspace(latmax, latmin, h),
-                       kwargs={"fill_value": "extrapolate"}).plot(cmap=plt.cm.Spectral_r, vmin=0.4, vmax=1)
-aero = acutils.aerosol()
+Naot=lutc.aot.__len__()
+rtoaf = np.zeros((Naot, N))
+rtoac = np.zeros((Naot, N))
+for iband in range(N):
+    for iaot in range(Naot):
+        rtoaf[iaot, iband] = lutf.refl[iband][iaot, 0,0,1]
+        rtoac[iaot, iband] = lutc.refl[iband][iaot, 0,0,1]
+fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+iaot=2
+rtoa_tot = aero.fcoef *rtoaf[iaot]+(1-aero.fcoef) *rtoac[iaot]
+for i in [0,1]:
+    axs[i].plot(wlsat,rtoaf[iaot],'o--b',label='fine')
+    axs[i].plot(wlsat,rtoac[iaot],'o--r',label='coarse')
+    axs[i].plot(wlsat,rtoa_tot,'o-k',label='tot')
+    axs[i].plot(wlsat,ssa_grs[:,ir,ic]*rtoa_tot,'o:g',label='ssa adjusted')
+    axs[i].legend()
+axs[1].semilogy()
