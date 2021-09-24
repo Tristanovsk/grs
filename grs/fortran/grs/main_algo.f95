@@ -123,7 +123,10 @@ subroutine main_algo(npix, nband, naot, &
                 rcorrg(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
 
                 ! if negative values decrease aot
-                if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ipix) .lt. 0. .and. i .le. 8) then !iband .le. nband - 2 .and.
+                ! start after SWIR 2.2 microns (nband)
+
+                if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ipix) .lt. -0.0004 &
+               &  .and. i .le. 8 .and. iband .lt. nband) then !iband .le. nband - 2 .and.
                     ! print*,'aot adjustment',aotpt ,aotpt * scale,scale
                     aotpt(:) = max(aotpt * scale, 0.01)
 
