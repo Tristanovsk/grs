@@ -198,6 +198,16 @@ date = dt.datetime(2021, 3, 20, 10, 35)
 #serponcon
 lonmin, lonmax, latmin, latmax = 6.2,6.5, 44.4, 44.6
 date = dt.datetime(2021, 3, 20, 10, 35)
+
+#22KGV
+
+lonmin, lonmax, latmin, latmax = -49,-47, -23.57, -22.6
+date = dt.datetime(2021, 3, 15, 13, 22)
+
+year = str(date.year)
+month = str(date.month).zfill(2)
+cams_file = '/datalake/watcal/ECMWF/CAMS/'+year+'/'+year+'-'+month+'_month_cams-global-atmospheric-composition-forecasts.nc'
+
 lut_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata/LUT')
 aero = 'rg0.10_sig0.46'
 lutfine = os.path.join(lut_root,
@@ -219,7 +229,7 @@ rot=np.array([0.23745233, 0.15521662, 0.09104522, 0.04485828, 0.03557663,
               0.02918357, 0.02351827, 0.01829234, 0.01554304, 0.00127606, 0.00037652])
 idx550 = 4
 N = len(wlsat)
-
+lonmin,lonmax=lonmin%360,lonmax%360
 param_ssa, param_aod = [], []
 for wl in wls:
     wl_ = str(wl)
@@ -239,9 +249,14 @@ cams_daily = cams_xr.sel(time=day)
 # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
 #cams_sub = subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
 cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
-                       latitude=np.linspace(latmax, latmin, 12),
+                       latitude=np.linspace(latmin, latmax, 12),
                        kwargs={"fill_value": "extrapolate"})
+cams_sub.aod550.plot(col='time',col_wrap=4)
 
+mask_lon = (cams_daily.longitude >= lonmin%360) & (cams_daily.longitude <= lonmax%360)
+mask_lat = (cams_daily.latitude >= latmin) & (cams_daily.latitude <= latmax)
+cams_sub =cams_daily.where(mask_lon & mask_lat, drop=True)
+cams_sub.aod550.plot(col='time',col_wrap=4)
 # ---------------------------------
 # interpolate through dates
 # ---------------------------------
@@ -289,7 +304,8 @@ fcoef = aot_sca_550.copy(data=fcoef)
 
 w, h = 549, 549
 fig, axs = plt.subplots(nrows=3, ncols=2, figsize=(12, 18))
-
+fig.subplots_adjust(bottom=0.1, top=0.95, left=0.1, right=0.99,
+                    hspace=0.15, wspace=0.1)
 fcoef.plot(ax=axs[0,0],cmap=plt.cm.Spectral_r)
 fcoef.interp(longitude=np.linspace(lonmin, lonmax, 12),
                        latitude=np.linspace(latmax, latmin, 12),
@@ -298,19 +314,22 @@ fcoef.interp(longitude=np.linspace(lonmin, lonmax, 12),
                        kwargs={"fill_value": "extrapolate"}).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),method="nearest",
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[0,1],cmap=plt.cm.Spectral_r)
-aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
-                       latitude=np.linspace(latmax, latmin, h),
-                       kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,0],cmap=plt.cm.Spectral_r)
+aot_sca_grs.sel(wavelength=560).plot(ax=axs[1,0],cmap=plt.cm.Spectral_r)
+axs[1,0].set_title('AOT_sca')
 aot_sca_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[1,1],cmap=plt.cm.Spectral_r)
+axs[1,1].set_title('interp. AOT_sca')
 
 aot_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[2,0],cmap=plt.cm.Spectral_r, vmin=0.4, vmax=0.61)
+axs[2,0].set_title('interp. AOT_sca')
+
 ssa_grs.sel(wavelength=560).interp(longitude=np.linspace(lonmin, lonmax, w),
                        latitude=np.linspace(latmax, latmin, h),
                        kwargs={"fill_value": "extrapolate"}).plot(ax=axs[2,1],cmap=plt.cm.Spectral_r) #, vmin=0.8, vmax=1)
+axs[2,1].set_title('interp. ssa')
 
 ################################
 #########""
@@ -332,19 +351,20 @@ aero.fcoef
 
 
 fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
-axs[0].plot(wlsat, aot_grs(wlsat) / aot_grs550, '--ok')
-axs[0].plot(wlsat, nCext_f, ':ob')
-axs[0].plot(wlsat, nCext_c, ':or')
-axs[0].plot(wlsat, aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c, '*',label='fcoef:'+str(aero.fcoef[0]))
+axs[0].plot(wlsat, aot_grs(wlsat) / aot_grs550, '--ok',label='CAMS')
+axs[0].plot(wlsat, nCext_f, ':ob',label='fine')
+axs[0].plot(wlsat, nCext_c, ':or',label='coarse')
+axs[0].plot(wlsat, aero.fcoef * nCext_f + (1 - aero.fcoef) * nCext_c, '*',label='fcoef:'+'{:5.3f}'.format(aero.fcoef[0]))
 axs[0].set_xlabel('Wavelength (nm)')
 axs[0].set_ylabel('nCext or naot')
 
 axs[0].legend()
-axs[1].plot(wlsat, ssa_grs[:,ir,ic], '--ok',label='ssa')
+
 axs[1].plot(wlsat, lutf.Cext, ':ob',label='Cext fine')
 axs[1].plot(wlsat, lutc.Cext, ':or',label='Cext coarse')
 axs[1].plot(wlsat, aero.fcoef * lutf.Cext + (1 - aero.fcoef) * lutc.Cext, ':*',label='Cext mixture')
-
+a_=axs[1].twinx()
+a_.plot(wlsat, aot_grs(wlsat), '--ok',label='aot')
 axs[1].set_xlabel('Wavelength (nm)')
 axs[1].set_ylabel('Cext or ssa')
 axs[1].legend()

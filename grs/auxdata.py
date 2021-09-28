@@ -513,6 +513,8 @@ class cams:
         date = parser.parse(str(product.getStartTime()))
         day = date.strftime(date.strftime('%Y-%m-%d'))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
+        lonmin,lonmax=lonmin%360,lonmax%360
+
         lonslats = (lonmin, lonmax, latmin, latmax)
         w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
 
@@ -582,7 +584,7 @@ class cams:
                 aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[..., ir, ic] / aot_sca_550[ir, ic])[0]
         fcoef = aot_sca_550.copy(data=fcoef)
 
-        self.ssa_grs = u().raster_regrid(ssa_grs, lonslats, h, w).values
+        #self.ssa_grs = u().raster_regrid(ssa_grs, lonslats, h, w).values
         self.aot_grs = u().raster_regrid(aot_grs, lonslats, h, w).values
         self.aot_sca_grs = u().raster_regrid(aot_sca_grs, lonslats, h, w).values
         self.aot_sca_550 = u().raster_regrid(aot_sca_550, lonslats, h, w).values

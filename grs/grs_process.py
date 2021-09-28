@@ -427,14 +427,6 @@ class process:
         ######################################
         #      MAIN LOOP
         ######################################
-        #!!!!!!!!!!!!!!!!!!!
-        # WARNING TEST SSA ADJUSTMENT §§§
-        ssa = np.array([0.91803091, 0.91619173, 0.91108278, 0.90328215, 0.89870035,
-                        0.89446681, 0.88926559, 0.88136323, 0.87816181, 0.7795469 ,
-                        0.6964649 ])
-        ssa = np.array([0.97916566, 0.97422954, 0.96654182, 0.95459975, 0.94953046,
-       0.94486834, 0.93946376, 0.93208477, 0.92764734, 0.81908324,
-       0.73465288])
 
         for i in range(startrow, l2h.height):
             print('process row ' + str(i) + ' / ' + str(l2h.height))
@@ -476,7 +468,7 @@ class process:
             aot550guess = np.array(aot550rast[i])
             fcoef = np.array(fcoefrast[i])
             aot_tot = np.array(aotrast[:, i])
-            print('just before')
+
             aot_sca = np.array(aotscarast[:, i])
             for iband in range(l2h.N):
                 # preparing lut data
@@ -500,7 +492,7 @@ class process:
                                                                            aot_tot,
                                                                            aot550guess, fcoef, l2h.nodata, l2h.rrs)
             else:
-                print('just before 2')
+
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
