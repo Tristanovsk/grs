@@ -48,7 +48,7 @@ odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False # True #True
+noclobber = True # False #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'
@@ -66,11 +66,14 @@ for idx, site in sites.iterrows():
     # load row of list file
     if site.iloc[0] == 0:
         continue
-    name, start_date, end_date, sat, tile, lat, lon, resolution = site.iloc[1:]
+    name, start_date, end_date, sat, tile, resolution, flag = site.iloc[1:]
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
     resolution = int(resolution)
+    allpixels = True
+    if flag == 1:
+        allpixels = False
 
     # ------------------
     # setting up loop on dates
@@ -150,13 +153,13 @@ for idx, site in sites.iterrows():
         else:
             ancillary = 'cams_reanalysis'
 
-        if 'cams' in aerosol:
-            aerosol = ancillary
+        #if 'cams' in aerosol:
+        aerosol = ancillary
 
         # skip if incomplete (enables multiprocess)
-        if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
-            print('found incomplete File ' + outfile + '; skipped!')
-            continue
+        # if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
+        #     print('found incomplete File ' + outfile + '; skipped!')
+        #     continue
 
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
                           l2a_maja, waterdetect, \

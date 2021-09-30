@@ -34,7 +34,7 @@ for idx, site in sites.iterrows():
 
     L2A = Amalthee('theia')
     L1C = Amalthee('peps')
-    name, start_date, end_date, sat, tile, lat, lon, resolution = site.iloc[1:]
+    name, start_date, end_date, sat, tile, resolution, flag = site.iloc[1:]
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
 
