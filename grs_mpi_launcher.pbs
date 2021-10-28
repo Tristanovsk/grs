@@ -2,7 +2,7 @@
 #!/bin/bash
 
 #PBS -V
-#PBS -N grs_gernez
+#PBS -N estuary_plata2020
 #PBS -l select=1:ncpus=24:mpiprocs=8:mem=180gb
 #PBS -l walltime=48:00:00
 
@@ -10,16 +10,16 @@ module load conda
 
 # set file path with list of images to process
 # format/header of the file in csv:
-# process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
-list_file=list_grs_cnes_obs2mod.csv
-#list_file=list_grs_cnes_guimaraes.csv
+# process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
+list_file=list_grs_unesco_plata_estuary_2020.csv
+#list_file=list_grs_cnes_obs2mod.csv
 #list_file=list_grs_cnes_seine.csv
-list_file=list_grs_gernez_sep2021.csv
+#list_file=list_grs_gernez_sep2021.csv
 #list_file=list_grs_cnes_hafeez.csv
 #list_file=list_grs_cnes_mauricio.csv
 
 GRSHOME=/home/eh/harmelt/scratch/dev/grs2
-list_filepath=$GRSHOME/exe/$list_file
+list_filepath=$GRSHOME/exe/list/$list_file
 
 # ------------------------
 # first section: load L1C and L2A images with Amalthee

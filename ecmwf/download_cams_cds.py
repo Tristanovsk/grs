@@ -73,7 +73,7 @@ def main(dic):
 
                 if os.path.exists(datafile):
                     print('!!' + datafile + 'already exists !!')
-                    # continue
+                    continue
                 print('processing ' + datafile + '...')
 
                 c.retrieve(

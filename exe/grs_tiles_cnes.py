@@ -27,7 +27,7 @@ misc = misc()
 # set parameters
 # data source to fill datalake
 # amalthee = Amalthee('peps')
-
+sitefile = 'exe/list_grs_gernez_sep2021.csv'
 sitefile = sys.argv[1]
 
 # number of processors to be used
@@ -160,7 +160,9 @@ for idx, site in sites.iterrows():
         # if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
         #     print('found incomplete File ' + outfile + '; skipped!')
         #     continue
-
+        print([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
+                          l2a_maja, waterdetect, \
+                          aot550, angstrom, memory_safe, allpixels, angleonly])
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
                           l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])

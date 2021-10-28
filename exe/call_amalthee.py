@@ -21,7 +21,7 @@ from libamalthee import Amalthee
 # start_date, end_date = '2021-03-01', '2021-03-30'
 # tile, lon, lat = '31TGK', '14.6', '14'
 
-sitefile = 'exe/list_grs_cnes_mauricio.csv' # 'exe/list_grs_cnes_seine.csv' #
+sitefile = 'exe/list/list_grs_unesco_plata_2021.csv' # 'exe/list_grs_cnes_seine.csv' #
 sitefile = sys.argv[1]
 sites = pd.read_csv(sitefile)
 
@@ -54,18 +54,18 @@ for idx, site in sites.iterrows():
     while not finished:
         print('tile',tile)
         res = L1C.check_datalake()
-        print(res)
+        print('L1C',res)
         try:
-            if (res['status'] == 'job_status: CANCELED') or (res['status'] == 'done'):
+            if (res['status'] == 'failed') or (res['status'] == 'done'):
                 finished_L1C = True
                 print('L1C job finished or canceled', res)
         except:
             pass
         res = L2A.check_datalake()
-        print(res)
+        print('L2A',res)
 
         try:
-            if (res['status'] == 'job_status: CANCELED') or (res['status'] == 'done'):
+            if (res['status'] == 'no_request_made') or (res['status'] == 'done'):
                 finished_L2A = True
                 print('L2A job finished or canceled', res)
         except:
@@ -75,7 +75,7 @@ for idx, site in sites.iterrows():
         time.sleep(3)
 
         iwait += 1
-        if iwait > 2000:
+        if iwait > 1000:
             finished = True
 
     print('Finished!!')

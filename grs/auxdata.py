@@ -23,7 +23,8 @@ hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
-NDWI_threshold = [0., 1.1]
+#NDWI_threshold = [-0.3, 1.3]
+NDWI_threshold = [-0., 1.]
 
 
 class sensordata:

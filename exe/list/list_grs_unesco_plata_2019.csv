@@ -1,0 +1,6 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+1,,2019-01-01,2019-12-31,S2,22KDV,20,1
+1,,2019-01-01,2019-12-31,S2,22KEV,20,1
+1,,2019-01-01,2019-12-31,S2,22KFV,20,1
+1,,2019-01-01,2019-12-31,S2,22KGV,20,1
+

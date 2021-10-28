@@ -1,0 +1,6 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+1,,2020-01-01,2020-12-31,S2,21HUC,20,1
+1,,2020-01-01,2020-12-31,S2,21HUB,20,1
+1,,2020-01-01,2020-12-31,S2,21HVC,20,1
+1,,2020-01-01,2020-12-31,S2,21HVB,20,1
+
