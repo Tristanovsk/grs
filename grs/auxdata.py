@@ -23,8 +23,10 @@ hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
-#NDWI_threshold = [-0.3, 1.3]
-NDWI_threshold = [-0., 1.]
+NDWI_threshold = [-0.3, 1.3]
+
+
+# NDWI_threshold = [-0., 1.]
 
 
 class sensordata:
@@ -514,7 +516,7 @@ class cams:
         date = parser.parse(str(product.getStartTime()))
         day = date.strftime(date.strftime('%Y-%m-%d'))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
-        lonmin,lonmax=lonmin%360,lonmax%360
+        lonmin, lonmax = lonmin % 360, lonmax % 360
 
         lonslats = (lonmin, lonmax, latmin, latmax)
         w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
@@ -535,6 +537,14 @@ class cams:
         # ---------------------------------
         # subset
         # ---------------------------------
+        # first check longitude for nomenclature:
+        # if close to meridian greenwich: -180 < lon < 180
+        #   0 < lon < 360, otherwise
+        if (lonmin > 270) or (lonmax < 90):
+            lonmin = lonmin - 180
+            lonmax = lonmax - 180
+            cams_daily['longitude'] = cams_daily.longitude - 180
+
         # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
         print('cams cds', lonmin, lonmax, latmin, latmax)
         # cams_sub = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
@@ -582,10 +592,10 @@ class cams:
         for ir in range(r):
             for ic in range(c):
                 fcoef[ir, ic] = \
-                aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[..., ir, ic] / aot_sca_550[ir, ic])[0]
+                    aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[..., ir, ic] / aot_sca_550[ir, ic])[0]
         fcoef = aot_sca_550.copy(data=fcoef)
 
-        #self.ssa_grs = u().raster_regrid(ssa_grs, lonslats, h, w).values
+        # self.ssa_grs = u().raster_regrid(ssa_grs, lonslats, h, w).values
         self.aot_grs = u().raster_regrid(aot_grs, lonslats, h, w).values
         self.aot_sca_grs = u().raster_regrid(aot_sca_grs, lonslats, h, w).values
         self.aot_sca_550 = u().raster_regrid(aot_sca_550, lonslats, h, w).values
