@@ -2,7 +2,7 @@
 #!/bin/bash
 
 #PBS -V
-#PBS -N estuary_plata2020
+#PBS -N plata2021
 #PBS -l select=1:ncpus=24:mpiprocs=8:mem=180gb
 #PBS -l walltime=48:00:00
 
@@ -12,6 +12,7 @@ module load conda
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
 list_file=list_grs_unesco_plata_estuary_2020.csv
+list_file=list_grs_unesco_plata_2021.csv
 #list_file=list_grs_cnes_obs2mod.csv
 #list_file=list_grs_cnes_seine.csv
 #list_file=list_grs_gernez_sep2021.csv

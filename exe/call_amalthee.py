@@ -21,7 +21,7 @@ from libamalthee import Amalthee
 # start_date, end_date = '2021-03-01', '2021-03-30'
 # tile, lon, lat = '31TGK', '14.6', '14'
 
-sitefile = 'exe/list/list_grs_unesco_plata_2021.csv' # 'exe/list_grs_cnes_seine.csv' #
+sitefile = 'exe/list/list_grs_cnes_obs2mod.csv' # 'exe/list_grs_cnes_seine.csv' #
 sitefile = sys.argv[1]
 sites = pd.read_csv(sitefile)
 
@@ -40,11 +40,12 @@ for idx, site in sites.iterrows():
 
     parameters = {"productType": "S2MSI1C", "tileid": tile}
     L1C.search("S2ST", start_date, end_date, parameters)
-    L1C.fill_datalake()
+    idL1C = L1C.fill_datalake()
     L1C.check_datalake()
     parameters = {'processingLevel': 'LEVEL2A', 'location':'T'+tile} #'lon': str(lon), 'lat': str(lat)}
     L2A.search("SENTINEL2", start_date, end_date, parameters)
-    L2A.fill_datalake()
+    idL2A = L2A.fill_datalake()
+
     # if idx == 1:
     #     break
     finished = False
@@ -59,6 +60,7 @@ for idx, site in sites.iterrows():
             if (res['status'] == 'failed') or (res['status'] == 'done'):
                 finished_L1C = True
                 print('L1C job finished or canceled', res)
+                L1C.delete_request(idL1C)
         except:
             pass
         res = L2A.check_datalake()
@@ -68,6 +70,7 @@ for idx, site in sites.iterrows():
             if (res['status'] == 'no_request_made') or (res['status'] == 'done'):
                 finished_L2A = True
                 print('L2A job finished or canceled', res)
+                L2A.delete_request(idL2A)
         except:
             pass
         # L2A.products.loc[L2A.products.state == 'failed', 'available'] = True
