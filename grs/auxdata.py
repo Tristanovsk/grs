@@ -23,7 +23,7 @@ hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
-NDWI_threshold = [-0.3, 1.3]
+NDWI_threshold = [-0.3, 1.]
 
 
 # NDWI_threshold = [-0., 1.]
@@ -516,9 +516,7 @@ class cams:
         date = parser.parse(str(product.getStartTime()))
         day = date.strftime(date.strftime('%Y-%m-%d'))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
-        lonmin, lonmax = lonmin % 360, lonmax % 360
 
-        lonslats = (lonmin, lonmax, latmin, latmax)
         w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
 
         param_ssa, param_aod = [], []
@@ -540,10 +538,13 @@ class cams:
         # first check longitude for nomenclature:
         # if close to meridian greenwich: -180 < lon < 180
         #   0 < lon < 360, otherwise
-        if (lonmin > 270) or (lonmax < 90):
-            lonmin = lonmin - 180
-            lonmax = lonmax - 180
-            cams_daily['longitude'] = cams_daily.longitude - 180
+        # first convert from snap to CAMS nomenclature (0<lon<360)
+        lonmin,lonmax=lonmin%360,lonmax%360
+        if (lonmin > 350) and (lonmax < 10):
+            lonmin = lonmin - 360
+            cams_daily = cams_daily.assign_coords(longitude=(((cams_daily.longitude + 180) % 360) - 180)).sortby('longitude')
+
+        lonslats = (lonmin, lonmax, latmin, latmax)
 
         # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
         print('cams cds', lonmin, lonmax, latmin, latmax)

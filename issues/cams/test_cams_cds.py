@@ -199,10 +199,14 @@ date = dt.datetime(2021, 3, 20, 10, 35)
 lonmin, lonmax, latmin, latmax = 6.2,6.5, 44.4, 44.6
 date = dt.datetime(2021, 3, 20, 10, 35)
 
+lonmin, lonmax, latmin, latmax = -0.5,.5, 44.4, 44.6
+date = dt.datetime(2021, 3, 20, 10, 35)
+
 #22KGV
 
 lonmin, lonmax, latmin, latmax = -49,-47, -23.57, -22.6
 date = dt.datetime(2021, 3, 15, 13, 22)
+
 
 year = str(date.year)
 month = str(date.month).zfill(2)
@@ -229,7 +233,7 @@ rot=np.array([0.23745233, 0.15521662, 0.09104522, 0.04485828, 0.03557663,
               0.02918357, 0.02351827, 0.01829234, 0.01554304, 0.00127606, 0.00037652])
 idx550 = 4
 N = len(wlsat)
-lonmin,lonmax=lonmin%360,lonmax%360
+
 param_ssa, param_aod = [], []
 for wl in wls:
     wl_ = str(wl)
@@ -246,6 +250,14 @@ cams_daily = cams_xr.sel(time=day)
 # ---------------------------------
 # subset
 # ---------------------------------
+
+lonmin,lonmax=lonmin%360,lonmax%360
+if (lonmin > 350) and (lonmax < 10):
+    lonmin = lonmin - 360
+    cams_daily = cams_daily.assign_coords(longitude=(((cams_daily.longitude + 180) % 360) - 180)).sortby('longitude')
+
+lonslats = (lonmin, lonmax, latmin, latmax)
+
 # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
 #cams_sub = subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
 cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
@@ -253,10 +265,11 @@ cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
                        kwargs={"fill_value": "extrapolate"})
 cams_sub.aod550.plot(col='time',col_wrap=4)
 
-mask_lon = (cams_daily.longitude >= lonmin%360) & (cams_daily.longitude <= lonmax%360)
-mask_lat = (cams_daily.latitude >= latmin) & (cams_daily.latitude <= latmax)
-cams_sub =cams_daily.where(mask_lon & mask_lat, drop=True)
-cams_sub.aod550.plot(col='time',col_wrap=4)
+# mask_lon = (cams_daily.longitude >= lonmin) & (cams_daily.longitude <= lonmax)
+# mask_lat = (cams_daily.latitude >= latmin) & (cams_daily.latitude <= latmax)
+# cams_ =cams_daily.where(mask_lon & mask_lat, drop=True)
+# cams_.aod550.plot(col='time',col_wrap=4)
+
 # ---------------------------------
 # interpolate through dates
 # ---------------------------------
