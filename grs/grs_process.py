@@ -88,10 +88,11 @@ class process:
         # Read L1C product
         ##################################
 
-        print('unzipping...')
+
         file_orig = file
         # unzip if needed
         if unzip:
+            print('unzipping...')
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
@@ -121,6 +122,7 @@ class process:
         ##################################
         # GET METADATA
         ##################################
+        print('getting metadata...')
         # TODO clean up this part and other metadata to be loaded
         if 'S2' in sensor:
             meta = l2h.product.getMetadataRoot().getElement('Level-1C_User_Product').getElement(
@@ -147,7 +149,7 @@ class process:
             anggen = angle_generator().landsat(l2h)
         elif 'LANDSAT' in sensor:
             anggen = angle_generator().landsat_tm(l2h)
-        print('anggen = {}'.format(anggen))
+        #print('anggen = {}'.format(anggen))
         if anggen:
             if tartmp:
                 print('writing angles to input file: ' + file_orig)
@@ -201,6 +203,7 @@ class process:
         # resample for common resolution
         # subset to ROI
         ##################################
+        print('fetching falgs...')
         maja, waterdetect = None, None
         if maja_xml:
             try:
@@ -225,6 +228,7 @@ class process:
         ##################################
         ## ADD ELEVATION BAND
         ##################################
+        print('adding elevation band...')
         if dem:
             print('add elevation band')
             high_latitude = (latmax >= 60) | (latmin <= -60)
@@ -249,6 +253,7 @@ class process:
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
+        print('getting CAMS data...')
         l2h.aux = auxdata.cams()
 
         if ancillary != 'default':
@@ -293,7 +298,8 @@ class process:
         # ssarast = np.zeros([l2h.N,l2h.width, l2h.height], dtype=l2h.type)
         aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h.type, order='F')
         fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
-
+        # set mean SSA value to adjust scattering AOT when info is not available
+        ssacoef = 0.99
         if l2h.aerosol == 'cds_forecast':
 
             cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
@@ -317,6 +323,7 @@ class process:
 
                 l2h.aux.aot_wl = aero.wavelengths
                 l2h.aux.aot = aero.aot
+                aotscarast = ssacoef*l2h.aux.aot
                 l2h.aux.aot550 = aero.aot550
                 aot550rast.fill(l2h.aux.aot550)
 
@@ -331,6 +338,7 @@ class process:
                                          l2h.date.strftime('%Y-%m') + '_month_' +
                                          l2h.aerosol + '.nc')
                 l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
+                aotscarast = ssacoef*l2h.aux.aot
                 aot550rast = l2h.aux.aot550rast  # .T
                 print('aot550rast shape', aot550rast.shape)
             # CAMS new cds dataset (available from 26 June 2018 12UTC)
@@ -339,6 +347,7 @@ class process:
                 l2h.aux.aot550 = aot550
                 l2h.angstrom = angstrom
                 l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+                aotscarast = ssacoef*l2h.aux.aot
                 l2h.aux.aot_wl = l2h.wl
                 aot550rast.fill(l2h.aux.aot550)
 
@@ -346,6 +355,7 @@ class process:
                 l2h.aux.aot550 = 0.1
                 l2h.angstrom = 1
                 l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
+                aotscarast = ssacoef*l2h.aux.aot
                 l2h.aux.aot_wl = l2h.wl
                 aot550rast.fill(l2h.aux.aot550)
                 print("No aerosol data provided, set to default: aot550=01, angstrom=1")
@@ -372,6 +382,7 @@ class process:
         #     Set SMAC parameters for
         #    absorbing gases correction
         ####################################
+        print('loading SMAC algorithm...')
         smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
         smac.set_gas_param()
         smac.set_values(o3du=l2h.aux.o3du, h2o=l2h.aux.h2o)
@@ -427,9 +438,9 @@ class process:
         ######################################
         #      MAIN LOOP
         ######################################
-
+        print('processing '+file+'...')
         for i in range(startrow, l2h.height):
-            print('process row ' + str(i) + ' / ' + str(l2h.height))
+            # print('process row ' + str(i) + ' / ' + str(l2h.height))
 
             sza = l2h.sza[i]
             razi = l2h.razi[:, i]
@@ -531,7 +542,7 @@ class process:
             l2h.l2_product.getBand("aot550").writePixels(0, i, l2h.width, 1, aot550pix)
 
             # TODO improve checksum scheme
-            l2h.checksum('startrow ' + str(i))
+            l2h.checksum('row ' + str(i)+ ' / ' + str(l2h.height))
 
         l2h.finalize_product()
 

@@ -31,11 +31,13 @@ Version history:
        - new aod wavelengths and spectral ssa from 2018 onwards
        - adjustment for absorbing aerosol through ssa
 
+1.3.1: update CMAS data extraction from xarray and fix for longitude conventions
+
 2.0.0: - process image by rectangular chunks
 '''
 
 __package__ = 'grs'
-__version__ = '1.3.0'
+__version__ = '1.3.1'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac

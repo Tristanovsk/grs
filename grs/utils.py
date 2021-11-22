@@ -488,11 +488,14 @@ class info:
         coding = FlagCoding('flags')
         f0 = coding.addFlag("nodata", 1, "nodata in input image ")
         f1 = coding.addFlag("negative", 2, "negative values in visible ")
-        f2 = coding.addFlag("ndwi", 4, "based on ndwi vis nir TOA ")
+        f2 = coding.addFlag("ndwi", 4, "based on ndwi vis nir TOA based on bands "+
+                            self.band_names[self.sensordata.NDWI_vis]+" and "+
+                            self.band_names[self.sensordata.NDWI_nir]+
+                            " for range "+str(self.sensordata.NDWI_threshold))
         f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
         f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
                             self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
-            self.sensordata.high_nir[1]))
+                            self.sensordata.high_nir[1]))
         f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band; condition Rtoa at band " +
                             self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
         f6 = coding.addFlag("L1_cloud", 64, "opaque cloud flag from L1 image ")
