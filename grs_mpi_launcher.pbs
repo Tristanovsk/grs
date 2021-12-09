@@ -2,18 +2,18 @@
 #!/bin/bash
 
 #PBS -V
-#PBS -N plata2020
-#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180gb
+#PBS -N grs_abhe
+#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g
 #PBS -l walltime=48:00:00
-
+#:generation=g2019
 module load conda
 
 # set file path with list of images to process
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
 list_file=list_grs_unesco_plata_estuary_2019.csv
-list_file=list_grs_unesco_plata_2020.csv
-#list_file=list_grs_cnes_obs2mod.csv
+list_file=list_grs_unesco_plata_2019.csv
+list_file=list_grs_cnes_obs2mod.csv
 #list_file=list_grs_cnes_seine.csv
 #list_file=list_grs_gernez_sep2021.csv
 #list_file=list_grs_cnes_hafeez.csv
@@ -27,7 +27,7 @@ list_filepath=$GRSHOME/exe/list/$list_file
 # ------------------------
 path_of_env=/softs/rh7/conda-envs/amalthee_prod_client
 conda activate $path_of_env
-# $path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
+$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 
 # ------------------------
 # second section: process available couples of L1C/L2A images with GRS
@@ -50,7 +50,7 @@ conda activate $path_of_env
 # cd /work/scratch/harmelt/dev/grs2
 #cd /work/ALT/swot/aval/OBS2CO/git/grs2
 
-export OMP_NUM_THREADS=8
+export OMP_NUM_THREADS=7
 $path_of_env/bin/python $GRSHOME/exe/grs_tiles_cnes.py $list_filepath $OMP_NUM_THREADS
 
 # test example:

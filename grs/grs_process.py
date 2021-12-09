@@ -295,6 +295,7 @@ class process:
         ##################################
         aero = acutils.aerosol()
         aot550rast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
+        aotscarast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
         # ssarast = np.zeros([l2h.N,l2h.width, l2h.height], dtype=l2h.type)
         aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h.type, order='F')
         fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
@@ -358,6 +359,7 @@ class process:
                 aotscarast = ssacoef*l2h.aux.aot
                 l2h.aux.aot_wl = l2h.wl
                 aot550rast.fill(l2h.aux.aot550)
+
                 print("No aerosol data provided, set to default: aot550=01, angstrom=1")
 
             # set spectral aot for satellite bands
@@ -479,8 +481,11 @@ class process:
             aot550guess = np.array(aot550rast[i])
             fcoef = np.array(fcoefrast[i])
             aot_tot = np.array(aotrast[:, i])
+            if l2h.aerosol == 'cds_forecast':
+                aot_sca = np.array(aotscarast[:, i])
+            else:
+                aot_sca = aot_tot
 
-            aot_sca = np.array(aotscarast[:, i])
             for iband in range(l2h.N):
                 # preparing lut data
                 grid_pix = list(zip(sza, razi[iband], vza[iband]))
