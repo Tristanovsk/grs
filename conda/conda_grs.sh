@@ -6,34 +6,32 @@
 conda deactivate 2>/dev/null
 
 #On récupère la connexion au proxy
-[ "$_" = "$0" ] && echo "Ce script doit être sourcé!" && exit 127
+#[ "$_" = "$0" ] && echo "Ce script doit être sourcé!" && exit 127
 
-read -s -p "Please enter your proxy password ? " _passwd || exit 127
-echo
+#read -s -p "Please enter your proxy password ? " _passwd || exit 127
+#echo
 
-_user=${_user:-$USER}
+#_user=${_user:-$USER}
 
-if [ -z ${_passwd} ]
-then
-	echo "No password"
-else
-
-	export http_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
-	export https_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
+#if [ -z ${_passwd} ]
+#then
+#	echo "No password"
+#else
+#
+#	export http_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
+#	export https_proxy="http://${_user}:${_passwd}@proxy-surf.loc.cnes.fr:8050"
 
 #echo 'http_proxy variable has to be set : '$http_proxy
 
-	export ftp_proxy="${http_proxy}"
-	export no_proxy=cnes.fr,sis.cnes.fr,gitlab.cnes.fr
+#	export ftp_proxy="${http_proxy}"
+#	export no_proxy=cnes.fr,sis.cnes.fr,gitlab.cnes.fr
 
-	unset _passwd
-	unset _user
-fi
+#	unset _passwd
+#	unset _user
+#fi
 
 #load avail module for conda, snap and jdk
 module load snap/8.0 conda jdk/1.8.0_112
-
-#otb-depends/7.0-python3.6.5
 
 #switch to gcc/4.8.5
 #module unload gcc
@@ -45,8 +43,8 @@ export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 
-#activate conda environement python 3.6
-conda activate /work/scratch/$USER/grs_py3.6
+#activate conda environement python 3.8
+conda activate /work/ALT/swot/aval/OBS2CO/conda_env/grs_py3.6_V4
 echo $USER
 
 #configuration for snap
