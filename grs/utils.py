@@ -762,7 +762,7 @@ class utils:
 
     @staticmethod
     def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
-                  flag='FlagMedianAnd', opt=True):
+                  flag='FlagMedianAnd', opt=False):
 
         '''
         Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
@@ -788,8 +788,8 @@ class utils:
         return op.getTargetProduct()
 
     @staticmethod
-    def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
-                     flag='FlagMedianAnd', opt=True):
+    def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='Mean',
+                     flag='FlagMedianAnd', opt=False):
 
         '''
         Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)

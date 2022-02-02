@@ -146,12 +146,13 @@ for idx, site in sites.iterrows():
 
         # ------------------
         #  CAMS data selection
+        # TODO check data availability from CAMS and update the dates below
         if date.year > 2018:
             ancillary = 'cds_forecast'
-        elif date.year > 2016:
-            ancillary = 'cams_forecast'
+        elif (date.year == 2018) and (date.month > 6):
+            ancillary = 'cds_forecast'
         else:
-            ancillary = 'cams_reanalysis'
+            ancillary = 'cams_forecast' #'cams_reanalysis'
 
         #if 'cams' in aerosol:
         aerosol = ancillary
