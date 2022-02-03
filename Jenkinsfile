@@ -11,7 +11,7 @@ def artifactoryRegistryUrl = "artifactory.cnes.fr/docker/"
 def artifactoryCredentials = "OBS2CO_ARTIFACTORY_CREDENTIALS"
 
 // PROJECT VARIABLES
-def projectName = "WaterqQuality/grs2"
+def projectName = "WaterQuality/grs2"
 def deliveryPath = "obs2co-docker-local-local"
 
 
@@ -71,7 +71,7 @@ pipeline {
                         echo "========================== Init step =========================="
 
                 }
-     
+           }
            stage('Build docker') {
                     // Execution de la pipeline sur un agent docker
                     agent { label 'docker' }
@@ -219,24 +219,12 @@ pipeline {
                                     cleanWs()
                                 }
                             }
+                      }
                 }
 
             }
         }     
-    }
+    
 
-    post { 
-        failure {
-            script {
-                if (!params.DEBUG) {
-                    // Modifier l'adresse mail en fonction de la votre
-                    mail to: 'usinelogicielle@cnes.fr',
-                        subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
-                        body: "Something is wrong with ${env.BUILD_URL}"
-                }
-                echo "I failed :( "
-            }
-        }
-    }
 }
 
