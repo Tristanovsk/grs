@@ -123,7 +123,7 @@ pipeline {
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./https_proxy.txt
                                 """
-
+                                 }
                                 script {
                                     docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
                                         sh """
@@ -173,58 +173,14 @@ pipeline {
                                 }
                             }
                         }
-
-                        stage('livraison') {
-                            steps {
-                                script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
-                                        sh  """
-                                        # Publie sur Artifactory
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker-local/grs:latest obs2co-docker-local/grs
-
-                                        # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
-                                        jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
-                                        """
-                                    }
-
-                                    // Permet d'afficher une icone contenant l'URL du build Artifactory directement dans l'historique des builds Jenkins
-                                    currentBuild.description = "<a href='${ARTIFACTORY_BUILD_URL}'><img src='/plugin/artifactory/images/artifactory-icon.png' alt='[Artifactory]' title='Artifactory Build Info' width='16' height='16'></a>"
-                                }
-                            }
-                        }                        
-                        
-                        stage('analyse Xray') {
-                            steps {
-                                script {
-                                    if (params.LAUNCH_XRAY) {
-                                        // Analyse Xray de l'artefact. Ne fait pas echouer le build si le scan echoue grace a la commande --fail
-                                        sh "jfrog rt bs --server-id ${SERVERID} --fail=false"
-                                    }                                    
-                                }
-                            }
-                        } 
-                    }
                     
 
-                    post { 
-                        cleanup {
-                            script {
-                                if (!params.DEBUG) {
-                                    // Nettoyage des éléments docker tel que les images, les containers, les réseaux et les volumes.
-                                    sh """
-                                    docker system prune -af
-                                    """
-                                    // Nettoyage du workspace ou est spécifié le serveur d'authentification "server-id Jfrog-CLI" au niveau de l'agent jenkins 
-                                    // pour éviter que d'autres projets l'utilisent "Bonne pratique de sécurité"
-                                    cleanWs()
-                                }
-                            }
-                      }
-                }
 
             }
-        }     
+        }
+    }
+}     
     
 
-}
+
 
