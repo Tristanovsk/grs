@@ -4,11 +4,15 @@
 // Création d'une variable "UUID" pour spécifier un ID unique "server-id" du serveur de test configuré au niveau de jFrog-CLI
 def SERVERID = UUID.randomUUID().toString()
 
-// Remplacer l'appel de la methode par l'url, ex : pour la variable sonarqube_host mettre : sonarqube = "sonarqube.cnes.fr"
-def sonarqube_host = getSonarQubeUrl()
-def artifactory_host = getArtifactoryUrl()
-def sonarqube_main_branch = getSonarQubeMainBranch()
-def gitlab_host = getGitlabUrl()
+def artifactoryUrl = "https://artifactory.cnes.fr/artifactory"
+def artifactoryRegistryUrl = "artifactory.cnes.fr/docker/"
+
+// CREDENTIALS
+def artifactoryCredentials = "OBS2CO_ARTIFACTORY_CREDENTIALS"
+
+// PROJECT VARIABLES
+def projectName = "WaterqQuality/grs2"
+def deliveryPath = "obs2co-docker-local-local"
 
 
 pipeline {
@@ -27,12 +31,8 @@ pipeline {
     }
 
     environment {
-        ARTI_TOKEN = credentials('obs2co-docker')
+        ARTI_TOKEN = credentials('obs2co-docker-local')
         ARTI_URL = "https://${artifactory_host}/artifactory"
-        SONAR_TOKEN=credentials('Token-sonarqube-ul')
-        // Specifie le chemin contenant des fichiers pour l'utilisation de sonar scanner. Jenkins se basera sur le workspace comme base de chemin
-        SONAR_SCANNER_OPTS="-Duser.home=.sonar-scanner"
-        // Specifie le chemin de configuration de jfrog cli. Jenkins se basera sur le workspace comme base de chemin
         JFROG_CLI_HOME_DIR=".jfrog"
         // Permet de minimiser les logs inutiles ex : % d'avancement de l'upload ou download
         CI="true"
@@ -40,13 +40,11 @@ pipeline {
         JFROG_CLI_BUILD_NAME_URL = java.net.URLEncoder.encode(JFROG_CLI_BUILD_NAME, "UTF-8")
         ARTIFACTORY_BUILD_URL = "https://${artifactory_host}/artifactory/webapp/#/builds/${JFROG_CLI_BUILD_NAME_URL}/${JFROG_CLI_BUILD_NUMBER}"
         // Recuperation d'un credential Jenkins
-        PROXY_TOKEN=credentials('Test-ci-proxy-tech')
+        PROXY_TOKEN=credentials('obs2co-proxy')
         // Utilisation d'un compte projet pour le proxy CNES
         HTTP_PROXY = "http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060"
         HTTPS_PROXY = "http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060"
         NO_PROXY='cnes.fr'
-        // Build name pour jfrog cli. Permet de retrouver les informations de build dans Artifactory. Cette cle doit etre unique
-        // Utilise le nom du job Jenkins pour le retrouver plus simplement et assure une meilleure unicite de la cle
         JFROG_CLI_BUILD_NAME = "${env.JOB_NAME}".replace('%2F', ':')
         // Build number pour jfrog cli. Utilise le numero de build de Jenkins pour faciliter le lien entre le build Jenkins et celui d'Artifactory
         JFROG_CLI_BUILD_NUMBER = "${env.BUILD_NUMBER}"
@@ -68,9 +66,13 @@ pipeline {
         /** Ce job lance une analyse qualite via le module hadolint qui n'est pas disponible sur les agents Jenkins docker car ces agents ne doivent servir que pour les commandes docker.
          *  L'analyse qualite est donc realise sur un noeud HPC. Les etapes sont donc parallelises pour gagner du temps
         **/
-        stage('Parallel stage') {
-            parallel {
-                stage('Build docker') {
+           stage('Init') {
+                steps {
+                        echo "========================== Init step =========================="
+
+                }
+     
+           stage('Build docker') {
                     // Execution de la pipeline sur un agent docker
                     agent { label 'docker' }
 
@@ -110,10 +112,12 @@ pipeline {
 
                         stage('pull') {
                             steps {
-                                sh """
-                                    #docker login docker.pkg.github.com --username cecile.betmont --password 
-                                    #docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
-                                    #jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/snap:latest snap
+                                 withCredentials([usernamePassword(credentialsId: artifactoryCredentials, usernameVariable: 'username', passwordVariable: 'token')]) {
+                                 sh """
+                                    export no_proxy=cnes.fr; curl -v -u '${username}:${token}' --insecure -O                                     
+                                    docker login docker.pkg.github.com --username cecile.betmont --password 
+                                    docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
+                                    jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker-local/snap:latest snap
            
                                     #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
@@ -121,14 +125,14 @@ pipeline {
                                 """
 
                                 script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker') {
+                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
                                         sh """
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker/ \
+                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker-local/grs:latest --no-cache \
+                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker-local/ \
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
@@ -144,7 +148,7 @@ pipeline {
                             steps {
                                 sh """
                                     echo "Download le binaire pour l'image docker"
-                                    curl -m 150 -sL https://gitlab.cnes.fr/waterquality/grs2.git -O 
+                                    git clone git@gitlab.cnes.fr/waterquality/grs2.git
                                     echo "Extraction du repo git de grs"
                                     #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
@@ -152,14 +156,14 @@ pipeline {
                                 """
 
                                 script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker') {
+                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
                                         sh """
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker/snap \
+                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker-local/grs:latest --no-cache \
+                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker-local/snap \
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
@@ -173,10 +177,10 @@ pipeline {
                         stage('livraison') {
                             steps {
                                 script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker') {
+                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
                                         sh  """
                                         # Publie sur Artifactory
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:latest obs2co-docker/grs
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker-local/grs:latest obs2co-docker-local/grs
 
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
                                         jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
