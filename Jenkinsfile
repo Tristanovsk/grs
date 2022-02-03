@@ -219,8 +219,6 @@ pipeline {
                                     cleanWs()
                                 }
                             }
-                        }
-                    }
                 }
 
             }
