@@ -81,6 +81,7 @@ pipeline {
                             steps {
                                 // Actions faite au début au cas ou le précédent build avait l'option DEBUG d'activé
                                 cleanWs()
+                            }
                         }
 
                         stage ("configuration Jfrog cli serveur") {
@@ -163,7 +164,7 @@ pipeline {
                         }
                     
 
-                    }
+                    
             }
         }
     }
