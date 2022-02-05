@@ -12,7 +12,7 @@ def artifactoryCredentials = "OBS2CO_ARTIFACTORY_CREDENTIALS"
 
 // PROJECT VARIABLES
 def projectName = "WaterQuality/grs2"
-def deliveryPath = "obs2co-docker-local-local"
+def deliveryPath = "obs2co-docker-local"
 
 
 pipeline {
@@ -81,18 +81,6 @@ pipeline {
                             steps {
                                 // Actions faite au début au cas ou le précédent build avait l'option DEBUG d'activé
                                 cleanWs()
-                                // Nettoyage des éléments docker tel que les images, les containers, les réseaux et les volumes.
-                                sh """
-                                docker system prune -af
-                                """
-                            }
-                        }
-
-                        stage('checkout') {
-                            steps {
-                                // Clone Git renseigne lors de la configuration du job Jenkins au niveau de l'IHM
-                                checkout scm
-                            }
                         }
 
                         stage ("configuration Jfrog cli serveur") {
@@ -115,9 +103,9 @@ pipeline {
                                  withCredentials([usernamePassword(credentialsId: artifactoryCredentials, usernameVariable: 'username', passwordVariable: 'token')]) {
                                  sh """
                                     export no_proxy=cnes.fr; curl -v -u '${username}:${token}' --insecure -O                                     
-                                    docker login docker.pkg.github.com --username cecile.betmont --password 
+                                    docker login docker.pkg.github.com --username cecile.betmont --password ${token}
                                     docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
-                                    jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker-local/snap:latest snap
+                                    jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest snap
            
                                     #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
@@ -131,8 +119,8 @@ pipeline {
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker-local/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker-local/ \
+                                            DOCKER_BUILDKIT=1 docker build -t ${artifactoryRegistryUrl}/obs2co-docker-local/grs:latest --no-cache \
+                                            --build-arg IMAGE_SOURCE=${artifactoryRegistryUrl}/obs2co-docker-local/ \
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
@@ -162,8 +150,8 @@ pipeline {
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker-local/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker-local/snap \
+                                            DOCKER_BUILDKIT=1 docker build -t ${artifactoryRegistryUrl}/obs2co-docker-local/grs:latest --no-cache \
+                                            --build-arg IMAGE_SOURCE=${artifactoryRegistryUrl}/obs2co-docker-local/snap \
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
