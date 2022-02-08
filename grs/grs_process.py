@@ -281,6 +281,24 @@ class process:
             altitude[altitude < -200] = 0
         l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
 
+        ######################################
+        #      Create output l2 product
+        #          'l2_product'
+        ######################################
+        print('creating L2 output product')
+        l2h.create_product(maja=maja, waterdetect=waterdetect)
+        try:
+            l2h.load_data()
+        except:
+            if unzip:
+                # remove unzipped files (Sentinel files)
+                shutil.rmtree(file, ignore_errors=True)
+            if untar:
+                # remove untared files (Landsat files)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise NameError('No data available for requested area')
+        l2h.load_flags()
+
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
@@ -399,23 +417,6 @@ class process:
         smac.set_standard_values(l2h.pressure_msl)
         l2h.aux.no2 = smac.uno2
 
-        ######################################
-        #      Create output l2 product
-        #          'l2_product'
-        ######################################
-        print('creating L2 output product')
-        l2h.create_product(maja=maja, waterdetect=waterdetect)
-        try:
-            l2h.load_data()
-        except:
-            if unzip:
-                # remove unzipped files (Sentinel files)
-                shutil.rmtree(file, ignore_errors=True)
-            if untar:
-                # remove untared files (Landsat files)
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise NameError('No data available for requested area')
-        l2h.load_flags()
 
         ######################################
         # arrays allocation
@@ -516,14 +517,25 @@ class process:
                                                                            aot_tot,
                                                                            aot550guess, fcoef, l2h.nodata, l2h.rrs)
             else:
-
-                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.grs.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                                                                         szalut.__len__(), razilut.__len__(),
+                                                                         vzalut.__len__(),
+                                                                         aotlut, szalut, razilut, vzalut,
+                                                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
-                                                                         pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
-                                                                         lutc.Cext,
+                                                                         pressure_corr,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                         aot_tot, aot_sca, aot550guess, fcoef, l2h.nodata,
+                                                                         aot_tot, aot_sca, aot550guess, fcoef,
+                                                                         l2h.nodata,
                                                                          l2h.rrs)
+
+                # rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
+                #                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
+                #                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
+                #                                                          lutc.Cext,
+                #                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
+                #                                                          aot_tot, aot_sca, aot550guess, fcoef, l2h.nodata,
+                #                                                          l2h.rrs)
 
             # reshape for snap modules
             rcorr[rcorr == l2h.nodata] = np.nan
