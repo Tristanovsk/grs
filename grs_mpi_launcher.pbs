@@ -12,7 +12,7 @@ module load conda
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
 list_file=list_grs_unesco_plata_estuary_2019.csv
-list_file=list_grs_jirau.csv
+list_file=list_grs_santarem.csv
 #list_file=list_grs_cnes_obs2mod.csv
 #list_file=list_grs_jegou.csv
 #list_file=list_grs_redshade_2022.csv

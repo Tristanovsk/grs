@@ -18,6 +18,7 @@ from .acutils import aerosol
 
 # ------------------------
 # set threshold for masking
+O2band_cloud = [0.08,0.12]
 high_nir_threshold = 0.0275
 hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)
 
@@ -101,6 +102,7 @@ class sensordata:
                                1.2202435, 1.21551569, 1.21009995, 1.206616, 1.12458056, 1.],
                     'ndwi_conf': [2, 7, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
+                    'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -128,6 +130,7 @@ class sensordata:
                                1.20815455, 1.20243389, 1.19906708, 1.11793355, 1.],
                     'ndwi_conf': [2, 7, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
+                    'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -152,6 +155,7 @@ class sensordata:
                           'rglint': [1.28037, 1.25722, 1.24089, 1.21893, 1.12406, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -175,6 +179,7 @@ class sensordata:
                           'rglint': [1.28046, 1.257556, 1.24096, 1.21924, 1.12462, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -198,6 +203,7 @@ class sensordata:
                           'rglint': [1.27891, 1.25551, 1.236695, 1.215597, 1.12477, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -222,6 +228,7 @@ class sensordata:
                           'rglint': [1.28637, 1.271187, 1.249180, 1.243706, 1.231680, 1.206419, 1.125028, 1.000000],
                           'ndwi_conf': [2, 5, NDWI_threshold],
                           'high_nir': [5, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['cloud_confidence_high', 'cirrus_confidence_high',
                                        'cloud_shadow_confidence_high']
                           }
@@ -248,7 +255,7 @@ class sensordata:
         self.cloud_flag, self.cirrus_flag, self.shadow_flag = info['l1_flags']
         self.cirrus = info['cirrus']
         self.high_nir = info['high_nir']
-
+        self.O2band = info['O2band']
 
 class cams:
     '''
