@@ -6,7 +6,7 @@ module grs
 
 contains
 
-    subroutine main_algo(npix, nband, naot, nsza, nazi, nvza, &
+    subroutine main_algo(npix, naot, nband, nsza, nazi, nvza, &
             &                    aotlut, szalut, azilut, vzalut, &
             &                    rlut_f, rlut_c, Cext_f, Cext_c, &
             &                    vza, sza, azi, rtoa, mask, wl, &
@@ -135,7 +135,16 @@ contains
                     call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_f(:, iband, isza, iazi(iband), ivza(iband)), &
                             &  maot, aotpt, rsimf(iband), intpol, w, l_w, iw, l_iw, ier)
                     call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_c(:, iband, isza, iazi(iband), ivza(iband)), &
-                            &  maot, aotpt, rsimc(iband), intpol, w, l_w, iw, l_iw, ier)
+                            &  maot, aotpt, rsimc(iband), intpol, w, l_w, iw, l_iw,ier)
+                    !TODO understand why ndarray is inverted on the first dim aot
+!                    if (iband == 1) then
+!                        do i =1,naot
+!                            print*,aotlut(i),pressure_corr(ipix) * rlut_c(i, iband, isza, iazi(iband), ivza(iband))
+!                        end do
+!                        do i =1,naot
+!                            print*,'fine',aotlut(i),pressure_corr(ipix) * rlut_f(i, iband, isza, iazi(iband), ivza(iband))
+!                        end do
+!                    endif
                     if(ier/=0)then
                         print*, 'FATAL ERROR IN LUT INTERPOLATION IN SOLVER MODULE'
                         print*, 'ERROR = ', ier
@@ -190,6 +199,8 @@ contains
                     rcorr(iband, ipix) = rcorr(iband, ipix) * F0(iband)
                     rcorrg(iband, ipix) = rcorrg(iband, ipix) * F0(iband)
                 endif
+                rcorr(iband, ipix) = rtoa(iband, ipix)
+                rcorrg(iband, ipix)=rsim(iband)
             enddo
 
         enddo

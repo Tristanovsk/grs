@@ -77,7 +77,7 @@ class lut:
             # allocate lut array
             if ok == 0:
                 ok = 1
-                nrad = np.ndarray((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)))
+                nrad = np.ndarray((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)),order='F')
 
             # fill in lut array
             nrad[iaot, :, :, :, :] = lut.variables['Istokes'][ind_wl, :, :, ind_vza]

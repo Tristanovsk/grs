@@ -315,6 +315,8 @@ class process:
         azi_ = _utils.remove_na(np.unique(l2h.razi.round(0)))
         lutf.interp_n_slice(sza_,vza_,azi_)
         lutc.interp_n_slice(sza_,vza_,azi_)
+        aotlut = np.array(lutf.aot, dtype=l2h.type)
+
 
         ##################################
         # GET ANCILLARY DATA (AEROSOL)
@@ -423,14 +425,6 @@ class process:
         # reshaping for fortran binding
         ######################################
 
-        aotlut = np.array(lutf.aot, dtype=l2h.type, order='F')
-        vzalut = np.array(lutf.vza, dtype=l2h.type, order='F')
-        szalut = np.array(lutf.sza, dtype=l2h.type, order='F')
-        razilut = np.array(lutf.azi, dtype=l2h.type, order='F')
-        rlut_f = np.array(lutf.refl, dtype=l2h.type, order='F')
-        rlut_c = np.array(lutc.refl, dtype=l2h.type, order='F')
-        grid_lut = (szalut, razilut, vzalut)
-
         aot550guess = np.zeros(l2h.width, dtype=l2h.type)
         rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
         rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
@@ -508,6 +502,7 @@ class process:
                 band_rad[iband] = band_rad[iband] / tg
 
             if grs_a:
+                # TODO update for new lut usage
                 rcorr, rcorrg, aot550pix, brdfpix = grs_a_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
                                                                            vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                            pressure_corr, aotlut, rtoaf, rtoac,
@@ -517,11 +512,9 @@ class process:
                                                                            aot_tot,
                                                                            aot550guess, fcoef, l2h.nodata, l2h.rrs)
             else:
-                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.grs.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                                                         szalut.__len__(), razilut.__len__(),
-                                                                         vzalut.__len__(),
-                                                                         aotlut, szalut, razilut, vzalut,
-                                                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
+                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.grs.main_algo(l2h.width, *lutf.refl.shape,
+                                                                         aotlut, sza_, azi_, vza_,
+                                                                         lutf.refl[::-1], lutc.refl[::-1], lutf.Cext, lutc.Cext,
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                          pressure_corr,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
