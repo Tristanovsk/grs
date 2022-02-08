@@ -954,3 +954,6 @@ class utils:
                              longitude=np.linspace(lonmin, lonmax, w),
                              latitude=np.linspace(latmax, latmin, h),method="nearest",
                              kwargs={"fill_value": "extrapolate"})
+    @staticmethod
+    def remove_na(arr):
+        return arr[~np.isnan(arr)]

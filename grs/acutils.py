@@ -4,6 +4,7 @@ Atmospheric Correction utilities to manage LUT and atmosphere parameters (aeroso
 
 import os, sys
 import numpy as np
+import xarray as xr
 
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset
@@ -53,7 +54,7 @@ class lut:
                 * ``azi`` -- relative azimuth between sun and sensor (in opposition when azi = 0)
                 * ``wl`` -- central wavelength of the sensor bands
                 * ``refl`` -- Top-of-atmosphere reflectance (or normalized radiance if reflectance == False);
-                                array of dims: [wl, sza, azi, vza]
+                                xarray of dims: [wl, sza, azi, vza]
               '''
 
         self.aot = aot
@@ -81,18 +82,31 @@ class lut:
             # fill in lut array
             nrad[iaot, :, :, :, :] = lut.variables['Istokes'][ind_wl, :, :, ind_vza]
 
-        if reflectance:
-            # convert into reflectance
-            refl = nrad
-            for i in range(len(self.sza)):
-                refl[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
-            nrad = refl
+            if reflectance:
+                # convert into reflectance
 
-        # reshape lut array for each wavelength
-        N = range(len(ind_wl))
-        self.refl = [[] for i in N]
-        for i in N:
-            self.refl[i] = nrad[:, i, :, :, :]
+                for i in range(len(self.sza)):
+                    nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
+
+            self.refl = self._toxr(nrad)
+
+    def _toxr(self, arr):
+        arr = np.array(arr)
+
+        return xr.DataArray(arr,
+                            dims=('aot', 'wl', 'sza', 'azi', 'vza'),
+                            coords={'aot': self.aot,
+                                    'wl': self.wl,
+                                    'sza': self.sza,
+                                    'azi': self.azi,
+                                    'vza': self.vza})
+
+    def interp_n_slice(self,sza_:np.array,vza_:np.array,azi_:np.array):
+        '''
+        Linear Interpolation of the lut array on the given angles
+        '''
+
+        self.refl = self.refl.interp(azi=azi_).interp(vza=vza_).interp(sza=sza_)
 
     def interp_lut(self, points, values, x):
         '''expected x dims: [[sza1, azi1, vza1],[sza2, azi2, vza2]...]'''
@@ -122,6 +136,7 @@ class aerosol:
     '''
     aerosol parameters and parameterizations
     '''
+
     def __init__(self):
         self.aot550 = 0.1
         self.wavelengths = []
@@ -225,9 +240,9 @@ class smac:
         self.uno2 = no2
         return
 
-    #TODO write a function to set standard values for all compounds
-    def set_standard_values(self,peq):
-        i=0
+    # TODO write a function to set standard values for all compounds
+    def set_standard_values(self, peq):
+        i = 0
         # gaseous transmissions (downward and upward paths)
         self.uo2 = (peq ** (self.po2[i]))
         self.uco2 = (peq ** (self.pco2[i]))
@@ -315,6 +330,7 @@ class misc:
     '''
     Miscelaneous utilities
     '''
+
     @staticmethod
     def get_pressure(alt, psl):
         '''Compute the pressure for a given altitude

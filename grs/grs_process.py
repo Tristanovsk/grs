@@ -290,6 +290,14 @@ class process:
         lutf.load_lut(l2h.lutfine, indband)
         lutc.load_lut(l2h.lutcoarse, indband)
 
+        # reproject lut array on the angles of the image
+        # angles are rounded to reduce the dims of interpolated LUT
+        sza_ = _utils.remove_na(np.unique(l2h.sza.round(1)))
+        vza_ = _utils.remove_na(np.unique(l2h.vza.round(1)))
+        azi_ = _utils.remove_na(np.unique(l2h.razi.round(0)))
+        lutf.interp_n_slice(sza_,vza_,azi_)
+        lutc.interp_n_slice(sza_,vza_,azi_)
+
         ##################################
         # GET ANCILLARY DATA (AEROSOL)
         ##################################
@@ -487,12 +495,12 @@ class process:
                 aot_sca = aot_tot
 
             for iband in range(l2h.N):
-                # preparing lut data
-                grid_pix = list(zip(sza, razi[iband], vza[iband]))
-
-                for iaot in range(aotlut.__len__()):
-                    rtoaf[iaot, iband] = lutf.interp_lut(grid_lut, rlut_f[iband][iaot, ...], grid_pix)
-                    rtoac[iaot, iband] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
+                # # preparing lut data
+                # grid_pix = list(zip(sza, razi[iband], vza[iband]))
+                #
+                # for iaot in range(aotlut.__len__()):
+                #     rtoaf[iaot, iband] = lutf.interp_lut(grid_lut, rlut_f[iband][iaot, ...], grid_pix)
+                #     rtoac[iaot, iband] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
 
                 # correct for gaseous absorption
                 tg = smac.compute_gas_trans(iband, l2h.pressure_msl, mu0, muv[iband])
