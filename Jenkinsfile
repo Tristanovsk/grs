@@ -118,11 +118,8 @@ pipeline {
                                 sh """
                                     export http_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                             
                                     export https_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                                   
-                                    docker login docker.pkg.github.com --username ${DOCKER_TOKEN_USR} --password ${DOCKER_TOKEN_PSW}
-                                    docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
-                                    docker tag docker-snap/snap ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
-                                    jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
-           
+                                    docker pull artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap/snap:latest
+                                    
                                     #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./https_proxy.txt
