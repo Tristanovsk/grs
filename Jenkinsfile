@@ -135,6 +135,8 @@ pipeline {
                                             DOCKER_BUILDKIT=1 docker build -t artifactory.cnes.fr/obs2co-docker/grs:latest --no-cache \
                                             --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap \
                                             --build-arg no_proxy=cnes.fr \
+                                            --secret id=proxy_http_cnes,src=http_proxy.txt \
+                                            --secret id=proxy_https_cnes,src=https_proxy.txt \
                                             --build-arg http_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
                                             --build-arg https_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
                                             .
