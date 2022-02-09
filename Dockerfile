@@ -11,8 +11,8 @@ USER root
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     --mount=type=secret,id=proxy_https_cnes \
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
-    apt-get update && \
-    apt install ca-certificates 
+    apt-get -y update && \
+    apt-get -y install ca-certificates 
 
 #Ajout des certificats
 COPY certs/* /usr/local/share/ca-certificates/
@@ -25,9 +25,6 @@ LABEL maintainer="obs2co"
 COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
-
-COPY certs/* /usr/local/share/ca-certificates/
-RUN update-ca-certificates
 
 RUN conda install gdal
 RUN pip install -r /home/jovyan/grs2/requirements.txt
