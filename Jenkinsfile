@@ -116,8 +116,8 @@ pipeline {
                         stage('build') {
                             steps {
                                 sh """
-                                    export http_proxy = http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060                             
-                                    export https_proxy = http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060                                   
+                                    export http_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                             
+                                    export https_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                                   
                                     docker login docker.pkg.github.com --username ${DOCKER_TOKEN_USR} --password ${DOCKER_TOKEN_PSW}
                                     docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
                                     docker tag docker-snap/snap ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
