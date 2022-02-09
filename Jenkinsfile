@@ -25,6 +25,7 @@ pipeline {
 
     environment {
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_CREDENTIALS')
+        DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://${artifactory_host}/artifactory"
         SONAR_TOKEN=credentials('OBS2CO_SONAR_CREDENTIALS')
         // Specifie le chemin contenant des fichiers pour l'utilisation de sonar scanner. Jenkins se basera sur le workspace comme base de chemin
@@ -115,8 +116,9 @@ pipeline {
                         stage('build') {
                             steps {
                                 sh """
-                                    export no_proxy=cnes.fr; curl -v -u '${username}:${token}' --insecure -O                                     
-                                    docker login docker.pkg.github.com --username cecile.betmont --password ${token}
+                                    export http_proxy = http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060                             
+                                    export https_proxy = http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060                                   
+                                    docker login docker.pkg.github.com --username DOCKER_TOKEN_USR --password DOCKER_TOKEN_PSW
                                     docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
                                     docker tag docker-snap/snap ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
                                     jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
