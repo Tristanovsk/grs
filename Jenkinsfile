@@ -118,7 +118,7 @@ pipeline {
                                 sh """
                                     export http_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                             
                                     export https_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060'                                   
-                                    docker pull artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap/snap:latest
+                                    #docker pull artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap/snap:latest
                                     
                                     #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
@@ -126,7 +126,7 @@ pipeline {
 
                                 """
                                 script {
-                                    docker.withRegistry("{artifactory_host}", 'ARTI_TOKEN') {
+                                    docker.withRegistry("{artifactory_host}", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh """
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
