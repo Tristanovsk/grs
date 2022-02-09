@@ -113,59 +113,7 @@ pipeline {
                             }
                         }
 
-                        stage('build') {
-                            steps {
-                                sh """
-                                    export http_proxy = http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060                             
-                                    export https_proxy = http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060                                   
-                                    docker login docker.pkg.github.com --username DOCKER_TOKEN_USR --password DOCKER_TOKEN_PSW
-                                    docker pull docker.pkg.github.com/snap-contrib/docker-snap/snap:latest
-                                    docker tag docker-snap/snap ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
-                                    jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactoryRegistryUrl}/obs2co-docker-local/snap:latest
-           
-                                    #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
-                                    echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./http_proxy.txt
-                                    echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./https_proxy.txt
-
-                                """
-
-                                script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
-                                        sh """
-                                            mkdir -p certs
-                                        #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
-                                            cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
-                                        #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker-local/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=${artifactory_host}/obs2co-docker-local/snap \
-                                            --build-arg no_proxy=cnes.fr \
-                                            --secret id=proxy_http_cnes,src=http_proxy.txt \
-                                            --secret id=proxy_https_cnes,src=https_proxy.txt \
-                                            .
-                                        """
-                                    }
-                                }
-                            }
-                        }
-
-                        stage('livraison') {
-                            steps {
-                                script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'obs2co-docker-local') {
-                                        sh  """
-                                        # Publie sur Artifactory
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker-local/example-docker-icode:latest testci-docker
-
-                                        # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
-                                        jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
-                                        """
-                                    }
-
-                                    // Permet d'afficher une icone contenant l'URL du build Artifactory directement dans l'historique des builds Jenkins
-                                    currentBuild.description = "<a href='${ARTIFACTORY_BUILD_URL}'><img src='/plugin/artifactory/images/artifactory-icon.png' alt='[Artifactory]' title='Artifactory Build Info' width='16' height='16'></a>"
-                                }
-                            }
-                        }                        
+                                        
                         
                         stage('analyse Xray') {
                             steps {
