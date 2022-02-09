@@ -5,7 +5,7 @@
 def SERVERID = UUID.randomUUID().toString()
 
 // CREDENTIALS
-def artifactoryCredentials = "OBS2CO_ARTIFACTORY_CREDENTIALS"
+def artifactoryCredentials = "OBS2CO_ARTIFACTORY_TOKEN"
 
 
 pipeline {
@@ -24,7 +24,7 @@ pipeline {
     }
 
     environment {
-        ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_CREDENTIALS')
+        ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
         DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://${artifactory_host}/artifactory"
         SONAR_TOKEN=credentials('OBS2CO_SONAR_CREDENTIALS')
