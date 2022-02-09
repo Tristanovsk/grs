@@ -514,7 +514,7 @@ class process:
             else:
                 rcorr, rcorrg, aot550pix, brdfpix = grs_solver.grs.main_algo(l2h.width, *lutf.refl.shape,
                                                                          aotlut, sza_, azi_, vza_,
-                                                                         lutf.refl[::-1], lutc.refl[::-1], lutf.Cext, lutc.Cext,
+                                                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
                                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
                                                                          pressure_corr,
                                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,

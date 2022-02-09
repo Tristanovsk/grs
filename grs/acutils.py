@@ -77,21 +77,21 @@ class lut:
             # allocate lut array
             if ok == 0:
                 ok = 1
-                nrad = np.ndarray((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)),order='F')
+                nrad = np.zeros((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)))
 
             # fill in lut array
             nrad[iaot, :, :, :, :] = lut.variables['Istokes'][ind_wl, :, :, ind_vza]
 
-            if reflectance:
-                # convert into reflectance
+        if reflectance:
+            # convert into reflectance
 
-                for i in range(len(self.sza)):
-                    nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
-
-            self.refl = self._toxr(nrad)
+            for i in range(len(self.sza)):
+                nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
+        #print(nrad.shape)
+        self.refl = self._toxr(nrad)
 
     def _toxr(self, arr):
-        arr = np.array(arr)
+        #arr = np.array(arr)
 
         return xr.DataArray(arr,
                             dims=('aot', 'wl', 'sza', 'azi', 'vza'),

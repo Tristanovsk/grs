@@ -235,7 +235,7 @@ if dem:
 # GET IMAGE AND RASTER PROPERTIES
 ##################################
 print('load raster data...')
-l2h.get_bands(l2h.band_names)
+l2h.get_bands(l2h.band_names[0:2])
 l2h.print_info()
 
 ##################################
@@ -278,6 +278,24 @@ if dem:
     altitude[altitude < -200] = 0
 l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
 
+######################################
+#      Create output l2 product
+#          'l2_product'
+######################################
+print('creating L2 output product')
+l2h.create_product(maja=maja, waterdetect=waterdetect)
+try:
+    l2h.load_data()
+except:
+    if unzip:
+        # remove unzipped files (Sentinel files)
+        shutil.rmtree(file, ignore_errors=True)
+    if untar:
+        # remove untared files (Landsat files)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    raise NameError('No data available for requested area')
+l2h.load_flags()
+
 #####################################
 # LOAD LUT FOR ATMOSPHERIC CORRECTION
 #####################################
@@ -286,6 +304,14 @@ lutf = acutils.lut(l2h.band_names)
 lutc = acutils.lut(l2h.band_names)
 lutf.load_lut(l2h.lutfine, indband)
 lutc.load_lut(l2h.lutcoarse, indband)
+# reproject lut array on the angles of the image
+# angles are rounded to reduce the dims of interpolated LUT
+sza_ = _utils.remove_na(np.unique(l2h.sza.round(1)))
+vza_ = _utils.remove_na(np.unique(l2h.vza.round(1)))
+azi_ = _utils.remove_na(np.unique(l2h.razi.round(0)))
+lutf.interp_n_slice(sza_,vza_,azi_)
+lutc.interp_n_slice(sza_,vza_,azi_)
+aotlut = np.array(lutf.aot, dtype=l2h.type)
 
 ##################################
 # GET ANCILLARY DATA (AEROSOL)
@@ -388,23 +414,7 @@ smac.set_values(o3du=l2h.aux.o3du, h2o=l2h.aux.h2o)
 smac.set_standard_values(l2h.pressure_msl)
 l2h.aux.no2 = smac.uno2
 
-######################################
-#      Create output l2 product
-#          'l2_product'
-######################################
-print('creating L2 output product')
-l2h.create_product(maja=maja, waterdetect=waterdetect)
-try:
-    l2h.load_data()
-except:
-    if unzip:
-        # remove unzipped files (Sentinel files)
-        shutil.rmtree(file, ignore_errors=True)
-    if untar:
-        # remove untared files (Landsat files)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-    raise NameError('No data available for requested area')
-l2h.load_flags()
+
 
 ######################################
 # arrays allocation
