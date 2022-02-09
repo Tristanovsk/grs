@@ -126,7 +126,7 @@ pipeline {
 
                                 """
                                 script {
-                                    docker.withRegistry("{artifactory_host}", 'OBS2CO_ARTIFACTORY_TOKEN') {
+                                    docker.withRegistry("${artifactory_host}", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh """
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
