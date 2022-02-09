@@ -2,8 +2,6 @@ ARG IMAGE_SOURCE
 
 FROM ${IMAGE_SOURCE}/snap
 
-COPY icode/ /usr/bin
-RUN chmod +x /usr/bin/icode
 
 # Montage du volume temporaire et utilisation pour apt le site du cnes
 # Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas
@@ -21,7 +19,7 @@ LABEL maintainer="obs2co"
 
 #FROM docker.pkg.github.com/snap-contrib/docker-snap/snap
 
-COPY grs2 /home/jovyan/grs2
+COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
 
