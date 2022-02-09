@@ -1,5 +1,5 @@
 ARG IMAGE_SOURCE
-ARG http_proxy
+ARG HTTP_PROXY
 
 FROM ${IMAGE_SOURCE}/snap
 
@@ -11,8 +11,8 @@ FROM ${IMAGE_SOURCE}/snap
 #    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
 #   
 
-RUN export http_proxy=${http_proxy}
-RUN export https_proxy=${http_proxy}
+RUN export http_proxy=${HTTP_PROXY}
+RUN export https_proxy=${HTTP_PROXY}
 RUN apt-get update && \
     apt install ca-certificates 
 
