@@ -6,7 +6,9 @@ FROM ${IMAGE_SOURCE}/snap
 
 # Montage du volume temporaire et utilisation pour apt le site du cnes
 # Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas
-RUN export http_proxy=${proxy_http} && export https_proxy=${proxy_https} && \
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    --mount=type=secret,id=proxy_https_cnes \
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
     apt-get update && \
     apt install ca-certificates 
 
