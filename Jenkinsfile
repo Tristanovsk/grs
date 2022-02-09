@@ -125,6 +125,22 @@ pipeline {
                                     echo http://${PROXY_TOKEN_USR}:${PROXY_TOKEN_PSW}@proxy-tech-web.cnes.fr:8060 > ./https_proxy.txt
 
                                 """
+                                script {
+                                    docker.withRegistry("{artifactory_host}", 'obs2co-docker') {
+                                        sh """
+                                            mkdir -p certs
+                                        #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
+                                            cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
+                                        #transmission des credentials proxy à l'image en passant par le système de secrets
+                                            DOCKER_BUILDKIT=1 docker build -t ${artifactory_host}/obs2co-docker/grs:latest --no-cache \
+                                            --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap/snap \
+                                            --build-arg no_proxy=cnes.fr \
+                                            --secret id=proxy_http_cnes,src=http_proxy.txt \
+                                            --secret id=proxy_https_cnes,src=https_proxy.txt \
+                                            .
+                                        """
+                                    }
+                                }
                             }
                         }
 
