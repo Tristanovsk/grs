@@ -51,7 +51,7 @@ pipeline {
         // Variable definissant toutes les variables d'environnement qui ne seront pas transmis à Artifactory. Il faut exclure les credentials
         // Liste non exhaustive
         JFROG_CLI_ENV_EXCLUDE = "*token*;*cred*;*proxy*;*secret*;*key*;*password*"
-        sonarqube_host = sonarqube.cnes.fr
+        sonarqube_host = "sonarqube.cnes.fr"
         artifactory_host = "https://artifactory.cnes.fr/"
         artifactoryUrl = "https://artifactory.cnes.fr/artifactory"
         artifactoryRegistryUrl = "artifactory.cnes.fr/docker/"
@@ -93,8 +93,8 @@ pipeline {
                             steps {
                                 // Clone Git renseigne lors de la configuration du job Jenkins au niveau de l'IHM
                                 checkout scm
-                                sh ls
-                                sh echo "toto"
+                                sh 'ls'
+                                sh 'echo "toto"'
                             }
                         }
 
