@@ -1,4 +1,5 @@
 ARG IMAGE_SOURCE
+ARG http_proxy
 
 FROM ${IMAGE_SOURCE}/snap
 
@@ -22,6 +23,9 @@ LABEL maintainer="obs2co"
 COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
+
+RUN export http_proxy=${http_proxy}
+RUN export https_proxy=${http_proxy}
 
 RUN apt-get update && apt-get -y install ca-certificates
 COPY certs/* /usr/local/share/ca-certificates/
