@@ -137,8 +137,8 @@ pipeline {
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
-                                            --build-arg http_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
-                                            --build-arg https_proxy='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
+                                            --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
+                                            --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
                                             .
                                         """
                                     }
