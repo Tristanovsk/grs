@@ -162,73 +162,7 @@ pipeline {
                                 checkout scm
                             }
                         }
-
-                        stage('analyse Sonarqube') {
-                            steps {
-                                withSonarQubeEnv(sonarqube_host) {
-                                    script {
-                                        def targetBranch = ""
-
-                                        // Si le nom de branche commence par feature/, hotfix/ ou release/, on analyse une short-lived par rapport à master. 
-                                        // Ceci car notre workflow est un feature branch flow
-                                        if (BRANCH_NAME ==~ /^(feature|hotfix|release)\/.*$/) {
-                                            targetBranch = "-Dsonar.branch.target=${sonarqube_main_branch}"
-                                        } else if ((BRANCH_NAME != sonarqube_main_branch)) {
-                                            // Si rien ne correspond, c'est que le nom de branche ne respecte pas le pattern de votre projet
-                                            // Ou que le nom de la branche n'est pas spécifié dans le job
-                                            error 'Current branch (${BRANCH_NAME}) does not match any pattern or is empty.'
-                                        }
-                                                                
-                                        // Le premier parametre est la branche courante, le second la long-live branche
-                                        def properties = " -Dsonar.branch.name=${env.BRANCH_NAME} ${targetBranch}"
-
-                                        sh '''
-                                        # Charge le module hadolint
-                                        module load hadolint
-
-                                        # Analyse Hadolint avec un rapport au format Checkstyle pour intégration dans SonarQube.
-                                        # Nous devons faire un double pipe true car en cas d'erreur remonte dans le rapport, la commande hadolint remonte \$? = 1 et nous ne voulons pas arreter la pipeline pour cela
-                                        hadolint -f checkstyle Dockerfile > hadolint-report.xml || true
-                                        
-                                        # Import du rapport dans SonarQube
-                                        sonar-scanner -Dsonar.login=$SONAR_TOKEN '''+properties+'''
-                                        '''
-                                    }
-                                }
-                            }
-                        }
-
-                        stage("quality Gate") {
-                            steps {
-                                timeout(time: 1, unit: 'HOURS') {
-                                    // Rend le build instable si le quality Gate de l'analyse SonarQube echoue. Ceci dans le but de continuer le job pour demontrer son fonctionnement complet
-                                    catchError(stageResult: "FAILURE", buildResult: "UNSTABLE") {
-                                        script {
-                                            withSonarQubeEnv(sonarqube_host) {
-                                                def ceTask 
-                                                def ceTaskUrl = sh(returnStdout: true, script: 'ce=`grep ceTaskUrl= .scannerwork/report-task.txt`; echo ${ce:10}').trim()
-                                                timeout(time: 5, unit: 'MINUTES') {
-                                                    waitUntil {
-                                                        ceTask = sh(returnStdout: true, script: 'curl -u $SONAR_TOKEN ' + ceTaskUrl).trim()
-                                                        echo ceTask.toString()
-                                                        return ceTask.contains("\"status\":\"SUCCESS\"")
-                                                    }
-                                                }
-                                                def analysisId = sh(returnStdout: true, script: "echo ${ceTask} | grep -m1 -oP 'analysisId:\\s*\\K[^}]+'").trim()
-                                                def qualityGateUrl = "https://${sonarqube_host}" + "/api/qualitygates/project_status?analysisId=" + analysisId
-                                                def qualityGate = sh(returnStdout: true, script: 'curl -u $SONAR_TOKEN '+ qualityGateUrl).trim()
-                                                echo qualityGate.toString()
-                                                if (qualityGate.contains("ERROR")) {
-                                                    throw new Exception("Quality Gate failed")
-                                                } else {
-                                                    echo "Quality Gate success"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        
                     }
                     
                     post { 
