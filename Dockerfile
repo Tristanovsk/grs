@@ -6,16 +6,12 @@ FROM ${IMAGE_SOURCE}/snap
 
 # Montage du volume temporaire et utilisation pour apt le site du cnes
 # Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas
-#RUN --mount=type=secret,id=proxy_http_cnes \ 
-#    --mount=type=secret,id=proxy_https_cnes \
-#    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
-#   
 
 USER root
-
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTP_PROXY}
-RUN apt-get update && \
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    --mount=type=secret,id=proxy_https_cnes \
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
+    apt-get update && \
     apt install ca-certificates 
 
 #Ajout des certificats
@@ -30,7 +26,6 @@ COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
 
-RUN apt-get update && apt-get -y install ca-certificates
 COPY certs/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
