@@ -20,7 +20,7 @@ RUN --mount=type=secret,id=arti_conda_repo \
     CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /run/secrets/arti_conda_repo) gdal
 
 LABEL maintainer="obs2co"
-COPY * /home/jovyan/grs
+COPY . /home/jovyan/grs
     
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/jovyan/grs/requirements.txt
