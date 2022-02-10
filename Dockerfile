@@ -1,5 +1,7 @@
 ARG IMAGE_SOURCE
 ARG HTTP_PROXY
+ARG USER
+ARG PSW
 
 FROM ${IMAGE_SOURCE}/snap
 
@@ -29,7 +31,7 @@ RUN cd /home/jovyan/grs2
 
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     --mount=type=secret,id=proxy_https_cnes \ 
-    conda install gdal && \ 
+    conda install --override-channels -c https://${USER}:${PSW}@artifactory.cnes.fr/artifactory/api/conda/conda gdal && \ 
     pip install -r /home/jovyan/grs2/requirements.txt
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
