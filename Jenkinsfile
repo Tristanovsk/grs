@@ -56,6 +56,7 @@ pipeline {
         artifactoryUrl = "https://artifactory.cnes.fr/artifactory"
         artifactoryRegistryUrl = "artifactory.cnes.fr/docker/"
         gitlab_host = "https://gitlab.cnes.fr/"
+        ARTI_URL_WITH_TOKEN = "https://${ARTI_TOKEN_USR}:${ARTI_TOKEN_PSW}@artifactory.cnes.fr/artifactory"
     }
 
     // Declenchement automatique tous les samedis matins pour des besoins usine logicielle
@@ -134,13 +135,12 @@ pipeline {
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
                                             DOCKER_BUILDKIT=1 docker build -t artifactory.cnes.fr/obs2co-docker/grs:latest --no-cache \
                                             --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap \
+                                            --build-arg ARTI_CONDA=${ARTI_URL_WITH_TOKEN} \
                                             --build-arg no_proxy=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
                                             --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
                                             --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
-                                            --build-arg UTILISATEUR=$ARTI_TOKEN_USR \
-                                            --build-arg MDP=$ARTI_TOKEN_PSW \
                                             .
                                         """
                                     }
