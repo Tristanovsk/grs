@@ -10,6 +10,15 @@ USER root
 ARG HTTP_PROXY
 ARG ARTI_CONDA
 
+RUN echo -e '[global]\nindex-url = https://${ARTI_CONDA}/api/pypi/pypi/simple'  > ~/.pip/pip.conf
+
+RUN cat ~/.pip/pip.conf
+
+COPY grs /home/jovyan/grs2
+RUN cd /home/jovyan/grs2
+
+RUN pip install -r /home/jovyan/grs2/requirements.txt
+
 RUN conda install --override-channels -c ${ARTI_CONDA}/api/conda/conda/ gdal
 
 RUN --mount=type=secret,id=proxy_http_cnes \ 
@@ -26,10 +35,6 @@ RUN update-ca-certificates
 LABEL maintainer="obs2co"
 
 #FROM docker.pkg.github.com/snap-contrib/docker-snap/snap
-
-COPY grs /home/jovyan/grs2
-
-RUN cd /home/jovyan/grs2
     
 # && \ pip install -r /home/jovyan/grs2/requirements.txt
 
