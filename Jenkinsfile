@@ -139,6 +139,8 @@ pipeline {
                                             --secret id=proxy_https_cnes,src=https_proxy.txt \
                                             --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
                                             --build-arg HTTP_PROXY='http://${PROXY_TOKEN}@proxy-tech-web.cnes.fr:8060 \
+                                            --build-arg USER=$ARTI_TOKEN_USR \
+                                            --build-arg PSW=$ARTI_TOKEN_PSW \
                                             .
                                         """
                                     }
