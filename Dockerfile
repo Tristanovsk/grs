@@ -28,7 +28,9 @@ RUN --mount=type=secret,id=arti_pip_repo \
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 RUN cd /home/jovyan/grs
-RUN make clean && make
+RUN ls
+RUN make clean
+RUN make
 RUN python /home/jovyan/grs2/setup.py build && python /home/jovyan/grs2/setup.py install
 
 CMD grs
