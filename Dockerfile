@@ -4,15 +4,6 @@ FROM ${IMAGE_SOURCE}/snap
 
 USER root
 
-LABEL maintainer="obs2co"
-COPY . /home/jovyan/grs
-    
-WORKDIR /home/jovyan/grs
-RUN ls
-RUN make clean
-RUN make
-RUN python /home/jovyan/grs2/setup.py build && python /home/jovyan/grs2/setup.py install
-
 # Montage du secret contenant un password pour se connecter au proxy du cnes
 # Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
 RUN --mount=type=secret,id=proxy_http_cnes \ 
@@ -30,6 +21,15 @@ RUN --mount=type=secret,id=arti_conda_repo \
 
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/jovyan/grs/requirements.txt
+
+LABEL maintainer="obs2co"
+COPY . /home/jovyan/grs
+    
+WORKDIR /home/jovyan/grs
+RUN ls
+RUN make clean
+RUN make
+RUN python /home/jovyan/grs2/setup.py build && python /home/jovyan/grs2/setup.py install
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
