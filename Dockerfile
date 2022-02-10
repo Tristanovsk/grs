@@ -29,7 +29,7 @@ COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
 
-RUN conda install --override-channels -c ${ARTI_CONDA}/api/conda/conda-main-remote/ gdal
+RUN conda install --override-channels -c ${ARTI_CONDA}/api/conda/conda/ gdal
     
 # && \ pip install -r /home/jovyan/grs2/requirements.txt
 
