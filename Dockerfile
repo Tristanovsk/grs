@@ -28,9 +28,7 @@ COPY grs /home/jovyan/grs2
 
 RUN cd /home/jovyan/grs2
 
-RUN --mount=type=secret,id=proxy_http_cnes \ 
-    --mount=type=secret,id=proxy_https_cnes \ 
-    conda install --override-channels -c ${ARTI_CONDA} gdal
+RUN conda install --override-channels -c ${ARTI_CONDA}/api/conda/conda-main-remote/ gdal
     
 # && \ pip install -r /home/jovyan/grs2/requirements.txt
 
