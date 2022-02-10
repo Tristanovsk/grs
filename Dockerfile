@@ -1,6 +1,4 @@
 ARG IMAGE_SOURCE
-ARG HTTP_PROXY
-ARG ARTI_CONDA
 
 FROM ${IMAGE_SOURCE}/snap
 
@@ -9,6 +7,9 @@ FROM ${IMAGE_SOURCE}/snap
 # Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas
 
 USER root
+ARG HTTP_PROXY
+ARG ARTI_CONDA
+
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     --mount=type=secret,id=proxy_https_cnes \
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
