@@ -10,6 +10,8 @@ USER root
 ARG HTTP_PROXY
 ARG ARTI_CONDA
 
+RUN mkdir -p ~/.pip/
+RUN touch ~/.pip/pip.conf
 RUN echo -e '[global]\nindex-url = https://${ARTI_CONDA}/api/pypi/pypi/simple'  > ~/.pip/pip.conf
 
 RUN cat ~/.pip/pip.conf
