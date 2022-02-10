@@ -27,7 +27,7 @@ RUN --mount=type=secret,id=arti_pip_repo \
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
-RUN cd /home/jovyan/grs
+WORKDIR /home/jovyan/grs
 RUN ls
 RUN make clean
 RUN make
