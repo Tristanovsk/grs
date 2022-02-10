@@ -1,7 +1,6 @@
 ARG IMAGE_SOURCE
 ARG HTTP_PROXY
-ARG UTILISATEUR
-ARG MDP
+ARG ARTI_CONDA
 
 FROM ${IMAGE_SOURCE}/snap
 
@@ -31,8 +30,9 @@ RUN cd /home/jovyan/grs2
 
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     --mount=type=secret,id=proxy_https_cnes \ 
-    conda install --override-channels -c https://${UTILISATEUR}:${MDP}@artifactory.cnes.fr/artifactory/api/conda/conda gdal && \ 
-    pip install -r /home/jovyan/grs2/requirements.txt
+    conda install --override-channels -c ${ARTI_CONDA} gdal
+    
+# && \ pip install -r /home/jovyan/grs2/requirements.txt
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
