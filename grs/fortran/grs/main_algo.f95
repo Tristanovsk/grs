@@ -199,8 +199,8 @@ contains
                     rcorr(iband, ipix) = rcorr(iband, ipix) * F0(iband)
                     rcorrg(iband, ipix) = rcorrg(iband, ipix) * F0(iband)
                 endif
-                rcorr(iband, ipix) = rtoa(iband, ipix)
-                rcorrg(iband, ipix)=rsim(iband)
+                !rcorr(iband, ipix) = rtoa(iband, ipix)
+                !rcorrg(iband, ipix)=rsim(iband)
             enddo
 
         enddo

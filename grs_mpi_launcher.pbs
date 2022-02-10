@@ -2,12 +2,12 @@
 #!/bin/bash
 
 #PBS -V
-#PBS -N grs_jirau
-#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g:generation=g2019
+#PBS -N grs_santarem
+#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g
 #PBS -l walltime=48:00:00
 #
 module load conda
-
+# :generation=g2019
 # set file path with list of images to process
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
@@ -28,7 +28,7 @@ list_filepath=$GRSHOME/exe/list/$list_file
 # ------------------------
 path_of_env=/softs/rh7/conda-envs/amalthee_prod_client
 conda activate $path_of_env
-# $path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
+#$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 
 # ------------------------
 # second section: process available couples of L1C/L2A images with GRS
