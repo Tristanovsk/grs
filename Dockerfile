@@ -15,10 +15,10 @@ RUN touch ~/.pip/pip.conf
 RUN echo '[global]\nindex-url = https://${ARTI_CONDA}/api/pypi/pypi/simple'  > ~/.pip/pip.conf
 
 RUN cat ~/.pip/pip.conf
-RUN mkdir -p /home/jovyan/grs2
+RUN mkdir -p /home/jovyan/grs
 
-COPY * /home/jovyan/grs2
-RUN cd /home/jovyan/grs2
+COPY * /home/jovyan/grs
+DIR /home/jovyan/grs
 
 RUN pip install -r /home/jovyan/grs2/requirements.txt
 
