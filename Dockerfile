@@ -12,7 +12,7 @@ RUN --mount=type=secret,id=proxy_http_cnes \
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
     apt-get -y update && \
     apt-get -y install ca-certificates gfortran
-"
+
 
 #Ajout des certificats
 COPY certs/* /usr/local/share/ca-certificates/
