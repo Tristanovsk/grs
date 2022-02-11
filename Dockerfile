@@ -11,6 +11,16 @@ RUN --mount=type=secret,id=proxy_http_cnes \
     apt-get -y update && \
     apt-get -y install ca-certificates gfortran
 
+LABEL maintainer="obs2co"
+COPY . /home/jovyan/grs
+    
+WORKDIR /home/jovyan/grs
+RUN ls
+RUN make clean
+RUN make
+RUN python /home/jovyan/grs2/setup.py build && python /home/jovyan/grs2/setup.py install
+
+
 #Ajout des certificats
 COPY certs/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
