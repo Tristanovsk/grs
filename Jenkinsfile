@@ -142,7 +142,7 @@ pipeline {
                         stage('livraison') {
                             steps {
                                 script {
-                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
+                                    docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
                                         jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:latest
