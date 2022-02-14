@@ -30,9 +30,9 @@ RUN --mount=type=secret,id=arti_pip_repo \
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 WORKDIR /home/jovyan/grs
-RUN ls /home/jovyan/grs/grs/landsat_angles/OLI
-RUN make clean
-RUN make
-RUN python /home/jovyan/grs/setup.py build && python /home/jovyan/grs/setup.py install
+#RUN ls /home/jovyan/grs/grs/landsat_angles/OLI
+#RUN make clean
+#RUN make
+#RUN python /home/jovyan/grs/setup.py build && python /home/jovyan/grs/setup.py install
 
-CMD grs
+#CMD grs
