@@ -139,6 +139,25 @@ pipeline {
                             }
                         }
 
+                        stage('livraison') {
+                            steps {
+                                script {
+                                    docker.withRegistry("https://${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
+                                        sh  """
+                                        # Publie sur Artifactory
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:latest
+            
+                                        # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
+                                        jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
+                                        """
+                                    }
+ 
+                                    // Permet d'afficher une icone contenant l'URL du build Artifactory directement dans l'historique des builds Jenkins
+                                    currentBuild.description = "<a href='${ARTIFACTORY_BUILD_URL}'><img src='/plugin/artifactory/images/artifactory-icon.png' alt='[Artifactory]' title='Artifactory Build Info' width='16' height='16'></a>"
+                                }
+                            }
+                        }
+
                         
                         stage('analyse Xray') {
                             steps {
