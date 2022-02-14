@@ -26,13 +26,13 @@ COPY . /home/jovyan/grs
 
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/jovyan/grs/requirements.txt
-    
+
+RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
+
 WORKDIR /home/jovyan/grs
 RUN ls /home/jovyan/grs/grs/landsat_angles/OLI
 RUN make clean
 RUN make
 RUN python /home/jovyan/grs/setup.py build && python /home/jovyan/grs/setup.py install
-
-RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 CMD grs
