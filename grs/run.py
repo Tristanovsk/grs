@@ -64,8 +64,10 @@ def shp2wkt(shapefile):
     print(shapefile)
     tmp = gpd.GeoDataFrame.from_file(shapefile)
     #tmp.to_crs(epsg=4326, inplace=True)
-    return tmp.geometry.values[0].to_wkt()
-
+    # if python3.6
+    #return tmp.geometry.values[0].to_wkt()
+    # for python 3.8
+    return tmp.geometry.values[0].wkt
 
 def main():
     args = docopt(__doc__, version=__package__ + ' ' + VERSION)

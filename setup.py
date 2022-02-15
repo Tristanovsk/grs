@@ -28,7 +28,7 @@ setup(
 
     # Dependent packages (distributions)
     install_requires=['cdsapi', 'pandas', 'geopandas', 'scipy', 'numpy', 'netCDF4',
-                      'matplotlib', 'docopt', 'GDAL', 'python-dateutil', 'pyproj',
+                      'matplotlib', 'docopt',  'python-dateutil', 'pyproj',
                       'Shapely', 'xarray', 'dask', 'dask[array]'],
 
     # install_requires=['cdsapi','pandas==1.1.3','geopandas==0.9.0','scipy==1.5.3','numpy==1.19.1','netCDF4==1.5.5',
