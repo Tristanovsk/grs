@@ -15,8 +15,10 @@ RUN --mount=type=secret,id=proxy_http_cnes \
 
 
 #Ajout des certificats
+RUN ls /usr/local/share/ca-certificates/
 COPY certs/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
+RUN ls /usr/local/share/ca-certificates/
 
 # UL : installation Conda apres la mise a jour des certificats pour atteindre Artifactory. 
 RUN --mount=type=secret,id=arti_conda_repo \
