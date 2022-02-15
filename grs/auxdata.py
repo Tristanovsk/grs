@@ -5,6 +5,7 @@ import pandas
 from scipy.interpolate import interp1d
 import netCDF4 as nc
 import xarray as xr
+import dask
 
 from dateutil import parser
 import calendar, datetime
@@ -13,15 +14,20 @@ from esasnappy import ProductIO
 
 from . import config as cfg
 from .utils import utils as u
+from .acutils import aerosol
 
 # ------------------------
 # set threshold for masking
+O2band_cloud = [0.08,0.12]
 high_nir_threshold = 0.0275
 hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
-NDWI_threshold = [0., 1.1]
+NDWI_threshold = [-0.01, 1.]
+
+
+# NDWI_threshold = [-0., 1.]
 
 
 class sensordata:
@@ -96,6 +102,7 @@ class sensordata:
                                1.2202435, 1.21551569, 1.21009995, 1.206616, 1.12458056, 1.],
                     'ndwi_conf': [2, 7, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
+                    'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -123,6 +130,7 @@ class sensordata:
                                1.20815455, 1.20243389, 1.19906708, 1.11793355, 1.],
                     'ndwi_conf': [2, 7, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
+                    'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -147,6 +155,7 @@ class sensordata:
                           'rglint': [1.28037, 1.25722, 1.24089, 1.21893, 1.12406, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -170,6 +179,7 @@ class sensordata:
                           'rglint': [1.28046, 1.257556, 1.24096, 1.21924, 1.12462, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -193,6 +203,7 @@ class sensordata:
                           'rglint': [1.27891, 1.25551, 1.236695, 1.215597, 1.12477, 1.0],
                           'ndwi_conf': [1, 3, NDWI_threshold],
                           'high_nir': [3, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -217,6 +228,7 @@ class sensordata:
                           'rglint': [1.28637, 1.271187, 1.249180, 1.243706, 1.231680, 1.206419, 1.125028, 1.000000],
                           'ndwi_conf': [2, 5, NDWI_threshold],
                           'high_nir': [5, high_nir_threshold],
+                          'O2band':None,
                           'l1_flags': ['cloud_confidence_high', 'cirrus_confidence_high',
                                        'cloud_shadow_confidence_high']
                           }
@@ -243,6 +255,7 @@ class sensordata:
         self.cloud_flag, self.cirrus_flag, self.shadow_flag = info['l1_flags']
         self.cirrus = info['cirrus']
         self.high_nir = info['high_nir']
+        self.O2band = info['O2band']
 
 class cams:
     '''
@@ -449,35 +462,35 @@ class cams:
 
     def get_xr_cams_aerosol(self, cams_file, product,
                             wls=[469, 550, 670, 865, 1240],
-                            params=['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']):
+                            ):
         '''
-        Nearest neighbor in time
-        :param target:
-        :param date:
-        :param wkt:
+        CAMS aerosol data loading, subset and Interpolation
+        :param cams_file: absolute path of the CAMS netcdf file
+        :param product: l2grs object
+        :param wls: desired wavelengths to extract from database
         :return:
         '''
 
-        N = len(params)
+        N = len(wls)
         date = parser.parse(str(product.getStartTime()))
         wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
         w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
 
         self.aot = np.zeros(N, dtype=np.float32)
         self.aot_std = np.zeros(N, dtype=np.float32)
-        self.aot_wl = [469, 550, 670, 865, 1240]
+        self.aot_wl = wls
 
         # load CAMS netcdf file
         cams_xr = xr.open_dataset(cams_file)
         cams_xr = self.subset_xr(cams_xr, lonmin, lonmax, latmin, latmax)
         cams_xr = cams_xr.interp(time=date)
 
-        for i, param in enumerate(params):
+        for i, wl in enumerate(wls):
+            param = 'aod' + str(wl)
             self.aot[i] = cams_xr[param].mean().data
             self.aot_std[i] = cams_xr[param].std().data
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
-
 
         print(h, w, cams_xr.aod550.coords)
         r, c = cams_xr.aod550.data.shape
@@ -492,6 +505,113 @@ class cams:
 
         return  # u().getReprojected(prod, crs)
 
+    def get_xr_cams_cds_aerosol(self, cams_file: str, l2h: object,
+                                lutf: object, lutc: object,
+                                wls=[400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130],
+                                ):
+        '''
+        CAMS aerosol data loading, subset and Interpolation
+        :param cams_file: absolute path of the CAMS netcdf file
+        :param l2h: l2grs object
+        :param wls: desired wavelengths to extract from database
+        :param i550: index of 550 nm wavelength in wls
+        :return:
+        '''
+
+        wlsat, product = l2h.wl, l2h.product
+        N = len(wlsat)
+        date = parser.parse(str(product.getStartTime()))
+        day = date.strftime(date.strftime('%Y-%m-%d'))
+        wkt, lonmin, lonmax, latmin, latmax = u().get_extent(product)
+
+        w, h = product.getSceneRasterWidth(), product.getSceneRasterHeight()
+
+        param_ssa, param_aod = [], []
+        for wl in wls:
+            wl_ = str(wl)
+            param_aod.append('aod' + wl_)
+            param_ssa.append('ssa' + wl_)
+        params = param_ssa + param_aod
+
+        # ---------------------------------
+        # open/load desired parameters
+        # ---------------------------------
+        cams_xr = xr.open_dataset(cams_file)[params]
+        cams_daily = cams_xr.sel(time=day)
+
+        # ---------------------------------
+        # subset
+        # ---------------------------------
+        # first check longitude for nomenclature:
+        # if close to meridian greenwich: -180 < lon < 180
+        #   0 < lon < 360, otherwise
+        # first convert from snap to CAMS nomenclature (0<lon<360)
+        lonmin,lonmax=lonmin%360,lonmax%360
+        if (lonmin > 350) and (lonmax < 10):
+            lonmin = lonmin - 360
+            cams_daily = cams_daily.assign_coords(longitude=(((cams_daily.longitude + 180) % 360) - 180)).sortby('longitude')
+
+        lonslats = (lonmin, lonmax, latmin, latmax)
+
+        # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
+        print('cams cds', lonmin, lonmax, latmin, latmax)
+        # cams_sub = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
+        cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                                     latitude=np.linspace(latmax, latmin, 12),
+                                     kwargs={"fill_value": "extrapolate"})
+
+        # ---------------------------------
+        # interpolate through dates
+        # ---------------------------------
+        cams_grs = cams_sub.interp(time=date, kwargs={"fill_value": "extrapolate"})
+
+        # ---------------------------------
+        # reshape to get ssa and aod as f(lon,lat,wavelength)
+        # ---------------------------------
+        cams_ssa = cams_grs[param_ssa].to_array(dim='wavelength')
+        wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
+        cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
+        cams_aod = cams_grs[param_aod].to_array(dim='wavelength')
+        wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
+        cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
+
+        aero = aerosol()
+
+        r, c = cams_grs.aod550.shape
+        # aot_550 = np.zeros((r, c), dtype=l2h.type)
+        fcoef = np.zeros((r, c))
+        aot_ = np.zeros((N, r, c))
+        # ssa_grs = np.zeros((r, c, N), dtype=l2h.type)
+
+        for ir in range(r):
+            for ic in range(c):
+                aero.fit_spectral_aot(cams_aod.wavelength, cams_aod.values[..., ir, ic])
+                aot_[:, ir, ic] = aero.get_spectral_aot(wlsat)
+
+        ssa_grs = cams_ssa.interp(wavelength=wlsat, kwargs={"fill_value": "extrapolate"}).chunk({'wavelength': N})
+        aot_grs = ssa_grs.copy(data=aot_).chunk({'wavelength': N})
+        aot_sca_grs = (ssa_grs * aot_grs).chunk({'wavelength': N})
+        aot_sca_550 = aot_sca_grs.interp(wavelength=550, method='cubic')
+
+        # normalization of Cext to get spectral dependence of fine and coarse modes
+        nCext_f = lutf.Cext / lutf.Cext550
+        nCext_c = lutc.Cext / lutc.Cext550
+
+        for ir in range(r):
+            for ic in range(c):
+                fcoef[ir, ic] = \
+                    aero.fit_aero(nCext_f, nCext_c, aot_sca_grs[..., ir, ic] / aot_sca_550[ir, ic])[0]
+        fcoef = aot_sca_550.copy(data=fcoef)
+
+        # self.ssa_grs = u().raster_regrid(ssa_grs, lonslats, h, w).values
+        self.aot_grs = u().raster_regrid(aot_grs, lonslats, h, w).values
+        self.aot_sca_grs = u().raster_regrid(aot_sca_grs, lonslats, h, w).values
+        self.aot_sca_550 = u().raster_regrid(aot_sca_550, lonslats, h, w).values
+        self.fcoef = u().raster_regrid(fcoef, lonslats, h, w).values
+
+        return  # u().getReprojected(prod, crs)
+
+    # TODO improve data access and interpolation (see get_xr_cams_cds_aerosol)
     def get_cams_ancillary(self, target, date, wkt,
                            param=['msl', 'tco3', 'tcwv', 'tcno2', 't2m']):
         '''

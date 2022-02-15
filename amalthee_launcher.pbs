@@ -1,0 +1,27 @@
+# launch with qsub (PBS job)
+#!/bin/bash
+
+#PBS -V
+#PBS -N amalth
+#PBS -l select=1:ncpus=2:mpiprocs=2:mem=2gb
+#PBS -l walltime=24:00:00
+
+module load conda
+
+# set file path with list of images to process
+# format/header of the file in csv:
+# process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
+list_file=list_grs_cnes_obs2mod.csv
+#list_file=list_grs_cnes_guimaraes.csv
+#list_file=list_grs_cnes_seine.csv
+#list_file=list_grs_gernez_juillet_2021.csv
+
+GRSHOME=/home/eh/harmelt/scratch/dev/grs2
+list_filepath=$GRSHOME/exe/$list_file
+
+# ------------------------
+# first section: load L1C and L2A images with Amalthee
+# ------------------------
+
+conda activate /softs/rh7/conda-envs/amalthee_prod_client
+/softs/rh7/conda-envs/amalthee_prod_client/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath

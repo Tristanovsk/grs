@@ -1,0 +1,11 @@
+#Recuperer les donnees ecmwf cams à travers un job PBS  :
+
+#!/bin/bash
+
+#PBS -N ecmwf_cams
+#PBS -l select=1:ncpus=4:mem=20000mb
+#PBS -l walltime=72:00:00
+
+module load python
+
+python /work/ALT/swot/aval/OBS2CO/git/grs2/ecmwf/download_cams_all.py cams_forecast all

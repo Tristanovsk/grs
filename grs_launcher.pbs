@@ -1,0 +1,30 @@
+#Lancer grs à travers un job PBS  :
+
+#!/bin/bash
+
+#PBS -N grs
+#PBS -l select=1:ncpus=16:mem=32gb
+#PBS -l place=pack
+#PBS -l walltime=24:00:00
+
+#load avail module for conda, snap and jdk
+module load netcdf snap/8.0 conda jdk/1.8.0_112
+
+#otb-depends/7.0-python3.6.5
+
+#set the variable environment for je jpy and snap use
+export JDK_HOME=$JDKHOME
+export JAVAHOME=$JAVA_HOME
+export SNAP_HOME=$SNAPHOME
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
+
+##activate conda environement python 3.6
+conda activate /work/scratch/harmelt/grs_py3.6
+cd /work/ALT/swot/aval/OBS2CO/git/grs2
+
+
+#python exe/grs_tiles_cnes.py
+
+grs /datalake/S2-L1C//33PVQ/2020/11/14/S2B_MSIL1C_20201114T092239_N0209_R093_T33PVQ_20201114T113340.SAFE --odir /datalake/watcal/S2-L2GRS/test \
+    --aerosol cams_forecast --maja /datalake/S2-L2A-THEIA/33PVQ/2020/11/14/SENTINEL2B_20201114-093704-775_L2A_T33PVQ_C_V2-2/SENTINEL2B_20201114-093704-775_L2A_T33PVQ_C_V2-2_MTD_ALL.xml \
+    --dem

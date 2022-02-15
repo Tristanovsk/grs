@@ -21,7 +21,7 @@ subroutine main_algo(npix, nband, naot, &
 
     integer, intent(in) :: npix, nband, naot
     integer,dimension(npix),intent(in) :: mask
-    real(rtype), dimension(npix), intent(in) :: sza, aot550_in, pressure_corr
+    real(rtype), dimension(npix), intent(in) :: sza, aot550_in, pressure_corr, beta_est
     real(rtype), dimension(nband), intent(in) :: wl, rot, aot, rg_ratio, F0
     real(rtype), dimension(nband, npix), intent(in) :: vza, azi
     real(rtype), dimension(nband, npix), intent(in) :: rtoa
@@ -29,7 +29,7 @@ subroutine main_algo(npix, nband, naot, &
     real(rtype), dimension(naot, nband, npix), intent(in) :: rlut_f, rlut_c
     real(rtype), dimension(nband), intent(in) :: cextf, cextc
     real(rtype), intent(in) :: cextf550, cextc550!!
-    real(rtype), intent(in) :: beta_est
+
     real(rtype), dimension(nband, npix), intent(out) :: rcorr, rcorrg
     real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
     real(rtype),intent(inout) :: nodata
@@ -40,7 +40,7 @@ subroutine main_algo(npix, nband, naot, &
     !f2py intent(in) aot,aot550_in,rg_ratio,F0,rot
     !f2py intent(inout) nodata
     !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
-    !f2py depend(npix) sza, mask, aot550_in, aot550_est, brdf_est, pressure_corr
+    !f2py depend(npix) sza, mask, aot550_in, aot550_est, brdf_est, pressure_corr, beta_est
     !f2py depend(nband) wl,aot,rot,cextf,cextc,rg_ratio, F0
     !f2py depend(nband,npix) vza, azi, rtoa, rcorr, rcorrg
     !f2py depend(naot) aotlut
@@ -105,7 +105,7 @@ subroutine main_algo(npix, nband, naot, &
         mu0(ipix)=cos(sza(ipix)*degrad)
 
         aot550 = aot550_in(ipix)
-        beta = beta_est !(ipix)
+        beta = beta_est(ipix)
         ! correction for pressure level
         rot_corr = pressure_corr(ipix) * rot
 

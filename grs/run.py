@@ -64,8 +64,10 @@ def shp2wkt(shapefile):
     print(shapefile)
     tmp = gpd.GeoDataFrame.from_file(shapefile)
     #tmp.to_crs(epsg=4326, inplace=True)
-    return tmp.geometry.values[0].to_wkt()
-
+    # if python3.6
+    #return tmp.geometry.values[0].to_wkt()
+    # for python 3.8
+    return tmp.geometry.values[0].wkt
 
 def main():
     args = docopt(__doc__, version=__package__ + ' ' + VERSION)
@@ -146,7 +148,7 @@ def main():
 
     from .grs_process import process
     # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
-    process().execute(file, outfile, wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
+    process().execute(file, outfile, wkt=wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                       maja_xml=maja_xml, waterdetect_file=waterdetect_file, waterdetect_only=waterdetect_only,
                       aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,
