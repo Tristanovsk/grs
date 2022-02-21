@@ -181,7 +181,7 @@ contains
                     ! rescale aot values
                     aot_ = aot_tot(:, ipix) * aotpt(1) / aot550(ipix)
                     aot550_est(ipix) = aotpt(1)
-                    brdf_est(ipix) = brdf(nband - 2)
+                    brdf_est(ipix) = brdf(nband - 1)
                     exit
                 endif
             enddo

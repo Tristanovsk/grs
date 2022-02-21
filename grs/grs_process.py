@@ -299,6 +299,11 @@ class process:
             raise NameError('No data available for requested area')
         l2h.load_flags()
 
+        #---------
+        # delete Cache
+        # TODO need to find a way to delete the processed file only (keep the others)
+        #l2h.deleteCache()
+
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################

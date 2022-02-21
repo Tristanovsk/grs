@@ -1,13 +1,13 @@
 # launch with qsub (PBS job)
 #!/bin/bash
 
-#PBS -V
-#PBS -N grs_jegou
-#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g
+
+#PBS -N grs_pestua
+#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g:generation=g2019
 #PBS -l walltime=48:00:00
 #
-module load conda
-# :generation=g2019
+
+#
 # set file path with list of images to process
 # format/header of the file in csv:
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
@@ -16,7 +16,9 @@ list_file=list_grs_unesco_plata_2018.csv
 #list_file=list_grs_santarem.csv
 
 #list_file=list_grs_cnes_obs2mod.csv
-list_file=list_jegou_jallais.csv
+#list_file=list_jegou_jallais.csv
+list_file=list_grs_plata_estuary.csv
+#list_file=list_grs_cnes_seine.csv
 #list_file=list_grs_redshade_2022.csv
 #list_file=list_grs_gernez_sep2021.csv
 #list_file=list_grs_cnes_hafeez.csv
@@ -25,6 +27,7 @@ list_file=list_jegou_jallais.csv
 GRSHOME=/home/eh/harmelt/scratch/dev/grs2
 list_filepath=$GRSHOME/exe/list/$list_file
 
+module load conda
 # ------------------------
 # first section: load L1C and L2A images with Amalthee
 # ------------------------
@@ -45,16 +48,12 @@ export JAVAHOME=$JAVA_HOME
 export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
-##activate conda environement python 3.6
-path_of_env=/work/scratch/harmelt/grs_py3.6
+##activate conda environement
+path_of_env=grs_env
 conda activate $path_of_env
 
-## Put the path of your favorite GRS implementation (ex: cd /work/ALT/swot/aval/OBS2CO/git/grs2)
-# cd /work/scratch/harmelt/dev/grs2
-#cd /work/ALT/swot/aval/OBS2CO/git/grs2
-
 export OMP_NUM_THREADS=7
-$path_of_env/bin/python $GRSHOME/exe/grs_tiles_cnes.py $list_filepath $OMP_NUM_THREADS
+python $GRSHOME/exe/grs_tiles_cnes.py $list_filepath $OMP_NUM_THREADS
 
 # test example:
 # grs /datalake/S2-L1C/33PVR/2020/12/19/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVR_20201219T103844.SAFE -o /datalake/watcal/S2-L2GRS/33PVR/2020/12/19/33PVR/S2A_MSIl2grs_20201219T092411_N0209_R093_T33PVR_20201219T103844 --aerosol cams_forecast --maja /datalake/S2-L2A-THEIA/33PVR/2020/12/19/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2_MTD_ALL.xml --dem

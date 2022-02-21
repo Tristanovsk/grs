@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 # from grs import __version__, __package__
 
 __package__ = 'grs'
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 setup(
     name=__package__,

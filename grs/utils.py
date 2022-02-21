@@ -669,6 +669,10 @@ class info:
         with open(self.outfile + '.checksum', "w") as f:
             f.write(info)
 
+    def deleteCache(self):
+        S2CacheUtils = jpy.get_type('org.esa.s2tbx.dataio.cache.S2CacheUtils')
+        S2CacheUtils.deleteCache()
+
     def finalize_product(self):
         '''remove checksum file
         remove extension ".incomplete" from output file name
@@ -676,6 +680,7 @@ class info:
         # jpy.destroy_jvm()
         self.product.dispose()
         self.l2_product.dispose()
+
         os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
         # final_name = os.path.splitext(name)[0]

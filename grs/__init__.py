@@ -35,11 +35,13 @@ Version history:
 
 1.3.2: Important improvement in LUT interpolation and access
 
+1.3.3: fix small bug for sunglint BRDF output
+
 2.0.0: - process image by rectangular chunks
 '''
 
 __package__ = 'grs'
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac
