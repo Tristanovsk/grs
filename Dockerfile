@@ -23,12 +23,12 @@ WORKDIR /home/grsuser
 RUN --mount=type=secret,id=arti_conda_repo \
     CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /run/secrets/arti_conda_repo) gdal
 
+USER grsuser
+
 COPY . /home/grsuser/grs
 
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/grsuser/grs/requirements.txt
-
-USER grsuser
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
