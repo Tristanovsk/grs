@@ -145,7 +145,7 @@ pipeline {
                                     docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
-                                        docker push ${artifactory_host}/obs2co-docker/grs:latest
+                                        docker push artifactory.cnes.fr/obs2co-docker/grs:latest
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
                                         #jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
@@ -155,6 +155,23 @@ pipeline {
                                     // Permet d'afficher une icone contenant l'URL du build Artifactory directement dans l'historique des builds Jenkins
                                     currentBuild.description = "<a href='${ARTIFACTORY_BUILD_URL}'><img src='/plugin/artifactory/images/artifactory-icon.png' alt='[Artifactory]' title='Artifactory Build Info' width='16' height='16'></a>"
                                 }
+                            }
+                        }
+
+                        stage('singularity') {
+                            steps {
+                            sh '''
+                                module load singularity
+                                # Contournement pb de path sur noeud hpc pour mksquashfs
+                                #export PATH=/usr/sbin:$PATH
+                                export no_proxy=cnes.fr
+                                export SINGULARITY_DOCKER_USERNAME="${ARTI_TOKEN_USR}"
+                                export SINGULARITY_DOCKER_PASSWORD="${ARTI_TOKEN_PSW}"
+                                # Si image existe déjà, ménage
+                                #rm -f docker_${VERSION_APP}.sif* > /dev/null 2<&1 || true
+                                singularity cache clean -f
+                                singularity -d pull artifactory.cnes.fr/obs2co-docker/grs:latest
+                            '''
                             }
                         }
 
