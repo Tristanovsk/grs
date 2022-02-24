@@ -23,8 +23,8 @@ RUN --mount=type=secret,id=arti_conda_repo \
 
 COPY . /home/jovyan/grs
 
-#RUN --mount=type=secret,id=arti_pip_repo \
-#    PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/jovyan/grs/requirements.txt
+RUN --mount=type=secret,id=arti_pip_repo \
+    PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/jovyan/grs/requirements.txt
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
