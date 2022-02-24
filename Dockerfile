@@ -29,10 +29,10 @@ COPY . /home/jovyan/grs
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 #WORKDIR /home/jovyan/grs
-WORKDIR /home/jovyan/grs/grs/landsat_angles/OLI/
-#RUN gcc -g -Wall -O2 -march=nocona -mfpmath=sse -msse2  -I./ias_lib/ -I./ -c -o l8_angles.o l8_angles.c
+#WORKDIR /home/jovyan/grs/grs/landsat_angles/OLI/
+#RUN gcc -g -Wall -O2 -march=nocona -mfpmath=sse -msse2  -I./ias_lib/ -I./ -c -o #l8_angles.o l8_angles.c
 
-RUN make clean && make
+RUN cd /home/jovyan/grs && make clean && make
 
 RUN python /home/jovyan/grs/setup.py build && python /home/jovyan/grs/setup.py install
 
