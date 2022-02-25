@@ -8,7 +8,7 @@ LABEL maintainer="OBS2CO"
 # Montage du secret contenant un password pour se connecter au proxy du cnes
 ## Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
 RUN --mount=type=secret,id=proxy_http_cnes \ 
-    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_https_cnes) && \
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
     apt-get -y update && \
     apt-get -y install ca-certificates gfortran
 
@@ -19,6 +19,8 @@ RUN update-ca-certificates
 RUN useradd -ms /bin/bash grsuser
 WORKDIR /home/grsuser
 RUN usermod -aG sudo grsuser
+RUN touch /home/grsuser/arti_conda_repo
+RUN chmod 777 /home/grsuser/arti_conda_repo
 
 USER grsuser
 
