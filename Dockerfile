@@ -19,8 +19,6 @@ RUN update-ca-certificates
 RUN useradd -ms /bin/bash grsuser
 WORKDIR /home/grsuser
 RUN usermod -aG sudo grsuser
-RUN touch /home/grsuser/arti_conda_repo
-RUN chmod 777 /home/grsuser/arti_conda_repo
 
 #USER grsuser
 
@@ -34,6 +32,9 @@ RUN --mount=type=secret,id=arti_conda_repo,dst=/home/grsuser/arti_conda_repo \
 COPY . /home/grsuser/grs
 
 RUN --mount=type=secret,id=arti_pip_repo,dst=/home/grsuser/arti_pip_repo \
+    cat /home/grsuser/arti_pip_repo >> /home/grsuser/arti_pip_repo_grsuser && \
+    chmod 777 /home/grsuser/arti_pip_repo_grsuser && \
+    su grsuser && \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /home/grsuser/arti_pip_repo) -r /home/grsuser/grs/requirements.txt
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
@@ -42,8 +43,8 @@ RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda
 #WORKDIR /home/grsuser/grs/grs/landsat_angles/OLI/
 #RUN gcc -g -Wall -O2 -march=nocona -mfpmath=sse -msse2  -I./ias_lib/ -I./ -c -o #l8_angles.o l8_angles.c
 
-RUN cd /home/jovyan/grs && make clean && make
+RUN cd /home/grsuser/grs && make clean && make
 
-RUN python /home/jovyan/grs/setup.py build && python /home/jovyan/grs/setup.py install
+RUN python /home/grsuser/grs/setup.py build && python /home/grsuser/grs/setup.py install
 
 CMD grs
