@@ -47,4 +47,6 @@ RUN cd /home/grsuser/grs && make clean && make
 
 RUN python /home/grsuser/grs/setup.py build && python /home/grsuser/grs/setup.py install
 
+RUN grs -h
+
 CMD grs
