@@ -158,6 +158,16 @@ pipeline {
                             }
                         }
 
+                        stage('test docker') {
+                            steps {
+                            sh '''
+                                docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
+                                sleep 5
+                                docker logs grs
+                            '''
+                            }
+                        }
+
                         stage('singularity') {
                             steps {
                             sh '''
@@ -167,9 +177,8 @@ pipeline {
                                 export no_proxy=cnes.fr
                                 export SINGULARITY_DOCKER_USERNAME="${ARTI_TOKEN_USR}"
                                 export SINGULARITY_DOCKER_PASSWORD="${ARTI_TOKEN_PSW}"
-                                # Si image existe déjà, ménage
-                                #rm -f docker_${VERSION_APP}.sif* > /dev/null 2<&1 || true
                                 singularity cache clean -f
+                                singularity build grs.sif docker://artifactory.cnes.fr/obs2co-docker/grs:latest
                                 singularity -d pull artifactory.cnes.fr/obs2co-docker/grs:latest
                             '''
                             }
