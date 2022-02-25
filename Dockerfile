@@ -22,11 +22,14 @@ RUN usermod -aG sudo grsuser
 RUN touch /home/grsuser/arti_conda_repo
 RUN chmod 777 /home/grsuser/arti_conda_repo
 
-USER grsuser
+#USER grsuser
 
 # UL : installation Conda apres la mise a jour des certificats pour atteindre Artifactory. 
 RUN --mount=type=secret,id=arti_conda_repo,dst=/home/grsuser/arti_conda_repo \
-    CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /home/grsuser/arti_conda_repo) gdal
+    cat /home/grsuser/arti_conda_repo >> /home/grsuser/arti_conda_repo_grsuser && \
+    chmod 777 /home/grsuser/arti_conda_repo_grsuser && \
+    su grsuser && \
+    CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /home/grsuser/arti_conda_repo_grsuser) gdal
 
 COPY . /home/grsuser/grs
 
