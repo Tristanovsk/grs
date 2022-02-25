@@ -45,7 +45,9 @@ RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda
 
 RUN cd /home/grsuser/grs && make clean && make
 
-RUN python /home/grsuser/grs/setup.py build && python /home/grsuser/grs/setup.py install
+RUN python /home/grsuser/grs/setup.py build 
+
+RUN python /home/grsuser/grs/setup.py install
 
 RUN grs -h
 
