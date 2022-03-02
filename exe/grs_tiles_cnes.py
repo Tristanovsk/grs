@@ -47,8 +47,9 @@ l1cdir = {'s2': '/datalake/S2-L1C',
 odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
+dem=True #True
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True # False #True
+noclobber = False # True #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'
@@ -94,7 +95,7 @@ for idx, site in sites.iterrows():
             # print(l1c_dir + ' not loaded on /datalake')
             continue
         else:
-            l1c = l1c[0]
+            l1c = l1c[-1]
         l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
         l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
@@ -162,10 +163,10 @@ for idx, site in sites.iterrows():
         #     print('found incomplete File ' + outfile + '; skipped!')
         #     continue
         print([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
-                          l2a_maja, waterdetect, \
+                          dem,l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
-                          l2a_maja, waterdetect, \
+                          dem,l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
 command = []
 for args in misc.chunk(iter(args_list), 1):

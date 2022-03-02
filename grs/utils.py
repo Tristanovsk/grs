@@ -6,6 +6,7 @@ Defines main python objects and image manipulation functions (linked to the ESA 
 import os, sys, re, glob
 import numpy as np
 import xarray as xr
+import richdem as rd
 from dateutil import parser
 
 from esasnappy import GPF, jpy
@@ -219,6 +220,7 @@ class info:
 
         dem.readPixels(0, 0, self.width, self.height, self.elevation)
         self.elevation = np.array(self.elevation)
+
         return
 
     def load_data(self):
@@ -649,7 +651,20 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
+        # TODO update the name of DEM data set used in function of the input (e.g., SRTM, GETASSE)
         ac_product.getBand('elevation').setDescription('elevation from SRTM 3Sec in meters')
+
+        acband = ac_product.addBand('slope', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('slope').setDescription('terrain slope computed from DEM')
+
+        acband = ac_product.addBand('shade', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('shade').setDescription('terrain shades computed from DEM and sun geometry')
 
         ac_product.setAutoGrouping(self.output + ':' + self.output + '_g_')
 
@@ -840,6 +855,25 @@ class utils:
             op.setParameter('demName', 'GETASSE30')
         op.setSourceProduct(product)
         return op.getTargetProduct()
+
+    def get_dem_attributes(self,dem,sza=40,sun_azi=90):
+        '''
+        Compute slope, aspect and shades from dem for a given Sun geometry
+        :param dem: Digital Elevation Model (numpy-like array)
+        :param sza: Sun Zenith Angle in degrees
+        :param sun_azi: Sun azimuth from North (clockwise)
+        :return: slope in radians
+        :return: shade for "hillshade values"
+        '''
+        sza=np.radians(sza)
+        sun_azi=np.radians(sun_azi)
+        dem= rd.rdarray(dem,no_data=np.nan)
+        slope= np.radians(rd.TerrainAttribute(dem, attrib="slope_degrees"))
+        aspect = rd.TerrainAttribute(dem, attrib="aspect")
+        aspect_rd = np.radians(aspect)
+        shade = np.cos(sza) * np.cos(slope) + np.sin(sza)\
+                 * np.sin(slope) * np.cos(sun_azi - aspect_rd)
+        return slope, shade
 
     def get_subset_old(self, product, wkt):
         '''subset from wkt POLYGON '''

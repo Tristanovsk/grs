@@ -234,6 +234,9 @@ class process:
             high_latitude = (latmax >= 60) | (latmin <= -60)
             l2h.get_elevation(high_latitude)
 
+        else:
+            l2h.elevation = np.zeros([l2h.height, l2h.width])
+
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
         ##################################
@@ -441,9 +444,16 @@ class process:
         l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
         l2h.l2_product.getBand('AZI').writePixels(0, 0, w, h, np.array(l2h.razi[1]))
 
+        ######################################
+        #      Add terrain attributes
+        ######################################
         if dem:
+            sza_mean, sazi_mean = np.nanmean(l2h.sza),np.nanmean(l2h.sazi)
+            l2h.slope, l2h.shade = _utils.get_dem_attributes(l2h.elevation, sza=sza_mean, sun_azi=sazi_mean)
             # add elevation band
             l2h.l2_product.getBand('elevation').writePixels(0, 0, w, h, l2h.elevation)
+            l2h.l2_product.getBand('slope').writePixels(0, 0, w, h, l2h.slope)
+            l2h.l2_product.getBand('shade').writePixels(0, 0, w, h, l2h.shade)
 
         ######################################
         #      MAIN LOOP

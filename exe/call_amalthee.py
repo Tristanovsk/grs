@@ -21,7 +21,7 @@ from libamalthee import Amalthee
 # start_date, end_date = '2021-03-01', '2021-03-30'
 # tile, lon, lat = '31TGK', '14.6', '14'
 
-sitefile = 'exe/list/list_grs_cnes_obs2mod.csv' # 'exe/list_grs_cnes_seine.csv' #
+sitefile = 'exe/list/list_grs_gernez_feb2022.csv' # 'exe/list_grs_cnes_seine.csv' #
 sitefile = sys.argv[1]
 sites = pd.read_csv(sitefile)
 
