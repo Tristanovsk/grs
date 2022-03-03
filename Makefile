@@ -1,6 +1,9 @@
 export F2PY=f2py
+# please use an updated version of gcc
+# in HAL env:
+# module load gcc
 
-DIRS = grs/fortran/grs grs/fortran/grs_a
+DIRS = grs/fortran/grs grs/fortran/grs_a grs/landsat_angles/OLI grs/landsat_angles/TM
 
 
 CLEANDIRS = $(DIRS:%=clean-%)
@@ -16,5 +19,3 @@ $(CLEANDIRS):
 .PHONY: subdirs $(DIRS)
 .PHONY: subdirs $(CLEANDIRS)
 .PHONY: all clean
-
-
