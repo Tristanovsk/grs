@@ -5,7 +5,7 @@ FROM ${IMAGE_SOURCE}/snap
 USER root
 LABEL maintainer="OBS2CO"
 
-RUN chmod -r 777 /srv/conda/envs/env_snap/snap/.snap
+RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap
 
 # Montage du secret contenant un password pour se connecter au proxy du cnes
 ## Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
