@@ -43,17 +43,17 @@ $path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 #load modules snap and jdk
 module load snap/8.0 jdk/1.8.0_112
 
+##activate conda environement
+path_of_env=grs_env
+conda activate $path_of_env
+
 #set the variable environment for je jpy and snap use
 export JDK_HOME=$JDKHOME
 export JAVAHOME=$JAVA_HOME
 export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
-
-##activate conda environement
-path_of_env=grs_env
-conda activate $path_of_env
-
 export OMP_NUM_THREADS=7
+
 python $GRSHOME/exe/grs_tiles_cnes.py $list_filepath $OMP_NUM_THREADS
 
 # test example:
