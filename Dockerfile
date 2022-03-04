@@ -18,7 +18,7 @@ RUN update-ca-certificates
 
 RUN useradd -ms /bin/bash grsuser
 WORKDIR /home/grsuser
-RUN usermod -aG sudo grsuser
+RUN usermod -u 9489 grsuser
 
 #USER grsuser
 
@@ -46,7 +46,8 @@ RUN python setup.py build
 
 RUN python setup.py install
 
-RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap
+RUN chmod -R 777 /srv/conda/envs/env_snap/snap
+RUN chown -r 9489 /srv/conda/envs/env_snap/snap
 
 RUN grs -h
 
