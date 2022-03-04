@@ -168,21 +168,21 @@ pipeline {
                             }
                         }
 
-                        stage('singularity') {
-                            steps {
-                            sh '''
-                                module load singularity
-                                # Contournement pb de path sur noeud hpc pour mksquashfs
-                                #export PATH=/usr/sbin:$PATH
-                                export no_proxy=cnes.fr
-                                export SINGULARITY_DOCKER_USERNAME="${ARTI_TOKEN_USR}"
-                                export SINGULARITY_DOCKER_PASSWORD="${ARTI_TOKEN_PSW}"
-                                singularity cache clean -f
-                                singularity build grs.sif docker://artifactory.cnes.fr/obs2co-docker/grs:latest
-                                singularity -d pull artifactory.cnes.fr/obs2co-docker/grs:latest
-                            '''
-                            }
-                        }
+                        //stage('singularity') {
+                        //    steps {
+                        //    sh '''
+                        //        module load singularity
+                        //        # Contournement pb de path sur noeud hpc pour mksquashfs
+                        //        #export PATH=/usr/sbin:$PATH
+                        //        export no_proxy=cnes.fr
+                        //        export SINGULARITY_DOCKER_USERNAME="${ARTI_TOKEN_USR}"
+                        //        export SINGULARITY_DOCKER_PASSWORD="${ARTI_TOKEN_PSW}"
+                        //        singularity cache clean -f
+                        //        singularity build grs.sif docker://artifactory.cnes.fr/obs2co-docker/grs:latest
+                        //        singularity -d pull artifactory.cnes.fr/obs2co-docker/grs:latest
+                        //    '''
+                        //    }
+                        //}
 
                         
                         stage('analyse Xray') {
