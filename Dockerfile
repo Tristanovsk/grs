@@ -47,7 +47,7 @@ RUN python setup.py build
 RUN python setup.py install
 
 RUN chmod -R 777 /srv/conda/envs/env_snap/snap
-RUN chown -r 9489 /srv/conda/envs/env_snap/snap
+RUN chown -R 9489 /srv/conda/envs/env_snap/snap
 
 RUN grs -h
 
