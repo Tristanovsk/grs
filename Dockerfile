@@ -26,7 +26,7 @@ WORKDIR /home/grsuser
 RUN --mount=type=secret,id=arti_conda_repo \
     CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /run/secrets/arti_conda_repo) gdal
 
-RUN chmod -R 777 /home/grsuser/*
+RUN chmod -R 777 /home/grsuser
 COPY . /home/grsuser/grs
 
 RUN --mount=type=secret,id=arti_pip_repo \
