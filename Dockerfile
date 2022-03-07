@@ -18,7 +18,7 @@ RUN update-ca-certificates
 
 RUN useradd -ms /bin/bash grsuser
 WORKDIR /home/grsuser
-RUN usermod -u 9489 grsuser
+#RUN usermod -u 9489 grsuser
 
 #USER grsuser
 
@@ -26,8 +26,8 @@ RUN usermod -u 9489 grsuser
 RUN --mount=type=secret,id=arti_conda_repo \
     CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /run/secrets/arti_conda_repo) gdal
 
+RUN chmod -R 777 /home/grsuser/*
 COPY . /home/grsuser/grs
-RUN chmod -R 777 /home/grsuser/grs
 
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /home/grsuser/grs/requirements.txt
@@ -46,8 +46,9 @@ RUN python setup.py build
 
 RUN python setup.py install
 
-RUN chmod -R 777 /srv/conda/envs/env_snap/snap
-RUN chown -R 9489 /srv/conda/envs/env_snap/snap
+RUN sed -i -e '/default\_userdir= =/ s/= .*/= \/home\/grsuser\/.snap/' /srv/conda/envs/env_snap/snap/etc/snap.conf
+
+RUN chmod -R 777 /home/grsuser/*
 
 RUN grs -h
 
