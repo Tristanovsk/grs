@@ -8,14 +8,14 @@ MAMBAFORGE_VERSION=4.9.2-3
 SHA256SUM="2263861c8927fce272fd97072e1822f268c6bec8c2fee9724d7df54d7fe80a36"
 #https://github.com/conda-forge/miniforge/releases/download/4.9.2-3/Mambaforge-4.9.2-3-Linux-x86_64.sh
 
-URL="https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh"
+URL="https://github.com/conda-forge/miniforge/releases/Mambaforge-4.11.0-4-Linux-x86_64.sh"
 INSTALLER_PATH=/tmp/miniforge-installer.sh
 
 # make sure we don't do anything funky with user's $HOME
 # since this is run as root
 unset HOME
 
-wget --quiet --no-check-certificate $URL -O ${INSTALLER_PATH}
+#wget --quiet --no-check-certificate $URL -O ${INSTALLER_PATH}
 chmod +x ${INSTALLER_PATH}
 
 # check sha256 checksum
