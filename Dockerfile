@@ -21,7 +21,7 @@ ENV USER=${NB_USER} \
     CONDA_DIR=${APP_BASE}/conda
     
 RUN groupadd --gid ${NB_GID} ${NB_USER}                                                                                             && \
-    useradd --comment "Default user" --create-home --gid ${NB_GID} --no-log-init --shell /bin/bash --uid ${NB_UID} ${NB_USER}       && \
+    useradd --comment "Default user" --create-home --gid ${NB_GID} --no-log-init --shell /bin/bash --uid ${NB_UID} ${NB_USER}
     
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
