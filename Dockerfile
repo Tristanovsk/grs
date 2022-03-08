@@ -37,6 +37,11 @@ RUN --mount=type=secret,id=proxy_http_cnes \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf                                                                                      && \
     locale-gen en_US.UTF-8
 
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
+    wget  --quiet --no-check-certificate https://github.com/conda-forge/miniforge/releases/Mambaforge-4.11.0-4-Linux-x86_64.sh -O /tmp/miniforge-installer.sh
+
+
 # conda installation via miniforge
 ADD install-miniforge.bash /tmp/install-miniforge.bash
 
