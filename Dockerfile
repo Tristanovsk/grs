@@ -41,7 +41,8 @@ RUN python setup.py build
 
 RUN python setup.py install
 
-RUN sed -i -e '/default\_userdir= =/ s/= .*/= \/home\/jovyan\/.snap/' /srv/conda/envs/env_snap/snap/etc/snap.conf
+#RUN sed -i -e '/default\_userdir= =/ s/= .*/= \/home\/jovyan\/.snap/' /srv/conda/envs/env_snap/snap/etc/snap.conf
+RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
 RUN chmod -R 777 /home/jovyan
 RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
