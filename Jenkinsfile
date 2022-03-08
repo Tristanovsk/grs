@@ -162,7 +162,7 @@ pipeline {
                             steps {
                             sh '''
                                 docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
-                                sleep 5
+                                sleep 60
                                 docker logs grs
                             '''
                             }
