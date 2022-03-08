@@ -1,0 +1,8 @@
+name: env_snap
+channels:
+  - terradue
+  - conda-forge
+dependencies:
+  - python
+  - snap=8.0.0
+  - lxml
