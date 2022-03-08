@@ -45,8 +45,9 @@ RUN python setup.py install
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
 RUN chmod -R 777 /home/jovyan
+RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
 RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
 
-RUN grs -h
+#RUN grs -h
 
-CMD grs
+#CMD grs
