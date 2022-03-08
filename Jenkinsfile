@@ -127,7 +127,7 @@ pipeline {
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
                                             DOCKER_BUILDKIT=1 docker build -t artifactory.cnes.fr/obs2co-docker/grs:latest --no-cache \
-                                            --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap \
+                                            --build-arg IMAGE_SOURCE=artifactory.cnes.fr/docker \
                                             --build-arg NO_PROXY=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
                                             --secret id=arti_conda_repo,src=arti_conda_repo.txt \
@@ -162,7 +162,7 @@ pipeline {
                             steps {
                             sh '''
                                 docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
-                                sleep 60
+                                sleep 5
                                 docker logs grs
                             '''
                             }
