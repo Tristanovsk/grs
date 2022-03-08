@@ -22,7 +22,7 @@ RUN update-ca-certificates
 
 RUN chmod -R 777 /home/jovyan
 COPY . /home/jovyan/grs
-WORDIR /home/jovyan 
+WORKDIR /home/jovyan 
 
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install --user jovyan -i $(cat /run/secrets/arti_pip_repo) -r /home/grsuser/grs/requirements.txt
