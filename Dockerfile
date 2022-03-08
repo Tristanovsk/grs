@@ -22,6 +22,9 @@ ENV USER=${NB_USER} \
     
 RUN groupadd --gid ${NB_GID} ${NB_USER}                                                                                             && \
     useradd --comment "Default user" --create-home --gid ${NB_GID} --no-log-init --shell /bin/bash --uid ${NB_UID} ${NB_USER}       && \
+    
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
     apt-get -qq update                                                                                                              && \
     apt-get -qq install --yes apt-utils                                                                                             && \
     apt-get -qq install --yes --no-install-recommends ttf-dejavu \
@@ -59,7 +62,6 @@ WORKDIR ${HOME}
 ## Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    apt-get -y update && \
     apt-get -y install ca-certificates gfortran
 
 #Ajout des certificats
