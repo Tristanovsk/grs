@@ -6,4 +6,18 @@
     "product_counter" : 003,
     "log" : "info",                     # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST"     # répertoire où seront ecrits les produits générés
+    "file_tbp": "",
+    "outfile": "", 
+    "wkt": "", 
+    "altitude": "", 
+    "aerosol": "", 
+    "aeronet_file": "", 
+    "resolution": "", 
+    "aot550": "", 
+    "angstrom": "", 
+    "unzip": "",
+    "untar": "", 
+    "startrow": "", 
+    "angleonly": ""
+
 }
