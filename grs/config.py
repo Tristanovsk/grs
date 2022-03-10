@@ -19,7 +19,7 @@ grs_root = root
 # data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
 data_root = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata')
 # directory to store temporary unzipped files
-tmp_dir = os.path.abspath('/work/ALT/swot/aval/OBS2CO/git/grs/grsdata/tmp')
+tmp_dir = os.path.abspath('/tmp')
 lut_root = os.path.join(data_root, "LUT")
 cams_folder = os.path.join('/datalake/watcal/ECMWF/CAMS')  # os.path.join(data_root, "CAMS")
 smac_root = os.path.join(data_root, "SMAC_COEFS")
