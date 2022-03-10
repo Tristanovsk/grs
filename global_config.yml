@@ -18,6 +18,7 @@
     "unzip": "",
     "untar": "", 
     "startrow": "", 
-    "angleonly": ""
+    "angleonly": "",
+    "logfile": "/tmp/logger.txt"
 
 }
