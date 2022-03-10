@@ -34,10 +34,6 @@ RUN --mount=type=secret,id=arti_pip_repo \
 
 RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
-#WORKDIR /home/grsuser/grs
-#WORKDIR /home/grsuser/grs/grs/landsat_angles/OLI/
-#RUN gcc -g -Wall -O2 -march=nocona -mfpmath=sse -msse2  -I./ias_lib/ -I./ -c -o #l8_angles.o l8_angles.c
-
 WORKDIR /home/jovyan/grs
 RUN make clean && make
 
@@ -47,13 +43,13 @@ RUN python setup.py install
 
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
-RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//home/jovyan/.snap/system/#g' /srv/conda/envs/env_snap/snap//etc/snap.conf
-RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//home/jovyan/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
-RUN sed -i '11 a AuxDataPath = /home/jovyan/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/.snap/system/#g' /srv/conda/envs/env_snap/snap//etc/snap.conf
+RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
+RUN sed -i '11 a AuxDataPath = /tmp/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
 
-RUN chmod -R 777 /home/jovyan
-RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
-RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
+#RUN chmod -R 777 /home/jovyan
+#RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
+#RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
 
 #RUN grs -h
 
