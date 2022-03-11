@@ -830,12 +830,12 @@ class utils:
         op = addelevation()
         op.setParameterDefaultValues()
         # TODO check if taking DEM files from cnes datalake is feasible
-        # op.setParameter("demName", "External DEM")
-        #
-        # srtm_path=cfg.srtm_path
-        # print(srtm_path)
-        # for f in glob.glob(srtm_path+'/*.tif'):
-        #       op.setParameter("externalDEMFile", f)
+        op.setParameter("demName", "External DEM")
+        
+        srtm_path=cfg.srtm_path
+        print(srtm_path)
+        for f in glob.glob(srtm_path+'/*.tif'):
+              op.setParameter("externalDEMFile", f)
 
         if high_latitude:
             op.setParameter('demName', 'GETASSE30')
