@@ -40,7 +40,9 @@ RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/
 
 RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/.snap/system/#g' /srv/conda/envs/env_snap/snap//etc/snap.conf
 RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
-RUN sed -i '11 a AuxDataPath = /tmp/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+#RUN sed -i '11 a AuxDataPath = /tmp/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+
+RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
 RUN chmod -R 777 /app
 
