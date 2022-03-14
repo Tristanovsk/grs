@@ -27,7 +27,7 @@ misc = misc()
 # set parameters
 # data source to fill datalake
 # amalthee = Amalthee('peps')
-
+sitefile = 'exe/list_grs_gernez_sep2021.csv'
 sitefile = sys.argv[1]
 
 # number of processors to be used
@@ -47,8 +47,9 @@ l1cdir = {'s2': '/datalake/S2-L1C',
 odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS/'}
 
+dem=True #True
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True # False #True
+noclobber = False # True #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'
@@ -66,11 +67,14 @@ for idx, site in sites.iterrows():
     # load row of list file
     if site.iloc[0] == 0:
         continue
-    name, start_date, end_date, sat, tile, lat, lon, resolution = site.iloc[1:]
+    name, start_date, end_date, sat, tile, resolution, flag = site.iloc[1:]
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
     resolution = int(resolution)
+    allpixels = True
+    if flag == 1:
+        allpixels = False
 
     # ------------------
     # setting up loop on dates
@@ -91,12 +95,13 @@ for idx, site in sites.iterrows():
             # print(l1c_dir + ' not loaded on /datalake')
             continue
         else:
-            l1c = l1c[0]
+            l1c = l1c[-1]
         l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
         l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
             print(l2a_dir + ' not loaded on /datalake')
-            continue
+            #continue
+            l2a_maja = None
         else:
             l2a_maja = l2a_maja[0]
 
@@ -104,6 +109,15 @@ for idx, site in sites.iterrows():
         # For the moment waterdetect set as None
         wd_dir = opj(dirsat, 'S2-L2A-THEIA', subdir)
         waterdetect = None  # glob.glob(opj(wd_dir, '*.tif'))[0]
+        #for David processing
+        if "guimaraes" in sitefile:
+            wd_dir = opj('/work/datalake/watcal/GRS/wd_masks', subdir)
+
+            waterdetect = glob.glob(opj(wd_dir, '*.tif'))
+            if len(waterdetect)==0:
+                continue
+            else:
+                waterdetect =waterdetect[0]
 
         # ------------------
         # check / create output directory
@@ -116,7 +130,7 @@ for idx, site in sites.iterrows():
         if name != name:
             name = ''
         # force no suffix
-        name = ''
+        #name = ''
         # ------------------
         # get image basename for output naming
         basename = os.path.basename(l1c)
@@ -133,21 +147,26 @@ for idx, site in sites.iterrows():
 
         # ------------------
         #  CAMS data selection
-        if date.year > 2016:
-            ancillary = 'cams_forecast'
+        # TODO check data availability from CAMS and update the dates below
+        if date.year > 2018:
+            ancillary = 'cds_forecast'
+        elif (date.year == 2018) and (date.month > 6):
+            ancillary = 'cds_forecast'
         else:
-            ancillary = 'cams_reanalysis'
+            ancillary = 'cams_forecast' #'cams_reanalysis'
 
-        if 'cams' in aerosol:
-            aerosol = ancillary
+        #if 'cams' in aerosol:
+        aerosol = ancillary
 
         # skip if incomplete (enables multiprocess)
-        if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
-            print('found incomplete File ' + outfile + '; skipped!')
-            continue
-
+        # if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
+        #     print('found incomplete File ' + outfile + '; skipped!')
+        #     continue
+        print([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
+                          dem,l2a_maja, waterdetect, \
+                          aot550, angstrom, memory_safe, allpixels, angleonly])
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
-                          l2a_maja, waterdetect, \
+                          dem,l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
 command = []
 for args in misc.chunk(iter(args_list), 1):

@@ -56,7 +56,7 @@ pippath=$(which pip)
 echo $pippath
 
 #Install snappy
-#$SNAPHOME/bin/snappy-conf $pythonpath 
+#$SNAPHOME/bin/snappy-conf $pythonpath
 
 if [ ! -d $CONDA_PREFIX/lib/python3.6/site-packages/esasnappy ]
 then

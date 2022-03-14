@@ -27,11 +27,23 @@ Version history:
 1.2.4: - option to load MAJA and WaterDetect mask and export masks in output file
        - option to process WaterDetect Water pixels only
 
+1.3.0: update for CAMS data (cds version):
+       - new aod wavelengths and spectral ssa from 2018 onwards
+       - adjustment for absorbing aerosol through ssa
+
+1.3.1: update CAMS data extraction from xarray and fix for longitude conventions
+
+1.3.2: Important improvement in LUT interpolation and access
+
+1.3.3: fix small bug for sunglint BRDF output
+
+1.3.4: add slope and shade from DEM
+
 2.0.0: - process image by rectangular chunks
 '''
 
 __package__ = 'grs'
-__version__ = '1.2.4'
+__version__ = '1.3.4'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac

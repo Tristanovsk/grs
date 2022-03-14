@@ -132,6 +132,7 @@ class multi_process:
     '''
     def __init__(self):
         pass
+
     def grs_call(self,p):
         args,fjunk = p
         for arg in args:
@@ -162,21 +163,21 @@ class multi_process:
         for arg in args:
             print('arg', arg)
             file_tbp, outfile, aerosol, aeronet_file, ancillary, resolution, \
-            maja_xml, waterdetect_file, \
+            dem, maja_xml, waterdetect_file, \
             aot550, angstrom, mem_safe, allpixels, angleonly = arg
-            print('yop',file_tbp)
+            print('start process of ',file_tbp)
             #return
 
             #try:
             from grs import grs_process
-            print('------GRS loaded !!')
+
             grs_process.process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
-                                          dem=True, aeronet_file=aeronet_file, resolution=resolution,
+                                          dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                                           maja_xml=maja_xml, waterdetect_file=waterdetect_file,
                                           aot550=aot550, angstrom=angstrom, memory_safe=mem_safe,
                                            allpixels=allpixels, angleonly=angleonly)
             # except:
-            print('-------------------------------')
+
             #     print('error for file  ', file_tbp, ' skip')
             #     print('-------------------------------')
             #     continue

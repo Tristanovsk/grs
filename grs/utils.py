@@ -3,19 +3,18 @@
 Defines main python objects and image manipulation functions (linked to the ESA snappy library)
 '''
 
-import os, sys, re, shutil, glob
+import os, sys, re, glob
 import numpy as np
+import xarray as xr
+import richdem as rd
 from dateutil import parser
-import subprocess
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
 from esasnappy import FlagCoding, String, Mask
 
-import pdb
-
 from . import config as cfg
-import os
+
 
 class info:
     '''
@@ -221,6 +220,7 @@ class info:
 
         dem.readPixels(0, 0, self.width, self.height, self.elevation)
         self.elevation = np.array(self.elevation)
+
         return
 
     def load_data(self):
@@ -237,6 +237,26 @@ class info:
         self.mask, self.flags = utils.init_fortran_array(2, (w, h), dtype=np.uint8)
         self.sza, self.sazi, arr = utils.init_fortran_array(3, (w, h))
         self.band_rad, self.vza, self.razi, self.muv = utils.init_arrayofarrays(4, [arr] * self.N)
+
+        # --------------------------------
+        # load Masks
+        # --------------------------------
+        # get cirrus band if exists
+        if self.sensordata.cirrus:
+            print(self.sensordata.cirrus[0])
+            self.hcld = self.get_raster(self.product, self.sensordata.cirrus[0])
+            # convert (if needed) into TOA reflectance
+            if 'LANDSAT' in self.sensor:
+                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
+
+        # get 02 band if exists
+        if self.sensordata.O2band:
+            self.O2band_raster = self.get_raster(self.product, self.sensordata.O2band[0])
+
+        # if MAJA image provided, load (and write) AOT product band
+        if self.maja:
+            self.aot_maja = self.get_raster(self.maja, 'AOT_R1')
+            self.l2_product.getBand('aot_maja').writePixels(0, 0, self.width, self.height, self.aot_maja)
 
         # --------------------------------
         # load data
@@ -280,19 +300,6 @@ class info:
 
         # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
 
-        # get cirrus band if exists
-        try:
-            self.product.getBand(self.sensordata.cirrus[0]).readPixels(0, 0, w, h, self.hcld)
-            # convert (if needed) into TOA reflectance
-            if 'LANDSAT' in self.sensor:
-                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
-        except:
-            pass
-
-        # if MAJA image provided, load (and write) AOT product band
-        if self.maja:
-            self.aot_maja = self.get_raster(self.maja, 'AOT_R1')
-            self.l2_product.getBand('aot_maja').writePixels(0, 0, self.width, self.height, self.aot_maja)
 
     def load_flags(self):
         '''
@@ -311,28 +318,31 @@ class info:
         # --------------------------------
         # TODO export L1 flags waiting for snap bug to be solved (subset remove mask info,
         #  https://forum.step.esa.int/t/problems-with-selecting-masks-as-input-in-graph-builder/3494/7 )
+        # set high cloud cirrus mask
+        if self.sensordata.cirrus:
+            self.flags = self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5)
+        if self.sensordata.O2band:
+            self.flags = self.flags + ((self.O2band_raster > self.sensordata.O2band[1]) << 6)
+        if self.sensordata.O2band:
+            self.flags = self.flags + ((self.O2band_raster > self.sensordata.O2band[2]) << 7)
 
         try:
             cloud = self.get_flag(self.product, self.sensordata.cloud_flag)
             cirrus = self.get_flag(self.product, self.sensordata.cirrus_flag)
-            self.flags = self.flags + (cloud << 6) + (cirrus << 7)
+            self.flags = self.flags + (cloud << 8) + (cirrus << 9)
         except:
             pass
 
         if self.sensordata.shadow_flag != '':
             shadow = self.get_flag(self.product, self.sensordata.shadow_flag)
-            self.flags = self.flags + (shadow << 8)
+            self.flags = self.flags + (shadow << 10)
 
-        # set high cloud cirrus mask
-        try:
-            self.flags = self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5)
-        except:
-            pass  # print('No cirrus band available, high cloud flag discarded')
+
 
         # -------------------
         # for Sentinel 2
         # if MAJA L2A image is provided load MAJA flags
-        mask_id = 9
+        mask_id = 11
         if self.maja:
             # CLM masks
             masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
@@ -360,7 +370,6 @@ class info:
             self.watermask[water_true] = 1
 
         return
-
 
     def unload_data(self):
         '''unload data (not efficient due to ESA snappy issue with java jvm'''
@@ -392,32 +401,6 @@ class info:
         self.outfile_ext = self.outfile + '.nc'  # dim'
         ac_product.setProductWriter(writer)
 
-        # TODO remove the following commented lines
-        # if (self.sensor == 'S2A' or self.sensor == 'S2B'):
-        #    product_name_list=self.outfile.split('/')
-        #    path_list=product_name_list[0:len(product_name_list)-1]
-        #    path = '/'.join(path_list)
-        #    #S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE
-        #
-        #    tile=product_name_list[-1].split('_')[5]
-        #    dir_name=path+'/'+tile
-        #
-        #    try:
-        #       os.makedirs(dir_name)
-        #       print("Directory " , dir_name ,  " Created ")
-        #    except FileExistsError:
-        #       print("Directory " , dir_name ,  " already exists")
-        #    self.outfile_ext = dir_name + '/' + self.outfile.split('/')[-1] + '.nc'
-        #
-        # else:
-        #    self.outfile_ext = dir_name + '.nc'
-        #
-        #
-        # owriter = ProductIO.getProductWriter('BEAM-DIMAP')
-        #
-        # print('product name is : ' + self.outfile_ext)
-
-        #ac_product.setProductWriter(writer)
         ProductUtils.copyGeoCoding(product, ac_product)
         ProductUtils.copyMetadata(product, ac_product)
         ac_product.setStartTime(product.getStartTime())
@@ -479,7 +462,10 @@ class info:
 
         ac_product.getMetadataRoot().addElement(meta)
 
-        # set masks
+        # -------------------------------------
+        # set masks / flags
+        # -------------------------------------
+
         flags = ac_product.addBand('flags', ProductData.TYPE_UINT32)
         flags.setDescription('Flags for aquatic color purposes')
         # vflags = ac_product.addBand('valid', ProductData.TYPE_UINT8)
@@ -488,25 +474,52 @@ class info:
 
         # Also for each flag a layer should be created
         Color = jpy.get_type('java.awt.Color')
+        colors = [Color.BLUE, Color.YELLOW, Color.RED, Color.PINK, Color.MAGENTA, Color.GREEN, Color.GRAY] * 10
         coding = FlagCoding('flags')
-        f0 = coding.addFlag("nodata", 1, "nodata in input image ")
-        f1 = coding.addFlag("negative", 2, "negative values in visible ")
-        f2 = coding.addFlag("ndwi", 4, "based on ndwi vis nir TOA ")
-        f3 = coding.addFlag("ndwi_corr", 8, "based on ndwi vis nir after atmosperic correction ")
-        f4 = coding.addFlag("high_nir", 16, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
+        f=[None]*32
+        mask_id = 0
+        f[mask_id] = coding.addFlag("nodata", 2 ** mask_id, "nodata in input image ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("negative", 2 ** mask_id, "negative values in visible ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("ndwi", 2 ** mask_id, "based on ndwi vis nir TOA based on bands "+
+                            self.band_names[self.sensordata.NDWI_vis]+" and "+
+                            self.band_names[self.sensordata.NDWI_nir]+
+                            " for range "+str(self.sensordata.NDWI_threshold))
+        mask_id += 1
+        f[mask_id] = coding.addFlag("ndwi_corr", 2 ** mask_id, "based on ndwi vis nir after atmosperic correction ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("high_nir", 2 ** mask_id, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
                             self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
-            self.sensordata.high_nir[1]))
-        f5 = coding.addFlag("hicld", 32, "high cloud as observed from cirrus band; condition Rtoa at band " +
+                            self.sensordata.high_nir[1]))
+        mask_id += 1
+        f[mask_id] = coding.addFlag("hicld", 2 ** mask_id, "high cloud as observed from cirrus band; condition Rtoa at band " +
                             self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
-        f6 = coding.addFlag("L1_cloud", 64, "opaque cloud flag from L1 image ")
-        f7 = coding.addFlag("L1_cirrus", 128, "cirrus cloud flag from L1 image ")
-        f8 = coding.addFlag("L1_shadow", 256, "cloud-shadow flag from L1 image ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("moderate_cloud_risk_O2band", 2 ** mask_id,
+                                    "moderate risk of bright cloud as observed from O2 band; condition Rtoa at band " +
+                            self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[1]))
+        mask_id += 1
+        f[mask_id] = coding.addFlag("high_cloud_risk_O2band", 2 ** mask_id,
+                                    "high risk of bright cloud as observed from O2 band; condition Rtoa at band " +
+                            self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[2]))
+        mask_id += 1
+        f[mask_id] = coding.addFlag("L1_opaque_clouds", 2 ** mask_id, " flag from L1 image ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("L1_cirrus", 2 ** mask_id, "cirrus cloud flag from L1 image ")
+        mask_id += 1
+        f[mask_id] = coding.addFlag("L1_shadow", 2 ** mask_id, "cloud-shadow flag from L1 image ")
+
+        for i_f in range(mask_id):
+            ac_product.addMask('mask_' + f[i_f].getName(), 'flags.' + f[i_f].getName(),
+                               f[i_f].getDescription(), colors[i_f], 0.3)
+
 
         # -------------------
         # for Sentinel 2
         # if MAJA L2A / WaterDetect provided, load respective flags
         # WARNING: mask_id must remain smaller than 32 (binary coding)
-        mask_id = 9
+        mask_id += 1
         additional_f = []
         if self.maja:
 
@@ -523,29 +536,12 @@ class info:
         ac_product.getFlagCodingGroup().add(coding)
         flags.setSampleCoding(coding)
 
-        ac_product.addMask('mask_' + f0.getName(), 'flags.' + f0.getName(),
-                           f0.getDescription(), Color.BLACK, 0.1)
-        ac_product.addMask('mask_' + f1.getName(), 'flags.' + f1.getName(),
-                           f1.getDescription(), Color.YELLOW, 0.1)
-        ac_product.addMask('mask_' + f2.getName(), 'flags.' + f2.getName(),
-                           f2.getDescription(), Color.RED, 0.1)
-        ac_product.addMask('mask_' + f3.getName(), 'flags.' + f3.getName(),
-                           f3.getDescription(), Color.PINK, 0.1)
-        ac_product.addMask('mask_' + f4.getName(), 'flags.' + f4.getName(),
-                           f4.getDescription(), Color.MAGENTA, 0.1)
-        ac_product.addMask('mask_' + f5.getName(), 'flags.' + f5.getName(),
-                           f5.getDescription(), Color.GREEN, 0.1)
-        ac_product.addMask('mask_' + f6.getName(), 'flags.' + f6.getName(),
-                           f6.getDescription(), Color.GRAY, 0.1)
-        ac_product.addMask('mask_' + f7.getName(), 'flags.' + f7.getName(),
-                           f7.getDescription(), Color.GRAY, 0.1)
-        ac_product.addMask('mask_' + f8.getName(), 'flags.' + f8.getName(),
-                           f8.getDescription(), Color.GRAY, 0.1)
+
         # -------------------
         # for Sentinel 2
         # if MAJA L2A / WaterDetect provided, load respective flags
         # WARNING: mask_id must remain smaller than 32 (binary coding)
-        colors = [Color.BLUE, Color.YELLOW, Color.RED, Color.PINK, Color.MAGENTA, Color.GREEN, Color.GRAY] * 10
+
         mask_id = 0
         if self.maja:
 
@@ -655,7 +651,20 @@ class info:
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
+        # TODO update the name of DEM data set used in function of the input (e.g., SRTM, GETASSE)
         ac_product.getBand('elevation').setDescription('elevation from SRTM 3Sec in meters')
+
+        acband = ac_product.addBand('slope', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('slope').setDescription('terrain slope computed from DEM')
+
+        acband = ac_product.addBand('shade', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('shade').setDescription('terrain shades computed from DEM and sun geometry')
 
         ac_product.setAutoGrouping(self.output + ':' + self.output + '_g_')
 
@@ -675,6 +684,10 @@ class info:
         with open(self.outfile + '.checksum', "w") as f:
             f.write(info)
 
+    def deleteCache(self):
+        S2CacheUtils = jpy.get_type('org.esa.s2tbx.dataio.cache.S2CacheUtils')
+        S2CacheUtils.deleteCache()
+
     def finalize_product(self):
         '''remove checksum file
         remove extension ".incomplete" from output file name
@@ -682,6 +695,7 @@ class info:
         # jpy.destroy_jvm()
         self.product.dispose()
         self.l2_product.dispose()
+
         os.remove(self.outfile + '.checksum')
         name = self.outfile_ext + '.incomplete'
         # final_name = os.path.splitext(name)[0]
@@ -762,7 +776,7 @@ class utils:
 
     @staticmethod
     def resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
-                  flag='FlagMedianAnd', opt=True):
+                  flag='FlagMedianAnd', opt=False):
 
         '''
         Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
@@ -788,8 +802,8 @@ class utils:
         return op.getTargetProduct()
 
     @staticmethod
-    def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='First',
-                     flag='FlagMedianAnd', opt=True):
+    def s2_resampler(product, resolution=20, upmethod='Bilinear', downmethod='Mean',
+                     flag='FlagMedianAnd', opt=False):
 
         '''
         Resampling operator dedicated to Sentinel2-msi characteristics (e.g., viewing angles)
@@ -841,6 +855,25 @@ class utils:
             op.setParameter('demName', 'GETASSE30')
         op.setSourceProduct(product)
         return op.getTargetProduct()
+
+    def get_dem_attributes(self,dem,sza=40,sun_azi=90):
+        '''
+        Compute slope, aspect and shades from dem for a given Sun geometry
+        :param dem: Digital Elevation Model (numpy-like array)
+        :param sza: Sun Zenith Angle in degrees
+        :param sun_azi: Sun azimuth from North (clockwise)
+        :return: slope in radians
+        :return: shade for "hillshade values"
+        '''
+        sza=np.radians(sza)
+        sun_azi=np.radians(sun_azi)
+        dem= rd.rdarray(dem,no_data=np.nan)
+        slope= np.radians(rd.TerrainAttribute(dem, attrib="slope_degrees"))
+        aspect = rd.TerrainAttribute(dem, attrib="aspect")
+        aspect_rd = np.radians(aspect)
+        shade = np.cos(sza) * np.cos(slope) + np.sin(sza)\
+                 * np.sin(slope) * np.cos(sun_azi - aspect_rd)
+        return slope, shade
 
     def get_subset_old(self, product, wkt):
         '''subset from wkt POLYGON '''
@@ -939,3 +972,27 @@ class utils:
             print('sensor not recognized from input file')
             sys.exit(-1)
         return sensor
+
+    @staticmethod
+    def raster_regrid(raster: xr.DataArray, lonslats: list, h: int, w: int):
+        '''
+        regrid cams raster onto satellite image grid of dim h,w
+        TODO for the moment basic 2-step bilinear interpolation,
+        TODO can be improved by using appropriate regridder, see: xESMF
+        :param raster:
+        :param h: height of image grid
+        :param w: width of image grid
+        '''
+        lonmin, lonmax, latmin, latmax = lonslats
+        return raster.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                             latitude=np.linspace(latmax, latmin, 12),
+                             kwargs={"fill_value": "extrapolate"}).interp(
+                             longitude=np.linspace(lonmin, lonmax, 512),
+                             latitude=np.linspace(latmax, latmin, 512),
+                             kwargs={"fill_value": "extrapolate"}).interp(
+                             longitude=np.linspace(lonmin, lonmax, w),
+                             latitude=np.linspace(latmax, latmin, h),method="nearest",
+                             kwargs={"fill_value": "extrapolate"})
+    @staticmethod
+    def remove_na(arr):
+        return arr[~np.isnan(arr)]
