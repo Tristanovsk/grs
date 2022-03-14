@@ -42,6 +42,8 @@ RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/.snap/system/#g'
 RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
 RUN sed -i '11 a AuxDataPath = /tmp/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
 
+RUN chmod -R 777 /app
+
 #RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
 #RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
 
