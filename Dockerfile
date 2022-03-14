@@ -26,10 +26,10 @@ RUN chmod -R 777 /app
 COPY . /app/grs
 WORKDIR /app/grs 
 
+RUN mv /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
+
 RUN --mount=type=secret,id=arti_pip_repo \
     PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /app/grs/requirements.txt
-
-RUN ln -s /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 RUN make clean && make
 
