@@ -30,6 +30,7 @@ Shapely==1.7.1
 six==1.16.0
 urllib3==1.26.8
 xarray==0.20.2
+snappy
 dask
 dask[array]
 richdem
