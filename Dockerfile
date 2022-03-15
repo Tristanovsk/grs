@@ -26,7 +26,6 @@ RUN chmod -R 777 /app
 COPY . /app/grs
 WORKDIR /app/grs 
 
-RUN rm -r /srv/conda/envs/env_snap/lib/python3.9/site-packages/snappy
 RUN ln -s /srv/conda/envs/env_snap/snap/.snap/snap-python/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
 RUN --mount=type=secret,id=arti_pip_repo \
@@ -50,6 +49,6 @@ RUN chmod -R 777 /app
 #RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
 #RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
 
-#RUN grs -h
+RUN grs -h
 
 #ENTRYPOINT ['python', '/app/grs/launcher.py', "/app/grs/global_config.yml'] 
