@@ -47,11 +47,23 @@ if __name__ == '__main__':
     untar = False
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
+        
+    if data['outfile'] == None:
 
+        basename=os.path.basename(data["input_file"])
+        outfile = basename.replace('L1C', "L2")
+        outfile = outfile.replace('.SAFE', '').rstrip('/')
+        outfile = outfile.replace('.zip', '').rstrip('/')
+        outfile = outfile.replace('L1TP', "L2")
+        outfile = outfile.replace('.txt', '').rstrip('/')
+
+        outfile = os.path.join(data['output_dir'], outfile)
+    else:
+        outfile=data['outfile']
 
     try:
         from grs import grs_process
-        grs_process.process().execute(file_tbpd=data["file_tbpd"], outfile=data["outfile"], wkt=wkt_rect, 
+        grs_process.process().execute(file=outfile, outfile=data["outfile"], wkt=wkt_rect, 
         altitude=data["altitude"], aerosol=data["aerosol"],
         dem=data["dem"], aeronet_file=data["aeronet_file"], resolution=data["resolution"],
         aot550=data["aot550"], angstrom=data["angstrom"], unzip=unzip, 
