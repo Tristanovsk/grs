@@ -13,7 +13,11 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    on.symlink(data['auxdata_path'], "/tmp/.snap/")
+    try:
+        os.symlink(data['auxdata_path'], "/tmp/.snap/")
+    except Exception as error:
+        print(error)
+
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
@@ -32,20 +36,30 @@ if __name__ == '__main__':
     #if os.path.isfile(data['outfile'] + ".dim") & data['noclobber']:
     #    print('File ' + outfile + ' already processed; skip!')
     #    sys.exit(-1)
+
     #if os.path.isfile(outfile + ".dim.incomplete"):# & False:
     #    print('found incomplete File ' + outfile + '; skip!')
     
+    unzip = False
+    if os.path.splitext(file)[-1] == '.zip':
+        unzip = True
+    
+    untar = False
+    if os.path.splitext(file)[-1] == '.tar':
+        unzip = True 
+
+
     try:
         from grs import grs_process
         grs_process.process().execute(file_tbpd=data["file_tbpd"], outfile=data["outfile"], wkt=wkt_rect, 
         altitude=data["altitude"], aerosol=data["aerosol"],
         dem=data["dem"], aeronet_file=data["aeronet_file"], resolution=data["resolution"],
-        aot550=data["aot550"], angstrom=data["angstrom"], unzip=data["unzip"], 
-        untar=data["untar"], startrow=data["startrow"], angleonly=data["angleonly"])
+        aot550=data["aot550"], angstrom=data["angstrom"], unzip=unzip, 
+        untar=untar, startrow=data["startrow"])
     except Exception as inst:
         print('-------------------------------')
         print('error for file  ', inst, ' skip')
         print('-------------------------------')
         with open(config["logfile"], "a") as myfile:
-            myfile.write(inst+ ' error during grs \n')
+            myfile.write('error during grs \n')
 
