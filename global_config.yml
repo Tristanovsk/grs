@@ -6,20 +6,18 @@
     "chain_version" : 1.0,
     "product_counter" : 003,
     "log" : "info",                                  # niveau de log : info, debug, warning, error
-    "output_dir": "/datalake/watcal/OUTPUT_TEST"     # répertoire où seront ecrits les produits générés
+    "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "file_tbp": "",
     "outfile": "", 
-    "wkt": "", 
     "altitude": "", 
-    "aerosol": "", 
-    "aeronet_file": "", 
-    "resolution": "", 
-    "aot550": "", 
-    "angstrom": "", 
-    "unzip": "",
-    "untar": "", 
-    "startrow": "", 
-    "angleonly": "",
+    "aerosol": "cams_forecast", 
+    "aeronet_file": "no", 
+    "resolution": "20", 
+    "aot550": "aot550", 
+    "angstrom": "0.5", 
+    "unzip": "False",
+    "untar": "False", 
+    "startrow": "0", 
     "logfile": "/tmp/logger.txt"
 
 }
