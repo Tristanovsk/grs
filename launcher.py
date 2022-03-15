@@ -20,7 +20,7 @@ if __name__ == '__main__':
     for key, value in data.items():
         if(value is not None and value!=''):
             data[key]=value 
-            else:
+        else:
             data[key]=None
             
     lonmin, lonmax = -180, 180
