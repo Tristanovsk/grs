@@ -48,5 +48,4 @@ if __name__ == '__main__':
         print('-------------------------------')
         with open(config["logfile"], "a") as myfile:
             myfile.write(inst+ ' error during grs \n')
-        continue
 
