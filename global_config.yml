@@ -1,10 +1,11 @@
 {
+    "auxdata_path" : "/datalake/watcal/auxdata",
     "data_root" : '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata',
     "tmp_dir" : '/tmp',
-    "cams_folder" : 'datalake/watcal/ECMWF/CAMS',
+    "cams_folder" : '/datalake/watcal/ECMWF/CAMS',
     "chain_version" : 1.0,
     "product_counter" : 003,
-    "log" : "info",                     # niveau de log : info, debug, warning, error
+    "log" : "info",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST"     # répertoire où seront ecrits les produits générés
     "file_tbp": "",
     "outfile": "", 
