@@ -13,7 +13,7 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    sys.symlink(data['auxdata_path'], "/tmp/.snap/")
+    on.symlink(data['auxdata_path'], "/tmp/.snap/")
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
