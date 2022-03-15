@@ -40,6 +40,8 @@ if __name__ == '__main__':
     #if os.path.isfile(outfile + ".dim.incomplete"):# & False:
     #    print('found incomplete File ' + outfile + '; skip!')
     
+       file=data["input_file"]
+
     unzip = False
     if os.path.splitext(file)[-1] == '.zip':
         unzip = True
@@ -50,7 +52,7 @@ if __name__ == '__main__':
         
     if data['outfile'] == None:
 
-        basename=os.path.basename(data["input_file"])
+        basename=os.path.basename(file)
         outfile = basename.replace('L1C', "L2")
         outfile = outfile.replace('.SAFE', '').rstrip('/')
         outfile = outfile.replace('.zip', '').rstrip('/')
