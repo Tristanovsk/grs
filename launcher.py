@@ -26,15 +26,15 @@ if __name__ == '__main__':
     lonmin, lonmax = -180, 180
     latmin, latmax = -90,90#-21.13
     wkt_rect = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
+    
+    outfile=data['outfile']
 
-    if os.path.isfile(outfile + ".dim") & data['noclobber']:
-            print('File ' + outfile + ' already processed; skip!')
-            continue
-        # skip if incomplete (enables multiprocess)
-    if os.path.isfile(outfile + ".dim.incomplete"):# & False:
-        print('found incomplete File ' + outfile + '; skip!')
-        continue
-
+    #if os.path.isfile(data['outfile'] + ".dim") & data['noclobber']:
+    #    print('File ' + outfile + ' already processed; skip!')
+    #    sys.exit(-1)
+    #if os.path.isfile(outfile + ".dim.incomplete"):# & False:
+    #    print('found incomplete File ' + outfile + '; skip!')
+    
     try:
         from grs import grs_process
         grs_process.process().execute(file_tbpd=data["file_tbpd"], outfile=data["outfile"], wkt=wkt_rect, 
@@ -42,11 +42,11 @@ if __name__ == '__main__':
         dem=data["dem"], aeronet_file=data["aeronet_file"], resolution=data["resolution"],
         aot550=data["aot550"], angstrom=data["angstrom"], unzip=data["unzip"], 
         untar=data["untar"], startrow=data["startrow"], angleonly=data["angleonly"])
-    except:
+    except Exception as inst:
         print('-------------------------------')
-        print('error for file  ', file_tbp, ' skip')
+        print('error for file  ', inst, ' skip')
         print('-------------------------------')
         with open(config["logfile"], "a") as myfile:
-            myfile.write(file_tbp + ' error during grs \n')
+            myfile.write(inst+ ' error during grs \n')
         continue
 
