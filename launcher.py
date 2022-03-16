@@ -22,7 +22,7 @@ def rename_file(file, outfile, outdir):
         return os.path.join(outdir, outfile)
 
 def shp2wkt(shapefile):
-    logger.info(f'{shapefile} is used')
+    logging.info(f'{shapefile} is used')
     tmp = gpd.GeoDataFrame.from_file(shapefile)
     return tmp.geometry.to_wkt().values[0]
 
@@ -37,32 +37,10 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    # init logger
-    logger = logging.getLogger()
-    log_level="INFO"
-
-    level = logging.getLevelName(log_level)
-    logger.setLevel(level)
-
-    # file handle
-    log_file=data["logfile"]
-    file_handler = RotatingFileHandler(log_file, 'a', 1000000, 1)
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
-                                  datefmt='%Y-%m-%dT%H:%M:%S')
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    # stream handler
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
     try:
         os.symlink(data['auxdata_path'], "/tmp/.snap/auxdata")
     except Exception as error:
-        logger.error(error)
+        logging.error(error)
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
@@ -121,9 +99,9 @@ if __name__ == '__main__':
         waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
         angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"])
     except Exception as inst:
-        logger.info('-------------------------------')
-        logger.info('error for file  ', inst, ' skip')
-        logger.info('-------------------------------')
+        logging.info('-------------------------------')
+        logging.info('error for file  ', inst, ' skip')
+        logging.info('-------------------------------')
         with open(data["logfile"], "a") as myfile:
             myfile.write('error during grs \n')
 

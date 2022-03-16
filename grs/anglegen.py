@@ -1,7 +1,7 @@
 import sys
 from subprocess import call
 from esasnappy import ProductUtils, ProductIO
-
+import logging
 
 
 class angle_generator:
@@ -41,7 +41,7 @@ class angle_generator:
         for band in ang.getBandNames():
 
             bandname=band.replace('Azimuth','sun_azimuth').replace('Zenith','sun_zenith')
-            print("copying " + band + 'to ' + bandname)
+            logging.info("copying " + band + 'to ' + bandname)
             ProductUtils.copyBand(band, ang, bandname, l2h.product, True)
             l2h.product.getBand(bandname).setScalingFactor(0.01)
             l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
@@ -52,7 +52,7 @@ class angle_generator:
         for band_name,ang_name in zip(l2h.band_names, l2h.sensordata.angle_names):
             suff = ang_type + '_' + ang_name + '.img.hdr'
             ang_file = l2h.headerfile.replace('MTL.txt', suff)
-            print(ang_file)
+            logging.info(ang_file)
 
             if not os.path.isfile(ang_file):
                 arg = ' '.join([ang_header, 'SATELLITE', '1', '-b', ang_name[-1],'-f',str(nodatavalue)])
@@ -67,7 +67,7 @@ class angle_generator:
             ang = ProductIO.readProduct(ang_file)
             for band in ang.getBandNames():
                 bandname=band+'_'+band_name
-                print("copying " + band + 'to ' + bandname)
+                logging.info("copying " + band + 'to ' + bandname)
                 ProductUtils.copyBand(band, ang, bandname, l2h.product, True)
                 l2h.product.getBand(bandname).setScalingFactor(0.01)
                 l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
@@ -116,7 +116,7 @@ class angle_generator:
             ang = ProductIO.readProduct(senfile)
             for angband in ang.getBandNames():
                 bandname=angband.replace('Band_2','Azimuth').replace('Band_1','Zenith') + '_'+band_name
-                print("copying " + angband + 'to ' + bandname)
+                logging.info("copying " + angband + 'to ' + bandname)
                 ProductUtils.copyBand(angband, ang, bandname, l2h.product, True)
                 l2h.product.getBand(bandname).setScalingFactor(0.01)
                 l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
@@ -126,7 +126,7 @@ class angle_generator:
         ang = ProductIO.readProduct(solfile)
         for angband in ang.getBandNames():
             bandname = angband.replace('Band_2', 'sun_azimuth').replace('Band_1', 'sun_zenith')
-            print("copying " + angband + 'to ' + bandname)
+            logging.info("copying " + angband + 'to ' + bandname)
             ProductUtils.copyBand(angband, ang, bandname, l2h.product, True)
             l2h.product.getBand(bandname).setScalingFactor(0.01)
             l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
@@ -153,15 +153,15 @@ class angle_generator:
     #     root = os.path.join(root, 'GRANULE')
     #     granule = glob.glob1(root, '*L1C*')
     #     if granule.__len__() > 1:
-    #         print('STOP! should process single tile but several tiles found')
+    #         logging.info('STOP! should process single tile but several tiles found')
     #         sys.exit()
     #     root = os.path.join(root, granule[0])
     #     XML_File = os.path.join(root, glob.glob1(root, '*MTD*xml')[0])
     #
     #     outdir = os.path.join(root, 'ANG_DATA')
-    #     print(outdir)
+    #     logging.info(outdir)
     #     if not os.path.exists(outdir) or os.listdir(outdir) == "":
-    #         print('creating angle files for ', outdir)
+    #         logging.info('creating angle files for ', outdir)
     #         s2angle().angle_writer(XML_File)
     #
     #     ##################################
@@ -175,9 +175,9 @@ class angle_generator:
     #         ang = ProductIO.readProduct(os.path.join(angroot, angfile))
     #         # ProductUtils.copyGeoCoding(product, ang)
     #         for band in ang.getBandNames():
-    #             print("copying " + band + '_' + bandname)
+    #             logging.info("copying " + band + '_' + bandname)
     #             ProductUtils.copyBand(band, ang, band + '_' + bandname, l2h.product, True)
     #
 
     def add_band(self,):
-        print()
+        logging.info()

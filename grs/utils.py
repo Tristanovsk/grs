@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 import richdem as rd
 from dateutil import parser
+import logging
 
 from esasnappy import GPF, jpy
 from esasnappy import Product, ProductUtils, ProductIO, ProductData
@@ -243,7 +244,7 @@ class info:
         # --------------------------------
         # get cirrus band if exists
         if self.sensordata.cirrus:
-            print(self.sensordata.cirrus[0])
+            logging.info(self.sensordata.cirrus[0])
             self.hcld = self.get_raster(self.product, self.sensordata.cirrus[0])
             # convert (if needed) into TOA reflectance
             if 'LANDSAT' in self.sensor:
@@ -267,7 +268,7 @@ class info:
 
         # loop in reverse order to use the esasnappy "dispose()" function within the jvm
         for i, band in list(enumerate(self.band_names))[::-1]:
-            print('loading band ', band)
+            logging.info(f'loading band {band}')
             self.B[i].readPixels(0, 0, w, h, arr)
             self.B[i].dispose()
             self.band_rad[i] = arr
@@ -346,17 +347,17 @@ class info:
         if self.maja:
             # CLM masks
             masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
-            print('CLM', np.unique(masks << mask_id))
-            print('flags', np.unique(self.flags))
+            logging.info('CLM '+ np.unique(masks << mask_id))
+            logging.info('flags '+ np.unique(self.flags))
             self.flags = self.flags + (masks << mask_id)
-            print('flags', np.unique(self.flags))
+            logging.info('flags '+ np.unique(self.flags))
             mask_id += len(self.clm_masks)
 
             # MG2 masks
             masks = self.get_raster(self.maja, 'Aux_Mask_MG2_R1', dtype=np.uint32)
-            print('MG2', np.unique(masks << mask_id))
+            logging.info('MG2 '+ np.unique(masks << mask_id))
             self.flags = self.flags + (masks << mask_id)
-            print('flags', np.unique(self.flags))
+            logging.info('flags '+ np.unique(self.flags))
             mask_id += len(self.mg2_masks)
 
         # -------------------
@@ -524,12 +525,12 @@ class info:
         if self.maja:
 
             for i, mask in enumerate(self.maja_masks):
-                print('Mask binary ', mask_id, 2 ** mask_id)
+                logging.info('Mask binary '+ mask_id)
                 additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
                 mask_id += 1
 
         if self.waterdetect:
-            print('waterdetect mask ', mask_id, 2 ** mask_id)
+            logging.info('waterdetect mask ', mask_id)
             additional_f.append(
                 coding.addFlag('WaterDetect', 2 ** mask_id, 'Water mask imported from WaterDetect processing'))
 
@@ -702,11 +703,11 @@ class info:
         os.rename(name, self.outfile_ext)  # final_name)
 
     def print_info(self):
-        ''' print info, can be used to check if object is complete'''
-        print('Product: %s, %d x %d pixels, %s' % (self.name, self.width, self.height, self.description))
-        print('Bands:   %s' % (list(self.band_names)))
+        ''' logging.info info, can be used to check if object is complete'''
+        logging.info('Product: %s, %d x %d pixels, %s' % (self.name, self.width, self.height, self.description))
+        logging.info('Bands:   %s' % (list(self.band_names)))
         for i in range(len(self.wl)):
-            print('Band ' + str(i) + ", " + str(self.B[i].getSpectralWavelength()) + ' centered on ' + str(
+            logging.info('Band ' + str(i) + ", " + str(self.B[i].getSpectralWavelength()) + ' centered on ' + str(
                 self.wl[i]) + 'nm loaded')
 
 
@@ -847,7 +848,7 @@ class utils:
         #op.setParameter("demName", "External DEM")
         
         #srtm_path=cfg.srtm_path
-        #print(srtm_path)
+        #logging.info(srtm_path)
         #for f in glob.glob(srtm_path+'/*.tif'):
         #    op.setParameter("externalDEMFile", f)
 
@@ -897,7 +898,7 @@ class utils:
 
     def print_array(self, arr):
         np.set_printoptions(threshold=np.nan)
-        print(arr)
+        logging.info(arr)
 
     def getMinMax(self, current, minV, maxV):
         if current < minV:
@@ -969,7 +970,7 @@ class utils:
             sensor = 'LANDSAT_5'
         # TODO add to log file
         else:
-            print('sensor not recognized from input file')
+            logging.error('sensor not recognized from input file')
             sys.exit(-1)
         return sensor
 

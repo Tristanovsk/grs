@@ -6,6 +6,7 @@ import os
 import xml.etree.ElementTree as ET
 from math import sqrt, cos, sin, tan, pi, asin, acos, atan, atan2
 
+import logging
 import numpy as np
 from osgeo import gdal
 
@@ -59,14 +60,14 @@ class s2angle_v2:
         subsamp = 5
         # if len(sys.argv) > 2:
         #     subsamp = int(sys.argv[2]);
-        print('Using subsampling factor of %d.' % subsamp)
+        logging.info('Using subsampling factor of %d.' % subsamp)
 
         # Sudipta spatial subset setting
         sul_lat = sul_lon = slr_lat = slr_lon = None
 
         # if len(sys.argv) > 3:  # expect spatial subset bbox coords as <ullat,ullon,lrlat,lrlon>
         #     sul_lat, sul_lon, slr_lat, slr_lon = [float(x) for x in sys.argv[3].split(',')]
-        #     print "sul_lat,sul_lon,slr_lat,slr_lon = {},{},{},{}".format(sul_lat, sul_lon, slr_lat, slr_lon)
+        #     logging.info "sul_lat,sul_lon,slr_lat,slr_lon = {},{},{},{}".format(sul_lat, sul_lon, slr_lat, slr_lon)
 
         # sul_lat = 45.50
         # slr_lat = 45.10
@@ -76,7 +77,7 @@ class s2angle_v2:
         # Load the angle observations from the metadata
         (Tile_ID, AngleObs) = self.get_angleobs(XML_File)
         Tile_Base = Tile_ID.split('.')
-        print('Loaded view angles from metadata for tile: ', Tile_ID)
+        logging.info('Loaded view angles from metadata for tile: ', Tile_ID)
 
         # Reconstruct the Orbit from the Angles
         (Orbit, TimeParms) = self.Fit_Orbit(AngleObs)
@@ -85,11 +86,11 @@ class s2angle_v2:
         Lon0 = Orbit[1] - asin(tan(Orbit[0]) / -tan(Orbit[3]))
         Orbit.append(Lon0)
 
-        print('Orbit processing complete')
+        logging.info('Orbit processing complete')
 
-        # Load the detector footprints
-        BandFoot = self.get_detfootprint(XML_File)
-        print('Loaded detector footprints from QI files')
+        # Load the detector footlogging.infos
+        BandFoot = self.get_detfootlogging.info(XML_File)
+        logging.info('Loaded detector footlogging.infos from QI files')
         # harmel adjust for python3
         # --> replace div / by integer div //
         # Loop through the bands using TimeParms which are in band order
@@ -125,7 +126,7 @@ class s2angle_v2:
                 lr_s_r = out_rows
                 lr_s_c = out_cols
 
-            print("ul_s_r = {}, ul_s_c = {}, lr_s_r = {}, lr_s_c = {}".format(ul_s_r, ul_s_c, lr_s_r, lr_s_c))
+            logging.info("ul_s_r = {}, ul_s_c = {}, lr_s_r = {}, lr_s_c = {}".format(ul_s_r, ul_s_c, lr_s_r, lr_s_c))
 
             # sys.exit(0)
             #######################################################
@@ -144,12 +145,12 @@ class s2angle_v2:
             # azimuth.fill(np.nan)
 
             detcount = np.matrix(np.zeros((out_rows, out_cols)))
-            # Find the detector footprints for this band
+            # Find the detector footlogging.infos for this band
             for foot in BandFoot:
                 if foot['bandId'] == band:
                     detId = foot['detId']
                     bandName = foot['bandName']
-                    print('Scanning band ', band, ' detector ', detId)
+                    logging.info('Scanning band ', band, ' detector ', detId)
                     minloc = [foot['coords'][0][0], foot['coords'][0][1]]
                     maxloc = [foot['coords'][0][0], foot['coords'][0][1]]
                     for pointloc in foot['coords']:
@@ -194,7 +195,7 @@ class s2angle_v2:
                                 xlist.append(x)
                         xlist.sort()
                         if len(xlist) % 2 > 0:
-                            print('Invalid footprint intersection')
+                            logging.info('Invalid footlogging.info intersection')
                             break
                         # for col in range( out_cols ):
                         # sudipta changed above to support spatial subset
@@ -203,7 +204,7 @@ class s2angle_v2:
                             x = AngleObs['ul_x'] + dx + gsd[band] / 2.0
                             if x < minloc[0] or x > maxloc[0]:
                                 continue
-                            # See if this point is inside the footprint
+                            # See if this point is inside the footlogging.info
                             index = 0
                             while index < len(xlist):
                                 if x >= xlist[index] and x < xlist[index + 1]:
@@ -476,8 +477,8 @@ class s2angle_v2:
         tree = ET.parse(XML_File)
         root = tree.getroot()
 
-        # Find the detector footprint files
-        footprints = []
+        # Find the detector footlogging.info files
+        footlogging.infos = []
         for child in root:
             if child.tag[-23:] == 'Quality_Indicators_Info':
                 qualinfo = child
@@ -491,10 +492,10 @@ class s2angle_v2:
                 if qifile.attrib['type'] == 'MSK_DETFOO':
                     bandId = int(qifile.attrib['bandId'])
                     qifname = Foot_Dir + os.path.basename(qifile.text.strip())
-                    footprints.append((bandId, qifname))
+                    footlogging.infos.append((bandId, qifname))
 
         bandfoot = []
-        for foot in footprints:
+        for foot in footlogging.infos:
             bandId = int(foot[0])
             tree2 = ET.parse(foot[1])
             root2 = tree2.getroot()
@@ -671,7 +672,7 @@ class s2angle_v2:
                     rmsfit += dt * dt
             if numobs > 0:
                 rmsfit = sqrt(rmsfit / numobs)
-                print('Time fit for band ', band, ' RMS = ', rmsfit, ' seconds')
+                logging.info('Time fit for band ', band, ' RMS = ', rmsfit, ' seconds')
 
         return Time_Parms
 
@@ -712,7 +713,7 @@ class s2angle_v2:
         orbtol = 1.0
         orbrss = 1000.0
         first_iter = 0
-        print('Reconstructing Orbit from View Angles')
+        logging.info('Reconstructing Orbit from View Angles')
         while rmstime > convtol or orbrss > orbtol:
             AngResid = 0.0
             Omega0 = asin(sin(Orbit[0]) / sin(Orbit[3]))
@@ -767,15 +768,15 @@ class s2angle_v2:
             X0[3, 0] *= Orbit[2]
             orbrss = sqrt(X0[0, 0] * X0[0, 0] + X0[1, 0] * X0[1, 0] + X0[2, 0] * X0[2, 0] + X0[3, 0] * X0[3, 0])
 
-        print('Lat    = ', Orbit[0] * self.todeg)
-        print('Lon    = ', Orbit[1] * self.todeg)
-        print('Radius = ', Orbit[2])
-        print('Incl   = ', Orbit[3] * self.todeg)
-        print('RMS Orbit Fit (meters): ', orbrss)
-        print('RMS Time Fit (seconds): ', rmstime)
-        print('RMS LOS Residual: ', AngResid)
+        logging.info('Lat    = ', Orbit[0] * self.todeg)
+        logging.info('Lon    = ', Orbit[1] * self.todeg)
+        logging.info('Radius = ', Orbit[2])
+        logging.info('Incl   = ', Orbit[3] * self.todeg)
+        logging.info('RMS Orbit Fit (meters): ', orbrss)
+        logging.info('RMS Time Fit (seconds): ', rmstime)
+        logging.info('RMS LOS Residual: ', AngResid)
 
-        print('Fitting Tile Observation Times')
+        logging.info('Fitting Tile Observation Times')
 
         Time_Parms = self.Fit_Time(ul_x, ul_y, Obs)
 
@@ -893,14 +894,14 @@ class s2angle:
         subsamp = 5
         # if len(sys.argv) > 2:
         #     subsamp = int(sys.argv[2]);
-        print('Using subsampling factor of %d.' % subsamp)
+        logging.info('Using subsampling factor of %d.' % subsamp)
 
         # Sudipta spatial subset setting
         sul_lat = sul_lon = slr_lat = slr_lon = None
 
         # if len(sys.argv) > 3:  # expect spatial subset bbox coords as <ullat,ullon,lrlat,lrlon>
         #     sul_lat, sul_lon, slr_lat, slr_lon = [float(x) for x in sys.argv[3].split(',')]
-        #     print "sul_lat,sul_lon,slr_lat,slr_lon = {},{},{},{}".format(sul_lat, sul_lon, slr_lat, slr_lon)
+        #     logging.info "sul_lat,sul_lon,slr_lat,slr_lon = {},{},{},{}".format(sul_lat, sul_lon, slr_lat, slr_lon)
 
         # sul_lat = 45.50
         # slr_lat = 45.10
@@ -910,7 +911,7 @@ class s2angle:
         # Load the angle observations from the metadata
         (Tile_ID, AngleObs) = self.get_angleobs(XML_File)
         Tile_Base = Tile_ID.split('.')
-        print('Loaded view angles from metadata for tile: ', Tile_ID)
+        logging.info('Loaded view angles from metadata for tile: ', Tile_ID)
 
         # Reconstruct the Orbit from the Angles
         (Orbit, TimeParms) = self.Fit_Orbit(AngleObs)
@@ -919,11 +920,11 @@ class s2angle:
         Lon0 = Orbit[1] - asin(tan(Orbit[0]) / -tan(Orbit[3]))
         Orbit.append(Lon0)
 
-        print('Orbit processing complete')
+        logging.info('Orbit processing complete')
 
-        # Load the detector footprints
-        BandFoot = self.get_detfootprint(XML_File)
-        print('Loaded detector footprints from QI files')
+        # Load the detector footlogging.infos
+        BandFoot = self.get_detfootlogging.info(XML_File)
+        logging.info('Loaded detector footlogging.infos from QI files')
         # harmel adjust for python3
         # --> replace div / by integer div //
         # Loop through the bands using TimeParms which are in band order
@@ -958,7 +959,7 @@ class s2angle:
                 lr_s_r = out_rows
                 lr_s_c = out_cols
 
-            print("ul_s_r = {}, ul_s_c = {}, lr_s_r = {}, lr_s_c = {}".format(ul_s_r, ul_s_c, lr_s_r, lr_s_c))
+            logging.info("ul_s_r = {}, ul_s_c = {}, lr_s_r = {}, lr_s_c = {}".format(ul_s_r, ul_s_c, lr_s_r, lr_s_c))
 
             # sys.exit(0)
             #######################################################
@@ -977,12 +978,12 @@ class s2angle:
             # azimuth.fill(np.nan)
 
             detcount = np.matrix(np.zeros((out_rows, out_cols)))
-            # Find the detector footprints for this band
+            # Find the detector footlogging.infos for this band
             for foot in BandFoot:
                 if foot['bandId'] == band:
                     detId = foot['detId']
                     bandName = foot['bandName']
-                    print('Scanning band ', band, ' detector ', detId)
+                    logging.info('Scanning band ', band, ' detector ', detId)
                     minloc = [foot['coords'][0][0], foot['coords'][0][1]]
                     maxloc = [foot['coords'][0][0], foot['coords'][0][1]]
                     for pointloc in foot['coords']:
@@ -1027,7 +1028,7 @@ class s2angle:
                                 xlist.append(x)
                         xlist.sort()
                         if len(xlist) % 2 > 0:
-                            print('Invalid footprint intersection')
+                            logging.info('Invalid footlogging.info intersection')
                             break
                         # for col in range( out_cols ):
                         # sudipta changed above to support spatial subset
@@ -1036,7 +1037,7 @@ class s2angle:
                             x = AngleObs['ul_x'] + dx + gsd[band] / 2.0
                             if x < minloc[0] or x > maxloc[0]:
                                 continue
-                            # See if this point is inside the footprint
+                            # See if this point is inside the footlogging.info
                             index = 0
                             while index < len(xlist):
                                 if x >= xlist[index] and x < xlist[index + 1]:
@@ -1066,7 +1067,7 @@ class s2angle:
                                 else:
                                     index += 2
 
-            # print "row = {}, col = {}, zenith = {}".format(1000, 450, zenith[1000, 450])
+            # logging.info "row = {}, col = {}, zenith = {}".format(1000, 450, zenith[1000, 450])
             # Write out the angles
             Out_File = os.path.join(odir, Tile_Base[0][:-4] + '_ang_' + bandName + '.img')
             # hfile = open( Out_File, 'wb' )
@@ -1091,7 +1092,7 @@ class s2angle:
             Hdr_File = self.WriteHeader(Out_File[:-4], out_rows, out_cols, AngleObs['ul_x'], AngleObs['ul_y'],
                                         gsd[band] * subsamp,
                                         AngleObs['zone'], AngleObs['hemis'])
-            print('Created image file %s and header file %s.' % (Out_File, Hdr_File))
+            logging.info('Created image file %s and header file %s.' % (Out_File, Hdr_File))
             # sys.exit(0)
 
     def from_latlon(self, latitude, longitude, force_zone_number=None):
@@ -1334,8 +1335,8 @@ class s2angle:
         tree = ET.parse(XML_File)
         root = tree.getroot()
 
-        # Find the detector footprint files
-        footprints = []
+        # Find the detector footlogging.info files
+        footlogging.infos = []
         for child in root:
             if child.tag[-23:] == 'Quality_Indicators_Info':
                 qualinfo = child
@@ -1349,10 +1350,10 @@ class s2angle:
                 if qifile.attrib['type'] == 'MSK_DETFOO':
                     bandId = int(qifile.attrib['bandId'])
                     qifname = Foot_Dir + os.path.basename(qifile.text.strip())
-                    footprints.append((bandId, qifname))
+                    footlogging.infos.append((bandId, qifname))
 
         bandfoot = []
-        for foot in footprints:
+        for foot in footlogging.infos:
             bandId = int(foot[0])
             tree2 = ET.parse(foot[1])
             root2 = tree2.getroot()
@@ -1529,7 +1530,7 @@ class s2angle:
                     rmsfit += dt * dt
             if numobs > 0:
                 rmsfit = sqrt(rmsfit / numobs)
-                print('Time fit for band ', band, ' RMS = ', rmsfit, ' seconds')
+                logging.info('Time fit for band ', band, ' RMS = ', rmsfit, ' seconds')
 
         return Time_Parms
 
@@ -1570,7 +1571,7 @@ class s2angle:
         orbtol = 1.0
         orbrss = 1000.0
         first_iter = 0
-        print('Reconstructing Orbit from View Angles')
+        logging.info('Reconstructing Orbit from View Angles')
         while rmstime > convtol or orbrss > orbtol:
             AngResid = 0.0
             Omega0 = asin(sin(Orbit[0]) / sin(Orbit[3]))
@@ -1625,15 +1626,15 @@ class s2angle:
             X0[3, 0] *= Orbit[2]
             orbrss = sqrt(X0[0, 0] * X0[0, 0] + X0[1, 0] * X0[1, 0] + X0[2, 0] * X0[2, 0] + X0[3, 0] * X0[3, 0])
 
-        print('Lat    = ', Orbit[0] * self.todeg)
-        print('Lon    = ', Orbit[1] * self.todeg)
-        print('Radius = ', Orbit[2])
-        print('Incl   = ', Orbit[3] * self.todeg)
-        print('RMS Orbit Fit (meters): ', orbrss)
-        print('RMS Time Fit (seconds): ', rmstime)
-        print('RMS LOS Residual: ', AngResid)
+        logging.info('Lat    = ', Orbit[0] * self.todeg)
+        logging.info('Lon    = ', Orbit[1] * self.todeg)
+        logging.info('Radius = ', Orbit[2])
+        logging.info('Incl   = ', Orbit[3] * self.todeg)
+        logging.info('RMS Orbit Fit (meters): ', orbrss)
+        logging.info('RMS Time Fit (seconds): ', rmstime)
+        logging.info('RMS LOS Residual: ', AngResid)
 
-        print('Fitting Tile Observation Times')
+        logging.info('Fitting Tile Observation Times')
 
         Time_Parms = self.Fit_Time(ul_x, ul_y, Obs)
 

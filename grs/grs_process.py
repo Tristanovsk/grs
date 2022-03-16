@@ -4,6 +4,8 @@ Main program
 
 from pathlib import Path
 from esasnappy import ProductData, ProductIO
+import logging
+from logging.handlers import RotatingFileHandler
 
 import os, shutil
 import zipfile
@@ -30,7 +32,7 @@ class process:
     def execute(self, file, outfile, wkt=None, sensor=None, aerosol='default', ancillary=None, altitude=0,
                 dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
                 startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
-                memory_safe=False, angleonly=False, grs_a=False, output='Rrs'):
+                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO"):
         '''
         Main program calling all GRS steps
 
@@ -68,11 +70,33 @@ class process:
         :return:
         '''
 
+
+        #init logger
+        logger = logging.getLogger()
+
+        level = logging.getLevelName(log_level)
+        logger.setLevel(level)
+
+         # file handle
+        file_handler = RotatingFileHandler(logfile, 'a', 1000000, 1)
+        formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
+                                  datefmt='%Y-%m-%dT%H:%M:%S')
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        # stream handler
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(level)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+
+
         ##################################
         # Get sensor auxiliary data
         ##################################
 
-        print('Get sensor auxiliary data')
+        logging.info('Get sensor auxiliary data')
         _utils = utils.utils()
         if sensor == None:
             sensor = _utils.get_sensor(file)
@@ -92,7 +116,7 @@ class process:
         file_orig = file
         # unzip if needed
         if unzip:
-            print('unzipping...')
+            logging.info('unzipping...')
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
@@ -109,8 +133,8 @@ class process:
             if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
                 tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
 
-        print("Reading...")
-        print(file)
+        logging.info("Reading...")
+        logging.info(file)
         product = ProductIO.readProduct(file)
 
         ##################################
@@ -122,7 +146,7 @@ class process:
         ##################################
         # GET METADATA
         ##################################
-        print('getting metadata...')
+        logging.info('getting metadata...')
         # TODO clean up this part and other metadata to be loaded
         if 'S2' in sensor:
             meta = l2h.product.getMetadataRoot().getElement('Level-1C_User_Product').getElement(
@@ -149,10 +173,10 @@ class process:
             anggen = angle_generator().landsat(l2h)
         elif 'LANDSAT' in sensor:
             anggen = angle_generator().landsat_tm(l2h)
-        #print('anggen = {}'.format(anggen))
+        #logging.info('anggen = {}'.format(anggen))
         if anggen:
             if tartmp:
-                print('writing angles to input file: ' + file_orig)
+                logging.info('writing angles to input file: ' + file_orig)
                 # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
                 # copy tgz image and add angle files
                 shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
@@ -168,7 +192,7 @@ class process:
         ##################################
         # RESAMPLE TO A UNIQUE RESOLUTION
         ##################################
-        print('resampling...')
+        logging.info('resampling...')
         if 'S2' in sensor:
             if memory_safe:
                 l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution)  # , method='Nearest')
@@ -180,7 +204,7 @@ class process:
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
-        print('subsetting...')
+        logging.info('subsetting...')
         try:
             if wkt is not None:
                 l2h.product = _utils.get_subset(l2h.product, wkt)
@@ -203,7 +227,7 @@ class process:
         # resample for common resolution
         # subset to ROI
         ##################################
-        print('fetching falgs...')
+        logging.info('fetching falgs...')
         maja, waterdetect = None, None
         if maja_xml:
             try:
@@ -212,7 +236,7 @@ class process:
                 maja = _utils.get_subset(maja, wkt)
 
             except:
-                print('!!! issues with ' + maja_xml + '; please check if file exists')
+                logging.info('!!! issues with ' + maja_xml + '; please check if file exists')
                 raise
 
         if waterdetect_file:
@@ -222,15 +246,15 @@ class process:
                 waterdetect = _utils.resampler(waterdetect, resolution=resolution)
 
             except:
-                print('!!! issues with ' + waterdetect_file + '; please check if file exists')
+                logging.info('!!! issues with ' + waterdetect_file + '; please check if file exists')
                 raise
 
         ##################################
         ## ADD ELEVATION BAND
         ##################################
-        print('adding elevation band...')
+        logging.info('adding elevation band...')
         if dem:
-            print('add elevation band')
+            logging.info('add elevation band')
             high_latitude = (latmax >= 60) | (latmin <= -60)
             l2h.get_elevation(high_latitude)
 
@@ -240,14 +264,14 @@ class process:
         ##################################
         # GET IMAGE AND RASTER PROPERTIES
         ##################################
-        print('load raster data...')
+        logging.info('load raster data...')
         l2h.get_bands(l2h.band_names)
         l2h.print_info()
 
         ##################################
         # SET NEW BAND FOR MASKING
         ##################################
-        print('add ndwi mask')
+        logging.info('add ndwi mask')
         l2h.product.addBand('ndwi', ProductData.TYPE_FLOAT32)
         l2h.ndwi_band = l2h.product.getBand('ndwi')
         l2h.ndwi_band.ensureRasterData()
@@ -256,7 +280,7 @@ class process:
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
-        print('getting CAMS data...')
+        logging.info('getting CAMS data...')
         l2h.aux = auxdata.cams()
 
         if ancillary != 'default':
@@ -288,7 +312,7 @@ class process:
         #      Create output l2 product
         #          'l2_product'
         ######################################
-        print('creating L2 output product')
+        logging.info('creating L2 output product')
         l2h.create_product(maja=maja, waterdetect=waterdetect)
         try:
             l2h.load_data()
@@ -310,7 +334,7 @@ class process:
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
-        print('loading lut...', l2h.lutfine)
+        logging.info('loading lut...'+ l2h.lutfine)
         lutf = acutils.lut(l2h.band_names)
         lutc = acutils.lut(l2h.band_names)
         lutf.load_lut(l2h.lutfine, indband)
@@ -346,7 +370,7 @@ class process:
             fcoefrast = l2h.aux.fcoef
             aotrast = l2h.aux.aot_grs
             aotscarast = l2h.aux.aot_sca_grs
-            print('aot550rast shape', aot550rast.shape)
+            logging.info(f'aot550rast shape {aot550rast.shape}')
 
         else:
             # AERONET data
@@ -355,7 +379,7 @@ class process:
                 try:
                     l2h.aux.Aeronet.import_aeronet_data(aero, l2h.aeronetfile, l2h.date)
                 except:
-                    print('Error: No aeronet data in the +/- 2day time window.')
+                    logging.info('Error: No aeronet data in the +/- 2day time window.')
                     sys.exit()
 
                 l2h.aux.aot_wl = aero.wavelengths
@@ -377,7 +401,7 @@ class process:
                 l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
                 aotscarast = ssacoef*l2h.aux.aot
                 aot550rast = l2h.aux.aot550rast  # .T
-                print('aot550rast shape', aot550rast.shape)
+                logging.info(f'aot550rast shape {aot550rast.shape}')
             # CAMS new cds dataset (available from 26 June 2018 12UTC)
 
             elif (l2h.aerosol == 'user_model'):
@@ -396,7 +420,7 @@ class process:
                 l2h.aux.aot_wl = l2h.wl
                 aot550rast.fill(l2h.aux.aot550)
 
-                print("No aerosol data provided, set to default: aot550=01, angstrom=1")
+                logging.info("No aerosol data provided, set to default: aot550=01, angstrom=1")
 
             # set spectral aot for satellite bands
             aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
@@ -406,9 +430,9 @@ class process:
             # normalization of Cext to get spectral dependence of fine and coarse modes
             nCext_f = lutf.Cext / lutf.Cext550
             nCext_c = lutc.Cext / lutc.Cext550
-            print('param aerosol', nCext_f, nCext_c, l2h.aot)
+            logging.info('param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
             aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
-            print(aero.fcoef, aero.fcoef.astype(l2h.type))
+            logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h.type)}')
             l2h.fcoef = aero.fcoef.astype(l2h.type)
             fcoefrast.fill(l2h.fcoef[0])
             for i in range(l2h.N):
@@ -420,7 +444,7 @@ class process:
         #     Set SMAC parameters for
         #    absorbing gases correction
         ####################################
-        print('loading SMAC algorithm...')
+        logging.info('loading SMAC algorithm...')
         smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
         smac.set_gas_param()
         smac.set_values(o3du=l2h.aux.o3du, h2o=l2h.aux.h2o)
@@ -458,9 +482,9 @@ class process:
         ######################################
         #      MAIN LOOP
         ######################################
-        print('processing '+file+'...')
+        logging.info('processing '+file+'...')
         for i in range(startrow, l2h.height):
-            # print('process row ' + str(i) + ' / ' + str(l2h.height))
+            # logging.info('process row ' + str(i) + ' / ' + str(l2h.height))
 
             sza = l2h.sza[i]
             razi = l2h.razi[:, i]

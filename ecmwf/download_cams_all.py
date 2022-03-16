@@ -1,4 +1,5 @@
 import os, sys
+import logging
 
 import argparse
 from datetime import date
@@ -48,7 +49,7 @@ def main(dic):
         dataset = 'interim'
         type = 'an'
     else:
-        print('Error: not appropriate dataset for ecmwf/cams download')
+        logging.info('Error: not appropriate dataset for ecmwf/cams download')
         sys.exit()
 
     # specify the period to catch data
@@ -66,7 +67,7 @@ def main(dic):
 
             numberOfDays = calendar.monthrange(year, month)[1]
             date = str(year) + str(month).zfill(2) + "01/TO/" + str(year) + str(month).zfill(2) + str(numberOfDays)
-            print(date)
+            logging.info(date)
             server.retrieve({
                 'class': class_,
                 'dataset': dataset,
@@ -84,7 +85,7 @@ def main(dic):
             })
     return
     # except:
-    #    print('Error: not appropriate cams settings for download. Refers to ecmwf.')
+    #    logging.info('Error: not appropriate cams settings for download. Refers to ecmwf.')
     #    sys.exit()
 
 

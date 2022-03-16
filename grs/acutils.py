@@ -5,7 +5,7 @@ Atmospheric Correction utilities to manage LUT and atmosphere parameters (aeroso
 import os, sys
 import numpy as np
 import xarray as xr
-
+import logging
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset
 from scipy.interpolate import RectBivariateSpline
@@ -293,7 +293,7 @@ class smac:
                 self.nco[i] = float(temp[1])
                 self.pco[i] = float(temp[2])
             except:
-                print('WARNING, NO SMAC FILES FOUND FOR BAND ' + self.smac_bands[i] + ' in ' + self.smacdir + '!')
+                logging.error('WARNING ! NO SMAC FILES FOUND FOR BAND ' + self.smac_bands[i] + ' in ' + self.smacdir + '!')
                 sys.exit(0)
 
     def compute_gas_trans(self, iband, pressure, mu0, muv):

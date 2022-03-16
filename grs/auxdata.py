@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 import netCDF4 as nc
 import xarray as xr
 import dask
-
+import logging
 from dateutil import parser
 import calendar, datetime
 
@@ -324,7 +324,7 @@ class cams:
             self._nrTiles += 1
         if self._nrTiles > 1:
             # TODO implement for multiple tiles'
-            print('several tiles are present, processing for single tile only')
+            logging.debug('several tiles are present, processing for single tile only')
             return False
         self.tile_dir = os.path.join(granuleDir, filelist[0])
 
@@ -360,7 +360,7 @@ class cams:
             self.msl = BandReadAsArray(dataSet.GetRasterBand(2)) / 100
             self.o3du = BandReadAsArray(dataSet.GetRasterBand(3)) * self.ozoneFactor
         except:
-            print('ERROR: reading ECMWF file!')
+            logging.error('ERROR: reading ECMWF file!')
         return
 
     def load_cams_data(self, target, date, grid='0.125/0.125',
@@ -377,7 +377,7 @@ class cams:
 
         # ------------download data
         if not os.path.isfile(str(target)):
-            print('downloading CAMS files...' + str(target))
+            logging.info('downloading CAMS files...' + str(target))
             startDate = '%04d%02d%02d' % (year, month, 1)
             numberOfDays = calendar.monthrange(year, month)[1]
             lastDate = '%04d%02d%02d' % (year, month, numberOfDays)
@@ -421,7 +421,7 @@ class cams:
 
         # ------------read/subset/collocate data
         prod = ProductIO.readProduct(str(target))
-        # print(wkt)
+        # logging.info(wkt)
         prod = u().get_subset(prod, wkt)
 
         # SNAP resamplingOP does not work for CAMS product
@@ -492,7 +492,7 @@ class cams:
         self.aot550 = self.aot[1]
         self.aot550_std = self.aot_std[1]
 
-        print(h, w, cams_xr.aod550.coords)
+        logging.info(f'{h}, {w}, {cams_xr.aod550.coords}')
         r, c = cams_xr.aod550.data.shape
 
         if (r > 1) and (c > 1):
@@ -554,7 +554,7 @@ class cams:
         lonslats = (lonmin, lonmax, latmin, latmax)
 
         # cams_sub = subset_xr(cams_daily, lonmin-1, lonmax+1, latmin-1, latmax+1)
-        print('cams cds', lonmin, lonmax, latmin, latmax)
+        logging.info(f'cams cds  {lonmin}, {lonmax}, {latmin}, {latmax}')
         # cams_sub = self.subset_xr(cams_daily, lonmin, lonmax, latmin, latmax)
         cams_sub = cams_daily.interp(longitude=np.linspace(lonmin, lonmax, 12),
                                      latitude=np.linspace(latmax, latmin, 12),
@@ -679,7 +679,7 @@ class cams:
 
         # ------------download data
         if not target.is_file():
-            print('downloading CAMS files...')
+            logging.info('downloading CAMS files...')
             startDate = '%04d%02d%02d' % (year, month, 1)
             numberOfDays = calendar.monthrange(year, month)[1]
 
@@ -690,7 +690,7 @@ class cams:
 
         # ------------read/subset/collocate data
         prod = ProductIO.readProduct(str(target))
-        print(wkt)
+        logging.info(wkt)
         prod = u().get_subset(prod, wkt)
         h = prod.getBand(band_names[0]).getRasterHeight()
         w = prod.getBand(band_names[0]).getRasterWidth()
@@ -753,7 +753,7 @@ class cams:
             dataset = 'interim'
             type = 'an'
         else:
-            print('Error: not appropriate dataset for ecmwf/cams download')
+            logging.info('Error: not appropriate dataset for ecmwf/cams download')
             sys.exit()
 
         try:
@@ -772,7 +772,7 @@ class cams:
                 'area': area,
                 'target': target})
         except:
-            print('Error: not appropriate cams settings for download')
+            logging.info('Error: not appropriate cams settings for download')
             sys.exit()
 
         server = None
@@ -809,7 +809,7 @@ class Aeronet:
             # df = pandas.read_csv(filename, skiprows=7, na_values=['N/A',-999.0], names = header.values[0].astype('str'))
             df = pandas.read_csv(filename, skiprows=6, na_values=['N/A', -999.0])
         except:
-            print('Could not read file:', filename)
+            logging.error('Could not read file:', filename)
             return False
         # Parse the dates/times properly and set them up as the index
         df['Date(dd-mm-yyyy)'] = df['Date(dd-mm-yyyy)'].apply(cls._to_iso_date)
@@ -825,7 +825,7 @@ class Aeronet:
 
         # Get the AOT data
         data.wavelengths, data.aot550, data.aot = cls._get_aot(df)
-        print(data.aot550, data.aot)
+        logging.info(data.aot550, data.aot)
         data.o3du, data.no2du = cls._get_gaseous_abs(df)
 
         return
@@ -886,7 +886,7 @@ class Aeronet:
 
         wvs = []
         inds = []
-        print(aot_df.columns)
+        logging.info(aot_df.columns)
         for i, col in enumerate(aot_df.columns):
             if 'AOD_' in col:
                 wvs.append(int(col.replace('AOD_', '').replace('nm', '')))
@@ -894,10 +894,10 @@ class Aeronet:
 
         wvs = np.array(wvs)
         inds = np.array(inds)
-        print(wvs)
+        logging.info(wvs)
 
         # wv_diffs = np.abs(wvs - 550)
-        # print(wv_diffs)
+        # logging.info(wv_diffs)
         # aot_col_index = wv_diffs.argmin()
         #
         # if (wv_diffs[aot_col_index] > 70):
