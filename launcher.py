@@ -6,10 +6,24 @@ import geopandas as gpd
 import logging
 from logging.handlers import RotatingFileHandler
 
+def rename_file(file, outfile, outdir):
+
+    if outfile == None:
+        basename=os.path.basename(file)
+        outfile = basename.replace('L1C', "L2GRS")
+        outfile = outfile.replace('.SAFE', '').rstrip('/')
+        outfile = outfile.replace('.zip', '').rstrip('/')
+        outfile = outfile.replace('L1TP', "L2GRS")
+        outfile = outfile.replace('.txt', '').rstrip('/')
+
+    if outdir is None:
+        return outfile
+    else
+        return os.path.join(outdir, outfile)
+
 def shp2wkt(shapefile):
-    print(shapefile)
+    logger.info(f'{shapefile} is used')
     tmp = gpd.GeoDataFrame.from_file(shapefile)
-    #tmp.to_crs(epsg=4326, inplace=True)
     return tmp.geometry.to_wkt().values[0]
 
 if __name__ == '__main__':
@@ -68,8 +82,6 @@ if __name__ == '__main__':
         latmin, latmax = -90,90#-21.13
         wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
     
-    outfile=data['outfile']
-
     #if os.path.isfile(data['outfile'] + ".dim") & data['noclobber']:
     #    print('File ' + outfile + ' already processed; skip!')
     #    sys.exit(-1)
@@ -87,18 +99,7 @@ if __name__ == '__main__':
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
         
-    if data['outfile'] == None:
-
-        basename=os.path.basename(file)
-        outfile = basename.replace('L1C', "L2")
-        outfile = outfile.replace('.SAFE', '').rstrip('/')
-        outfile = outfile.replace('.zip', '').rstrip('/')
-        outfile = outfile.replace('L1TP', "L2")
-        outfile = outfile.replace('.txt', '').rstrip('/')
-
-        outfile = os.path.join(data['output_dir'], outfile)
-    else:
-        outfile=data['outfile']
+    outfile = rename_file(file, data[outfile], data[output_dir])
 
     dem=False
     if data["dem"]:
