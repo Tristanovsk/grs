@@ -99,7 +99,7 @@ if __name__ == '__main__':
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
         
-    outfile = rename_file(file, data[outfile], data[output_dir])
+    outfile = rename_file(file, data["outfile"], data["output_dir"])
 
     dem=False
     if data["dem"]:
