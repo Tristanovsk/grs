@@ -19,7 +19,7 @@ grs_root = root
 # data_root = os.path.abspath('/DATA/S2_processing/PYTHON/grs/grs/../..')
 try:
     print("data_root is "+os.environ.get('DATA_ROOT'))
-except Excetion as error:
+except Exception as error:
     print(error)
      
 data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata'))
