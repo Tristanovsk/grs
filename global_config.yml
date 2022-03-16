@@ -17,5 +17,7 @@
     "angstrom": "0.5", 
     "startrow": "0", 
     "logfile": "/tmp/logger.txt",
-    "dem": "True"
+    "dem": "True",
+    "shapefile": ""
+
 }
