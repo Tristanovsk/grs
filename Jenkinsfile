@@ -158,15 +158,15 @@ pipeline {
                             }
                         }
 
-                        #stage('test docker') {
-                        #    steps {
-                        #    sh '''
-                        #        docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
-                        #        sleep 5
-                        #        docker logs grs
-                        #    '''
-                        #    }
-                        #}
+                        //stage('test docker') {
+                        //    steps {
+                        //    sh '''
+                        //        docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
+                        //        sleep 5
+                        //        docker logs grs
+                        //    '''
+                        //    }
+                        //}
 
                         //stage('singularity') {
                         //    steps {
