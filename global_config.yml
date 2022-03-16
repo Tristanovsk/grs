@@ -24,6 +24,7 @@
     "memory_safe" : "False", 
     "angleonly": "False",
     "grs_a": "False", 
-    "output": "Rrs"
+    "output": "Rrs",
+    "waterdetect_only": ""
 
 }
