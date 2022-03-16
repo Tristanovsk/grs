@@ -18,7 +18,7 @@ def rename_file(file, outfile, outdir):
 
     if outdir is None:
         return outfile
-    else
+    else:
         return os.path.join(outdir, outfile)
 
 def shp2wkt(shapefile):
