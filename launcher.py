@@ -59,9 +59,10 @@ if __name__ == '__main__':
         else:
             data[key]=None
             
-
-    if data["shapefile"]!=None:
-        wkt = shp2wkt(shapefile)
+    print('shapefile : '+data["shapefile"])
+    
+    if data["shapefile"] != None:
+        wkt = shp2wkt(data["shapefile"])
     else:
         lonmin, lonmax = -180, 180
         latmin, latmax = -90,90#-21.13
