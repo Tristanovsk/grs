@@ -8,13 +8,13 @@ if __name__ == '__main__':
     if(len(sys.argv)>1):
         config_file=sys.argv[1]
     else:
-        config_file="/app/grs/grs/global_config.yml"
+        config_file="/app/grs/global_config.yml"
 
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
-        os.symlink(data['auxdata_path'], "/tmp/.snap/")
+        os.symlink(data['auxdata_path'], "/tmp/.snap/auxdata")
     except Exception as error:
         print(error)
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     #if os.path.isfile(outfile + ".dim.incomplete"):# & False:
     #    print('found incomplete File ' + outfile + '; skip!')
     
-       file=data["input_file"]
+    file=data["input_file"]
 
     unzip = False
     if os.path.splitext(file)[-1] == '.zip':
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     try:
         from grs import grs_process
-        grs_process.process().execute(file=outfile, outfile=data["outfile"], wkt=wkt_rect, 
+        grs_process.process().execute(file=file, outfile=outfile, wkt=wkt_rect, 
         altitude=data["altitude"], aerosol=data["aerosol"],
         dem=data["dem"], aeronet_file=data["aeronet_file"], resolution=data["resolution"],
         aot550=data["aot550"], angstrom=data["angstrom"], unzip=unzip, 
@@ -74,6 +74,6 @@ if __name__ == '__main__':
         print('-------------------------------')
         print('error for file  ', inst, ' skip')
         print('-------------------------------')
-        with open(config["logfile"], "a") as myfile:
+        with open(data["logfile"], "a") as myfile:
             myfile.write('error during grs \n')
 
