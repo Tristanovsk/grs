@@ -99,13 +99,24 @@ if __name__ == '__main__':
     else:
         outfile=data['outfile']
 
+    dem=False
+    if data["dem"]=="True":
+        dem=True
+
+    waterdetect_only=False
+    if data["waterdetect_only"]=="True":
+        waterdetect_only=True
+
     try:
         from grs import grs_process
         grs_process.process().execute(file=file, outfile=outfile, wkt=wkt, 
         altitude=data["altitude"], aerosol=data["aerosol"],
-        dem=data["dem"], aeronet_file=data["aeronet_file"], resolution=data["resolution"],
-        aot550=data["aot550"], angstrom=data["angstrom"], unzip=unzip, 
-        untar=untar, startrow=data["startrow"])
+        dem=dem, aeronet_file=data["aeronet_file"],
+        resolution=data["resolution"], aot550=data["aot550"], 
+        angstrom=data["angstrom"], unzip=unzip, untar=untar, 
+        startrow=data["startrow"], maja_xml=data["maja_xml"],
+        waterdetect_file=data["waterdetect_file"], 
+        waterdetect_only=waterdetect_only)
     except Exception as inst:
         logger.info('-------------------------------')
         logger.info('error for file  ', inst, ' skip')
