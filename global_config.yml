@@ -18,6 +18,12 @@
     "startrow": "0", 
     "logfile": "/tmp/logger.txt",
     "dem": "True",
-    "shapefile": ""
+    "shapefile": "",
+    "waterdetect_file" : "",
+    "maja_xml" : "",
+    "memory_safe" : "False", 
+    "angleonly": "False",
+    "grs_a": "False", 
+    "output": "Rrs"
 
 }
