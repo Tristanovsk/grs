@@ -116,7 +116,8 @@ if __name__ == '__main__':
         angstrom=data["angstrom"], unzip=unzip, untar=untar, 
         startrow=data["startrow"], maja_xml=data["maja_xml"],
         waterdetect_file=data["waterdetect_file"], 
-        waterdetect_only=waterdetect_only)
+        waterdetect_only=waterdetect_only, memory_safe=eval(data["memory_safe"]), 
+        angleonly=eval(data["angleonly"]), grs_a=eval(data["grs_a"]), output=data["output"])
     except Exception as inst:
         logger.info('-------------------------------')
         logger.info('error for file  ', inst, ' skip')
