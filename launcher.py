@@ -101,11 +101,11 @@ if __name__ == '__main__':
         outfile=data['outfile']
 
     dem=False
-    if data["dem"]=="True":
+    if data["dem"]:
         dem=True
 
     waterdetect_only=False
-    if data["waterdetect_only"]=="True":
+    if data["waterdetect_only"]:
         waterdetect_only=True
 
     try:
@@ -117,8 +117,8 @@ if __name__ == '__main__':
         angstrom=data["angstrom"], unzip=unzip, untar=untar, 
         startrow=data["startrow"], maja_xml=data["maja_xml"],
         waterdetect_file=data["waterdetect_file"], 
-        waterdetect_only=waterdetect_only, memory_safe=eval(data["memory_safe"]), 
-        angleonly=eval(data["angleonly"]), grs_a=eval(data["grs_a"]), output=data["output"])
+        waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
+        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"])
     except Exception as inst:
         logger.info('-------------------------------')
         logger.info('error for file  ', inst, ' skip')
