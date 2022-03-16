@@ -8,7 +8,7 @@
     "product_counter" : 003,
     "log" : "info",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
-    "outfile": "", 
+    "outfile": "", # by default, +-=input_file 
     "altitude": 0,
     "aerosol": "cams_forecast", 
     "aeronet_file": "no", 
