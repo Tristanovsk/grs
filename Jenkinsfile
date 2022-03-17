@@ -145,6 +145,8 @@ pipeline {
                                     docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
+                                        docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:${JFROG_CLI_BUILD_NUMBER}
+                                        docker push artifactory.cnes.fr/obs2co-docker/grs:${JFROG_CLI_BUILD_NUMBER}
                                         docker push artifactory.cnes.fr/obs2co-docker/grs:latest
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
