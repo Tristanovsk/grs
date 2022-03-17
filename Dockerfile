@@ -40,15 +40,12 @@ RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/
 
 RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/.snap/system/#g' /srv/conda/envs/env_snap/snap//etc/snap.conf
 RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
-#RUN sed -i '11 a AuxDataPath = /tmp/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+RUN sed -i '11 a AuxDataPath = /tmp/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+RUN mkdir -p /tmp/.snap/etc/
+RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /tmp/.snap/etc/snap.properties
 
-RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
+#RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
 RUN chmod -R 777 /app
-
-#RUN chmod -R 777 /srv/conda/envs/env_snap/snap/.snap/
-#RUN chmod -R 777 /srv/conda/envs/env_snap/bin/grs
-
-RUN grs -h
 
 #ENTRYPOINT ['python', '/app/grs/launcher.py', "/app/grs/global_config.yml'] 
