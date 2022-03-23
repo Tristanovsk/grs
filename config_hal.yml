@@ -25,6 +25,6 @@
     "angleonly": False,
     "grs_a": False, 
     "output": "Rrs",
-    "waterdetect_only": ""
-
+    "waterdetect_only" : "",
+    "noclobber" : True
 }

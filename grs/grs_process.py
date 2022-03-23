@@ -71,27 +71,6 @@ class process:
         '''
 
 
-        #init logger
-        logger = logging.getLogger()
-
-        level = logging.getLevelName(log_level)
-        logger.setLevel(level)
-
-         # file handle
-        file_handler = RotatingFileHandler(logfile, 'a', 1000000, 1)
-        formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
-                                  datefmt='%Y-%m-%dT%H:%M:%S')
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        # stream handler
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(level)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
-
         ##################################
         # Get sensor auxiliary data
         ##################################

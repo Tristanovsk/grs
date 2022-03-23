@@ -50,3 +50,27 @@ from .acutils import aerosol, lut, misc, smac
 from .auxdata import Aeronet, cams, sensordata
 from .utils import info, utils
 from .grs_process import process
+
+import logging
+
+#init logger
+logger = logging.getLogger()
+
+level = logging.getLevelName("INFO")
+logger.setLevel(level)
+from logging.handlers import RotatingFileHandler
+
+# file handle
+file_handler = RotatingFileHandler("toto.txt", 'a', 1000000, 1)
+formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
+                                  datefmt='%Y-%m-%dT%H:%M:%S')
+file_handler.setLevel(level)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# stream handler
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(level)
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+

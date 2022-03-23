@@ -5,6 +5,11 @@ import netCDF4 as nc
 import geopandas as gpd
 import logging
 from logging.handlers import RotatingFileHandler
+from grs import grs_process
+
+sys.path.extend([os.path.abspath(__file__)])
+from procutils import misc
+misc=misc()
 
 def rename_file(file, outfile, outdir):
 
@@ -40,7 +45,7 @@ if __name__ == '__main__':
     try:
         os.symlink(data['auxdata_path'], "/tmp/.snap/auxdata")
     except Exception as error:
-        logging.error(error)
+        logging.debug(error)
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
@@ -50,9 +55,8 @@ if __name__ == '__main__':
             data[key]=value 
         else:
             data[key]=None
-            
-    print('shapefile : '+data["shapefile"])
-    
+    file = data["input_file"] 
+  
     if data["shapefile"] != None:
         wkt = shp2wkt(data["shapefile"])
     else:
@@ -60,15 +64,6 @@ if __name__ == '__main__':
         latmin, latmax = -90,90#-21.13
         wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
     
-    #if os.path.isfile(data['outfile'] + ".dim") & data['noclobber']:
-    #    print('File ' + outfile + ' already processed; skip!')
-    #    sys.exit(-1)
-
-    #if os.path.isfile(outfile + ".dim.incomplete"):# & False:
-    #    print('found incomplete File ' + outfile + '; skip!')
-    
-    file=data["input_file"]
-
     unzip = False
     if os.path.splitext(file)[-1] == '.zip':
         unzip = True
@@ -77,7 +72,7 @@ if __name__ == '__main__':
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
         
-    outfile = rename_file(file, data["outfile"], data["output_dir"])
+    #outfile = rename_file(file, data["outfile"], data["output_dir"])
 
     dem=False
     if data["dem"]:
@@ -87,14 +82,49 @@ if __name__ == '__main__':
     if data["waterdetect_only"]:
         waterdetect_only=True
 
+    basename = os.path.basename(file)
+    if 'incomplete' in basename:
+        exite(-1)
+
+    suffix='_'+str(data["chain_version"])+"_"+str(data["product_counter"])
+    
+    outfile = misc.set_ofile(file, odir=data['output_dir'], level_name='l2grs', suffix=suffix)
+    logging.info(outfile)
+    
+    # skip if already processed (the .dim exists)
+    if os.path.isfile(outfile + ".dim") & data["noclobber"]:
+        logging.info('File ' + outfile + ' already processed; skip!')
+        exit(-1)
+    # skip if incomplete (enables multiprocess)
+    if os.path.isfile(outfile + ".incomplete"):
+        logging.info('found incomplete File ' + outfile + '; skip!')
+        exit(-1)
+
+    if os.path.isfile(outfile+".nc") & data["noclobber"]:
+        logging.info('File ' + outfile + ' already processed; skip!')
+        exit(-1)
+   
+
+    checksum = outfile+'.checksum'
+    startrow=0
     try:
-        from grs import grs_process
+      with open(checksum) as f:
+          checkdata = f.read().splitlines()
+      for s in checkdata:
+          ss=s.split()
+          if ss[0]=='startrow':
+              startrow=int(ss[1])
+    except:
+       pass
+
+
+    try:
         grs_process.process().execute(file=file, outfile=outfile, wkt=wkt, 
         altitude=data["altitude"], aerosol=data["aerosol"],
         dem=dem, aeronet_file=data["aeronet_file"],
         resolution=data["resolution"], aot550=data["aot550"], 
         angstrom=data["angstrom"], unzip=unzip, untar=untar, 
-        startrow=data["startrow"], maja_xml=data["maja_xml"],
+        startrow=startrow, maja_xml=data["maja_xml"],
         waterdetect_file=data["waterdetect_file"], 
         waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
         angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"])
