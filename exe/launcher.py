@@ -5,7 +5,6 @@ import netCDF4 as nc
 import geopandas as gpd
 import logging
 from logging.handlers import RotatingFileHandler
-from grs import grs_process
 
 sys.path.extend([os.path.abspath(__file__)])
 from procutils import misc
@@ -33,7 +32,7 @@ def shp2wkt(shapefile):
 
 if __name__ == '__main__':
 
-    
+    #read config and prepare environment
     if(len(sys.argv)>1):
         config_file=sys.argv[1]
     else:
@@ -49,6 +48,9 @@ if __name__ == '__main__':
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
+
+
+    from grs import grs_process
 
     for key, value in data.items():
         if(value is not None and value!=''):
