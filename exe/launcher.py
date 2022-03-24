@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if(len(sys.argv)>1):
         config_file=sys.argv[1]
     else:
-        config_file="/app/grs/global_config.yml"
+        config_file="/app/grs/exe/global_config.yml"
 
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)

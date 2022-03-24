@@ -48,4 +48,4 @@ RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /tmp/
 
 RUN chmod -R 777 /app
 
-#ENTRYPOINT ['python', '/app/grs/launcher.py', "/app/grs/global_config.yml'] 
+#ENTRYPOINT ['python', '/app/grs/exe/launcher.py', "/app/grs/exe/global_config.yml'] 
