@@ -1,5 +1,5 @@
 {
-    "input_file" : "/work/ALT/swot/aval/OBS2CO/git/input_grs_data/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
+    "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
     "auxdata_path" : "/datalake/watcal/auxdata",
     "data_root" : '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata',
     "tmp_dir" : '/tmp',
