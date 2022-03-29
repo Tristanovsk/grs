@@ -49,7 +49,7 @@ odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
 
 dem=True #True
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = False # True #True
+noclobber = True # False #True
 memory_safe = False  # True #
 aeronet_file = 'no'
 aerosol = 'cams'

@@ -2,7 +2,7 @@
 #!/bin/bash
 
 
-#PBS -N grs_gernez
+#PBS -N grs_jegou
 #PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g:generation=g2019
 #PBS -l walltime=48:00:00
 #
@@ -21,7 +21,7 @@ list_file=list_jegou_jallais.csv
 #list_file=list_grs_plata_estuary.csv
 #list_file=list_grs_cnes_seine.csv
 #list_file=list_grs_redshade_2022.csv
-list_file=list_grs_gernez_feb2022.csv
+#list_file=list_grs_gernez_feb2022.csv
 #list_file=list_grs_cnes_hafeez.csv
 #list_file=list_grs_cnes_mauricio.csv
 
