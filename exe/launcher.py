@@ -50,13 +50,18 @@ if __name__ == '__main__':
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
+    with open(data['immotep_config'], 'r') as config_file:
+        data.update(yaml.load(config_file, Loader=yaml.FullLoader))
+
     for key, value in data.items():
         if(value is not None and value!=''):
             data[key]=value 
         else:
             data[key]=None
     file = data["input_file"] 
-  
+ 
+
+ 
     if data["shapefile"] != None:
         wkt = shp2wkt(data["shapefile"])
     else:
