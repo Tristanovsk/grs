@@ -145,7 +145,7 @@ pipeline {
                                     docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
-					version=grep "__version__ =" setup.py | cut -d "'" -f 2
+					                    version=$(grep "__version__ =" setup.py | cut -d "'" -f 2)
                                         docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:$version
                                         docker push artifactory.cnes.fr/obs2co-docker/grs:$version
                                         docker push artifactory.cnes.fr/obs2co-docker/grs:latest
