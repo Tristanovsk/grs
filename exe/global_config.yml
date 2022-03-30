@@ -10,11 +10,11 @@
     "log" : "info",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    #"immotep_config":"/app/grs/exe/immotep_config.yml",
-    "immotep_config":"./immotep_config.yml",
+    "immotep_config":"/app/grs/exe/immotep_config.yml",
+    #"immotep_config":"./immotep_config.yml",
     "logfile": "/tmp/logger.txt",
-    #"shapefile": "/app/grs/test/data/shape/SPO04.shp",
-    "shapefile": "../test/data/shape/SPO04.shp",
+    "shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    #"shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "maja_xml" : "",
     "waterdetect_only": "",
