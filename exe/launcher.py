@@ -5,7 +5,6 @@ import netCDF4 as nc
 import geopandas as gpd
 import logging
 from logging.handlers import RotatingFileHandler
-from grs import grs_process
 
 sys.path.extend([os.path.abspath(__file__)])
 from procutils import misc
@@ -33,7 +32,7 @@ def shp2wkt(shapefile):
 
 if __name__ == '__main__':
 
-    
+    #read config and prepare environment
     if(len(sys.argv)>1):
         config_file=sys.argv[1]
     else:
@@ -50,17 +49,18 @@ if __name__ == '__main__':
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
+    from grs import grs_process
+
     with open(data['immotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
+
 
     for key, value in data.items():
         if(value is not None and value!=''):
             data[key]=value 
         else:
             data[key]=None
-    file = data["input_file"] 
- 
-
+    file = data["input_file"]
  
     if data["shapefile"] != None:
         wkt = shp2wkt(data["shapefile"])
@@ -77,8 +77,6 @@ if __name__ == '__main__':
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
         
-    #outfile = rename_file(file, data["outfile"], data["output_dir"])
-
     dem=False
     if data["dem"]:
         dem=True
@@ -89,27 +87,25 @@ if __name__ == '__main__':
 
     basename = os.path.basename(file)
     if 'incomplete' in basename:
-        exite(-1)
+        exit(-1)
 
     suffix='_'+str(data["chain_version"])+"_"+str(data["product_counter"])
     
-    outfile = misc.set_ofile(file, odir=data['output_dir'], level_name='l2grs', suffix=suffix)
-    logging.info(outfile)
+    outfile = misc.set_ofile(file.split("/")[-1], odir=data['output_dir'], level_name='l2grs', suffix=suffix)
     
     # skip if already processed (the .dim exists)
     if os.path.isfile(outfile + ".dim") & data["noclobber"]:
-        logging.info('File ' + outfile + ' already processed; skip!')
+        print('File ' + outfile + ' already processed; skip!')
         exit(-1)
     # skip if incomplete (enables multiprocess)
     if os.path.isfile(outfile + ".incomplete"):
-        logging.info('found incomplete File ' + outfile + '; skip!')
+        print('found incomplete File ' + outfile + '; skip!')
         exit(-1)
 
     if os.path.isfile(outfile+".nc") & data["noclobber"]:
-        logging.info('File ' + outfile + ' already processed; skip!')
+        print('File ' + outfile + ' already processed; skip!')
         exit(-1)
    
-
     checksum = outfile+'.checksum'
     startrow=0
     try:
@@ -121,7 +117,6 @@ if __name__ == '__main__':
               startrow=int(ss[1])
     except:
        pass
-
 
     try:
         grs_process.process().execute(file=file, outfile=outfile, wkt=wkt, 

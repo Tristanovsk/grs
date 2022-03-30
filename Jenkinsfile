@@ -133,7 +133,7 @@ pipeline {
                                             --secret id=arti_conda_repo,src=arti_conda_repo.txt \
                                             --secret id=arti_pip_repo,src=arti_pip_repo.txt \
                                             .
-                                        """
+                               """
                                     }
                                 }
                             }
@@ -193,7 +193,7 @@ pipeline {
                                 script {
                                     if (params.LAUNCH_XRAY) {
                                         // Analyse Xray de l'artefact. Ne fait pas echouer le build si le scan echoue grace a la commande --fail
-                                        sh "jfrog rt bs --server-id ${SERVERID} --fail=false"
+                                        sh "jfrog rt bs --server-id ${SERVERID} --url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --fail=false"
                                     }                                    
                                 }
                             }

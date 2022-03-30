@@ -1,7 +1,7 @@
 {
-    "input_file" : "/work/ALT/swot/aval/OBS2CO/git/input_grs_data/INPUT_DATA/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
+    "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
     "auxdata_path" : "/datalake/watcal/auxdata",
-    "data_root" : '/datalake/watcal/GRS/grs2/grsdata',
+    "data_root" : '/datalake/watcal/GRS/grsdata',
     "tmp_dir" : '/tmp',
     "aerosol": "cams_forecast",
     "cams_folder" : '/datalake/watcal/ECMWF/CAMS',
@@ -10,9 +10,11 @@
     "log" : "info",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    "immotep_config":"/app/grs/exe/immotep_config.yml",
+    #"immotep_config":"/app/grs/exe/immotep_config.yml",
+    "immotep_config":"./immotep_config.yml",
     "logfile": "/tmp/logger.txt",
-    "shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    #"shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    "shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "maja_xml" : "",
     "waterdetect_only": "",
