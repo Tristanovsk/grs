@@ -180,6 +180,7 @@ class process:
         else:
             l2h.product = _utils.resampler(l2h.product, resolution=resolution)  # , upmethod='Nearest')
 
+
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
@@ -187,7 +188,6 @@ class process:
         try:
             if wkt is not None:
                 l2h.product = _utils.get_subset(l2h.product, wkt)
-            l2h.get_product_info()
         except:
             if unzip:
                 # remove unzipped files (Sentinel files)
@@ -197,6 +197,7 @@ class process:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
             raise NameError('No data available for requested area')
 
+        l2h.get_product_info()
         l2h.set_outfile(outfile)
         l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
@@ -443,8 +444,8 @@ class process:
 
         w, h = l2h.width, l2h.height
 
-        rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type, order='F')
-        rcorrg = np.zeros((l2h.N, h, w), dtype=l2h.type, order='F')
+        rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
+        rcorrg = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
         aot550pix = np.zeros((w, h), dtype=l2h.type, order='F').T
         betapix = np.zeros((w, h), dtype=l2h.type, order='F').T
         brdfpix = np.zeros((w, h), dtype=l2h.type, order='F').T
@@ -481,12 +482,12 @@ class process:
         ######################################
         # TODO put chunck size in config yaml file
         xblock, yblock = 512, 512
-        for iy in range(0, h, yblock):
+        for iy in range(0, w, yblock):
             print('process row ' + str(iy) + ' / ' + str(h))
             yc = iy + yblock
-            if yc > h:
-                yc = h
-            for ix in range(0, w, xblock):
+            if yc > w:
+                yc = w
+            for ix in range(0, h, xblock):
                 #print('process col ' + str(ix) + ' / ' + str(w))
                 xc = ix + xblock
                 if xc > h:
@@ -515,7 +516,7 @@ class process:
                     maskpixels = mask
 
                 if dem:
-                    elev = l2h.elevation[iy:yc, ix:xc]
+                    elev = l2h.elevation[ix:xc, iy:yc]
                     pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
                     pressure_corr = pressure / l2h.pressure_ref
                 else:
@@ -531,11 +532,11 @@ class process:
                 # else:
                 #     aot550guess = aot550rast[i]
 
-                aot550guess = np.array(aot550rast[iy:yc, ix:xc])
-                fcoef = np.array(fcoefrast[iy:yc, ix:xc])
-                aot_tot = np.array(aotrast[:, iy:yc, ix:xc])
+                aot550guess = np.array(aot550rast[ix:xc, iy:yc], dtype=l2h.type, order='F')
+                fcoef = np.array(fcoefrast[ix:xc, iy:yc], dtype=l2h.type, order='F')
+                aot_tot = np.array(aotrast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
                 if l2h.aerosol == 'cds_forecast':
-                    aot_sca = np.array(aotscarast[:, iy:yc, ix:xc])
+                    aot_sca = np.array(aotscarast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
                 else:
                     aot_sca = aot_tot
 
@@ -546,9 +547,10 @@ class process:
                     band_rad[iband] = band_rad[iband] / tg
 
 
-                p = grs_solver.main_algo(xshape, yshape, *lutf.refl.shape,
+
+                p = grs_solver.grs.main_algo(xshape, yshape, *lutf.refl.shape,
                                          aotlut, sza_, azi_, vza_,
-                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,l2h.N, aotlut.__len__(),
+                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
                                          vza, sza, razi, band_rad, maskpixels,
                                          l2h.wl, pressure_corr, l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
                                          aot_tot, aot_sca, aot550guess, fcoef,
@@ -561,37 +563,31 @@ class process:
                 brdfpix[ix:xc, iy:yc] = p[3]
 
                 # TODO improve checksum scheme
-                l2h.checksum('row / col' + str(ix) + ' / ' + str(iy))
+                l2h.checksum('row:col, ' + str(ix) + ':' + str(iy))
 
         rcorr[rcorr == l2h.nodata] = np.nan
         rcorrg[rcorrg == l2h.nodata] = np.nan
-        # rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
-        # rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
         ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
                              (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
         # set flags
-
-        flags = flags + \
-                ((mask == 1) +
+        l2h.flags = l2h.flags + \
+                ((l2h.mask == 1) +
                  (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                 ((mask == 2) << 2) +
+                 ((l2h.mask == 2) << 2) +
                  (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
                          ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
                  ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                  )
-
-        for iband in range(l2h.N):
-            l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
-                writePixels(0, 0, w, h, np.array(rcorr[iband]))
-            l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
-                writePixels(0, 0, w, h, np.array(rcorrg[iband]))
-
-        l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, flags.astype(np.uint32))
+        print(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
+        l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
         l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
         l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
-
-
+        for iband in range(l2h.N):
+            l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
+                writePixels(0, 0, w, h, rcorr[iband])
+            l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
+                writePixels(0, 0, w, h, rcorrg[iband])
 
         l2h.finalize_product()
 

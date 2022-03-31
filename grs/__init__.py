@@ -39,11 +39,11 @@ Version history:
 
 1.3.4: add slope and shade from DEM
 
-2.0.0: - process image by rectangular chunks
+1.4.0: - process image by rectangular chunks
 '''
 
 __package__ = 'grs'
-__version__ = '1.3.4'
+__version__ = '1.4.0'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac
