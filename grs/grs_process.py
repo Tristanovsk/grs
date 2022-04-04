@@ -207,7 +207,7 @@ class process:
         # resample for common resolution
         # subset to ROI
         ##################################
-        logging.info('fetching falgs...')
+        logging.info('fetching flags...')
         maja, waterdetect = None, None
         if maja_xml:
             try:
@@ -520,7 +520,7 @@ class process:
                     pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
                     pressure_corr = pressure / l2h.pressure_ref
                 else:
-                    pressure_corr = np.full((xblock,yblock),l2h.pressure / l2h.pressure_ref)
+                    pressure_corr = np.full((xshape, yshape),l2h.pressure / l2h.pressure_ref)
                 pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
 
                 # ---------
