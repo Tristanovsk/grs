@@ -52,7 +52,19 @@ if __name__ == '__main__':
     os.environ['CAMS_PATH'] = data['cams_folder']
 
     from grs import grs_process
+    from logging.handlers import RotatingFileHandler
 
+    # file handle
+    logger = logging.getLogger()
+    file_handler = RotatingFileHandler(data['logfile'], 'a', 1000000, 1)
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+    
+
+    level = logging.getLevelName(data['level'])
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
 
@@ -97,15 +109,15 @@ if __name__ == '__main__':
     
     # skip if already processed (the .dim exists)
     if os.path.isfile(outfile + ".dim") & data["noclobber"]:
-        print('File ' + outfile + ' already processed; skip!')
+        logger.info('File ' + outfile + ' already processed; skip!')
         exit(-1)
     # skip if incomplete (enables multiprocess)
     if os.path.isfile(outfile + ".incomplete"):
-        print('found incomplete File ' + outfile + '; skip!')
+        logger.info('found incomplete File ' + outfile + '; skip!')
         exit(-1)
 
     if os.path.isfile(outfile+".nc") & data["noclobber"]:
-        print('File ' + outfile + ' already processed; skip!')
+        logger.info('File ' + outfile + ' already processed; skip!')
         exit(-1)
    
     checksum = outfile+'.checksum'
