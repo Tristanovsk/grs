@@ -42,6 +42,8 @@ if __name__ == '__main__':
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
+        if os.path.exists("/tmp/.snap/auxdata"):
+           os.remove("/tmp/.snap/auxdata")
         os.symlink(data['auxdata_path'], "/tmp/.snap/auxdata")
     except Exception as error:
         logging.debug(error)
@@ -49,16 +51,31 @@ if __name__ == '__main__':
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
-
     from grs import grs_process
+    from logging.handlers import RotatingFileHandler
+
+    # file handle
+    logger = logging.getLogger()
+    file_handler = RotatingFileHandler(data['logfile'], 'a', 1000000, 1)
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+    
+
+    level = logging.getLevelName(data['level'])
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    with open(data['hymotep_config'], 'r') as config_file:
+        data.update(yaml.load(config_file, Loader=yaml.FullLoader))
+
 
     for key, value in data.items():
         if(value is not None and value!=''):
             data[key]=value 
         else:
             data[key]=None
-    file = data["input_file"] 
-  
+    file = data["input_file"]
+ 
     if data["shapefile"] != None:
         wkt = shp2wkt(data["shapefile"])
     else:
@@ -74,8 +91,6 @@ if __name__ == '__main__':
     if os.path.splitext(file)[-1] == '.tar':
         unzip = True 
         
-    #outfile = rename_file(file, data["outfile"], data["output_dir"])
-
     dem=False
     if data["dem"]:
         dem=True
@@ -86,27 +101,25 @@ if __name__ == '__main__':
 
     basename = os.path.basename(file)
     if 'incomplete' in basename:
-        exite(-1)
+        exit(-1)
 
     suffix='_'+str(data["chain_version"])+"_"+str(data["product_counter"])
     
-    outfile = misc.set_ofile(file, odir=data['output_dir'], level_name='l2grs', suffix=suffix)
-    logging.info(outfile)
+    outfile = misc.set_ofile(file.split("/")[-1], odir=data['output_dir'], level_name='l2grs', suffix=suffix)
     
     # skip if already processed (the .dim exists)
     if os.path.isfile(outfile + ".dim") & data["noclobber"]:
-        logging.info('File ' + outfile + ' already processed; skip!')
+        logger.info('File ' + outfile + ' already processed; skip!')
         exit(-1)
     # skip if incomplete (enables multiprocess)
     if os.path.isfile(outfile + ".incomplete"):
-        logging.info('found incomplete File ' + outfile + '; skip!')
+        logger.info('found incomplete File ' + outfile + '; skip!')
         exit(-1)
 
     if os.path.isfile(outfile+".nc") & data["noclobber"]:
-        logging.info('File ' + outfile + ' already processed; skip!')
+        logger.info('File ' + outfile + ' already processed; skip!')
         exit(-1)
    
-
     checksum = outfile+'.checksum'
     startrow=0
     try:
@@ -118,7 +131,6 @@ if __name__ == '__main__':
               startrow=int(ss[1])
     except:
        pass
-
 
     try:
         grs_process.process().execute(file=file, outfile=outfile, wkt=wkt, 
