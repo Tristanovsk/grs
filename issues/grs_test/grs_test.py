@@ -262,6 +262,9 @@ lutf.interp_n_slice(sza_,vza_,azi_)
 lutc.interp_n_slice(sza_,vza_,azi_)
 aotlut = np.array(lutf.aot, dtype=l2h.type)
 
+# plotting
+lutf.refl.isel(sza=0,vza=0,azi=[0,10]).plot(x='wl',hue='aot',col='azi')
+lutc.refl.isel(sza=0,vza=0,azi=[0,10]).plot(x='wl',hue='aot',col='azi')
 
 ##################################
 # GET ANCILLARY DATA (AEROSOL)
