@@ -61,7 +61,7 @@ logger.setLevel(level)
 from logging.handlers import RotatingFileHandler
 
 # file handle
-file_handler = RotatingFileHandler("toto.txt", 'a', 1000000, 1)
+file_handler = RotatingFileHandler("logs.txt", 'a', 1000000, 1)
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
                                   datefmt='%Y-%m-%dT%H:%M:%S')
 file_handler.setLevel(level)
