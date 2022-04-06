@@ -5,7 +5,6 @@
     "aot550": 0.1, 
     "angstrom": 0.5, 
     "startrow": 0, 
-    "logfile": "/tmp/logger.txt",
     "dem": True,
     "memory_safe" : False, 
     "angleonly": False,

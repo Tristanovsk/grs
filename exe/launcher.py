@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     from grs import grs_process
 
-    with open(data['immotep_config'], 'r') as config_file:
+    with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
 
 
