@@ -20,15 +20,15 @@ from . import config as cfg
 class info:
     '''
 
-            :param product:
-            :param sensordata:
-            :param aerosol:
-            :param ancillary:
-            :param output: set the unit of the retrievals:
-                     * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 \mum-1)
-                     * 'Rrs', remote sensing reflectance (in sr-1)
-                     {default: 'Rrs']
-            '''
+    :param product:
+    :param sensordata:
+    :param aerosol:
+    :param ancillary:
+    :param output: set the unit of the retrievals:
+             * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 \mum-1)
+             * 'Rrs', remote sensing reflectance (in sr-1)
+             {default: 'Rrs']
+    '''
 
     def __init__(self, product, sensordata, aerosol='cams_forecast', ancillary='cams_forecast', output='Rrs'):
 
@@ -345,19 +345,20 @@ class info:
         # if MAJA L2A image is provided load MAJA flags
         mask_id = 11
         if self.maja:
+            logging.info("copying MAJA masks...")
             # CLM masks
             masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
-            logging.info('CLM '+ np.unique(masks << mask_id))
-            logging.info('flags '+ np.unique(self.flags))
+            logging.info('CLM '+str(np.unique(masks << mask_id)))
+            logging.info('flags '+str( np.unique(self.flags)))
             self.flags = self.flags + (masks << mask_id)
-            logging.info('flags '+ np.unique(self.flags))
+            logging.info('flags '+str(np.unique(self.flags)))
             mask_id += len(self.clm_masks)
 
             # MG2 masks
             masks = self.get_raster(self.maja, 'Aux_Mask_MG2_R1', dtype=np.uint32)
-            logging.info('MG2 '+ np.unique(masks << mask_id))
+            logging.info('MG2 '+str(np.unique(masks << mask_id)))
             self.flags = self.flags + (masks << mask_id)
-            logging.info('flags '+ np.unique(self.flags))
+            logging.info('flags '+str(np.unique(self.flags)))
             mask_id += len(self.mg2_masks)
 
         # -------------------
@@ -525,12 +526,12 @@ class info:
         if self.maja:
 
             for i, mask in enumerate(self.maja_masks):
-                logging.info('Mask binary '+ mask_id)
+                logging.info('Mask binary '+ str(mask_id))
                 additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
                 mask_id += 1
 
         if self.waterdetect:
-            logging.info('waterdetect mask ', mask_id)
+            logging.info('waterdetect mask '+ mask_id)
             additional_f.append(
                 coding.addFlag('WaterDetect', 2 ** mask_id, 'Water mask imported from WaterDetect processing'))
 
@@ -898,7 +899,7 @@ class utils:
 
     def print_array(self, arr):
         np.set_printoptions(threshold=np.nan)
-        logging.info(arr)
+        print(arr)
 
     def getMinMax(self, current, minV, maxV):
         if current < minV:
