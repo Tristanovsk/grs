@@ -24,6 +24,7 @@ pipeline {
     }
 
     environment {
+        VERSION=3.4
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
         DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://${artifactory_host}/artifactory"
@@ -133,7 +134,7 @@ pipeline {
                                             --secret id=arti_conda_repo,src=arti_conda_repo.txt \
                                             --secret id=arti_pip_repo,src=arti_pip_repo.txt \
                                             .
-                                        """
+                               """
                                     }
                                 }
                             }
@@ -145,8 +146,8 @@ pipeline {
                                     docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
-                                        docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:${JFROG_CLI_BUILD_NUMBER}
-                                        docker push artifactory.cnes.fr/obs2co-docker/grs:${JFROG_CLI_BUILD_NUMBER}
+					                    docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:${VERSION}
+                                        docker push artifactory.cnes.fr/obs2co-docker/grs:${VERSION}
                                         docker push artifactory.cnes.fr/obs2co-docker/grs:latest
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.

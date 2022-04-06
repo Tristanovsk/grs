@@ -1,30 +1,22 @@
 {
     "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
+    "maja_xml" : "",
     "auxdata_path" : "/datalake/watcal/auxdata",
-    "data_root" : '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata',
+    "data_root" : '/datalake/watcal/GRS/grsdata',
     "tmp_dir" : '/tmp',
+    "aerosol": "cams_forecast",
     "cams_folder" : '/datalake/watcal/ECMWF/CAMS',
     "chain_version" : 1.0,
     "product_counter" : 003,
-    "log" : "info",                                  # niveau de log : info, debug, warning, error
+    "level" : "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    "altitude": 0,
-    "aerosol": "cams_forecast", 
-    "aeronet_file": "no", 
-    "resolution": 20, 
-    "aot550": 0.1, 
-    "angstrom": 0.5, 
-    "startrow": 0, 
+    #"hymotep_config":"/app/grs/exe/hymotep_config.yml",
+    "hymotep_config":"./hymotep_config.yml",
     "logfile": "/tmp/logger.txt",
-    "dem": True,
-    "shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    #"shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    "shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
-    "maja_xml" : "",
-    "memory_safe" : False, 
-    "angleonly": False,
-    "grs_a": False, 
-    "output": "Rrs",
     "waterdetect_only": "",
     "noclobber":True
 }
