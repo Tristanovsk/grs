@@ -43,7 +43,9 @@ if __name__ == '__main__':
 
     try:
         if os.path.exists("/tmp/.snap/auxdata"):
-           os.remove("/tmp/.snap/auxdata")
+            import shutil
+            print("removing /tmp/.snap/auxdata ...")
+            shutil.rmtree("/tmp/.snap/auxdata")
         os.symlink(data['auxdata_path'], "/tmp/.snap/auxdata")
     except Exception as error:
         logging.debug(error)
