@@ -44,6 +44,8 @@ RUN sed -i '11 a AuxDataPath = /tmp/.snap/auxdata/' /srv/conda/envs/env_snap/sna
 RUN mkdir -p /tmp/.snap/etc/
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /tmp/.snap/etc/snap.properties
 
+RUN snap --nosplash --nogui --modules --update org.esa.snap.snap.ndvi org.esa.snap.snap.envisat.reader
+
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
 RUN chmod -R 777 /app
