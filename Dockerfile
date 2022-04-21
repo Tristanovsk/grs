@@ -43,7 +43,9 @@ RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/test/.snap/#g' /srv/cond
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' >> /srv/conda/envs/env_snap/snap/etc/snap.properties
 RUN sed -i '11 a AuxDataPath = /tmp/test/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
 
-RUN snap --nosplash --nogui --modules --update org.esa.snap.snap.ndvi org.esa.snap.snap.envisat.reader
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
+    snap --nosplash --nogui --modules --update
 
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
