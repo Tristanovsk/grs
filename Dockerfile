@@ -50,5 +50,6 @@ RUN --mount=type=secret,id=proxy_http_cnes \
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
 RUN chmod -R 777 /app
+RUN mkdir /snap && chmod -R 777 /snap
 
 #ENTRYPOINT ['python', '/app/grs/exe/launcher.py', "/app/grs/exe/global_config.yml'] 
