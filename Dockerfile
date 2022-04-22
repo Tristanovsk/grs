@@ -45,7 +45,7 @@ RUN sed -i '11 a AuxDataPath = /tmp/test/.snap/auxdata/' /srv/conda/envs/env_sna
 
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    timeout 300 snap --nosplash --nogui --modules --update-all 2>&1
+    timeout 300 snap --nosplash --nogui --modules --update-all || true
 
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
