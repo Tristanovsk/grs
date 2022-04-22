@@ -45,8 +45,7 @@ RUN sed -i '11 a AuxDataPath = /tmp/test/.snap/auxdata/' /srv/conda/envs/env_sna
 
 RUN --mount=type=secret,id=proxy_http_cnes \ 
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    snap --nosplash --nogui --modules --update-all | while read -r line; do echo "$line" [ "$line" = "updates=0" ] && \
-    pkill -TERM -f "snap/jre/bin/java"; done
+    snap --nosplash --nogui --modules --update-all
 
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
