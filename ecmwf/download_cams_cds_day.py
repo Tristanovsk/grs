@@ -16,13 +16,15 @@ def main(dic):
     data_type = 'cams-global-reanalysis-eac4'  # dic['mode']
     from datetime import date, timedelta
     today = date.today() - timedelta(days=665)
+    print(today)
     yesterday=today - timedelta(days=1)
+    print(yesterday)
     d1 = today.strftime("%Y-%m-%d")
     
     # specify the period to catch data
     # try:
-    odir = "/datalake/watcal/ECMWF/CAMS/" + str(yesterday.strftime("%Y")) + "/"
-
+    odir = "/datalake/watcal/ECMWF/CAMS/" + str(yesterday.strftime("%Y")) + "/" + str(yesterday.strftime("%m"))+"/"+ str(yesterday.strftime("%d")) + "/"
+   
     print(str(odir))
     if not os.path.exists(odir):
         os.makedirs(odir)
