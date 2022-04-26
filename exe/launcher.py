@@ -41,14 +41,14 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    #try:
-    #    if os.path.exists("/app/.snap/auxdata/dem"):
-    #        import shutil
-    #        print("removing /app/.snap/auxdata/dem ...")
-    #        shutil.rmtree("/app/.snap/auxdata/dem")
-    #    os.symlink(data['auxdata_path'], "/app/.snap/auxdata/dem")
-    #except Exception as error:
-    #    logging.debug(error)
+    try:
+        if os.path.exists("/tmp/grs/.snap/auxdata/dem"):
+            import shutil
+            print("removing /tmp/grs/.snap/auxdata/dem ...")
+            shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+        os.symlink(data['auxdata_path'], "/tmp/grs/.snap/auxdata/dem")
+    except Exception as error:
+        logging.debug(error)
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
