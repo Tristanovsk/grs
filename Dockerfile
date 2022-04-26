@@ -7,7 +7,6 @@ LABEL maintainer="OBS2CO"
 
 RUN mkdir /app
 
-ENV SNAP_DIR="/tmp/test"
 
 # Montage du secret contenant un password pour se connecter au proxy du cnes
 ## Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
@@ -44,10 +43,10 @@ RUN --mount=type=secret,id=proxy_http_cnes \
 
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
-RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#/$SNAP_DIR/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
-RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//$SNAP_DIR/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
+RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/grs/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
+RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/grs/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' >> /srv/conda/envs/env_snap/snap/etc/snap.properties
-RUN sed -i '11 a AuxDataPath = /$SNAP_DIR/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+RUN sed -i '11 a AuxDataPath = /tmp/grs/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
 
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
