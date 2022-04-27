@@ -37,16 +37,16 @@ RUN make clean && make
 RUN python setup.py build 
 RUN python setup.py install
 
-RUN --mount=type=secret,id=proxy_http_cnes \ 
-    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    timeout 300 snap --nosplash --nogui --modules --update-all || true
-
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
 RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/grs/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
 RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/grs/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' >> /srv/conda/envs/env_snap/snap/etc/snap.properties
 RUN sed -i '11 a AuxDataPath = /tmp/grs/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+
+RUN --mount=type=secret,id=proxy_http_cnes \ 
+    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
+    timeout 300 snap --nosplash --nogui --modules --update-all || true
 
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
