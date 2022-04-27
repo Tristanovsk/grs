@@ -42,13 +42,15 @@ if __name__ == '__main__':
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
-        if os.path.exists("/tmp/grs/.snap/auxdata/dem"):
+        if !os.path.islink("/tmp/grs/.snap/auxdata/dem"):
             import shutil
             print("removing /tmp/grs/.snap/auxdata/dem ...")
             shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
-        os.symlink(data['auxdata_path'], "/tmp/grs/.snap/auxdata/dem")
+        else:
+            os.symlink(data['auxdata_path']+"/dem", "/tmp/grs/.snap/auxdata/dem")
     except Exception as error:
         logging.debug(error)
+        logging.debug("check the symbolic link from "+data['auxdata_path']+"to /tmp/grs/.snap/auxdata/dem")
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
