@@ -42,11 +42,11 @@ if __name__ == '__main__':
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
-        if os.path.exists("/app/.snap/auxdata/dem"):
+        if os.path.exists("/tmp/grs/.snap/auxdata/dem"):
             import shutil
-            print("removing /app/.snap/auxdata/dem ...")
-            shutil.rmtree("/app/.snap/auxdata/dem")
-        os.symlink(data['auxdata_path'], "/app/.snap/auxdata/dem")
+            print("removing /tmp/grs/.snap/auxdata/dem ...")
+            shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+        os.symlink(data['auxdata_path'], "/tmp/grs/.snap/auxdata/dem")
     except Exception as error:
         logging.debug(error)
 
