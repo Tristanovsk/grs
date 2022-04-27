@@ -15,7 +15,7 @@ import cdsapi
 def main(dic):
     data_type = 'cams-global-reanalysis-eac4'  # dic['mode']
     from datetime import date, timedelta
-    today = date.today() - timedelta(days=665)
+    today = date.today() - timedelta(days=4)
     print(today)
     yesterday=today - timedelta(days=1)
     print(yesterday)
@@ -34,7 +34,7 @@ def main(dic):
     c = cdsapi.Client()
     if dic['mode'] == 'reanalysis':
             data_type = 'cams-global-reanalysis-eac4'
-            datafile = odir + str(yesterday) + data_type + '.nc'
+            datafile =  odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc'
             print('processing ' + datafile + '...')
             c.retrieve(
                 data_type,
@@ -63,7 +63,7 @@ def main(dic):
                 datafile)
     else:
             data_type = 'cams-global-atmospheric-composition-forecasts'
-            datafile = odir + str(today.strftime("%Y-%m-%d") + data_type + '.nc')
+            datafile = odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc')
             if os.path.exists(datafile):
                 print('!!' + datafile + 'already exists !!')
             print('processing ' + datafile + '...')
