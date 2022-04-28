@@ -24,7 +24,7 @@ pipeline {
     }
 
     environment {
-        VERSION=3.4
+        VERSION=1.4
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
         DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://${artifactory_host}/artifactory"

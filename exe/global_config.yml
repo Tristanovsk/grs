@@ -11,11 +11,11 @@
     "level" : "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    #"hymotep_config":"/app/grs/exe/hymotep_config.yml",
-    "hymotep_config":"./hymotep_config.yml",
+    "hymotep_config":"/app/grs/exe/hymotep_config.yml",
+    #"hymotep_config":"./hymotep_config.yml",
     "logfile": "/tmp/logger.txt",
-    #"shapefile": "/app/grs/test/data/shape/SPO04.shp",
-    "shapefile": "../test/data/shape/SPO04.shp",
+    "shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    #"shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "waterdetect_only": "",
     "noclobber":True
