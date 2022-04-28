@@ -2,7 +2,7 @@
 #!/bin/bash
 
 
-#PBS -N grs_obs2
+#PBS -N grs_1jegou
 #PBS -l select=1:ncpus=40:mpiprocs=8:mem=180g:generation=g2019
 #PBS -l walltime=48:00:00
 #
@@ -16,8 +16,8 @@ list_file=list_grs_unesco_plata_2018.csv
 list_file=list_grs_jirau.csv
 #list_file=list_grs_santarem.csv
 
-list_file=list_grs_cnes_obs2mod.csv
-#list_file=list_jegou_jallais.csv
+#list_file=list_grs_cnes_obs2mod.csv
+list_file=list_jegou_jallais.csv
 #list_file=list_grs_plata_estuary.csv
 #list_file=list_grs_cnes_seine.csv
 #list_file=list_grs_redshade_2022.csv

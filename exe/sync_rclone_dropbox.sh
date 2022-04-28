@@ -5,7 +5,7 @@ module load rclone
 
 
 list_file="exe/list/list_grs_gernez_feb2022.csv"
-list_file="exe/list/list_grs_cnes_seine.csv"
+#list_file="exe/list/list_grs_cnes_seine.csv"
 
 year=2022
 for tiledate in `awk -F ',' 'NR > 1 && $1 == 1 {print $6$3}'  $list_file`; do
