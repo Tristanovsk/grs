@@ -48,6 +48,8 @@ RUN --mount=type=secret,id=proxy_http_cnes \
     export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
     timeout 300 snap --nosplash --nogui --modules --update-all || true
 
+RUN snap --nosplash --nogui --modules --update org.esa.snap.snap.ndvi org.esa.snap.snap.envisat.reader
+
 #RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
 
 RUN chmod -R 777 /app
