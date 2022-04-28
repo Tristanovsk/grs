@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import glob
 from datetime import datetime, timedelta
+from osgeo import gdal
 from multiprocessing import Pool
 
 # CNES lib for datalake managment
@@ -27,7 +28,7 @@ misc = misc()
 # set parameters
 # data source to fill datalake
 # amalthee = Amalthee('peps')
-sitefile = 'exe/list_grs_gernez_sep2021.csv'
+sitefile = 'exe/list/list_grs_cnes_obs2mod.csv'
 sitefile = sys.argv[1]
 
 # number of processors to be used
@@ -96,6 +97,19 @@ for idx, site in sites.iterrows():
             continue
         else:
             l1c = l1c[-1]
+
+        #-------------------
+        # get Metadata
+        #-------------------
+        filename = gdal.Open(opj(l1c,'MTD_MSIL1C.xml'))
+        metadata = filename.GetMetadata()
+        cc=round(float(metadata['CLOUD_COVERAGE_ASSESSMENT']))
+        cc_str=f'{cc:03}'
+        print(metadata)
+
+        #-------------------
+        # fetch L2A MAJA
+        #-------------------
         l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
         l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
         if not l2a_maja:
@@ -134,7 +148,7 @@ for idx, site in sites.iterrows():
         # ------------------
         # get image basename for output naming
         basename = os.path.basename(l1c)
-        outfile = misc.set_ofile(basename, odir=odir, suffix=name)
+        outfile = misc.set_ofile(basename, odir=odir, suffix='_cc'+cc_str+name)
         print(outfile)
         if noclobber & os.path.exists(outfile + '.nc'):
             print(basename, ' already processed; skipping image; set noclobber as False to force processing')

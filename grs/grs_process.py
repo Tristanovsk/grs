@@ -296,6 +296,7 @@ class process:
         l2h.create_product(maja=maja, waterdetect=waterdetect)
         try:
             l2h.load_data()
+            logging.info('creating L2 output product')
         except:
             if unzip:
                 # remove unzipped files (Sentinel files)
@@ -410,7 +411,7 @@ class process:
             # normalization of Cext to get spectral dependence of fine and coarse modes
             nCext_f = lutf.Cext / lutf.Cext550
             nCext_c = lutc.Cext / lutc.Cext550
-            logging.info('param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
+            logging.info(f'param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
             aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
             logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h.type)}')
             l2h.fcoef = aero.fcoef.astype(l2h.type)
