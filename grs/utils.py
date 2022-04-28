@@ -142,7 +142,9 @@ class info:
         self.name = product.getName()
         self.description = product.getDescription()
         # self.band_names = product.getBandNames()
-        self.date = parser.parse(str(product.getStartTime()))
+        print(product.getStartTime())
+        if(((product.getStartTime())) is not None):
+            self.date = parser.parse(str(product.getStartTime()))
 
     def get_bands(self, band_names=None):
         '''
