@@ -25,7 +25,7 @@ list_file=list_jegou_jallais.csv
 #list_file=list_grs_cnes_hafeez.csv
 #list_file=list_grs_cnes_mauricio.csv
 
-GRSHOME=/home/eh/harmelt/scratch/dev/grs2
+GRSHOME=/work/scratch/harmelt/dev/grs2
 list_filepath=$GRSHOME/exe/list/$list_file
 
 module load conda
