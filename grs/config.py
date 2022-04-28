@@ -21,7 +21,7 @@ grs_root = root
 try:
     logging.info("data_root is "+os.environ.get('DATA_ROOT'))
 except Exception as error:
-    logging.error(error)
+    logging.info("environment variable DATA_ROOT does not exist")
      
 data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata'))
 # directory to store temporary unzipped files

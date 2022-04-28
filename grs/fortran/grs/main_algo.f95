@@ -6,7 +6,7 @@ module grs
 
 contains
 
-    subroutine main_algo(npix, naot, nband, nsza, nazi, nvza, &
+    subroutine main_algo(nx, ny, naot, nband, nsza, nazi, nvza, &
             &                    aotlut, szalut, azilut, vzalut, &
             &                    rlut_f, rlut_c, Cext_f, Cext_c, &
             &                    vza, sza, azi, rtoa, mask, wl, &
@@ -26,12 +26,12 @@ contains
 
         implicit none
 
-        integer, intent(in) :: npix, nband, naot, nsza, nazi, nvza
-        integer, dimension(npix), intent(in) :: mask
-        real(rtype), dimension(npix), intent(in) :: sza, aot550, pressure_corr, fine_coef
+        integer, intent(in) :: nx, ny, nband, naot, nsza, nazi, nvza
+        integer, dimension(nx, ny), intent(in) :: mask
+        real(rtype), dimension(nx, ny), intent(in) :: sza, aot550, pressure_corr, fine_coef
         real(rtype), dimension(nband), intent(in) :: wl, rot, rg_ratio, F0
-        real(rtype), dimension(nband, npix), intent(in) :: vza, azi
-        real(rtype), dimension(nband, npix), intent(in) :: rtoa, aot_tot, aot_sca
+        real(rtype), dimension(nband, nx, ny), intent(in) :: vza, azi
+        real(rtype), dimension(nband, nx, ny), intent(in) :: rtoa, aot_tot, aot_sca
         real(rtype), dimension(naot), intent(in) :: aotlut
         real(rtype), dimension(nsza), intent(in) :: szalut
         real(rtype), dimension(nazi), intent(in) :: azilut
@@ -42,27 +42,27 @@ contains
         real(rtype), intent(inout) :: nodata
         logical, intent(in) :: rrs
 
-        real(rtype), dimension(nband, npix), intent(out) :: rcorr, rcorrg
-        real(rtype), dimension(npix), intent(out) :: aot550_est, brdf_est
+        real(rtype), dimension(nband, nx, ny), intent(out) :: rcorr, rcorrg
+        real(rtype), dimension(nx, ny), intent(out) :: aot550_est, brdf_est
 
-        !f2py intent(in) npix,nband,naot,nsza,nazi,nvza,aotlut,szalut, razilut, vzalut
+        !f2py intent(in) nx, ny,nband,naot,nsza,nazi,nvza,aotlut,szalut, razilut, vzalut
         !f2py intent(in) vza,sza,azi,rtoa,mask,wl,pressure_corr,rlut_f,rlut_c
         !f2py intent(in) Cext_f,Cext_c,rg_ratio,F0, aot_sca,rot,fine_coef,rrs
         !f2py intent(inout) aot_tot, aot550, nodata
         !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
-        !f2py depend(npix) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
+        !f2py depend(nx, ny) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
         !f2py depend(nband) wl,rot,Cext_f,Cext_c,rg_ratio, F0
-        !f2py depend(nband,npix) vza, azi, aot_tot, aot_sca, rtoa, rcorr, rcorrg
+        !f2py depend(nband,nx, ny) vza, azi, aot_tot, aot_sca, rtoa, rcorr, rcorrg
         !f2py depend(naot) aotlut
         !f2py depend(nsza) szalut
         !f2py depend(nazi) azilut
         !f2py depend(nvza) vzalut
         !f2py depend(naot,nband,nsza,nazi,nvza) rlut_f,rlut_c
 
-        integer :: iband, ipix, i, success
+        integer :: iband, ix, iy, i, success
         real(rtype), dimension(nband) :: rsim, rsimf, rsimc, tud, brdf, aot_, rot_corr, ssa_tot
-        real(rtype), dimension(npix) :: mu0
-        real(rtype), dimension(nband, npix) :: muv, m
+        real(rtype), dimension(nx, ny) :: mu0
+        real(rtype), dimension(nband, nx, ny) :: muv, m
         real(rtype) :: rglint, tdiff_Ed, tdiff_Lu
         real(rtype) :: scale
 
@@ -93,56 +93,57 @@ contains
         !----------------------------------------------
 
         scale = 0.95
+        do ix = 1, nx
+          do iy = 1,ny
 
-        do ipix = 1, npix
-            ! scale = (0.01/aot550(ipix))**(1d0/8)*1.02
+            ! scale = (0.01/aot550(ix, iy))**(1d0/8)*1.02
             ! do not process masked pixels
-            if (mask(ipix) .ne. 0) cycle
+            if (mask(ix, iy) .ne. 0) cycle
 
             ! Land filter
-            !if (rtoa(ipix,4) < rtoa(ipix,8) .and. rtoa(ipix,8) > 0.15) cycle
-            mu0(ipix) = cos(sza(ipix) * degrad)
+            !if (rtoa(ix, iy,4) < rtoa(ix, iy,8) .and. rtoa(ix, iy,8) > 0.15) cycle
+            mu0(ix, iy) = cos(sza(ix, iy) * degrad)
 
             !---------------------------
             ! get SZA, VZA and AZI
             ! index to get data from LUT
             !---------------------------
-            isza = iloc(szalut, nsza, sza(ipix))
+            isza = iloc(szalut, nsza, sza(ix, iy))
             do iband = 1, nband
-                ivza(iband) = iloc(vzalut, nvza, vza(iband, ipix))
-                iazi(iband) = iloc(azilut, nazi, azi(iband, ipix))
+                ivza(iband) = iloc(vzalut, nvza, vza(iband, ix, iy))
+                iazi(iband) = iloc(azilut, nazi, azi(iband, ix, iy))
             end do
 
-            aotpt = aot550(ipix)
-            ! print*,aotpt,fine_coef(ipix)
+            aotpt = aot550(ix, iy)
+            ! print*,aotpt,fine_coef(ix, iy)
             ! correction for pressure level
-            rot_corr = pressure_corr(ipix) * rot
-            aot_ = aot_tot(:, ipix)
+            rot_corr = pressure_corr(ix, iy) * rot
+            aot_ = aot_tot(:, ix, iy)
             i = 0
             success = 0
             do
                 !aotpt(:) = aotpt * scale
                 aotpt(:) = max(aotpt, 0.01)
                 aotpt(:) = min(aotpt, 0.8)
-                ! print*,'grs algo',aot_sca(:,ipix)
-                ! print*,'grs algo aottot *rot',aot_sca(:,ipix),aot_sca(:,ipix)+rot_corr
-                ssa_tot = (aot_sca(:, ipix) + rot_corr) / (aot_(:) + rot_corr)
+                ! print*,'grs algo',aot_sca(:,ix, iy)
+                ! print*,'grs algo aottot *rot',aot_sca(:,ix, iy),aot_sca(:,ix, iy)+rot_corr
+                ssa_tot = (aot_sca(:, ix, iy) + rot_corr) / (aot_(:) + rot_corr)
                 do iband = nband, 1, -1
                     !TODO generate lut for AOT 0.0001 (or 0), now lower limit is 0.01
                     !TODO  and for AOT > 0.8
 
-                    muv(iband, ipix) = cos(vza(iband, ipix) * degrad)
-                    call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_f(:, iband, isza, iazi(iband), ivza(iband)), &
+                    muv(iband, ix, iy) = cos(vza(iband, ix, iy) * degrad)
+                    call rgrd1(naot, aotlut, pressure_corr(ix, iy) * rlut_f(:, iband, isza, iazi(iband), ivza(iband)), &
                             &  maot, aotpt, rsimf(iband), intpol, w, l_w, iw, l_iw, ier)
-                    call rgrd1(naot, aotlut, pressure_corr(ipix) * rlut_c(:, iband, isza, iazi(iband), ivza(iband)), &
+                    call rgrd1(naot, aotlut, pressure_corr(ix, iy) * rlut_c(:, iband, isza, iazi(iband), ivza(iband)), &
                             &  maot, aotpt, rsimc(iband), intpol, w, l_w, iw, l_iw,ier)
                     !TODO understand why ndarray is inverted on the first dim aot
 !                    if (iband == 1) then
 !                        do i =1,naot
-!                            print*,aotlut(i),pressure_corr(ipix) * rlut_c(i, iband, isza, iazi(iband), ivza(iband))
+!                            print*,aotlut(i),pressure_corr(ix, iy) * rlut_c(i, iband, isza, iazi(iband), ivza(iband))
 !                        end do
 !                        do i =1,naot
-!                            print*,'fine',aotlut(i),pressure_corr(ipix) * rlut_f(i, iband, isza, iazi(iband), ivza(iband))
+!                            print*,'fine',aotlut(i),pressure_corr(ix, iy) * rlut_f(i, iband, isza, iazi(iband), ivza(iband))
 !                        end do
 !                    endif
                     if(ier/=0)then
@@ -151,17 +152,17 @@ contains
                         print*, 'AOT', aotpt, max(aotpt * scale, 0.01)
                         stop
                     endif
-                    !write(*,*)iband,aotpt, rtoa(ipix,iband),rsimc(iband)
+                    !write(*,*)iband,aotpt, rtoa(ix, iy,iband),rsimc(iband)
 
-                    rsim(iband) = fine_coef(ipix) * rsimf(iband) + (1 - fine_coef(ipix)) * rsimc(iband)
+                    rsim(iband) = fine_coef(ix, iy) * rsimf(iband) + (1 - fine_coef(ix, iy)) * rsimc(iband)
                     ! correction for absorbing aerosol
                     rsim(iband) = ssa_tot(iband) * rsim(iband)
-                    rcorrg(iband, ipix) = rtoa(iband, ipix) - rsim(iband)
+                    rcorrg(iband, ix, iy) = rtoa(iband, ix, iy) - rsim(iband)
 
                     ! if negative values decrease aot
                     ! start after SWIR 2.2 microns (nband)
 
-                    if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ipix) .lt. -0.0004 &
+                    if(aotpt(1) .gt. 0.01 .and. rcorrg(iband, ix, iy) .lt. -0.0004 &
                             &  .and. i .le. 8 .and. iband .lt. nband) then !iband .le. nband - 2 .and.
                         ! print*,'aot adjustment',aotpt ,aotpt * scale,scale
                         aotpt(:) = max(aotpt * scale, 0.01)
@@ -169,9 +170,9 @@ contains
                         i = i + 1
                         exit
                     else
-                        m(iband, ipix) = 1. / mu0(ipix) + 1. / muv(iband, ipix)
-                        tud(iband) = exp(-(rot_corr(iband) + aot_(iband)) * m(iband, ipix))
-                        brdf(iband) = max(rcorrg(iband, ipix) / tud(iband), 0.)
+                        m(iband, ix, iy) = 1. / mu0(ix, iy) + 1. / muv(iband, ix, iy)
+                        tud(iband) = exp(-(rot_corr(iband) + aot_(iband)) * m(iband, ix, iy))
+                        brdf(iband) = max(rcorrg(iband, ix, iy) / tud(iband), 0.)
                     end if
 
                     if(iband==1)success = 1
@@ -179,30 +180,30 @@ contains
 
                 if(success==1)then
                     ! rescale aot values
-                    aot_ = aot_tot(:, ipix) * aotpt(1) / aot550(ipix)
-                    aot550_est(ipix) = aotpt(1)
-                    brdf_est(ipix) = brdf(nband - 1)
+                    aot_ = aot_tot(:, ix, iy) * aotpt(1) / aot550(ix, iy)
+                    aot550_est(ix, iy) = aotpt(1)
+                    brdf_est(ix, iy) = brdf(nband - 1)
                     exit
                 endif
             enddo
 
             do iband = 1, nband
-                tdiff_Ed = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / mu0(ipix)))
-                tdiff_Lu = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / muv(iband, ipix)))
+                tdiff_Ed = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / mu0(ix, iy)))
+                tdiff_Lu = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / muv(iband, ix, iy)))
 
-                rglint = 0.5 * (tud(iband) * rg_ratio(iband) * brdf(nband) + tud(iband) * rg_ratio(iband) &
-                        & / rg_ratio(nband - 1) * brdf(nband - 1))
-                rcorr(iband, ipix) = rcorrg(iband, ipix) - rglint
-                rcorr(iband, ipix) = rcorr(iband, ipix) / pi / tdiff_Lu / tdiff_Ed
-                rcorrg(iband, ipix) = rcorrg(iband, ipix) / pi / tdiff_Lu / tdiff_Ed
+                rglint = (tud(iband) * rg_ratio(iband) * 0.1*brdf(nband) + tud(iband) * rg_ratio(iband) &
+                        & / rg_ratio(nband - 1) * 0.9*brdf(nband - 1))
+                rcorr(iband, ix, iy) = rcorrg(iband, ix, iy) - rglint
+                rcorr(iband, ix, iy) = rcorr(iband, ix, iy) / pi / tdiff_Lu / tdiff_Ed
+                rcorrg(iband, ix, iy) = rcorrg(iband, ix, iy) / pi / tdiff_Lu / tdiff_Ed
                 if (.not. rrs) then
-                    rcorr(iband, ipix) = rcorr(iband, ipix) * F0(iband)
-                    rcorrg(iband, ipix) = rcorrg(iband, ipix) * F0(iband)
+                    rcorr(iband, ix, iy) = rcorr(iband, ix, iy) * F0(iband)
+                    rcorrg(iband, ix, iy) = rcorrg(iband, ix, iy) * F0(iband)
                 endif
-                !rcorr(iband, ipix) = rtoa(iband, ipix)
-                !rcorrg(iband, ipix)=rsim(iband)
+                !rcorr(iband, ix, iy) = rtoa(iband, ix, iy)
+                !rcorrg(iband, ix, iy)=rsim(iband)
             enddo
-
+          enddo
         enddo
 
         return

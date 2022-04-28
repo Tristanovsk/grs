@@ -44,7 +44,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 
 #activate conda environement python 3.8
-conda activate /work/ALT/swot/aval/OBS2CO/conda_env/grs_py3.6_V4
+conda activate /work/ALT/swot/aval/OBS2CO/conda_env/grs_py3.8
 echo $USER
 
 #configuration for snap
@@ -60,23 +60,23 @@ echo $pippath
 
 if [ ! -d $CONDA_PREFIX/lib/python3.6/site-packages/esasnappy ]
 then
-	ln -s /work/ALT/swot/aval/OBS2CO/snap/snappy $CONDA_PREFIX/lib/python3.6/site-packages/esasnappy
+	ln -s /work/ALT/swot/aval/OBS2CO/snap/snappy_3.8 $CONDA_PREFIX/lib/python3.8/site-packages/esasnappy
 fi
 
 
 echo $'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > $HOME/.snap/etc/snap.properties
 
 #Install the jpy package used by snappy
-pip install /work/ALT/swot/aval/OBS2CO/snap/snappy/lib/jpy-0.9.0-cp36-cp36m-linux_x86_64.whl nco
+#pip install /work/ALT/swot/aval/OBS2CO/snap/snappy/lib/jpy-0.9.0-cp36-cp36m-linux_x86_64.whl nco
 
 #Modifier la config jpy pour java
-cat $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py | grep '#java_home'
+#cat $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py | grep '#java_home'
 
-if [ $? == 1 ]
-then
-	sed -i 's/java_home/#java_home/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
-	sed -i 's/jvm_dll/#jvm_dll/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
-fi
+#if [ $? == 1 ]
+#then
+#	sed -i 's/java_home/#java_home/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
+#	sed -i 's/jvm_dll/#jvm_dll/g' $CONDA_PREFIX/lib/python3.6/site-packages/jpyconfig.py
+#fi
 
 #if it is not already installed
 #conda install GDAL
@@ -85,8 +85,8 @@ fi
 cd /work/ALT/swot/aval/OBS2CO/git/grs2
 
 #catch egm96 data
-mkdir -p $HOME/.snap/auxdata/dem/egm96
-cp /work/ALT/swot/aval/OBS2CO/git/grsdata/dem/ww15mgh_b.zip $HOME/.snap/auxdata/dem/egm96/ww15mgh_b.zip
+#mkdir -p $HOME/.snap/auxdata/dem/egm96
+#cp /work/ALT/swot/aval/OBS2CO/git/grsdata/dem/ww15mgh_b.zip $HOME/.snap/auxdata/dem/egm96/ww15mgh_b.zip
 
 
 if [ $# != 0 ]

@@ -71,27 +71,6 @@ class process:
         '''
 
 
-        #init logger
-        logger = logging.getLogger()
-
-        level = logging.getLevelName(log_level)
-        logger.setLevel(level)
-
-         # file handle
-        file_handler = RotatingFileHandler(logfile, 'a', 1000000, 1)
-        formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
-                                  datefmt='%Y-%m-%dT%H:%M:%S')
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        # stream handler
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(level)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
-
         ##################################
         # Get sensor auxiliary data
         ##################################
@@ -201,6 +180,7 @@ class process:
         else:
             l2h.product = _utils.resampler(l2h.product, resolution=resolution)  # , upmethod='Nearest')
 
+
         ##################################
         # SUBSET TO AREA OF INTEREST
         ##################################
@@ -208,7 +188,6 @@ class process:
         try:
             if wkt is not None:
                 l2h.product = _utils.get_subset(l2h.product, wkt)
-            l2h.get_product_info()
         except:
             if unzip:
                 # remove unzipped files (Sentinel files)
@@ -218,6 +197,7 @@ class process:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
             raise NameError('No data available for requested area')
 
+        l2h.get_product_info()
         l2h.set_outfile(outfile)
         l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.product)
         l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
@@ -227,7 +207,7 @@ class process:
         # resample for common resolution
         # subset to ROI
         ##################################
-        logging.info('fetching falgs...')
+        logging.info('fetching flags...')
         maja, waterdetect = None, None
         if maja_xml:
             try:
@@ -316,6 +296,7 @@ class process:
         l2h.create_product(maja=maja, waterdetect=waterdetect)
         try:
             l2h.load_data()
+            logging.info('creating L2 output product')
         except:
             if unzip:
                 # remove unzipped files (Sentinel files)
@@ -430,7 +411,7 @@ class process:
             # normalization of Cext to get spectral dependence of fine and coarse modes
             nCext_f = lutf.Cext / lutf.Cext550
             nCext_c = lutc.Cext / lutc.Cext550
-            logging.info('param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
+            logging.info(f'param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
             aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
             logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h.type)}')
             l2h.fcoef = aero.fcoef.astype(l2h.type)
@@ -464,6 +445,12 @@ class process:
 
         w, h = l2h.width, l2h.height
 
+        rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
+        rcorrg = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
+        aot550pix = np.zeros((w, h), dtype=l2h.type, order='F').T
+        betapix = np.zeros((w, h), dtype=l2h.type, order='F').T
+        brdfpix = np.zeros((w, h), dtype=l2h.type, order='F').T
+
         l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)
         l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
         l2h.l2_product.getBand('AZI').writePixels(0, 0, w, h, np.array(l2h.razi[1]))
@@ -482,124 +469,126 @@ class process:
         ######################################
         #      MAIN LOOP
         ######################################
-        logging.info('processing '+file+'...')
-        for i in range(startrow, l2h.height):
-            # logging.info('process row ' + str(i) + ' / ' + str(l2h.height))
+        logging.info('processing ' + file + '...')
 
-            sza = l2h.sza[i]
-            razi = l2h.razi[:, i]
-            vza = l2h.vza[:, i]
-            muv = l2h.muv[:, i]
-            mu0 = l2h.mu0[i]
-            mask = l2h.mask[i]
-            flags = l2h.flags[i]
-            band_rad = l2h.band_rad[:, i]
+        ######################################
+        #      First step: AOT adjustment
+        ######################################
+        # TODO slice/reshape.. to use the two SWIR bands only
+        # xblock, yblock = 25, 25
+        # TODO aot estimation on water pixels, check better spatial resolution
 
-            maskpixels = maskpixels_
-            if allpixels:
-                maskpixels = maskpixels * 0
-            elif waterdetect_only:
-                maskpixels[l2h.watermask[i] == 1] = 0
-            else:
-                maskpixels = mask
+        ######################################
+        #      Second step: Atmosphere and surface correction
+        ######################################
+        # TODO put chunck size in config yaml file
+        xblock, yblock = 512, 512
+        for iy in range(0, w, yblock):
+            print('process row ' + str(iy) + ' / ' + str(h))
+            yc = iy + yblock
+            if yc > w:
+                yc = w
+            for ix in range(0, h, xblock):
+                #print('process col ' + str(ix) + ' / ' + str(w))
+                xc = ix + xblock
+                if xc > h:
+                    xc = h
+                sza = l2h.sza[ix:xc, iy:yc]
+                xshape, yshape = sza.shape
 
-            if dem:
-                elev = l2h.elevation[i]
-                pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
-                pressure_corr = pressure / l2h.pressure_ref
-            else:
-                pressure_corr = [l2h.pressure / l2h.pressure_ref] * l2h.width
-            pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
+                if (xshape == 0) or (yshape == 0):
+                    continue
 
-            # ---------
-            # if maja L2A image provided, use AOT_MAJA product
-            # AOT_maja seems to be largely overestimated, before further analyses: force usage of CAMS instead
-            # if maja:
-            #     aot550guess = l2h.aot_maja[i]
-            #     # aot550guess[aot550guess < 0.01] = 0.01
-            # else:
-            #     aot550guess = aot550rast[i]
+                razi = l2h.razi[:, ix:xc, iy:yc]
+                vza = l2h.vza[:, ix:xc, iy:yc]
+                muv = l2h.muv[:, ix:xc, iy:yc]
+                mu0 = l2h.mu0[ix:xc, iy:yc]
+                mask = l2h.mask[ix:xc, iy:yc]
+                flags = l2h.flags[ix:xc, iy:yc]
+                band_rad = l2h.band_rad[:, ix:xc, iy:yc]
 
-            aot550guess = np.array(aot550rast[i])
-            fcoef = np.array(fcoefrast[i])
-            aot_tot = np.array(aotrast[:, i])
-            if l2h.aerosol == 'cds_forecast':
-                aot_sca = np.array(aotscarast[:, i])
-            else:
-                aot_sca = aot_tot
+                maskpixels = maskpixels_
+                if allpixels:
+                    maskpixels = maskpixels * 0
+                elif waterdetect_only:
+                    #print('watermask', l2h.watermask[ix:xc, iy:yc].shape)
+                    maskpixels[l2h.watermask[ix:xc, iy:yc] == 1] = 0
+                else:
+                    maskpixels = mask
 
-            for iband in range(l2h.N):
-                # # preparing lut data
-                # grid_pix = list(zip(sza, razi[iband], vza[iband]))
-                #
-                # for iaot in range(aotlut.__len__()):
-                #     rtoaf[iaot, iband] = lutf.interp_lut(grid_lut, rlut_f[iband][iaot, ...], grid_pix)
-                #     rtoac[iaot, iband] = lutc.interp_lut(grid_lut, rlut_c[iband][iaot, ...], grid_pix)
+                if dem:
+                    elev = l2h.elevation[ix:xc, iy:yc]
+                    pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
+                    pressure_corr = pressure / l2h.pressure_ref
+                else:
+                    pressure_corr = np.full((xshape, yshape),l2h.pressure / l2h.pressure_ref)
+                pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
 
-                # correct for gaseous absorption
-                tg = smac.compute_gas_trans(iband, l2h.pressure_msl, mu0, muv[iband])
-                band_rad[iband] = band_rad[iband] / tg
+                # ---------
+                # if maja L2A image provided, use AOT_MAJA product
+                # AOT_maja seems to be largely overestimated, before further analyses: force usage of CAMS instead
+                # if maja:
+                #     aot550guess = l2h.aot_maja[i]
+                #     # aot550guess[aot550guess < 0.01] = 0.01
+                # else:
+                #     aot550guess = aot550rast[i]
 
-            if grs_a:
-                # TODO update for new lut usage
-                rcorr, rcorrg, aot550pix, brdfpix = grs_a_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                                                                           vza, sza, razi, band_rad, maskpixels, l2h.wl,
-                                                                           pressure_corr, aotlut, rtoaf, rtoac,
-                                                                           lutf.Cext, lutc.Cext, lutf.Cext550,
-                                                                           lutc.Cext550,
-                                                                           l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                           aot_tot,
-                                                                           aot550guess, fcoef, l2h.nodata, l2h.rrs)
-            else:
-                rcorr, rcorrg, aot550pix, brdfpix = grs_solver.grs.main_algo(l2h.width, *lutf.refl.shape,
-                                                                         aotlut, sza_, azi_, vza_,
-                                                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
-                                                                         vza, sza, razi, band_rad, maskpixels, l2h.wl,
-                                                                         pressure_corr,
-                                                                         l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                                                         aot_tot, aot_sca, aot550guess, fcoef,
-                                                                         l2h.nodata,
-                                                                         l2h.rrs)
+                aot550guess = np.array(aot550rast[ix:xc, iy:yc], dtype=l2h.type, order='F')
+                fcoef = np.array(fcoefrast[ix:xc, iy:yc], dtype=l2h.type, order='F')
+                aot_tot = np.array(aotrast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
+                if l2h.aerosol == 'cds_forecast':
+                    aot_sca = np.array(aotscarast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
+                else:
+                    aot_sca = aot_tot
 
-                # rcorr, rcorrg, aot550pix, brdfpix = grs_solver.main_algo(l2h.width, l2h.N, aotlut.__len__(),
-                #                                                          vza, sza, razi, band_rad, maskpixels, l2h.wl,
-                #                                                          pressure_corr, aotlut, rtoaf, rtoac, lutf.Cext,
-                #                                                          lutc.Cext,
-                #                                                          l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                #                                                          aot_tot, aot_sca, aot550guess, fcoef, l2h.nodata,
-                #                                                          l2h.rrs)
+                for iband in range(l2h.N):
+                    # correct for gaseous absorption
+                    tg = smac.compute_gas_trans(iband, l2h.pressure_msl, mu0.reshape(-1),
+                                                muv[iband].reshape(-1)).reshape(xshape, yshape)
+                    band_rad[iband] = band_rad[iband] / tg
 
-            # reshape for snap modules
-            rcorr[rcorr == l2h.nodata] = np.nan
-            rcorrg[rcorrg == l2h.nodata] = np.nan
-            # rcorr = np.ma.array(rcorr.T, mask=rcorr.T == l2h.nodata, fill_value=np.nan)  # .tolist()
-            # rcorrg = np.ma.array(rcorrg.T, mask=rcorrg.T == l2h.nodata, fill_value=np.nan)  # .tolist()
 
-            ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
-                                 (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
-            # set flags
 
-            flags = flags + \
-                    ((mask == 1) +
-                     (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                     ((mask == 2) << 2) +
-                     (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
-                             ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
-                     ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
-                     )
+                p = grs_solver.grs.main_algo(xshape, yshape, *lutf.refl.shape,
+                                         aotlut, sza_, azi_, vza_,
+                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
+                                         vza, sza, razi, band_rad, maskpixels,
+                                         l2h.wl, pressure_corr, l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
+                                         aot_tot, aot_sca, aot550guess, fcoef,
+                                         l2h.nodata, l2h.rrs)
 
-            for iband in range(l2h.N):
-                l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
-                    writePixels(0, i, l2h.width, 1, np.array(rcorr[iband]))
-                l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
-                    writePixels(0, i, l2h.width, 1, np.array(rcorrg[iband]))
 
-            l2h.l2_product.getBand('flags').writePixels(0, i, l2h.width, 1, flags.astype(np.uint32))
-            l2h.l2_product.getBand('BRDFg').writePixels(0, i, l2h.width, 1, brdfpix)
-            l2h.l2_product.getBand("aot550").writePixels(0, i, l2h.width, 1, aot550pix)
+                rcorr[:, ix:xc, iy:yc] = p[0]  # np.transpose(p[0],(0,2,1))
+                rcorrg[:, ix:xc, iy:yc] = p[1]  # np.transpose(p[1],(0,2,1))
+                aot550pix[ix:xc, iy:yc] = p[2]
+                brdfpix[ix:xc, iy:yc] = p[3]
 
-            # TODO improve checksum scheme
-            l2h.checksum('row ' + str(i)+ ' / ' + str(l2h.height))
+                # TODO improve checksum scheme
+                l2h.checksum('row:col, ' + str(ix) + ':' + str(iy))
+
+        rcorr[rcorr == l2h.nodata] = np.nan
+        rcorrg[rcorrg == l2h.nodata] = np.nan
+
+        ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
+                             (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
+        # set flags
+        l2h.flags = l2h.flags + \
+                ((l2h.mask == 1) +
+                 (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
+                 ((l2h.mask == 2) << 2) +
+                 (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
+                         ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
+                 ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
+                 )
+        print(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
+        l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
+        l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
+        l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
+        for iband in range(l2h.N):
+            l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
+                writePixels(0, 0, w, h, rcorr[iband])
+            l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
+                writePixels(0, 0, w, h, rcorrg[iband])
 
         l2h.finalize_product()
 
