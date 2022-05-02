@@ -12,10 +12,10 @@ import calendar
 import cdsapi
 
 
-def main(dic):
+def main(dic, i):
     data_type = 'cams-global-reanalysis-eac4'  # dic['mode']
     from datetime import date, timedelta
-    today = date.today() - timedelta(days=4)
+    today = date.today() - timedelta(days=i)
     print(today)
     yesterday=today - timedelta(days=1)
     print(yesterday)
@@ -34,7 +34,7 @@ def main(dic):
     c = cdsapi.Client()
     if dic['mode'] == 'reanalysis':
             data_type = 'cams-global-reanalysis-eac4'
-            datafile =  odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc'
+            datafile =  odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc')
             print('processing ' + datafile + '...')
             c.retrieve(
                 data_type,
@@ -130,5 +130,5 @@ if __name__ == '__main__':
     parser.add_argument('mode',
                         help='choose `reanalysis` or `forecast` dataset')
     args = parser.parse_args()
-
-    main(vars(args))
+    #for i in range(1, 100):
+    main(vars(args), 2)

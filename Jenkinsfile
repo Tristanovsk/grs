@@ -123,6 +123,9 @@ pipeline {
                                 script {
                                     docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh """
+					    ls .
+                                            version_grs=\$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
+                                            echo $version_grs
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/

@@ -265,8 +265,13 @@ class process:
 
         if ancillary != 'default':
             if l2h.aerosol == 'cds_forecast':
-                target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                target=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
+                                 l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
+                print(target)
+                if(not os.path.exists(target)):
+                    target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
+                print(target)
                 l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
             else:
                 target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
