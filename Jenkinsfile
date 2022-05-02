@@ -150,7 +150,7 @@ pipeline {
                                         VERSION_GRS=\$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
                                         echo \$VERSION_GRS
 					                    docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
-                                        docker push artifactory.cnes.fr/obs2co-docker/grs:${VERSION}
+                                        docker push artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
                                         docker push artifactory.cnes.fr/obs2co-docker/grs:latest
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
