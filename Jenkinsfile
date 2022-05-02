@@ -25,6 +25,7 @@ pipeline {
 
     environment {
         VERSION=1.4
+        version_grs=""
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
         DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://${artifactory_host}/artifactory"
@@ -125,7 +126,7 @@ pipeline {
                                         sh """
 					    ls .
                                             version_grs=\$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
-                                            echo $version_grs
+                                            echo ${version_grs}
                                             mkdir -p certs
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
