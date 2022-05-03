@@ -848,7 +848,7 @@ class utils:
         op = addelevation()
         op.setParameterDefaultValues()
         # TODO check if taking DEM files from cnes datalake is feasible -> faire un lien symbolique vers auxdata sur datalake
-        #op.setParameter("demName", "External DEM")
+        op.setParameter("demName", "SRTM 3Sec")
         
         #srtm_path=cfg.srtm_path
         #logging.info(srtm_path)
