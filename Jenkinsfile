@@ -164,15 +164,15 @@ pipeline {
                             }
                         }
 
-                        //stage('test docker') {
-                        //    steps {
-                        //    sh '''
-                        //        docker run --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest
-                        //        sleep 5
-                        //        docker logs grs
-                        //    '''
-                        //    }
-                        //}
+                        stage('test docker') {
+                            steps {
+                            sh '''
+                                docker run -v /datalake:/datalake --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest python /app/grs/exe/launcher.py
+                                sleep 30
+                                docker logs grs
+                            '''
+                            }
+                        }
 
                         //stage('singularity') {
                         //    steps {
