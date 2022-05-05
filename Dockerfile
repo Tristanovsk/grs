@@ -38,7 +38,7 @@ RUN python setup.py install
 
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
 
-RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap/system#//tmp/grs/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
+RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/grs/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
 RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/grs/.snap/#g' /srv/conda/envs/env_snap/snap/etc/snap.properties
 RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' >> /srv/conda/envs/env_snap/snap/etc/snap.properties
 RUN sed -i '11 a AuxDataPath = /tmp/grs/.snap/auxdata/' /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
