@@ -42,7 +42,7 @@ if __name__ == '__main__':
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
-        if data['activate_dem']
+        if data['activate_dem']:
             if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
                 import shutil
                 print("removing /tmp/grs/.snap/auxdata/dem ...")
