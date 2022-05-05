@@ -18,5 +18,6 @@
     #"shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "waterdetect_only": "",
-    "noclobber":True
+    "noclobber":True,
+    "activate_dem":True
 }
