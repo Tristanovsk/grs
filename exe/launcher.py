@@ -41,14 +41,15 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    #try:
-    #    if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
-    #        import shutil
-    #        print("removing /tmp/grs/.snap/auxdata/dem ...")
-    #        shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
-    #    os.symlink(data['auxdata_path']+"/dem/", "/tmp/grs/.snap/auxdata/dem")
-    #except Exception as error:
-    #    logging.debug(error)
+    try:
+        if data['activate_dem']
+            if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
+                import shutil
+                print("removing /tmp/grs/.snap/auxdata/dem ...")
+                shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+            os.symlink(data['auxdata_path']+"/dem/", "/tmp/grs/.snap/auxdata/dem")
+    except Exception as error:
+        logging.debug(error)
 
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
@@ -60,7 +61,6 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     file_handler = RotatingFileHandler(data['logfile'], 'a', 1000000, 1)
     formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-    
 
     level = logging.getLevelName(data['level'])
     file_handler.setLevel(level)
@@ -69,7 +69,6 @@ if __name__ == '__main__':
     
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
-
 
     for key, value in data.items():
         if(value is not None and value!=''):
