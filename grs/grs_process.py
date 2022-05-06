@@ -271,12 +271,12 @@ class process:
                 if(not os.path.exists(target)):
                     target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
-                logging.info(target+" cams file will be used")
+                logging.info(str(target)+" cams file would be used")
                 l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
             else:
                 target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
                                            l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
-                logging.info(target+" cams file will be used")
+                logging.info(str(target)+" cams file would be used")
                 # do not load here since already implemented elsewhere in CNES HPC
                 # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
                 l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
