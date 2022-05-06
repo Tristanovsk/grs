@@ -142,7 +142,8 @@ if __name__ == '__main__':
         startrow=startrow, maja_xml=data["maja_xml"],
         waterdetect_file=data["waterdetect_file"], 
         waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
-        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"])
+        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"], xblock=data["xblock"],
+        yblock=data["yblock"])
     except Exception as inst:
         logging.info('-------------------------------')
         logging.info('error for file  ', inst, ' skip')
