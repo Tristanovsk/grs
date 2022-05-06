@@ -32,7 +32,8 @@ class process:
     def execute(self, file, outfile, wkt=None, sensor=None, aerosol='default', ancillary=None, altitude=0,
                 dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
                 startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
-                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO"):
+                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO", 
+                xblock=512, yblock=512):
         '''
         Main program calling all GRS steps
 
@@ -486,7 +487,6 @@ class process:
         #      Second step: Atmosphere and surface correction
         ######################################
         # TODO put chunck size in config yaml file
-        xblock, yblock = 512, 512
         for iy in range(0, w, yblock):
             logging.info('process row ' + str(iy) + ' / ' + str(h))
             yc = iy + yblock
@@ -584,7 +584,7 @@ class process:
                          ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
                  ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                  )
-        logging.info(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
+        #logging.info(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
         l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
         l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
         l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
