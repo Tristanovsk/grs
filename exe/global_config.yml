@@ -19,5 +19,7 @@
     "waterdetect_file" : "",
     "waterdetect_only": "",
     "noclobber":True,
-    "activate_dem":True
+    "activate_dem":True,
+    "xblock": 512,
+    "yblock": 512
 }
