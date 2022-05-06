@@ -267,15 +267,15 @@ class process:
             if l2h.aerosol == 'cds_forecast':
                 target=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
                                  l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
-                print(target)
                 if(not os.path.exists(target)):
                     target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
-                print(target)
+                logging.info(target+" cams file will be used")
                 l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
             else:
                 target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
                                            l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+                logging.info(target+" cams file will be used")
                 # do not load here since already implemented elsewhere in CNES HPC
                 # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
                 l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
@@ -488,7 +488,7 @@ class process:
         # TODO put chunck size in config yaml file
         xblock, yblock = 512, 512
         for iy in range(0, w, yblock):
-            print('process row ' + str(iy) + ' / ' + str(h))
+            logging.info('process row ' + str(iy) + ' / ' + str(h))
             yc = iy + yblock
             if yc > w:
                 yc = w
@@ -584,7 +584,7 @@ class process:
                          ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
                  ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                  )
-        print(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
+        logging.info(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
         l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
         l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
         l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
@@ -594,8 +594,10 @@ class process:
             l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
                 writePixels(0, 0, w, h, rcorrg[iband])
 
+        logging.info("finishing writing product...")
         l2h.finalize_product()
 
+        logging.info("If no error occured, product is available here : "+outfile)
         if unzip:
             # remove unzipped files (Sentinel files)
             shutil.rmtree(file, ignore_errors=True)
