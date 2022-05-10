@@ -4,9 +4,6 @@
 // Création d'une variable "UUID" pour spécifier un ID unique "server-id" du serveur de test configuré au niveau de jFrog-CLI
 def SERVERID = UUID.randomUUID().toString()
 
-// CREDENTIALS
-def artifactoryCredentials = "OBS2CO_ARTIFACTORY_TOKEN"
-
 
 pipeline {
 
@@ -27,7 +24,7 @@ pipeline {
         VERSION=1.4
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
         DOCKER_TOKEN = credentials('DOCKER_TOKEN')
-        ARTI_URL = "https://${artifactory_host}/artifactory"
+        ARTI_URL = "https://artifactory.cnes.fr/artifactory"
         SONAR_TOKEN=credentials('OBS2CO_SONAR_CREDENTIALS')
         // Specifie le chemin contenant des fichiers pour l'utilisation de sonar scanner. Jenkins se basera sur le workspace comme base de chemin
         SONAR_SCANNER_OPTS="-Duser.home=.sonar-scanner"
@@ -37,7 +34,7 @@ pipeline {
         CI="true"
         // Construit l'URL du build Artifactory, Il faut encoder URL pour que ce soit bien reconnu par Artifactory
         JFROG_CLI_BUILD_NAME_URL = java.net.URLEncoder.encode(JFROG_CLI_BUILD_NAME, "UTF-8")
-        ARTIFACTORY_BUILD_URL = "https://${artifactory_host}/artifactory/webapp/#/builds/${JFROG_CLI_BUILD_NAME_URL}/${JFROG_CLI_BUILD_NUMBER}"
+        ARTIFACTORY_BUILD_URL = "https://artifactory.cnes.fr/artifactory/webapp/#/builds/${JFROG_CLI_BUILD_NAME_URL}/${JFROG_CLI_BUILD_NUMBER}"
         // Recuperation d'un credential Jenkins
         PROXY_TOKEN=credentials('obs2co-proxy')
         // Utilisation d'un compte projet pour le proxy CNES
@@ -49,14 +46,7 @@ pipeline {
         JFROG_CLI_BUILD_NAME = "${env.JOB_NAME}".replace('%2F', ':')
         // Build number pour jfrog cli. Utilise le numero de build de Jenkins pour faciliter le lien entre le build Jenkins et celui d'Artifactory
         JFROG_CLI_BUILD_NUMBER = "${env.BUILD_NUMBER}"
-        // Variable definissant toutes les variables d'environnement qui ne seront pas transmis à Artifactory. Il faut exclure les credentials
-        // Liste non exhaustive
-        JFROG_CLI_ENV_EXCLUDE = "*token*;*cred*;*proxy*;*secret*;*key*;*password*"
         sonarqube_host = "sonarqube.cnes.fr"
-        artifactory_host = "https://artifactory.cnes.fr/"
-        artifactoryUrl = "https://artifactory.cnes.fr/artifactory"
-        artifactoryRegistryUrl = "artifactory.cnes.fr/docker/"
-        gitlab_host = "https://gitlab.cnes.fr/"
         ARTI_URL_WITH_TOKEN = "https://${ARTI_TOKEN_USR}:${ARTI_TOKEN_PSW}@artifactory.cnes.fr/artifactory"
     }
 	
@@ -99,14 +89,10 @@ pipeline {
                             steps {
                                 sh '''
                                 # Configuration du serveur Artifactory
-                                jfrog rt config '''+SERVERID+''' --url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --enc-password --interactive=false
+                                jfrog config add '''+SERVERID+''' --artifactory-url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --enc-password --interactive=false                   
 
                                 # Enregistrement des informations Git
-                                jfrog rt build-add-git --server-id '''+SERVERID+'''
-
-                                # Collecte des variables d'environnement pour ensuite les ajouter aux informations de construction:
-                                jfrog rt bce
-                                '''
+                                jfrog rt build-add-git --server-id '''+SERVERID
                             }
                         }
 
@@ -121,7 +107,7 @@ pipeline {
 
                                 """
                                 script {
-                                    docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
+                                    docker.withRegistry(ARTI_URL, 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh """
 					                        ls .
                                             mkdir -p certs
@@ -144,17 +130,19 @@ pipeline {
                         stage('livraison') {
                             steps {
                                 script {
-                                    docker.withRegistry("${artifactory_host}/artifactory", 'OBS2CO_ARTIFACTORY_TOKEN') {
+                                    docker.withRegistry(ARTI_URL, 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
                                         VERSION_GRS=\$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
                                         echo \$VERSION_GRS
 					                    docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
-                                        docker push artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
-                                        docker push artifactory.cnes.fr/obs2co-docker/grs:latest
+                                        
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:\$VERSION_GRS obs2co-docker
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:latest obs2co-docker
+                                        
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
-                                        #jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
+                                        jfrog rt bp --server-id ${SERVERID} --build-url ${BUILD_URL}
                                         """
                                     }
  
@@ -196,7 +184,7 @@ pipeline {
                                 script {
                                     if (params.LAUNCH_XRAY) {
                                         // Analyse Xray de l'artefact. Ne fait pas echouer le build si le scan echoue grace a la commande --fail
-                                        sh "jfrog rt bs --server-id ${SERVERID} --url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --fail=false"
+                                        sh '''jfrog rt bs --server-id '''+ SERVERID + ''' --fail=false'''
                                     }                                    
                                 }
                             }
