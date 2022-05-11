@@ -21,9 +21,7 @@ pipeline {
     }
 
     environment {
-        VERSION=1.4
         ARTI_TOKEN = credentials('OBS2CO_ARTIFACTORY_TOKEN')
-        DOCKER_TOKEN = credentials('DOCKER_TOKEN')
         ARTI_URL = "https://artifactory.cnes.fr/artifactory"
         SONAR_TOKEN=credentials('OBS2CO_SONAR_CREDENTIALS')
         // Specifie le chemin contenant des fichiers pour l'utilisation de sonar scanner. Jenkins se basera sur le workspace comme base de chemin
