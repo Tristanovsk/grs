@@ -1,7 +1,7 @@
 {
     "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
     "maja_xml" : "",
-    "dem"_path" : "/datalake/watcal/auxdata/dem",
+    "dem_path" : "/datalake/watcal/auxdata/dem",
     "data_root" : '/datalake/watcal/GRS/grsdata',
     "tmp_dir" : '/tmp',
     "aerosol": "cams_forecast",
