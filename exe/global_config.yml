@@ -1,7 +1,7 @@
 {
     "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
     "maja_xml" : "",
-    "auxdata_path" : "/datalake/watcal/auxdata",
+    "dem"_path" : "/datalake/watcal/auxdata/dem",
     "data_root" : '/datalake/watcal/GRS/grsdata',
     "tmp_dir" : '/tmp',
     "aerosol": "cams_forecast",
@@ -11,15 +11,15 @@
     "level" : "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    "hymotep_config":"/app/grs/exe/hymotep_config.yml",
+    "hymotep_config": "/app/grs/exe/hymotep_config.yml",
     #"hymotep_config":"./hymotep_config.yml",
     "logfile": "/tmp/logger.txt",
     "shapefile": "/app/grs/test/data/shape/SPO04.shp",
     #"shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "waterdetect_only": "",
-    "noclobber":True,
-    "activate_dem":True,
+    "noclobber": True,
+    "activate_dem": True,
     "xblock": 512,
     "yblock": 512
 }
