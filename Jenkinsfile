@@ -137,8 +137,8 @@ pipeline {
                                         echo \$VERSION_GRS
 					                    docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
                                         
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:\$VERSION_GRS obs2co-docker
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} ${artifactory_host}/obs2co-docker/grs:latest obs2co-docker
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS obs2co-docker
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} artifactory.cnes.fr/obs2co-docker/grs:latest obs2co-docker
                                         
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
@@ -152,15 +152,7 @@ pipeline {
                             }
                         }
 
-                        stage('test docker') {
-                            steps {
-                            sh '''
-                                docker run -v /datalake:/datalake --name grs -d artifactory.cnes.fr/obs2co-docker/grs:latest python /app/grs/exe/launcher.py
-                                sleep 30
-                                docker logs grs
-                            '''
-                            }
-                        }
+                        
 
                         //stage('singularity') {
                         //    steps {
@@ -184,7 +176,7 @@ pipeline {
                                 script {
                                     if (params.LAUNCH_XRAY) {
                                         // Analyse Xray de l'artefact. Ne fait pas echouer le build si le scan echoue grace a la commande --fail
-                                        sh '''jfrog rt bs --server-id '''+ SERVERID + ''' --fail=false'''
+                                        sh '''jfrog rt bs --server-id '''+ ${SERVERID} + ''' --fail=false'''
                                     }                                    
                                 }
                             }
