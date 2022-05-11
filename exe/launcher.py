@@ -41,20 +41,6 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
-    try:
-        if data['activate_dem']:
-            if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
-                import shutil
-                print("removing /tmp/grs/.snap/auxdata/dem ...")
-                shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
-            os.symlink(data['auxdata_path']+"/dem/", "/tmp/grs/.snap/auxdata/dem")
-    except Exception as error:
-        logging.debug(error)
-
-    os.environ['DATA_ROOT'] = data['data_root']
-    os.environ['CAMS_PATH'] = data['cams_folder']
-
-    from grs import grs_process
     from logging.handlers import RotatingFileHandler
 
     # file handle
@@ -66,7 +52,25 @@ if __name__ == '__main__':
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-    
+
+    print(os.path.exists("/tmp/grs/.snap/auxdata/dem"))
+    print(os.path.islink("/tmp/grs/.snap/auxdata/dem"))
+
+    try:
+        if data['activate_dem']:
+            if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
+                import shutil
+                logging.info("removing /tmp/grs/.snap/auxdata/dem ...")
+                shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+            os.symlink(data['dem_path'], "/tmp/grs/.snap/auxdata/dem")
+    except Exception as error:
+        logging.debug(error)
+
+    os.environ['DATA_ROOT'] = data['data_root']
+    os.environ['CAMS_PATH'] = data['cams_folder']
+
+    from grs import grs_process
+
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
 
