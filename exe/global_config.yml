@@ -1,25 +1,28 @@
 {
-    "input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
+    #"input_file" : "/datalake/watcal/INPUT_TEST/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE",
+    #"input_file": "/datalake/S2-L1C/33PVQ/2022/01/23/S2A_MSIL1C_20220123T092301_N0301_R093_T33PVQ_20220123T130718.SAFE",
+    #"input_file": "/datalake/watcal/INPUT_TEST/S2A_MSIL1C_20220411T101601_N0400_R065_T31TGH_20220411T124038.SAFE",
+    "input_file": "/datalake/S2-L1C/33TVF/2022/04/10/S2B_MSIL1C_20220410T100029_N0400_R122_T33TVF_20220410T121931.SAFE",
     "maja_xml" : "",
     "dem_path" : "/datalake/watcal/auxdata/dem",
     "data_root" : '/datalake/watcal/GRS/grsdata',
     "tmp_dir" : '/tmp',
-    "aerosol": "cams_forecast",
+    "aerosol": "cds_forecast",
     "cams_folder" : '/datalake/watcal/ECMWF/CAMS',
     "chain_version" : 1.0,
     "product_counter" : 003,
     "level" : "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "outfile": "", # by default, +-=input_file 
-    "hymotep_config": "/app/grs/exe/hymotep_config.yml",
-    #"hymotep_config":"./hymotep_config.yml",
-    "logfile": "/tmp/logger.txt",
-    "shapefile": "/app/grs/test/data/shape/SPO04.shp",
+    "hymotep_config":"/app/grs/exe/hymotep_config.yml",
+    #"hymotep_config":"./exe/hymotep_config.yml",
+    "logfile": "/tmp/log.txt",
+    "shapefile": "",
     #"shapefile": "../test/data/shape/SPO04.shp",
     "waterdetect_file" : "",
     "waterdetect_only": "",
-    "noclobber": True,
-    "activate_dem": True,
-    "xblock": 512,
-    "yblock": 512
-}
+    "noclobber":True,
+    "xblock":512,
+    "yblock":512,
+    "activate_dem":True
+    }

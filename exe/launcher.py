@@ -53,8 +53,10 @@ if __name__ == '__main__':
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    print(os.path.exists("/tmp/grs/.snap/auxdata/dem"))
-    print(os.path.islink("/tmp/grs/.snap/auxdata/dem"))
+    logging.info("dem is existing" + str(os.path.exists("/tmp/grs/.snap/auxdata/dem")))
+    logging.debug("dem is a link :" + str(os.path.islink("/tmp/grs/.snap/auxdata/dem")))
+
+    from grs import grs_process
 
     try:
         if data['activate_dem']:
@@ -69,7 +71,7 @@ if __name__ == '__main__':
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
-    from grs import grs_process
+    #from grs import grs_process
 
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
