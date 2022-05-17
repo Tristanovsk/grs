@@ -56,6 +56,9 @@ if __name__ == '__main__':
     logging.info("dem is existing" + str(os.path.exists("/tmp/grs/.snap/auxdata/dem")))
     logging.debug("dem is a link :" + str(os.path.islink("/tmp/grs/.snap/auxdata/dem")))
 
+    os.environ['DATA_ROOT'] = data['data_root']
+    os.environ['CAMS_PATH'] = data['cams_folder']
+
     from grs import grs_process
 
     try:
@@ -67,9 +70,6 @@ if __name__ == '__main__':
             os.symlink(data['dem_path'], "/tmp/grs/.snap/auxdata/dem")
     except Exception as error:
         logging.debug(error)
-
-    os.environ['DATA_ROOT'] = data['data_root']
-    os.environ['CAMS_PATH'] = data['cams_folder']
 
     #from grs import grs_process
 
