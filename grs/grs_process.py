@@ -347,10 +347,18 @@ class process:
         fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
         # set mean SSA value to adjust scattering AOT when info is not available
         ssacoef = 0.99
+
+
+        #TODO regrouper avec les recuperation des cams plus haut
         if l2h.aerosol == 'cds_forecast':
 
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
+            cams_file=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
+                                 l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
+            if(not os.path.exists(target)):
+               cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                                      '_month_cams-global-atmospheric-composition-forecasts.nc')
+            logging.info(str(cams_file)+" cams file would be used for aerosols")
+
             l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h, lutf, lutc)
             aot550rast = l2h.aux.aot_sca_550  # .T
             fcoefrast = l2h.aux.fcoef
