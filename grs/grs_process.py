@@ -266,20 +266,20 @@ class process:
 
         if ancillary != 'default':
             if l2h.aerosol == 'cds_forecast':
-                target=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
+                cams_file=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
                                  l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
-                if(not os.path.exists(target)):
-                    target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                if(not os.path.exists(cams_file)):
+                    cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
-                logging.info(str(target)+" cams file would be used")
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
+                logging.info(str(cams_file)+" cams file would be used")
+                l2h.aux.get_cams_ancillary(cams_file, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
             else:
-                target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                cams_file = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
                                            l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
-                logging.info(str(target)+" cams file would be used")
+                logging.info(str(cams_file)+" cams file would be used")
                 # do not load here since already implemented elsewhere in CNES HPC
                 # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
+                l2h.aux.get_cams_ancillary(cams_file, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
         # if 'S2' in sensor:
@@ -348,16 +348,7 @@ class process:
         # set mean SSA value to adjust scattering AOT when info is not available
         ssacoef = 0.99
 
-
-        #TODO regrouper avec les recuperation des cams plus haut
         if l2h.aerosol == 'cds_forecast':
-
-            cams_file=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
-                                 l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
-            if(not os.path.exists(cams_file)):
-               cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                      '_month_cams-global-atmospheric-composition-forecasts.nc')
-            logging.info(str(cams_file)+" cams file would be used for aerosols")
 
             l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h, lutf, lutc)
             aot550rast = l2h.aux.aot_sca_550  # .T
@@ -385,13 +376,6 @@ class process:
             # CAMS dataset
             elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
 
-                # monthly file
-                # target = Path(
-                #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-                #                  l2h.aerosol + '.nc'))
-                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
-                                         l2h.date.strftime('%Y-%m') + '_month_' +
-                                         l2h.aerosol + '.nc')
                 l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
                 aotscarast = ssacoef*l2h.aux.aot
                 aot550rast = l2h.aux.aot550rast  # .T
