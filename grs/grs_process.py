@@ -354,7 +354,7 @@ class process:
 
             cams_file=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
                                  l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
-            if(not os.path.exists(target)):
+            if(not os.path.exists(cams_file)):
                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
             logging.info(str(cams_file)+" cams file would be used for aerosols")
