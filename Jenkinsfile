@@ -50,7 +50,7 @@ pipeline {
 	
     parameters{
         booleanParam(name: 'DEBUG', defaultValue: false, description: 'Mode debug, ne nettoie pas le workspace à la fin')
-        booleanParam(name: 'LAUNCH_XRAY', defaultValue: true, description: 'Lance les scans Xray dans le job')
+        booleanParam(name: 'LAUNCH_XRAY', defaultValue: false, description: 'Lance les scans Xray dans le job')
     }
 
 
