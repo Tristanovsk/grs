@@ -182,11 +182,11 @@ for idx, site in sites.iterrows():
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
                           dem,l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
-command = []
-for args in misc.chunk(iter(args_list), 1):
-    command.append(args)
+# command = []
+# for args in misc.chunk(iter(args_list), 1):
+#     command.append(args)
 
 with Pool(processes=ncore) as pool:
-    print(pool.map(multi_process().grs_cnes, command, 1))
+    print(pool.map(multi_process().grs_cnes, args_list, 1))
     pool.close()
     pool.join()
