@@ -139,6 +139,7 @@ From terminal:
 ```
 grs test/data/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 ```
+
 You should get something like:
 
 ![image_output](images/example_snap_grs_image.png)
@@ -146,6 +147,13 @@ You should get something like:
 Another examples of output images before (1st column) and after  (2nd column) sunglint correction:
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
+
+### Lauch with docker :
+```
+qsub -q qdev -I -l walltime=4:00:00
+
+/opt/bin/drunner run -it -v /datalake/watcal:/datalake/watcal artifactory.cnes.fr/obs2co-docker/grs:1.4.0 python /app/grs/exe/launcher.py /app/grs/exe//app/grs/exe/global_config.yml
+```
 
 ## Deployment
 
