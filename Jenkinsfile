@@ -87,7 +87,7 @@ pipeline {
                             steps {
                                 sh '''
                                 # Configuration du serveur Artifactory
-                                jfrog config add '''+SERVERID+''' --artifactory-url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --enc-password --interactive=false                   
+                                jfrog config add '''+SERVERID+''' --artifactory-url='''+ARTI_URL+''' --user=$ARTI_TOKEN_USR --access-token=$ARTI_TOKEN_PSW --enc-password --interactive=false            
 
                                 # Enregistrement des informations Git
                                 jfrog rt build-add-git --server-id '''+SERVERID
