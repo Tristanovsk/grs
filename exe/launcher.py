@@ -41,6 +41,21 @@ if __name__ == '__main__':
     with open(config_file, 'r') as yamlfile:
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
+    try:
+        if not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
+            import shutil
+            print("removing /tmp/grs/.snap/auxdata/dem ...")
+            shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+        else:
+            os.symlink(data['auxdata_path']+"/dem", "/tmp/grs/.snap/auxdata/dem")
+    except Exception as error:
+        logging.debug(error)
+        logging.debug("check the symbolic link from "+data['auxdata_path']+"to /tmp/grs/.snap/auxdata/dem")
+
+    os.environ['DATA_ROOT'] = data['data_root']
+    os.environ['CAMS_PATH'] = data['cams_folder']
+
+    from grs import grs_process
     from logging.handlers import RotatingFileHandler
 
     # file handle
