@@ -112,7 +112,7 @@ pipeline {
                                         #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
                                             cp /etc/pki/ca-trust/source/anchors/AC*.crt certs/
                                         #transmission des credentials proxy à l'image en passant par le système de secrets
-                                            DOCKER_BUILDKIT=1 docker build -t artifactory.cnes.fr/obs2co-docker/grs:latest --no-cache \
+                                            DOCKER_BUILDKIT=1 docker build -f Dockerfile-snap -t artifactory.cnes.fr/obs2co-docker/snap:latest --no-cache \
                                             --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/snap-contrib/docker-snap \
                                             --build-arg NO_PROXY=cnes.fr \
                                             --secret id=proxy_http_cnes,src=http_proxy.txt \
@@ -131,12 +131,8 @@ pipeline {
                                     docker.withRegistry(ARTI_URL, 'OBS2CO_ARTIFACTORY_TOKEN') {
                                         sh  """
                                         # Publie sur Artifactory
-                                        VERSION_GRS=\$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
-                                        echo \$VERSION_GRS
-					                    docker tag artifactory.cnes.fr/obs2co-docker/grs:latest artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS
-                                        
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} artifactory.cnes.fr/obs2co-docker/grs:\$VERSION_GRS obs2co-docker
-                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} artifactory.cnes.fr/obs2co-docker/grs:latest obs2co-docker
+
+                                        jfrog rt docker-push --skip-login --server-id ${SERVERID} artifactory.cnes.fr/obs2co-docker/snap:latest obs2co-docker
                                         
             
                                         # Publication de l'objet build-info dans Artifactory. La variable BUILD_URL est une variable defini par Jenkins.
@@ -150,25 +146,7 @@ pipeline {
                             }
                         }
 
-                        
-
-                        //stage('singularity') {
-                        //    steps {
-                        //    sh '''
-                        //        module load singularity
-                        //        # Contournement pb de path sur noeud hpc pour mksquashfs
-                        //        #export PATH=/usr/sbin:$PATH
-                        //        export no_proxy=cnes.fr
-                        //        export SINGULARITY_DOCKER_USERNAME="${ARTI_TOKEN_USR}"
-                        //        export SINGULARITY_DOCKER_PASSWORD="${ARTI_TOKEN_PSW}"
-                        //        singularity cache clean -f
-                        //        singularity build grs.sif docker://artifactory.cnes.fr/obs2co-docker/grs:latest
-                        //        singularity -d pull artifactory.cnes.fr/obs2co-docker/grs:latest
-                        //    '''
-                        //    }
-                        //}
-
-                        
+                                                
                         stage('analyse Xray') {
                             steps {
                                 script {

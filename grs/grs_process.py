@@ -32,7 +32,8 @@ class process:
     def execute(self, file, outfile, wkt=None, sensor=None, aerosol='default', ancillary=None, altitude=0,
                 dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
                 startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
-                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO"):
+                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO", 
+                xblock=512, yblock=512):
         '''
         Main program calling all GRS steps
 
@@ -265,15 +266,20 @@ class process:
 
         if ancillary != 'default':
             if l2h.aerosol == 'cds_forecast':
-                target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
+                cams_file=os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),l2h.date.strftime('%m'),l2h.date.strftime('%d'),
+                                 l2h.date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
+                if(not os.path.exists(cams_file)):
+                    cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
                                       '_month_cams-global-atmospheric-composition-forecasts.nc')
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
+                logging.info(str(cams_file)+" cams file would be used")
+                l2h.aux.get_cams_ancillary(cams_file, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
             else:
-                target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
+                cams_file = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
                                            l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
+                logging.info(str(cams_file)+" cams file would be used")
                 # do not load here since already implemented elsewhere in CNES HPC
                 # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
+                l2h.aux.get_cams_ancillary(cams_file, l2h.date, l2h.wkt)
 
         ## uncomment this part to use ecmwf files provided in the .SAFE format
         # if 'S2' in sensor:
@@ -342,10 +348,9 @@ class process:
         fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
         # set mean SSA value to adjust scattering AOT when info is not available
         ssacoef = 0.99
+
         if l2h.aerosol == 'cds_forecast':
 
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
             l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h, lutf, lutc)
             aot550rast = l2h.aux.aot_sca_550  # .T
             fcoefrast = l2h.aux.fcoef
@@ -372,13 +377,6 @@ class process:
             # CAMS dataset
             elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
 
-                # monthly file
-                # target = Path(
-                #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-                #                  l2h.aerosol + '.nc'))
-                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
-                                         l2h.date.strftime('%Y-%m') + '_month_' +
-                                         l2h.aerosol + '.nc')
                 l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
                 aotscarast = ssacoef*l2h.aux.aot
                 aot550rast = l2h.aux.aot550rast  # .T
@@ -482,9 +480,8 @@ class process:
         #      Second step: Atmosphere and surface correction
         ######################################
         # TODO put chunck size in config yaml file
-        xblock, yblock = 512, 512
         for iy in range(0, w, yblock):
-            print('process row ' + str(iy) + ' / ' + str(h))
+            logging.info('process row ' + str(iy) + ' / ' + str(h))
             yc = iy + yblock
             if yc > w:
                 yc = w
@@ -580,7 +577,7 @@ class process:
                          ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
                  ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                  )
-        print(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
+        #logging.info(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
         l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
         l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
         l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
@@ -590,8 +587,10 @@ class process:
             l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
                 writePixels(0, 0, w, h, rcorrg[iband])
 
+        logging.info("finishing writing product...")
         l2h.finalize_product()
 
+        logging.info("If no error occured, product is available here : "+outfile)
         if unzip:
             # remove unzipped files (Sentinel files)
             shutil.rmtree(file, ignore_errors=True)
