@@ -9,8 +9,8 @@ list_file="exe/list/list_grs_cnes_seine.csv"
 
 year=2022
 for tiledate in `awk -F ',' 'NR > 1 && $1 == 1 {print $6$3}'  $list_file`; do
-   tile=${tiledate:0:5}
-   year=${tiledate:5:4}
+   tile=30TXR #${tiledate:0:5}
+   year=2022 #${tiledate:5:4}
    echo rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile/$year dropbox_harmel:/satellite/S2/cnes/$tile/$year
    #rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile dropbox_harmel:/satellite/S2/cnes/$tile
    rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile/$year dropbox_harmel:/satellite/S2/cnes/$tile/$year
