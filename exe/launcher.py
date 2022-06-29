@@ -42,7 +42,7 @@ if __name__ == '__main__':
         data = yaml.load(yamlfile, Loader=yaml.FullLoader)
 
     try:
-        if !os.path.islink("/tmp/grs/.snap/auxdata/dem"):
+        if not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
             import shutil
             print("removing /tmp/grs/.snap/auxdata/dem ...")
             shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
@@ -62,16 +62,34 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     file_handler = RotatingFileHandler(data['logfile'], 'a', 1000000, 1)
     formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-    
 
     level = logging.getLevelName(data['level'])
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-    
+
+    logging.info("dem is existing" + str(os.path.exists("/tmp/grs/.snap/auxdata/dem")))
+    logging.debug("dem is a link :" + str(os.path.islink("/tmp/grs/.snap/auxdata/dem")))
+
+    os.environ['DATA_ROOT'] = data['data_root']
+    os.environ['CAMS_PATH'] = data['cams_folder']
+
+    from grs import grs_process
+
+    try:
+        if data['activate_dem']:
+            if os.path.exists("/tmp/grs/.snap/auxdata/dem") and not os.path.islink("/tmp/grs/.snap/auxdata/dem"):
+                import shutil
+                logging.info("removing /tmp/grs/.snap/auxdata/dem ...")
+                shutil.rmtree("/tmp/grs/.snap/auxdata/dem")
+            os.symlink(data['dem_path'], "/tmp/grs/.snap/auxdata/dem")
+    except Exception as error:
+        logging.debug(error)
+
+    #from grs import grs_process
+
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
-
 
     for key, value in data.items():
         if(value is not None and value!=''):
@@ -145,7 +163,8 @@ if __name__ == '__main__':
         startrow=startrow, maja_xml=data["maja_xml"],
         waterdetect_file=data["waterdetect_file"], 
         waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
-        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"])
+        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"], xblock=data["xblock"],
+        yblock=data["yblock"])
     except Exception as inst:
         logging.info('-------------------------------')
         logging.info('error for file  ', inst, ' skip')
