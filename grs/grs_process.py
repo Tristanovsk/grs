@@ -436,11 +436,6 @@ class process:
         # reshaping for fortran binding
         ######################################
 
-        aot550guess = np.zeros(l2h.width, dtype=l2h.type)
-        rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-        rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-        maskpixels_ = np.full(l2h.width, 1, dtype=l2h.type, order='F')
-
         w, h = l2h.width, l2h.height
 
         rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
@@ -452,6 +447,8 @@ class process:
         l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)
         l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
         l2h.l2_product.getBand('AZI').writePixels(0, 0, w, h, np.array(l2h.razi[1]))
+        l2h.l2_product.getBand('ndwi').writePixels(0, 0, w, h, l2h.ndwi)
+        l2h.l2_product.getBand('ndwi_swir').writePixels(0, 0, w, h, l2h.ndwi_swir)
 
         ######################################
         #      Add terrain attributes
@@ -461,7 +458,7 @@ class process:
             l2h.slope, l2h.shade = _utils.get_dem_attributes(l2h.elevation, sza=sza_mean, sun_azi=sazi_mean)
             # add elevation band
             l2h.l2_product.getBand('elevation').writePixels(0, 0, w, h, l2h.elevation)
-            l2h.l2_product.getBand('slope').writePixels(0, 0, w, h, l2h.slope)
+            #l2h.l2_product.getBand('slope').writePixels(0, 0, w, h, l2h.slope)
             l2h.l2_product.getBand('shade').writePixels(0, 0, w, h, l2h.shade)
 
         ######################################
@@ -504,7 +501,7 @@ class process:
                 flags = l2h.flags[ix:xc, iy:yc]
                 band_rad = l2h.band_rad[:, ix:xc, iy:yc]
 
-                maskpixels = maskpixels_
+                maskpixels = flags
                 if allpixels:
                     maskpixels = maskpixels * 0
                 elif waterdetect_only:
@@ -566,17 +563,15 @@ class process:
         rcorr[rcorr == l2h.nodata] = np.nan
         rcorrg[rcorrg == l2h.nodata] = np.nan
 
-        ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
-                             (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
+
         # set flags
         l2h.flags = l2h.flags + \
                 ((l2h.mask == 1) +
                  (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                 ((l2h.mask == 2) << 2) +
-                 (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
-                         ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
+                 #((l2h.mask == 2) << 2) +
                  ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
                  )
+
         #logging.info(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
         l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
         l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
