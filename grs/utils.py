@@ -525,12 +525,12 @@ class info:
         # WARNING: mask_id must remain smaller than 32 (binary coding)
         mask_id += 1
         additional_f = []
-        if self.maja:
+        #if self.maja:
 
-            for i, mask in enumerate(self.maja_masks):
-                logging.info('Mask binary '+ str(mask_id))
-                additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
-                mask_id += 1
+        for i, mask in enumerate(self.maja_masks):
+            logging.info('Mask binary '+ str(mask_id))
+            additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
+            mask_id += 1
 
         if self.waterdetect:
             logging.info('waterdetect mask '+ mask_id)
@@ -547,13 +547,14 @@ class info:
         # WARNING: mask_id must remain smaller than 32 (binary coding)
 
         mask_id = 0
-        if self.maja:
+        # to get fixed format of output image put the MAJA flags even if not available
+        #if self.maja:
 
-            for i, mask in enumerate(self.maja_masks):
-                f = additional_f[mask_id]
-                ac_product.addMask('' + f.getName(), 'flags.' + f.getName(),
-                                   f.getDescription(), colors[mask_id], 0.3)
-                mask_id += 1
+        for i, mask in enumerate(self.maja_masks):
+            f = additional_f[mask_id]
+            ac_product.addMask('' + f.getName(), 'flags.' + f.getName(),
+                               f.getDescription(), colors[mask_id], 0.3)
+            mask_id += 1
 
         if self.waterdetect:
             f = additional_f[mask_id]
@@ -620,17 +621,17 @@ class info:
         ac_product.getBand(bname).setDescription('aerosol optical thickness at 550 nm ')  # + self.band_names[iband])
 
         # if maja option is on, copy aerosol optical thickness product from MAJA L2A image
-        if self.maja:
-            bname = 'aot_maja'  # + self.band_names[iband]
-            acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
-            # acband.setSpectralWavelength(self.wl[iband])
-            # acband.setSpectralBandwidth(self.b[iband].getSpectralBandwidth())
-            acband.setModified(True)
-            acband.setNoDataValue(np.nan)
-            acband.setNoDataValueUsed(True)
-            acband.setValidPixelExpression(expr_valid_pixel + ' && ' + bname + ' >= 0')
-            ac_product.getBand(bname).setDescription(
-                'AOT product from MAJA processing (L2A)')  # + self.band_names[iband])
+        #if self.maja:
+        bname = 'aot_maja'  # + self.band_names[iband]
+        acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
+        # acband.setSpectralWavelength(self.wl[iband])
+        # acband.setSpectralBandwidth(self.b[iband].getSpectralBandwidth())
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        acband.setValidPixelExpression(expr_valid_pixel + ' && ' + bname + ' >= 0')
+        ac_product.getBand(bname).setDescription(
+            'AOT product from MAJA processing (L2A)')  # + self.band_names[iband])
 
         # Viewing geometry
         acband = ac_product.addBand('SZA', ProductData.TYPE_FLOAT32)
