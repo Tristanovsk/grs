@@ -143,7 +143,7 @@ class info:
         self.description = product.getDescription()
         # self.band_names = product.getBandNames()
         print(product.getStartTime())
-        if(((product.getStartTime())) is not None):
+        if (((product.getStartTime())) is not None):
             self.date = parser.parse(str(product.getStartTime()))
 
     def get_bands(self, band_names=None):
@@ -303,7 +303,6 @@ class info:
 
         # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
 
-
     def load_flags(self):
         '''
         Set flags from L1 data (must be called after `load_data`
@@ -315,6 +314,15 @@ class info:
                              (self.band_rad[self.sensordata.NDWI_vis] + self.band_rad[self.sensordata.NDWI_nir]))
         ndwi_ = (self.ndwi < self.sensordata.NDWI_threshold[0]) | (self.ndwi > self.sensordata.NDWI_threshold[1])
         self.mask[ndwi_] = 2
+        self.flags = self.flags + (ndwi_ << 2)
+
+        # compute NDWI and set corresponding mask
+        self.ndwi_swir = np.array(
+            (self.band_rad[self.sensordata.NDWI_swir_nir] - self.band_rad[self.sensordata.NDWI_swir_swir]) /
+            (self.band_rad[self.sensordata.NDWI_swir_nir] + self.band_rad[self.sensordata.NDWI_swir_swir]))
+        ndwi_swir_ = (self.ndwi_swir < self.sensordata.NDWI_swir_threshold[0]) | (
+                    self.ndwi_swir > self.sensordata.NDWI_swir_threshold[1])
+        self.flags = self.flags + (ndwi_swir_ << 3)
 
         # --------------------------------
         # set mask cloud mask and/or export L1 flags
@@ -340,8 +348,6 @@ class info:
             shadow = self.get_flag(self.product, self.sensordata.shadow_flag)
             self.flags = self.flags + (shadow << 10)
 
-
-
         # -------------------
         # for Sentinel 2
         # if MAJA L2A image is provided load MAJA flags
@@ -350,17 +356,17 @@ class info:
             logging.info("copying MAJA masks...")
             # CLM masks
             masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
-            logging.info('CLM '+str(np.unique(masks << mask_id)))
-            logging.info('flags '+str( np.unique(self.flags)))
+            logging.info('CLM ' + str(np.unique(masks << mask_id)))
+            logging.info('flags ' + str(np.unique(self.flags)))
             self.flags = self.flags + (masks << mask_id)
-            logging.info('flags '+str(np.unique(self.flags)))
+            logging.info('flags ' + str(np.unique(self.flags)))
             mask_id += len(self.clm_masks)
 
             # MG2 masks
             masks = self.get_raster(self.maja, 'Aux_Mask_MG2_R1', dtype=np.uint32)
-            logging.info('MG2 '+str(np.unique(masks << mask_id)))
+            logging.info('MG2 ' + str(np.unique(masks << mask_id)))
             self.flags = self.flags + (masks << mask_id)
-            logging.info('flags '+str(np.unique(self.flags)))
+            logging.info('flags ' + str(np.unique(self.flags)))
             mask_id += len(self.mg2_masks)
 
         # -------------------
@@ -480,33 +486,38 @@ class info:
         Color = jpy.get_type('java.awt.Color')
         colors = [Color.BLUE, Color.YELLOW, Color.RED, Color.PINK, Color.MAGENTA, Color.GREEN, Color.GRAY] * 10
         coding = FlagCoding('flags')
-        f=[None]*32
+        f = [None] * 32
         mask_id = 0
         f[mask_id] = coding.addFlag("nodata", 2 ** mask_id, "nodata in input image ")
         mask_id += 1
         f[mask_id] = coding.addFlag("negative", 2 ** mask_id, "negative values in visible ")
         mask_id += 1
-        f[mask_id] = coding.addFlag("ndwi", 2 ** mask_id, "based on ndwi vis nir TOA based on bands "+
-                            self.band_names[self.sensordata.NDWI_vis]+" and "+
-                            self.band_names[self.sensordata.NDWI_nir]+
-                            " for range "+str(self.sensordata.NDWI_threshold))
+        f[mask_id] = coding.addFlag("ndwi", 2 ** mask_id, "based on ndwi vis nir TOA based on bands " +
+                                    self.band_names[self.sensordata.NDWI_vis] + " and " +
+                                    self.band_names[self.sensordata.NDWI_nir] +
+                                    " for range " + str(self.sensordata.NDWI_threshold))
         mask_id += 1
-        f[mask_id] = coding.addFlag("ndwi_corr", 2 ** mask_id, "based on ndwi vis nir after atmosperic correction ")
+        f[mask_id] = coding.addFlag("ndwi_swir", 2 ** mask_id, "based on ndwi nir swir TOA based on bands" +
+                                    self.band_names[self.sensordata.NDWI_swir_nir] + " and " +
+                                    self.band_names[self.sensordata.NDWI_swir_swir] +
+                                    " for range " + str(self.sensordata.NDWI_swir_threshold))
         mask_id += 1
-        f[mask_id] = coding.addFlag("high_nir", 2 ** mask_id, "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
-                            self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
-                            self.sensordata.high_nir[1]))
+        f[mask_id] = coding.addFlag("high_nir", 2 ** mask_id,
+                                    "high radiance in the nir band (e.g., cloud, snow); condition Rrs_g at " +
+                                    self.band_names[self.sensordata.high_nir[0]] + " greater than " + str(
+                                        self.sensordata.high_nir[1]))
         mask_id += 1
-        f[mask_id] = coding.addFlag("hicld", 2 ** mask_id, "high cloud as observed from cirrus band; condition Rtoa at band " +
-                            self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
+        f[mask_id] = coding.addFlag("hicld", 2 ** mask_id,
+                                    "high cloud as observed from cirrus band; condition Rtoa at band " +
+                                    self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
         mask_id += 1
         f[mask_id] = coding.addFlag("moderate_cloud_risk_O2band", 2 ** mask_id,
                                     "moderate risk of bright cloud as observed from O2 band; condition Rtoa at band " +
-                            self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[1]))
+                                    self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[1]))
         mask_id += 1
         f[mask_id] = coding.addFlag("high_cloud_risk_O2band", 2 ** mask_id,
                                     "high risk of bright cloud as observed from O2 band; condition Rtoa at band " +
-                            self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[2]))
+                                    self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[2]))
         mask_id += 1
         f[mask_id] = coding.addFlag("L1_opaque_clouds", 2 ** mask_id, " flag from L1 image ")
         mask_id += 1
@@ -518,28 +529,26 @@ class info:
             ac_product.addMask('mask_' + f[i_f].getName(), 'flags.' + f[i_f].getName(),
                                f[i_f].getDescription(), colors[i_f], 0.3)
 
-
         # -------------------
         # for Sentinel 2
         # if MAJA L2A / WaterDetect provided, load respective flags
         # WARNING: mask_id must remain smaller than 32 (binary coding)
         mask_id += 1
         additional_f = []
-        #if self.maja:
+        # if self.maja:
 
         for i, mask in enumerate(self.maja_masks):
-            logging.info('Mask binary '+ str(mask_id))
+            logging.info('Mask binary ' + str(mask_id))
             additional_f.append(coding.addFlag(mask, 2 ** mask_id, 'Mask ' + mask + ' imported from MAJA chain'))
             mask_id += 1
 
         if self.waterdetect:
-            logging.info('waterdetect mask '+ mask_id)
+            logging.info('waterdetect mask ' + mask_id)
             additional_f.append(
                 coding.addFlag('WaterDetect', 2 ** mask_id, 'Water mask imported from WaterDetect processing'))
 
         ac_product.getFlagCodingGroup().add(coding)
         flags.setSampleCoding(coding)
-
 
         # -------------------
         # for Sentinel 2
@@ -548,7 +557,7 @@ class info:
 
         mask_id = 0
         # to get fixed format of output image put the MAJA flags even if not available
-        #if self.maja:
+        # if self.maja:
 
         for i, mask in enumerate(self.maja_masks):
             f = additional_f[mask_id]
@@ -621,7 +630,7 @@ class info:
         ac_product.getBand(bname).setDescription('aerosol optical thickness at 550 nm ')  # + self.band_names[iband])
 
         # if maja option is on, copy aerosol optical thickness product from MAJA L2A image
-        #if self.maja:
+        # if self.maja:
         bname = 'aot_maja'  # + self.band_names[iband]
         acband = ac_product.addBand(bname, ProductData.TYPE_FLOAT32)
         # acband.setSpectralWavelength(self.wl[iband])
@@ -652,18 +661,28 @@ class info:
         acband.setNoDataValueUsed(True)
         ac_product.getBand('AZI').setDescription('Mean relative azimuth angle in deg.')
 
+        acband = ac_product.addBand('ndwi', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('ndwi').setDescription("based on ndwi vis nir TOA based on bands " +
+                                                  self.band_names[self.sensordata.NDWI_vis] + " and " +
+                                                  self.band_names[self.sensordata.NDWI_nir])
+
+        acband = ac_product.addBand('ndwi_swir', ProductData.TYPE_FLOAT32)
+        acband.setModified(True)
+        acband.setNoDataValue(np.nan)
+        acband.setNoDataValueUsed(True)
+        ac_product.getBand('ndwi_swir').setDescription("based on ndwi nir swir TOA based on bands " +
+                                                       self.band_names[self.sensordata.NDWI_swir_nir] + " and " +
+                                                       self.band_names[self.sensordata.NDWI_swir_swir])
+
         acband = ac_product.addBand('elevation', ProductData.TYPE_FLOAT32)
         acband.setModified(True)
         acband.setNoDataValue(np.nan)
         acband.setNoDataValueUsed(True)
         # TODO update the name of DEM data set used in function of the input (e.g., SRTM, GETASSE)
         ac_product.getBand('elevation').setDescription('elevation from SRTM 3Sec in meters')
-
-        acband = ac_product.addBand('slope', ProductData.TYPE_FLOAT32)
-        acband.setModified(True)
-        acband.setNoDataValue(np.nan)
-        acband.setNoDataValueUsed(True)
-        ac_product.getBand('slope').setDescription('terrain slope computed from DEM')
 
         acband = ac_product.addBand('shade', ProductData.TYPE_FLOAT32)
         acband.setModified(True)
@@ -850,10 +869,10 @@ class utils:
         op.setParameterDefaultValues()
         # TODO check if taking DEM files from cnes datalake is feasible -> faire un lien symbolique vers auxdata sur datalake
         op.setParameter("demName", "SRTM 3Sec")
-        
-        #srtm_path=cfg.srtm_path
-        #logging.info(srtm_path)
-        #for f in glob.glob(srtm_path+'/*.tif'):
+
+        # srtm_path=cfg.srtm_path
+        # logging.info(srtm_path)
+        # for f in glob.glob(srtm_path+'/*.tif'):
         #    op.setParameter("externalDEMFile", f)
 
         if high_latitude:
@@ -861,7 +880,7 @@ class utils:
         op.setSourceProduct(product)
         return op.getTargetProduct()
 
-    def get_dem_attributes(self,dem,sza=40,sun_azi=90):
+    def get_dem_attributes(self, dem, sza=40, sun_azi=90):
         '''
         Compute slope, aspect and shades from dem for a given Sun geometry
         :param dem: Digital Elevation Model (numpy-like array)
@@ -870,14 +889,14 @@ class utils:
         :return: slope in radians
         :return: shade for "hillshade values"
         '''
-        sza=np.radians(sza)
-        sun_azi=np.radians(sun_azi)
-        dem= rd.rdarray(dem,no_data=np.nan)
-        slope= np.radians(rd.TerrainAttribute(dem, attrib="slope_degrees"))
+        sza = np.radians(sza)
+        sun_azi = np.radians(sun_azi)
+        dem = rd.rdarray(dem, no_data=np.nan)
+        slope = np.radians(rd.TerrainAttribute(dem, attrib="slope_degrees"))
         aspect = rd.TerrainAttribute(dem, attrib="aspect")
         aspect_rd = np.radians(aspect)
-        shade = np.cos(sza) * np.cos(slope) + np.sin(sza)\
-                 * np.sin(slope) * np.cos(sun_azi - aspect_rd)
+        shade = np.cos(sza) * np.cos(slope) + np.sin(sza) \
+                * np.sin(slope) * np.cos(sun_azi - aspect_rd)
         return slope, shade
 
     def get_subset_old(self, product, wkt):
@@ -992,12 +1011,13 @@ class utils:
         return raster.interp(longitude=np.linspace(lonmin, lonmax, 12),
                              latitude=np.linspace(latmax, latmin, 12),
                              kwargs={"fill_value": "extrapolate"}).interp(
-                             longitude=np.linspace(lonmin, lonmax, 512),
-                             latitude=np.linspace(latmax, latmin, 512),
-                             kwargs={"fill_value": "extrapolate"}).interp(
-                             longitude=np.linspace(lonmin, lonmax, w),
-                             latitude=np.linspace(latmax, latmin, h),method="nearest",
-                             kwargs={"fill_value": "extrapolate"})
+            longitude=np.linspace(lonmin, lonmax, 512),
+            latitude=np.linspace(latmax, latmin, 512),
+            kwargs={"fill_value": "extrapolate"}).interp(
+            longitude=np.linspace(lonmin, lonmax, w),
+            latitude=np.linspace(latmax, latmin, h), method="nearest",
+            kwargs={"fill_value": "extrapolate"})
+
     @staticmethod
     def remove_na(arr):
         return arr[~np.isnan(arr)]
