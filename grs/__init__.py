@@ -40,10 +40,12 @@ Version history:
 1.3.4: add slope and shade from DEM
 
 1.4.0: - process image by rectangular chunks
+
+1.5.0: change output parameter with addition of ndwi_nir and ndwi_swir
 '''
 
 __package__ = 'grs'
-__version__ = '1.4.0'
+__version__ = '1.5.0'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac

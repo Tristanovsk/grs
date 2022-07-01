@@ -24,7 +24,7 @@ hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
-NDWI_threshold = [-0.01, 1.]
+NDWI_threshold = [-0.2, 1.]
 
 
 # NDWI_threshold = [-0., 1.]
@@ -100,7 +100,7 @@ class sensordata:
                             0.02896814, 0.02315269, 0.01830901, 0.01549064, 0.00126556, 0.00036496],
                     'rglint': [1.28672512, 1.26815692, 1.24964349, 1.23035937, 1.22478961,
                                1.2202435, 1.21551569, 1.21009995, 1.206616, 1.12458056, 1.],
-                    'ndwi_conf': [2, 7, NDWI_threshold],
+                    'ndwi_conf': [2, 8, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
                     'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
@@ -128,7 +128,7 @@ class sensordata:
                             0.02918357, 0.02351827, 0.01829234, 0.01554304, 0.00127606, 0.00037652],
                     'rglint': [1.27878376, 1.26024821, 1.24195311, 1.22253644, 1.21708874, 1.21269296,
                                1.20815455, 1.20243389, 1.19906708, 1.11793355, 1.],
-                    'ndwi_conf': [2, 7, NDWI_threshold],
+                    'ndwi_conf': [2, 8, NDWI_threshold],
                     'high_nir': [8, high_nir_threshold],
                     'O2band':['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
