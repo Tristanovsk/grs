@@ -510,14 +510,21 @@ class info:
         f[mask_id] = coding.addFlag("hicld", 2 ** mask_id,
                                     "high cloud as observed from cirrus band; condition Rtoa at band " +
                                     self.sensordata.cirrus[0] + " greater than " + str(self.sensordata.cirrus[1]))
+        if self.sensordata.O2band:
+            O2info1 = self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[1])
+            O2info2 = self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[2])
+        else:
+            O2info1 = 'non applicable'
+            O2info2 = O2info1
+
         mask_id += 1
         f[mask_id] = coding.addFlag("moderate_cloud_risk_O2band", 2 ** mask_id,
                                     "moderate risk of bright cloud as observed from O2 band; condition Rtoa at band " +
-                                    self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[1]))
+                                    O2info1)
         mask_id += 1
         f[mask_id] = coding.addFlag("high_cloud_risk_O2band", 2 ** mask_id,
                                     "high risk of bright cloud as observed from O2 band; condition Rtoa at band " +
-                                    self.sensordata.O2band[0] + " greater than " + str(self.sensordata.O2band[2]))
+                                    O2info2)
         mask_id += 1
         f[mask_id] = coding.addFlag("L1_opaque_clouds", 2 ** mask_id, " flag from L1 image ")
         mask_id += 1
@@ -692,6 +699,7 @@ class info:
 
         ac_product.setAutoGrouping(self.output + ':' + self.output + '_g_')
 
+        logging.info("Creating output folder "+self.outfile_ext)
         ac_product.writeHeader(String(self.outfile_ext))
         # next line needed since snap 'writeHeader' force the extension to be consistent with data type (e.g., .tif for GeoTIFF)
         os.rename(self.outfile_ext, self.outfile_ext + '.incomplete')

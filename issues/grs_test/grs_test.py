@@ -32,6 +32,12 @@ wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
               + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
               + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
 
+# test for LANDSAT
+file=glob.glob('/tmp/LC08_L1TP_008231_20220531_20220609_02_T1/*MTL.txt')[0]
+maja_xml=''
+wkt=None
+
+
 sensor=None
 
 ancillary = 'cds_forecast'
@@ -92,7 +98,7 @@ if 'S2' in sensor:
         l2h.solar_irr[i] = float(str(meta.getElement('Solar_Irradiance_List').getAttributeAt(iband).getData()))
 
 else:
-    meta = l2h.product.getMetadataRoot().getElement("L1_METADATA_FILE").getElement("IMAGE_ATTRIBUTES")
+    meta = l2h.product.getMetadataRoot().getElement("LANDSAT_METADATA_FILE").getElement("IMAGE_ATTRIBUTES")
     l2h.U = float(str(meta.getAttribute('EARTH_SUN_DISTANCE').getData())) ** 2
     l2h.solar_irr = np.array(l2h.sensordata.solar_irr)[indband]
 

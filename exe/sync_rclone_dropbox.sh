@@ -12,9 +12,10 @@ for tiledate in `awk -F ',' 'NR > 1 && $1 == 1 {print $6$3}'  $list_file`; do
    tile=${tiledate:0:5}
    year=${tiledate:5:4}
 
+   year=2021
    echo rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile/$year dropbox_harmel:/satellite/S2/cnes/$tile/$year
    #rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile dropbox_harmel:/satellite/S2/cnes/$tile
-   rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile/$year dropbox_harmel:/satellite/S2/cnes/$tile/$year
+   rclone sync -P --include='*.nc' /datalake/watcal/S2-L2GRS/$tile/$year/09 dropbox_harmel:/satellite/S2/cnes/$tile/$year/09
 done
 
 #year=2015

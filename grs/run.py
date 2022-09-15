@@ -53,6 +53,7 @@ Options:
 '''
 
 import netCDF4 as nc # imported here to avoid conflicts on mistraou
+import os
 import numpy as np
 import geopandas as gpd
 from docopt import docopt
@@ -126,6 +127,10 @@ def main():
     odir = args['--odir']
     if odir == './':
         odir = os.getcwd()
+
+    if not os.path.exists(odir):
+        os.makedirs(odir)
+
     outfile = os.path.join(odir, outfile)
 
     if os.path.isfile(outfile + ".nc") & noclobber:

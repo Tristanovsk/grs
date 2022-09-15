@@ -10,9 +10,8 @@ def call(command):
     return
 
 
-ncore=2
-ifile = '/local/AIX/nathalie.reynaud/Documents/teledec/'+\
-        'processing/grs/batch_grs_ldst/batch_grs_ldst.sh'
+ncore=8
+ifile = 'tmp_grslist_220725_103950'
 command = pd.read_csv(ifile).values
 
 with Pool(processes=ncore) as pool:
