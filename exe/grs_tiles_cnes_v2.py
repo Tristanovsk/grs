@@ -12,6 +12,7 @@ import glob
 from datetime import datetime, timedelta
 from osgeo import gdal
 from multiprocessing import Pool
+import subprocess
 
 # CNES lib for datalake managment
 # import lxml
@@ -61,6 +62,9 @@ allpixels = False  # True
 
 
 # --------------------------------------------------------------------------------
+basename = "tmp_grslist"
+suffix = datetime.now().strftime("%y%m%d_%H%M%S")
+tmp_file = "_".join([basename, suffix])
 
 args_list = []
 
@@ -101,37 +105,13 @@ for idx, site in sites.iterrows():
         #-------------------
         # get Metadata
         #-------------------
+        print('tt:'+l1c)
         filename = gdal.Open(opj(l1c,'MTD_MSIL1C.xml'))
         metadata = filename.GetMetadata()
         cc=round(float(metadata['CLOUD_COVERAGE_ASSESSMENT']))
         cc_str=f'{cc:03}'
         print(metadata)
 
-        #-------------------
-        # fetch L2A MAJA
-        #-------------------
-        l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
-        l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
-        if not l2a_maja:
-            print(l2a_dir + ' not loaded on /datalake')
-            #continue
-            l2a_maja = None
-        else:
-            l2a_maja = l2a_maja[0]
-
-        # TODO clean up files on HPC-CNES for easy access
-        # For the moment waterdetect set as None
-        wd_dir = opj(dirsat, 'S2-L2A-THEIA', subdir)
-        waterdetect = None  # glob.glob(opj(wd_dir, '*.tif'))[0]
-        #for David processing
-        if "guimaraes" in sitefile:
-            wd_dir = opj('/work/datalake/watcal/GRS/wd_masks', subdir)
-
-            waterdetect = glob.glob(opj(wd_dir, '*.tif'))
-            if len(waterdetect)==0:
-                continue
-            else:
-                waterdetect =waterdetect[0]
 
         # ------------------
         # check / create output directory
@@ -172,22 +152,40 @@ for idx, site in sites.iterrows():
         #if 'cams' in aerosol:
         aerosol = ancillary
 
-        # skip if incomplete (enables multiprocess)
-        # if os.path.isfile(outfile + ".dim.incomplete"):  # & False:
-        #     print('found incomplete File ' + outfile + '; skipped!')
-        #     continue
-        print([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
-                          dem,l2a_maja, waterdetect, \
-                          aot550, angstrom, memory_safe, allpixels, angleonly])
-        args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
-                          dem,l2a_maja, waterdetect, \
-                          aot550, angstrom, memory_safe, allpixels, angleonly])
-# command = []
-# for args in misc.chunk(iter(args_list), 1):
-#     command.append(args)
+        command = 'grs ' + l1c + ' -o ' + outfile + ' --aerosol ' + aerosol + ' --dem --resolution ' + str(resolution)
 
+        # -------------------
+        # fetch L2A MAJA
+        # -------------------
+        l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
+        l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
+        if not l2a_maja:
+            print(l2a_dir + ' not loaded on /datalake')
+            # continue
+            l2a_maja = None
+        else:
+            l2a_maja = l2a_maja[0]
+            command+=' --maja '+l2a_maja
+
+        if allpixels:
+            command+=' --allpixels '
+
+        with open(tmp_file, 'a') as file:
+            file.write(command+'\n')
+
+
+# with Pool(processes=ncore) as pool:
+#     print(pool.map(multi_process().grs_cnes, args_list, 1))
+#     pool.close()
+#     pool.join()
+
+def call(command):
+    print(command)
+    pipeline_out = subprocess.call(command, stderr=subprocess.STDOUT, shell=True)
+    return
+
+command = pd.read_csv(tmp_file).values
 
 with Pool(processes=ncore) as pool:
-    print(pool.map(multi_process().grs_cnes, args_list, 1))
-    pool.close()
-    pool.join()
+    pool.map(call, command)
+    pool.close

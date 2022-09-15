@@ -176,6 +176,6 @@ class multi_process:
                                        allpixels=allpixels, angleonly=angleonly)
 
         # here sys.exit instead of "return" to terminate and close snappy and free memory
-        #sys.exit()
+        sys.exit()
         return
 

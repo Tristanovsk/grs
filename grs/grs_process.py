@@ -100,19 +100,24 @@ class process:
             tmpzip = zipfile.ZipFile(file)
             tmpzip.extractall(cfg.tmp_dir)
             file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
+
         tartmp = None
         if untar:
-            basename = os.path.basename(file).replace('.tgz', '')
-            basename = os.path.basename(basename).replace('.tar.gz', '')
+            basename = os.path.basename(file)
+            basename = basename.replace('.tgz', '')
+            basename = basename.replace('.tar.gz', '')
+            basename = basename.replace('.tar', '')
             tmp_dir = os.path.join(cfg.tmp_dir, basename)
+            logging.info('untaring into '+ tmp_dir)
             # open tar archive to extract files for data loading
             tmpzip = tarfile.open(file)
             tmpzip.extractall(tmp_dir)
-            file = glob.glob(os.path.join(tmp_dir, '*MTL.*'))[0]
+            file = glob.glob(os.path.join(tmp_dir, '*MTL.txt'))[0]
             # open tar archive to add potential file (e.g., angle files) - InvalidHeaderError
+            # TODO check if still necessary
             if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
-                tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
-
+                #tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
+                tartmp = tmp_dir
         logging.info("Reading...")
         logging.info(file)
         product = ProductIO.readProduct(file)
@@ -138,7 +143,7 @@ class process:
                 l2h.solar_irr[i] = float(str(meta.getElement('Solar_Irradiance_List').getAttributeAt(iband).getData()))
 
         else:
-            meta = l2h.product.getMetadataRoot().getElement("L1_METADATA_FILE").getElement("IMAGE_ATTRIBUTES")
+            meta = l2h.product.getMetadataRoot().getElement("LANDSAT_METADATA_FILE").getElement("IMAGE_ATTRIBUTES")
             l2h.U = float(str(meta.getAttribute('EARTH_SUN_DISTANCE').getData())) ** 2
             l2h.solar_irr = np.array(l2h.sensordata.solar_irr)[indband]
 

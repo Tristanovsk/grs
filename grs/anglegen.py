@@ -1,4 +1,4 @@
-import sys
+import os,sys
 from subprocess import call
 from esasnappy import ProductUtils, ProductIO
 import logging
@@ -38,14 +38,17 @@ class angle_generator:
 
         #-- add to l2h.product
         ang = ProductIO.readProduct(ang_file)
-        for band in ang.getBandNames():
-
-            bandname=band.replace('Azimuth','sun_azimuth').replace('Zenith','sun_zenith')
-            logging.info("copying " + band + 'to ' + bandname)
-            ProductUtils.copyBand(band, ang, bandname, l2h.product, True)
-            l2h.product.getBand(bandname).setScalingFactor(0.01)
-            l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
-            l2h.product.getBand(bandname).setNoDataValueUsed(True)
+        # ---------------------------------------------
+        # This part is now unnecessary with Collection 2
+        # for band in ang.getBandNames():
+        #
+        #     bandname=band.replace('Azimuth','sun_azimuth').replace('Zenith','sun_zenith')
+        #     logging.info("copying " + band + 'to ' + bandname)
+        #     ProductUtils.copyBand(band, ang, bandname, l2h.product, True)
+        #     l2h.product.getBand(bandname).setScalingFactor(0.01)
+        #     l2h.product.getBand(bandname).setNoDataValue(nodatavalue)
+        #     l2h.product.getBand(bandname).setNoDataValueUsed(True)
+        # ---------------------------------------------
 
         # Band viewing angles
         ang_type = 'sensor'
