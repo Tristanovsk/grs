@@ -3,7 +3,7 @@
 
 
 #PBS -N grs_obs2
-#PBS -l select=1:ncpus=40:mpiprocs=8:mem=180gb:generation=g2019
+#PBS -l select=1:ncpus=40:mpiprocs=12:mem=180gb:generation=g2019
 #PBS -l walltime=48:00:00
 #mpiprocs=4:
 # echo /home/eh/harmelt/proxyfile.txt | source /home/eh/harmelt/set_proxy.sh
@@ -14,13 +14,10 @@
 # process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m), flag
 
 
-list_file=list_grs_cnes_obs2mod.csv
-#list_file=list_grs_ukraine.csv
-#list_file=list_grs_cordoba.csv
-#list_file=list_landsat_jegou.csv
+list_file=list_grs_aeronet_oc_test.csv
 
 GRSHOME=/work/scratch/harmelt/dev/grs2
-list_filepath=$GRSHOME/exe/list/$list_file
+list_filepath=$GRSHOME/exe/list_validation/$list_file
 
 module load conda
 # ------------------------
@@ -46,13 +43,13 @@ export JDK_HOME=$JDKHOME
 export JAVAHOME=$JAVA_HOME
 export SNAP_HOME=$SNAPHOME
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
-export OMP_NUM_THREADS=6
+export OMP_NUM_THREADS=12
 
 #open monitoring tool
 module load monitoring/1.0
-start_monitoring.sh --name GRS_$PBS_JOBID
-python $GRSHOME/exe/grs_tiles_cnes_v2.py $list_filepath $OMP_NUM_THREADS
-stop_monitoring.sh --name GRS_$PBS_JOBID
+
+python $GRSHOME/exe/grs_validation.py $list_filepath $OMP_NUM_THREADS
+
 
 # test example:
 # grs /datalake/S2-L1C/33PVR/2020/12/19/S2A_MSIL1C_20201219T092411_N0209_R093_T33PVR_20201219T103844.SAFE -o /datalake/watcal/S2-L2GRS/33PVR/2020/12/19/33PVR/S2A_MSIl2grs_20201219T092411_N0209_R093_T33PVR_20201219T103844 --aerosol cams_forecast --maja /datalake/S2-L2A-THEIA/33PVR/2020/12/19/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2/SENTINEL2A_20201219-093647-800_L2A_T33PVR_C_V2-2_MTD_ALL.xml --dem

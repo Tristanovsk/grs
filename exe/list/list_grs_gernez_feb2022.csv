@@ -1,0 +1,25 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag					
+0,Asterionellopsis_France,2018-06-02,2018-07-04,S2,31UCR,20,0
+0,Gonyaulax_Vancouver,2018-07-14,2018-07-26,S2,10UEV,20,1
+0,Gonyaulax_Vancouver,2018-07-14,2018-07-26,S2,10UEU,20,1
+0,Karenia_Saga,2019-07-30,2019-08-01,S2,52SFB,20,1
+0,Margalefidinium_Korea,2019-09-16,2019-09-18,S2,52SCD,20,1
+0,Cyano_Philippines,2020-09-03,2020-09-20,S2,51PUR,20,0
+0,Noctiluca_Oman,2019-03-10,2019-03-15,S2,41QKF,20,0
+0,Noctiluca_Oman,2019-03-10,2019-03-15,S2,41QKG,20,0
+0,Noctiluca_Oman,2019-03-10,2019-03-15,S2,41QLF,20,0
+0,Protoceratium_Puget,2020-07-25,2020-08-06,S2,10TET,20,1
+0,Protoceratium_Puget,2020-07-25,2020-08-06,S2,10UEU,20,1
+0,Aphanizomenon_Salvador,2019-02-15,2019-02-17,S2,16PCV,20,0
+0,Nodularia_Poland,2020-06-25,2020-06-27,S2,34UCF,20,0
+0,Nodularia_Poland,2018-07-24,2018-07-27,S2,34UCF,20,0
+0,Nodularia_Sweden,2018-07-30,2018-08-01,S2,33VXF,20,0
+0,Nodularia_Sweden,2018-07-30,2018-08-01,S2,33VXE,20,0
+0,Trichodesmium_Brazil,2019-01-29,2019-02-02,S2,22JGR,20,0
+0,Trichodesmium_Brazil,2019-01-29,2019-02-02,S2,22JGS,20,0
+0,Trichodesmium_Syndey,2018-03-16,2018-03-18,S2,56HLJ,20,0
+0,Trichodesmium_Fidji,2018-11-24,2018-11-29,S2,60KXF,20,0
+0,Microcystis_Brazil,2019-02-26,2019-03-02,S2,22JDL,20,0
+0,Microcystis_Lake_Taihu,2019-05-03,2019-05-30,S2,51RTQ,20,0
+0,Heterosigma_Chili,2021-03-25,2021-04-04,S2,18GYU,20,1
+1,Planktothryx_Italy,2022-04-01,2022-04-30,S2,33TVF,20,1

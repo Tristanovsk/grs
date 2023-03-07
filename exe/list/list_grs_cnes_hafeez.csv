@@ -1,0 +1,4 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
+1,hongkong,2021-03-01,2021-03-31,S2,49QHE,,,20
+1,hongkong,2021-03-01,2021-03-31,S2,49QHF,,,20
+0,hongkong,2021-05-01,2021-05-31,S2,49QHE,,,20

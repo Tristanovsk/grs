@@ -90,7 +90,7 @@ class misc:
             # sys.exit(-1)
         return tile
 
-    def set_ofile(self, file, odir='', level_name='l2grs', suffix=''):
+    def set_ofile(self, file, odir='', level_name='L2GRS', suffix=''):
         ''' get satellite type andset output file name'''
         ##################################
         # File naming convention
@@ -99,6 +99,7 @@ class misc:
         lev = level_name
 
         outfile = file.replace('L1C', lev)
+        outfile = outfile.replace('L1GT', lev)
         outfile = outfile.replace('L1TP', lev)
         # remove extension
         outfile = os.path.splitext(outfile)[0]

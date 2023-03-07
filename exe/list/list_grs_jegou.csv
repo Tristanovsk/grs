@@ -1,0 +1,5 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+1,_v13,2018-01-01,2018-12-31,S2,44WPC,20,1
+1,_v13,2019-01-01,2019-12-31,S2,44WPC,20,1
+1,_v13,2018-01-01,2018-12-31,S2,45WVT,20,1
+1,_v13,2019-01-01,2019-12-31,S2,45WVT,20,1

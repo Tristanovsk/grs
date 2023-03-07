@@ -26,7 +26,7 @@ if full_tile:
 else:
     w, h = 1, 1
 
-lev = 'L2grs'
+lev = 'L2GRS'
 aerosol = 'cams_forecast'
 fjunk = os.path.join(odir, 'list_junk_files.txt')
 Nimage = 1

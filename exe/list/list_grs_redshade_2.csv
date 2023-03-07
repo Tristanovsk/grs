@@ -1,0 +1,11 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+0,Aureococcus_NYC,2016-07-16,2016-07-28,S2,18TWL,20,1
+0,Aureococcus_NYC,2016-07-16,2016-07-28,S2,18TXL,20,1
+0,Chaetoceros_Seine,2016-07-05,2016-07-17,S2,30UYA,20,1
+0,Chaetoceros_Seine,2016-07-05,2016-07-17,S2,30UYV,20,1
+0,Chaetoceros_Somme,2016-08-31,2016-09-02,S2,31UCR,20,1
+1,Ceratium_Puget,2017-07-29,2017-07-31,S2,10TET,20,1
+1,Ceratium_Puget,2018-07-14,2018-07-16,S2,10TET,20,1
+1,Cylindrotheca_Thau,2018-07-31,2018-09-01,S2,31TEJ,20,1
+1,Gonyaulax_Vancouver,2018-07-14,2018-07-26,S2,10UEV,20,1
+1,Gonyaulax_Vancouver,2018-07-14,2018-07-26,S2,10UEU,20,1

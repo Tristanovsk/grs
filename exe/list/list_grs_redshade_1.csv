@@ -1,0 +1,10 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+1,Aphanizomenon_Sweden,2015-08-12,2015-08-14,S2,33VXF,20,0
+1,Aphanizomenon_Sweden,2015-08-12,2015-08-14,S2,33VXE,20,0
+1,Aphanizomenon_Sweden,2016-07-24,2016-07-26,S2,33VXF,20,0
+1,Aphanizomenon_Sweden,2016-07-24,2016-07-26,S2,33VXE,20,0
+1,Aphanizomenon_Sweden,2016-07-24,2016-07-26,S2,34VEL,20,0
+1,Aphanizomenon_Sweden,2019-07-25,2019-07-27,S2,33VXF,20,0
+1,Aphanizomenon_Sweden,2019-07-25,2019-07-27,S2,33VXE,20,0
+1,Asterionellopsis_France,2017-06-17,2017-07-18,S2,31UCR,20,0
+1,Asterionellopsis_France,2018-06-02,2018-07-04,S2,31UCR,20,0

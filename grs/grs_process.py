@@ -92,7 +92,6 @@ class process:
         # Read L1C product
         ##################################
 
-
         file_orig = file
         # unzip if needed
         if unzip:
@@ -116,8 +115,9 @@ class process:
             # open tar archive to add potential file (e.g., angle files) - InvalidHeaderError
             # TODO check if still necessary
             if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
-                #tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
-                tartmp = tmp_dir
+                tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w')
+                #tartmp = tmp_dir
+
         logging.info("Reading...")
         logging.info(file)
         product = ProductIO.readProduct(file)
@@ -159,16 +159,19 @@ class process:
         elif 'LANDSAT' in sensor:
             anggen = angle_generator().landsat_tm(l2h)
         #logging.info('anggen = {}'.format(anggen))
-        if anggen:
-            if tartmp:
-                logging.info('writing angles to input file: ' + file_orig)
-                # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
-                # copy tgz image and add angle files
-                shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
-                for filename in os.listdir(tmp_dir):
-                    tartmp.add(os.path.join(tmp_dir, filename), filename)
-                tartmp.close()
-                shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
+        # TODO check if necessary to save generated angles in datalake, disabled for the moment
+        if False:
+            if anggen:
+                if tartmp:
+                    logging.info('writing angles to input file: ' + file_orig)
+                    # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
+                    # copy tgz image and add angle files
+                    #shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), os.path.basename(file_orig)))
+                    for filename in os.listdir(tmp_dir):
+                        tartmp.add(os.path.join(tmp_dir, filename), filename)
+                    tartmp.close()
+                    #shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
+                    shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
 
         # stop process for landsat angle computation only
         if angleonly:
@@ -590,7 +593,7 @@ class process:
         logging.info("finishing writing product...")
         l2h.finalize_product()
 
-        logging.info("If no error occured, product is available here : "+outfile)
+        logging.info("If no error occurred, product is available here : "+outfile)
         if unzip:
             # remove unzipped files (Sentinel files)
             shutil.rmtree(file, ignore_errors=True)

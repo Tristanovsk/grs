@@ -1,0 +1,21 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,resolution (m),flag
+0,Noctiluca_China,2019-06-07,2019-06-09,S2,51STU,20,0
+0,Noctiluca_China,2019-06-07,2019-06-09,S2,51SUU,20,0
+0,Noctiluca_China,2019-06-07,2019-06-09,S2,51SUT,20,0
+0,Noctiluca_China,2019-06-07,2019-06-09,S2,51STT,20,0
+0,Noctiluca_Puget,2019-05-10,2019-05-12,S2,10TET,20,1
+0,Nodularia_Baltic,2019-07-19,2019-07-21,S2,34VCJ,20,0
+0,Nodularia_Baltic,2019-07-19,2019-07-21,S2,34VDH,20,0
+0,Phaeocystis_Somme,2016-04-13,2016-04-15,S2,31UCR,20,1
+0,Phaeocystis_Somme,2018-05-30,2018-06-04,S2,31UCR,20,1
+0,Phaeocystis_Somme,2019-05-13,2019-05-17,S2,31UCR,20,1
+0,Protoceratium_Puget,2020-07-25,2020-08-06,S2,10TET,20,1
+0,Pseudochattonella_Peru,2016-03-04,2016-03-06,S2,18GXU,20,1
+0,Pseudonitzschia_Vilaine,2020-07-29,2020-08-05,S2,30TWT,20,1
+0,Pseudonitzschia_Vilaine,2019-05-21,2019-05-23,S2,30UUU,20,1
+0,Pseudonitzschia_Berre,2020-10-23,2020-10-25,S2,31TFJ,20,1
+0,Trichodesmium_Guadeloupe,2018-03-17,2018-03-19,S2,20PPC,20,0
+0,Trichodesmium_Australia,2018-06-02,2018-06-04,S2,55KDU,20,0
+1,Trichodesmium_Australia,2018-06-02,2018-06-04,S2,55KDV,20,0
+1,Trichodesmium_Australia,2018-03-10,2018-03-12,S2,56HLJ,20,0
+1,Trichodesmium_Australia,2018-03-10,2018-03-12,S2,56HLH,20,0

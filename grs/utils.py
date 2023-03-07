@@ -242,6 +242,13 @@ class info:
         self.band_rad, self.vza, self.razi, self.muv = utils.init_arrayofarrays(4, [arr] * self.N)
 
         # --------------------------------
+        # load Sun angles
+        # --------------------------------
+        self.SZA.readPixels(0, 0, w, h, self.sza)
+        self.SAZI.readPixels(0, 0, w, h, self.sazi)
+        self.mu0 = np.cos(np.radians(self.sza))
+
+        # --------------------------------
         # load Masks
         # --------------------------------
         # get cirrus band if exists
@@ -264,10 +271,6 @@ class info:
         # --------------------------------
         # load data
         # --------------------------------
-        self.SZA.readPixels(0, 0, w, h, self.sza)
-        self.SAZI.readPixels(0, 0, w, h, self.sazi)
-        self.mu0 = np.cos(np.radians(self.sza))
-
         # loop in reverse order to use the esasnappy "dispose()" function within the jvm
         for i, band in list(enumerate(self.band_names))[::-1]:
             logging.info(f'loading band {band}')
