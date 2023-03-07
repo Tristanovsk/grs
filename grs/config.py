@@ -25,7 +25,7 @@ except Exception as error:
      
 data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata'))
 # directory to store temporary unzipped files
-tmp_dir = os.path.abspath('/tmp')
+tmp_dir = os.path.abspath('/datalake/watcal/tmp/temp')
 lut_root = os.path.join(data_root, "LUT")
 cams_folder = os.path.join(os.environ.get('CAMS_PATH', '/datalake/watcal/ECMWF/CAMS'))  # os.path.join(data_root, "CAMS")
 smac_root = os.path.join(data_root, "SMAC_COEFS")
