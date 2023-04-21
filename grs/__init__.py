@@ -45,12 +45,15 @@ Version history:
 '''
 
 __package__ = 'grs'
-__version__ = '1.5.0'
+__version__ = '2.0.0'
 
 from .config import *
 from .acutils import aerosol, lut, misc, smac
-from .auxdata import Aeronet, cams, sensordata
-from .utils import info, utils
+from .cams import cams
+from .auxdata import Aeronet, sensordata
+from .utils import utils
+from .product import product
+from .output import l2a
 from .grs_process import process
 
 import logging
