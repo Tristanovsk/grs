@@ -185,6 +185,92 @@ class aerosol:
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
         return self.fcoef
 
+class gases():
+    def __init__(self):
+        # atmosphere auxiliary data
+        # TODO get them from CAMS
+        self.pressure = 1010
+        self.to3c = 6.5e-3
+        self.tno2c = 3e-6
+        self.tch4c = 1e-2
+        self.psl = 1013
+        self.coef_abs_scat = 0.3
+
+class gaseous_transmittance(gases):
+
+    def __init__(self,l1c_obj,gas_lut,Twv_lut):
+        gases.__init__(self)
+        self.l1c_obj = l1c_obj
+        self.gas_lut=gas_lut
+        self.Twv_lut=Twv_lut
+        self.SRF = self.l1c_obj.raster.SRF
+        self.air_mass_mean=self.l1c_obj.air_mass_mean
+
+    def get_gaseous_optical_thickness(self):
+        gas_lut = self.gas_lut
+
+        ot_o3 = gas_lut.o3 * self.to3c
+        ot_ch4 = gas_lut.ch4 * self.tch4c
+        ot_no2 = gas_lut.no2 * self.tno2c
+        ot_air = (gas_lut.co + self.coef_abs_scat * gas_lut.co2 +
+                  self.coef_abs_scat * gas_lut.o2 +
+                  self.coef_abs_scat * gas_lut.o4) * self.pressure / 1000
+        self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
+
+    def get_gaseous_transmittance(self):
+
+        self.get_gaseous_optical_thickness()
+        wl_ref = self.gas_lut.wl  # .values
+        SRF_hr = self.SRF.interp(wl_hr=wl_ref.values)
+        Tg = np.exp(- self.air_mass_mean * self.abs_gas_opt_thick)
+        Tg=Tg.rename({'wl':'wl_hr'})
+
+        Tg_int = []
+        for label, srf in SRF_hr.groupby('wl'):
+            srf = srf.dropna('wl_hr').squeeze()
+            Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+            wl_integr = Tg_.wl_hr.values
+
+            Tg_ = np.trapz(Tg_ * srf,wl_integr) / np.trapz(srf, wl_integr)
+            Tg_int.append(Tg_)
+
+        self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})
+
+    def other_gas_correction(self, raster_name='masked_raster', variable='Rtoa_masked'):
+        raster = self.__dict__[raster_name]
+        attrs = raster[variable].attrs
+        if attrs.__contains__('other_gas_correction'):
+            if attrs['other_gas_correction']:
+                print('raster ' + raster_name + '.' + variable + ' is already corrected for other gases transmittance')
+                print('set attribute other_gas_correction to False to proceed anyway')
+                return
+        if self.Tg_other is None:
+            self.get_gaseous_transmittance(self.air_mass_mean)
+        raster[variable] = raster[variable] / self.Tg_other
+        raster[variable].attrs['other_gas_correction'] = True
+
+    def water_vapor_correction(self, raster_name='coarse_masked_raster', variable='Rtoa_masked'):
+        raster = self.__dict__[raster_name]
+        attrs = raster[variable].attrs
+        if attrs.__contains__('water_vapor_correction'):
+            if attrs['other_gas_correction']:
+                print('raster ' + raster_name + '.' + variable + ' is already corrected for water vapor transmittance')
+                print('set attribute other_gas_correction to False to proceed anyway')
+                return
+
+        if self.Twv_raster is None:
+            print('xarray of water vapor transmittance is not set, please run get_wv_transmittance_raster(tcwv_raster)')
+            return
+        raster[variable] = raster[variable] / self.Twv_raster
+        raster[variable].attrs['water_vapor_correction'] = True
+
+    def get_wv_transmittance_raster(self, tcwv_raster):
+        tcwv_vals = tcwv_raster.tcwv.round(1)
+        tcwvs = np.unique(tcwv_vals)
+        tcwvs = tcwvs[~np.isnan(tcwvs)]
+        # TODO improve for air_mass raster
+        Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop('air_mass')
+        self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
 
 class smac:
     ''' Gaseous absorption and transmission from pre-calculated 6S/SMAC data '''

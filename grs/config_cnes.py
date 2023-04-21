@@ -23,7 +23,7 @@ try:
 except Exception as error:
     logging.info("environment variable DATA_ROOT does not exist")
      
-data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/DATA/git/satellite_app/grsdata'))
+data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/work/ALT/swot/aval/OBS2CO/git/grs2/grsdata'))
 # directory to store temporary unzipped files
 tmp_dir = os.path.abspath('/datalake/watcal/tmp/temp')
 lut_root = os.path.join(data_root, "LUT")
