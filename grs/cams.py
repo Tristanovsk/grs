@@ -1,23 +1,25 @@
-import sys
-import os
+
+import os, sys
+
 import numpy as np
 import pandas
 from scipy.interpolate import interp1d
 import netCDF4 as nc
 import xarray as xr
 import dask
+
+import matplotlib.pyplot as plt
+
 import logging
 from dateutil import parser
 import calendar, datetime
 
-from esasnappy import ProductIO
-
 from . import config as cfg
 from .utils import utils as u
 from .acutils import aerosol
+opj = os.path.join
 
-
-class cams:
+class cams_product:
     '''
     Unit Conversion
     PWC (Precipitable Water Content), Grib Unit [kg/m^2]
@@ -43,12 +45,51 @@ class cams:
 
     '''
 
-    def __init__(self):
+    def __init__(self,prod,
+                 dir='./',
+                 type='cams-global-atmospheric-composition-forecasts',
+                 wls = [400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]):
 
-        self.tile_dir = ''
-        self.aux_dir = ''
-        self.ecmwf_file = ''
-        self._nrTiles = 0
+        self.date = prod.date
+        date_str = prod.date.strftime('%Y-%m-%d')
+        self.dir = dir
+        self.file = date_str + '-' + type + '.nc'
+        xmin, ymin, xmax, ymax = prod.raster.rio.bounds()
+
+        # lazy loading
+        cams = xr.open_dataset(opj(dir, self.file), decode_cf=True,
+                               chunks={'time': 1, 'x': 500, 'y': 500})
+        # slicing
+        cams = cams.sel(time=self.date, method='nearest')
+        cams = cams.sel(latitude=slice(prod.latmax + 1, prod.latmin - 1),
+                        longitude=slice(prod.lonmin - 1, prod.lonmax + 1))
+        if cams.u10.shape[0] == 0 or cams.u10.shape[1] == 0:
+            print('no cams data, enlarge subset')
+
+        self.raster = cams.interp(longitude=np.linspace(prod.lonmin, prod.lonmax, 12),
+                   latitude=np.linspace(prod.latmax, prod.latmin, 12),
+                   kwargs={"fill_value": "extrapolate"})
+        self.raster= self.raster.rename({'longitude': 'x', 'latitude': 'y'})
+        Nx = len(self.raster.x)
+        Ny = len(self.raster.y)
+        x = np.linspace(xmin, xmax, Nx)
+        y = np.linspace(ymax, ymin, Ny)
+        self.raster['x'] = x
+        self.raster['y'] = y
+
+        self.raster.rio.write_crs(prod.raster.rio.crs, inplace=True)
+
+        param_ssa, param_aod = [], []
+        for wl in wls:
+            wl_ = str(wl)
+            param_aod.append('aod' + wl_)
+            param_ssa.append('ssa' + wl_)
+        cams_aod = self.raster[param_aod].to_array(dim='wavelength')
+        wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
+        self.cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
+        del cams_aod
+
+        self.variables = list(cams.keys())
 
         self.ozoneFactor = 46670.81518  # i.e., 300/6.428E-3
         self.pressureFactor = 0.01
@@ -69,59 +110,25 @@ class cams:
         self.aot550 = 0.05
         self.aot_wl = []
 
-    def get_tile_dir(self, file):
-        '''file : absolute path of S2 directory
-           set full path of tile'''
-        import fnmatch
-        import os
-        filemask = 'S2A_*_L1C_*'
-        GRANULE = 'GRANULE'
-        granuleDir = os.path.join(file, GRANULE)
-        filelist = sorted(os.listdir(granuleDir))
-        for tile in filelist:
-            if fnmatch.fnmatch(tile, filemask) == False:
-                continue
-            self._nrTiles += 1
-        if self._nrTiles > 1:
-            # TODO implement for multiple tiles'
-            logging.debug('several tiles are present, processing for single tile only')
-            return False
-        self.tile_dir = os.path.join(granuleDir, filelist[0])
-
-    def get_aux_dir(self):
-        '''
-
-        :return:
-        '''
-        self.aux_dir = os.path.join(self.tile_dir, 'AUX_DATA')
-
-    def get_ecmwf_file(self, product):
-        '''
-
-        :param product:
-        :return:
-        '''
-        meta = product.getMetadataRoot().getElement('Level-1C_User_Product')
-        ecmwf = meta.getElement('Auxiliary_Data_Info').getAttribute('ECMWF_DATA_REF')
-        self.ecmwf_file = str(ecmwf.getData())
-
-    def get_ecmwf_data(self):
-        '''
-
-        '''
-        from osgeo.gdal_array import BandReadAsArray
-        from osgeo import gdal
-        import glob
-
-        try:
-            if (self.ecmwf_file == ''):
-                self.ecmwf_file = glob.glob(self.aux_dir + '/*ECMWF*')[0]
-            dataSet = gdal.Open(self.ecmwf_file)
-            self.pressure_msl = BandReadAsArray(dataSet.GetRasterBand(2)) / 100
-            self.o3du = BandReadAsArray(dataSet.GetRasterBand(3)) * self.ozoneFactor
-        except:
-            logging.error('ERROR: reading ECMWF file!')
         return
+
+    def plot_params(self,params = ['aod550', 'aod2130', 'ssa550',
+                                   't2m', 'msl', 'sp','tcco', 'tchcho',
+                                   'tc_oh', 'tc_ch4', 'tcno2', 'gtco3',
+                                   'tc_c3h8', 'tcwv', 'u10', 'v10']):
+
+        Nrows = (len(params) + 1) // 4
+        fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
+        axs = axs.ravel()
+        for i, param in enumerate(params):
+            fig = self.raster[param].plot.imshow(robust=True, ax=axs[i])
+            fig.axes.set_title(param)
+            fig.colorbar.set_label(self.raster[param].units)
+            fig.axes.set(xticks=[], yticks=[])
+            fig.axes.set_ylabel('')
+            fig.axes.set_xlabel('')
+        plt.tight_layout()
+        return fig, axs
 
     def load_cams_data(self, target, date, grid='0.125/0.125',
                        param='125.210/137.128/151.128/165.128/166.128/167.128/206.128/207.210/213.210/214.210/215.210/216.210',
@@ -153,56 +160,7 @@ class cams:
                                      grid=grid, data_type=data_type)
         return
 
-    def get_cams_aerosol(self, target, date, wkt,
-                         param=['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']):
-        '''
-        Nearest neighbor in time
-        :param target:
-        :param date:
-        :param wkt:
-        :return:
-        '''
 
-        # load netcdf file and get date-time index for further processing
-        ncfile = nc.Dataset(target)
-        time = ncfile.variables['time']
-
-        dates = nc.num2date(time[:], time.units, time.calendar)
-        ncfile.close()
-        idx_time = np.abs([d - date for d in dates]).argmin(0)
-
-        # set band names from cams:
-        band_names = [a + '_time' + str(idx_time) for a in param]
-        self.aot_wl = [469, 550, 670, 865, 1240]
-
-        N = band_names.__len__()
-        self.aot = np.zeros(N, dtype=np.float32)
-        self.aot_std = np.zeros(N, dtype=np.float32)
-
-        # ------------read/subset/collocate data
-        prod = ProductIO.readProduct(str(target))
-        # logging.info(wkt)
-        prod = u().get_subset(prod, wkt)
-
-        # SNAP resamplingOP does not work for CAMS product
-        # prod = u().resampler(prod, resolution=resolution)
-
-        h = prod.getBand(band_names[0]).getRasterHeight()
-        w = prod.getBand(band_names[0]).getRasterWidth()
-
-        aot_rast = [np.zeros([w, h], dtype=np.float32, order='F').T] * N
-
-        for i in range(N):
-            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast[i])
-            # aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast<0, aot_rast >2), fill_value=np.nan)
-            self.aot[i] = aot_rast[i].mean()
-            self.aot_std[i] = aot_rast[i].std()
-        prod.dispose()
-        self.aot550 = self.aot[1]
-        self.aot550_std = self.aot_std[1]
-        self.aot550rast = aot_rast[1]
-
-        return  # u().getReprojected(prod, crs)
 
     def subset_xr(self, ds, lonmin, lonmax, latmin, latmax, lat='latitude', lon='longitude'):
         '''
@@ -371,100 +329,7 @@ class cams:
 
         return  # u().getReprojected(prod, crs)
 
-    # TODO improve data access and interpolation (see get_xr_cams_cds_aerosol)
-    def get_cams_ancillary(self, target, date, wkt,
-                           param=['pressure_msl', 'tco3', 'tcwv', 'tcno2', 't2m']):
-        '''
-        Nearest neighbor in time
-        :param target:
-        :param date:
-        :param wkt:
-        :return:
-        '''
 
-        # load netcdf file and get date-time index for further processing
-        ncfile = nc.Dataset(target)
-        time = ncfile.variables['time']
-
-        dates = nc.num2date(time[:], time.units, time.calendar)
-        ncfile.close()
-        idx_time = np.abs([d - date for d in dates]).argmin(0)
-
-        # set band names from cams:
-        band_names = [a + '_time' + str(idx_time) for a in param]
-        N = band_names.__len__()
-
-        # ------------read/subset/collocate data
-        prod = ProductIO.readProduct(str(target))
-        prod = u().get_subset(prod, wkt)
-
-        h = prod.getBand(band_names[0]).getRasterHeight()
-        w = prod.getBand(band_names[0]).getRasterWidth()
-        data_ = np.zeros([N, w, h], dtype=np.float32)
-
-        for i in range(N):
-            prod.getBand(band_names[i]).readPixels(0, 0, w, h, data_[i, ...])
-            prod.getBand(band_names[i]).unloadRasterData()
-
-        # TODO keep spatial resolution and export data as band product
-        self.pressure_msl = data_[0].mean()
-        self.tco3 = data_[1].mean()
-        self.tcwv = data_[2].mean()
-        self.tcno2 = data_[3].mean()
-        self.t2m = data_[4].mean()
-
-        self.pressure_msl = self.pressure_msl * self.pressureFactor
-        self.o3du = self.tco3 * self.ozoneFactor
-        self.h2o = self.tcwv * self.waterFactor
-
-        return  # u().getReprojected(prod, crs)
-
-    def get_cams_aerosol_old(self, target, date, wkt, crs, data_type):
-        ''' generate aerosol data from cams of ECMWF
-            subset on the image grid (POLYGON wkt)
-            reproject on the image coordinate reference system (crs)'''
-        from .utils import utils as u
-        import calendar
-
-        day = str(int(date.strftime('%d')))
-        month = int(date.strftime('%m'))
-        year = int(date.strftime('%Y'))
-
-        # band names from cams:
-        band_names = ['aod469', 'aod550', 'aod670', 'aod865', 'aod1240']
-        band_names = [a + '_time' + day for a in band_names]
-        self.aot_wl = [469, 550, 670, 865, 1240]
-        N = band_names.__len__()
-        self.aot = np.zeros(N, dtype=np.float32)
-
-        # ------------download data
-        if not target.is_file():
-            logging.info('downloading CAMS files...')
-            startDate = '%04d%02d%02d' % (year, month, 1)
-            numberOfDays = calendar.monthrange(year, month)[1]
-
-            lastDate = '%04d%02d%02d' % (year, month, numberOfDays)
-
-            requestDates = startDate + '/TO/' + lastDate
-            self.download_erainterim(str(target), requestDates, data_type=data_type)
-
-        # ------------read/subset/collocate data
-        prod = ProductIO.readProduct(str(target))
-        logging.info(wkt)
-        prod = u().get_subset(prod, wkt)
-        h = prod.getBand(band_names[0]).getRasterHeight()
-        w = prod.getBand(band_names[0]).getRasterWidth()
-        aot_rast = np.zeros([w, h], dtype=np.float32)
-
-        for i in range(N):
-            prod.getBand(band_names[i]).loadRasterData()
-            prod.getBand(band_names[i]).readPixels(0, 0, w, h, aot_rast)
-            # aot_rast = np.ma.array(aot_rast,mask=  np.logical_or(aot_rast<0, aot_rast >2), fill_value=np.nan)
-            self.aot[i] = aot_rast.mean()
-            prod.getBand(band_names[i]).unloadRasterData()
-        self.aot550 = self.aot[1]
-
-        return  # u().getReprojected(prod, crs)
 
     def download_erainterim(self, target, date, time='00:00:00', grid='0.125/0.125',
                             param='137.128/151.128/206.210/207.210/213.210/214.210/215.210/216.210',
