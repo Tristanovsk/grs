@@ -19,8 +19,10 @@ import xarray as xr
 import logging
 
 from s2driver import driver_S2_SAFE as S2
-from grs import product, acutils, utils
+from grs import product, acutils, utils, cams_product
+from grs.fortran.grs import main_algo as grs_solver
 
+opj = os.path.join
 # from grs import product, l2a, utils, acutils, auxdata
 
 # from grs.fortran.grs import main_algo as grs_solver
@@ -36,7 +38,7 @@ if not os.path.exists(file_nc):
     print(l1c.crs)
     l1c.load_product()
     prod = product(l1c.prod)
-    encoding = {'bands': {'dtype': 'int16', 'scale_factor': 0.00001,'add_offset':.3, '_FillValue': -32768},
+    encoding = {'bands': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768},
                 'vza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
                 'raa': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
                 'sza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999}}
@@ -68,10 +70,14 @@ else:
 # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
 ##################################
 # prod.get_cams()
+cams_dir = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS'
+cams = cams_product(prod,dir='/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS')
+cams.plot_params()
+
 ##################################
 ## ADD ELEVATION AND PRESSURE BAND
 ##################################
-# prod.get_elevation()
+prod.get_elevation()
 # logging.info('adding elevation band...')
 # if dem:
 #     logging.info('add elevation band')
@@ -91,26 +97,23 @@ lutc.load_lut(prod.lutcoarse, prod.sensordata.indband)
 
 # reproject lut array on the angles of the image
 # angles are rounded to reduce the dims of interpolated LUT
-_utils = utils()
-sza_ = _utils.remove_na(np.unique(prod.raster.sza.round(1)))
-vza_ = _utils.remove_na(np.unique(prod.raster.vza.round(1)))
-azi_ = _utils.remove_na(np.unique(prod.raster.raa.round(0)))
-lutf.interp_n_slice(sza_, vza_, azi_)
-lutc.interp_n_slice(sza_, vza_, azi_)
-aotlut = np.array(lutf.aot, dtype=prod.type)
+
 
 ####################################
 #    absorbing gases correction
 ####################################
-gas_trans=acutils.gaseous_transmittance(prod,prod.gas_lut,prod.Twv_lut)
-gas_trans.get_gaseous_transmittance()
+gas_trans = acutils.gaseous_transmittance(prod,cams)
+Tg_raster = gas_trans.get_gaseous_transmittance()
 
-logging.info('loading SMAC algorithm...')
-smac = acutils.smac(prod.sensordata.smac_bands, prod.sensordata.smac_dir)
-smac.set_gas_param()
-smac.set_values(o3du=prod.cams.o3du, h2o=prod.cams.h2o)
-smac.set_standard_values(prod.cams.pressure_msl)
-prod.cams.no2 = smac.uno2
+
+prod.raster['bands'] = prod.raster.bands/Tg_raster
+prod.raster.bands.attrs['gas_absorption_correction'] = True
+
+plt.figure()
+Tg_raster.mean('x').mean('y').plot()
+# Tg_raster.isel(wl=1).plot()
+p = Tg_raster.plot.imshow(col='wl', col_wrap=3, robust=True, cmap=plt.cm.Spectral_r,
+                          subplot_kws=dict(xlabel='', ylabel='', xticks=[], yticks=[]))
 
 
 ######################################
@@ -124,16 +127,69 @@ b2200 = prod.raster.bands.sel(wl=prod.b2200)
 
 ndwi = (green - nir) / (green + nir)
 ndwi_swir = (green - swir) / (green + swir)
-self=prod
+self = prod
 masked_raster = prod.raster.bands.where(ndwi > self.ndwi_threshold). \
-            where(b2200 < self.sunglint_threshold). \
-            where(ndwi_swir > self.green_swir_index_threshold)
+    where(b2200 < self.sunglint_threshold). \
+    where(ndwi_swir > self.green_swir_index_threshold)
 
 
+wl_process =[443,  490,  560,  665,  705,  740,  783,  842,  865, 1610 , 2190]
+raster = masked_raster.sel(wl=wl_process)
+
+Nx = prod.width
+Ny = prod.height
+
+aotlut = lutf.aot
+def rounding(xarr,resol=1):
+    vals = np.unique(xarr.round(resol))
+    return  vals[~np.isnan(vals)]
+
+sza_ = rounding(prod.raster.sza,1)
+azi_ = rounding((180-prod.raster.raa)%360,0)
+vza_ = rounding(prod.raster.vza,1)
+
+aotlut = np.array(lutf.aot, dtype=prod.type)
+
+fine_refl = lutf.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
+coarse_refl = lutc.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
+lut_shape = fine_refl.shape
+fine_Cext = lutf.Cext
+coarse_Cext = lutc.Cext
+vza = prod.raster.sel(wl=wl_process).vza.values
+sza = prod.raster.sel(wl=wl_process).sza.values
+razi = prod.raster.sel(wl=wl_process).raa.values
+band_rad = raster.values
+maskpixels = np.zeros((prod.height,prod.width))
+wl_sat = wl_process
+pressure_corr = cams.raster.sp.interp(x=raster.x, y=raster.y)*1e-2/ prod.pressure_ref
+eps_sunglint = prod.sensordata.rg
+solar_irr = prod.solar_irradiance.sel(wl=wl_process).values
+rot = prod.sensordata.rot
+aot_tot = cams.cams_aod.interp(wavelength=wl_process).interp(x=raster.x, y=raster.y)
+aot_sca = aot_tot.values
+aot550guess= cams.raster.aod550.interp(x=raster.x, y=raster.y)
+fcoef = np.full((prod.height,prod.width),0.5)
+nodata = prod.nodata
+rrs = prod.rrs
 
 
+p = grs_solver.grs.main_algo(Nx, Ny, *lut_shape,
+                                         aotlut, sza_, azi_, vza_,
+                                         fine_refl, coarse_refl, fine_Cext, coarse_Cext,
+                                         vza, sza, razi, band_rad, maskpixels,
+                                         wl_sat, pressure_corr, eps_sunglint, solar_irr, rot,
+                                         aot_tot, aot_sca, aot550guess, fcoef,
+                                         nodata, rrs)
+
+rcorr, rcorrg, aot550pix, brdfpix = p
+plt.figure()
+
+l2 = xr.DataArray(rcorr,coords=raster.coords,name='Rrs')
+l2g = xr.DataArray(rcorrg,coords=raster.coords,name='Rrs_g')
+l2g.plot.imshow(col='wl',col_wrap=4,robust=True,vmin=0,vmax=0.015,cmap=plt.cm.Spectral_r)
 
 from matplotlib.colors import ListedColormap
+
 bcmap = ListedColormap(['khaki', 'lightblue'])
 
 

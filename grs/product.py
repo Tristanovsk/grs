@@ -1,12 +1,14 @@
 import os, sys, re, glob
+
 import numpy as np
 import xarray as xr
-import richdem as rd
+import datetime
+
 from dateutil import parser
 import logging
 from pkg_resources import resource_filename
 
-from . import config as cfg, auxdata, cams
+from . import config as cfg, auxdata, acutils
 
 opj = os.path.join
 
@@ -24,24 +26,35 @@ class product():
              {default: 'Rrs']
     '''
 
-    def __init__(self, l1c_obj=None, auxdatabase='cams', output='Rrs'):
+    def __init__(self, l1c_obj=None,
+                 auxdatabase='cams-global-atmospheric-composition-forecasts',
+                 output='Rrs'):
 
         self.processor = __package__ + ' ' + cfg.VERSION
 
         self.raster = l1c_obj
         self.sensor = l1c_obj.attrs['satellite']
-        self.date = self.raster.attrs['acquisition_date']
-        self.width = self.raster.x.__len__()
-        self.height = self.raster.y.__len__()
+        self.date_str = self.raster.attrs['acquisition_date']
+        self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+        self.x = self.raster.x
+        self.y = self.raster.y
+        self.width = self.x.__len__()
+        self.height = self.y.__len__()
+        self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds("+init=epsg:4326")
+        self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
+        self.wl = self.raster.wl
         self.vza_mean = self.raster.vza.mean()
-        self.sza_mean = self.raster.vza.mean()
+        self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
         self.sensordata = auxdata.sensordata(self.sensor)
-        self.cams = cams.cams()
+
         self.U = l1c_obj.attrs['REFLECTANCE_CONVERSION_U']
         # convert into mW cm-2 um-1
-        self.solar_irradiance = l1c_obj.solar_irradiance / 10
+        self.solar_irradiance = xr.DataArray(l1c_obj.solar_irradiance / 10,
+                                             coords={'wl': self.wl},
+                                             attrs={'description':'extraterrestrial solar irradiance from satellite metadata',
+                                                    'units':'mW cm-2 um-1'})
         self.auxdatabase = auxdatabase
         self.output = output
 
@@ -107,8 +120,7 @@ class product():
         self.description = ''
 
         self.nodata = -999.9
-        self.wl = []
-        self.b = []
+
         self.sza = []
         self.sazi = []
         self.vza = []
@@ -164,20 +176,7 @@ class product():
         '''
         self.aeronetfile = file
 
-    def get_product_info(self):
-        '''
 
-        :return:
-        '''
-        product = self.product
-        self.width = product.getSceneRasterWidth()
-        self.height = product.getSceneRasterHeight()
-        self.name = product.getName()
-        self.description = product.getDescription()
-        # self.band_names = product.getBandNames()
-        print(product.getStartTime())
-        if (((product.getStartTime())) is not None):
-            self.date = parser.parse(str(product.getStartTime()))
 
     def get_flag(self, product, flag_name):
         '''
@@ -194,100 +193,15 @@ class product():
         flag.readPixels(0, 0, w, h, flag_raster)
         return flag_raster
 
-    def get_elevation(self, high_latitude=False):
-        '''load elevation data into numpy array
-        :param high_latitude: for |lat| > 60 deg, SRTM is not defined,
-                if True, dem is set to GETASSE30
-                '''
+    def get_elevation(self, source='Copernicus30m'):
 
-        self.elevation = np.zeros((self.width, self.height), dtype=self.type, order='F').T
-        self.product = utils().add_elevation(self.product, high_latitude)
-        dem = self.product.getBand('elevation')
-
-        dem.readPixels(0, 0, self.width, self.height, self.elevation)
-        self.elevation = np.array(self.elevation)
-
-        return
-
-    def load_data(self):
-        '''
-        load ta from input (subset) satellite image
-        :return:
-        '''
-        # --------------------------------
-        # construct arrays
-        # --------------------------------
-        w, h = self.width, self.height
-        # set watermask as water (i.e., 1) for all pixels
-        self.watermask = np.full((w, h), 1, dtype=np.uint8, order='F').T
-        self.mask, self.flags = utils.init_fortran_array(2, (w, h), dtype=np.uint8)
-        self.sza, self.sazi, arr = utils.init_fortran_array(3, (w, h))
-        self.band_rad, self.vza, self.razi, self.muv = utils.init_arrayofarrays(4, [arr] * self.N)
-
-        # --------------------------------
-        # load Sun angles
-        # --------------------------------
-        self.SZA.readPixels(0, 0, w, h, self.sza)
-        self.SAZI.readPixels(0, 0, w, h, self.sazi)
-        self.mu0 = np.cos(np.radians(self.sza))
-
-        # --------------------------------
-        # load Masks
-        # --------------------------------
-        # get cirrus band if exists
-        if self.sensordata.cirrus:
-            logging.info(self.sensordata.cirrus[0])
-            self.hcld = self.get_raster(self.product, self.sensordata.cirrus[0])
-            # convert (if needed) into TOA reflectance
-            if 'LANDSAT' in self.sensor:
-                self.hcld = self.hcld * np.pi / (self.mu0 * self.U * 366.97)
-
-        # get 02 band if exists
-        if self.sensordata.O2band:
-            self.O2band_raster = self.get_raster(self.product, self.sensordata.O2band[0])
-
-        # if MAJA image provided, load (and write) AOT product band
-        if self.maja:
-            self.aot_maja = self.get_raster(self.maja, 'AOT_R1')
-            self.l2_product.getBand('aot_maja').writePixels(0, 0, self.width, self.height, self.aot_maja)
-
-        # --------------------------------
-        # load data
-        # --------------------------------
-        # loop in reverse order to use the esasnappy "dispose()" function within the jvm
-        for i, band in list(enumerate(self.band_names))[::-1]:
-            logging.info(f'loading band {band}')
-            self.B[i].readPixels(0, 0, w, h, arr)
-            self.B[i].dispose()
-            self.band_rad[i] = arr
-
-            # check for nodata pixels and set mask
-            nodata = self.B[i].getGeophysicalNoDataValue()
-            nodata_ = self.band_rad[i] == nodata
-            self.mask[nodata_] = 1
-
-            if (self.mask == 1).all():
-                raise ('No data available for the given subset of the image; process halted')
-
-            # convert (if needed) into TOA reflectance
-            if 'LANDSAT' in self.sensor:
-                self.band_rad[i] = self.band_rad[i] * np.pi / (self.mu0 * self.U * self.solar_irr[i] * 10)
-
-            self.VZA[i].readPixels(0, 0, w, h, arr)
-            self.VZA[i].dispose()
-            self.vza[i] = arr
-            self.muv[i] = np.cos(np.radians(self.vza[i]))
-            # get relative azimuth in OSOAA convention (=0 when sat and sun in opposition)
-            self.VAZI[i].readPixels(0, 0, w, h, arr)
-            self.VAZI[i].dispose()
-            self.razi[i] = arr
-
-            # convention RAZI = 0 when sun and satelite in opposition (Radiative transfer convention)
-            self.razi[i] = (180. - (self.razi[i] - self.sazi)) % 360
-            # convention RAZI = 180 when sun and satelite in opposition
-        # self.razi[i] =  (self.razi[i] - self.sazi) % 360
-
-        # self.razi[iband] = np.array([j % 360 for j in self.razi[iband]])
+        self.elevation = xr.DataArray(np.zeros((self.height, self.width)), name="dem", coords=dict(
+            y=self.y,
+            x=self.x),
+                                      attrs=dict(
+                                          description="Digital elevation model from " + source,
+                                          units="m")
+                                      )
 
     def load_flags(self):
         '''
@@ -366,6 +280,23 @@ class product():
             self.watermask[water_true] = 1
 
         return
+
+class algo(product):
+    def __init__(self, l1c_obj=None,
+                 auxdatabase='cams-global-atmospheric-composition-forecasts',
+                 output='Rrs'):
+        product.__init__(self, l1c_obj,auxdatabase, output)
+
+    def apply_gaseous_transmittance(self):
+        gas_trans = acutils.gaseous_transmittance(self.__init__(), cams)
+        Tg_raster = gas_trans.get_gaseous_transmittance()
+
+        self.raster['bands'] = self.raster.bands / Tg_raster
+        self.raster.bands.attrs['other_gas_correction'] = True
+
+    def process(self):
+        return
+
 
 
 def get_elevation(gdal_info_tgt, dem_glo30_dir, temp_dir=None, copy_dem_path=None):

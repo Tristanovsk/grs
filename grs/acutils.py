@@ -87,11 +87,11 @@ class lut:
 
             for i in range(len(self.sza)):
                 nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
-        #print(nrad.shape)
+        # print(nrad.shape)
         self.refl = self._toxr(nrad)
 
     def _toxr(self, arr):
-        #arr = np.array(arr)
+        # arr = np.array(arr)
 
         return xr.DataArray(arr,
                             dims=('aot', 'wl', 'sza', 'azi', 'vza'),
@@ -101,7 +101,7 @@ class lut:
                                     'azi': self.azi,
                                     'vza': self.vza})
 
-    def interp_n_slice(self,sza_:np.array,vza_:np.array,azi_:np.array):
+    def interp_n_slice(self, sza_: np.array, vza_: np.array, azi_: np.array):
         '''
         Linear Interpolation of the lut array on the given angles
         '''
@@ -185,6 +185,13 @@ class aerosol:
         self.fcoef, pcov = curve_fit(self.func_aero, [nCext_f, nCext_c], naot)
         return self.fcoef
 
+
+class cams_params:
+    def __init__(self, name, resol):
+        self.name = name
+        self.resol = resol
+
+
 class gases():
     def __init__(self):
         # atmosphere auxiliary data
@@ -196,15 +203,92 @@ class gases():
         self.psl = 1013
         self.coef_abs_scat = 0.3
 
+
 class gaseous_transmittance(gases):
 
-    def __init__(self,l1c_obj,gas_lut,Twv_lut):
+    def __init__(self, prod, cams):
+
         gases.__init__(self)
-        self.l1c_obj = l1c_obj
-        self.gas_lut=gas_lut
-        self.Twv_lut=Twv_lut
-        self.SRF = self.l1c_obj.raster.SRF
-        self.air_mass_mean=self.l1c_obj.air_mass_mean
+        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds()
+        self.prod = prod
+        self.cams = cams
+        self.gas_lut = prod.gas_lut
+        self.Twv_lut = prod.Twv_lut
+        self.SRF = self.prod.raster.SRF
+        self.air_mass_mean = self.prod.air_mass_mean
+        self.pressure = cams.raster.sp * 1e-2
+        self.coef_abs_scat = 0.3
+
+        self.cams_gases = {'ch4': cams_params('tc_ch4', 4),
+                           'no2': cams_params('tcno2', 7),
+                           'o3': cams_params('gtco3', 4),
+                           'h2o': cams_params('tcwv', 1),}
+
+    def Tgas_background(self):
+        gl = self.gas_lut
+        pressure = self.pressure.round(1)
+        self.ot_air = (gl.co + self.coef_abs_scat * gl.co2 +
+                  self.coef_abs_scat * gl.o2 +
+                  self.coef_abs_scat * gl.o4) / 1000
+
+        wl_ref = gl.wl
+        SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
+        vals = np.unique(pressure)
+        vals = vals[~np.isnan(vals)]
+        if len(vals) == 1:
+            vals = np.concatenate([vals, 1.2 * vals])
+        Tg_raster = []
+        for val in vals:
+            Tg = np.exp(- self.air_mass_mean * self.ot_air * val)
+            Tg = Tg.rename({'wl': 'wl_hr'})
+
+            Tg_int = []
+            for label, srf in SRF_hr.groupby('wl'):
+                srf = srf.dropna('wl_hr').squeeze()
+                Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+                wl_integr = Tg_.wl_hr.values
+
+                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_int.append(Tg_)
+            Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
+                                          ).assign_coords({'pressure': val}))
+        Tg_raster = xr.concat(Tg_raster, dim='pressure')
+        return Tg_raster.interp(pressure=pressure)
+
+    def Tgas(self, gas_name):
+
+        renorm=1.
+        if gas_name == 'h2o':
+            renorm=0.4
+
+        cams_gas = self.cams_gases[gas_name].name
+        resol = self.cams_gases[gas_name].resol
+
+        lut_abs = self.gas_lut[gas_name]
+        rounded = renorm * self.cams.raster[cams_gas].round(resol)
+        wl_ref = self.gas_lut.wl
+        SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
+        vals = np.unique(rounded)
+        vals = vals[~np.isnan(vals)]
+        if len(vals) == 1:
+            vals = np.concatenate([vals, 1.2 * vals])
+        Tg_raster = []
+        for val in vals:
+            Tg = np.exp(- self.air_mass_mean * lut_abs * val)
+            Tg = Tg.rename({'wl': 'wl_hr'})
+
+            Tg_int = []
+            for label, srf in SRF_hr.groupby('wl'):
+                srf = srf.dropna('wl_hr').squeeze()
+                Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+                wl_integr = Tg_.wl_hr.values
+
+                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_int.append(Tg_)
+            Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
+                                          ).assign_coords({'tc': val}))
+        Tg_raster = xr.concat(Tg_raster, dim='tc')
+        return Tg_raster.interp(tc=rounded)
 
     def get_gaseous_optical_thickness(self):
         gas_lut = self.gas_lut
@@ -218,12 +302,26 @@ class gaseous_transmittance(gases):
         self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
 
     def get_gaseous_transmittance(self):
+        Tg_other = self.Tgas('ch4') * self.Tgas('no2') * \
+                   self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
+
+        # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
+        # Nx = len(Tg_other.x)
+        # Ny = len(Tg_other.y)
+        # x = np.linspace(self.xmin, self.xmax, Nx)
+        # y = np.linspace(self.ymax, self.ymin, Ny)
+        # Tg_other['x'] = x
+        # Tg_other['y'] = y
+
+        return Tg_other.interp(x=self.prod.raster.x, y=self.prod.raster.y)
+
+    def get_gaseous_transmittance_old(self):
 
         self.get_gaseous_optical_thickness()
         wl_ref = self.gas_lut.wl  # .values
         SRF_hr = self.SRF.interp(wl_hr=wl_ref.values)
         Tg = np.exp(- self.air_mass_mean * self.abs_gas_opt_thick)
-        Tg=Tg.rename({'wl':'wl_hr'})
+        Tg = Tg.rename({'wl': 'wl_hr'})
 
         Tg_int = []
         for label, srf in SRF_hr.groupby('wl'):
@@ -231,7 +329,7 @@ class gaseous_transmittance(gases):
             Tg_ = Tg.sel(wl_hr=srf.wl_hr)
             wl_integr = Tg_.wl_hr.values
 
-            Tg_ = np.trapz(Tg_ * srf,wl_integr) / np.trapz(srf, wl_integr)
+            Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
             Tg_int.append(Tg_)
 
         self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})
@@ -271,6 +369,7 @@ class gaseous_transmittance(gases):
         # TODO improve for air_mass raster
         Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop('air_mass')
         self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
+
 
 class smac:
     ''' Gaseous absorption and transmission from pre-calculated 6S/SMAC data '''
@@ -379,7 +478,8 @@ class smac:
                 self.nco[i] = float(temp[1])
                 self.pco[i] = float(temp[2])
             except:
-                logging.error('WARNING ! NO SMAC FILES FOUND FOR BAND ' + self.smac_bands[i] + ' in ' + self.smacdir + '!')
+                logging.error(
+                    'WARNING ! NO SMAC FILES FOUND FOR BAND ' + self.smac_bands[i] + ' in ' + self.smacdir + '!')
                 sys.exit(0)
 
     def compute_gas_trans(self, iband, pressure, mu0, muv):
