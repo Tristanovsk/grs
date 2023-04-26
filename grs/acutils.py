@@ -218,7 +218,7 @@ class gaseous_transmittance(gases):
         self.air_mass_mean = self.prod.air_mass_mean
         self.pressure = cams.raster.sp * 1e-2
         self.coef_abs_scat = 0.3
-
+        self.Tg_tot_coarse = None
         self.cams_gases = {'ch4': cams_params('tc_ch4', 4),
                            'no2': cams_params('tcno2', 7),
                            'o3': cams_params('gtco3', 4),
@@ -302,7 +302,7 @@ class gaseous_transmittance(gases):
         self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
 
     def get_gaseous_transmittance(self):
-        Tg_other = self.Tgas('ch4') * self.Tgas('no2') * \
+        Tg_tot = self.Tgas('ch4') * self.Tgas('no2') * \
                    self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
 
         # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
@@ -312,8 +312,8 @@ class gaseous_transmittance(gases):
         # y = np.linspace(self.ymax, self.ymin, Ny)
         # Tg_other['x'] = x
         # Tg_other['y'] = y
-
-        return Tg_other.interp(x=self.prod.raster.x, y=self.prod.raster.y)
+        self.Tg_tot_coarse = Tg_tot
+        return Tg_tot.interp(x=self.prod.raster.x, y=self.prod.raster.y)
 
     def get_gaseous_transmittance_old(self):
 
