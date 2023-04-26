@@ -2,15 +2,15 @@ import sys
 import os
 import numpy as np
 import pandas
-from scipy.interpolate import interp1d
-import netCDF4 as nc
 import xarray as xr
 import dask
+
+from scipy.interpolate import interp1d
+import netCDF4 as nc
+
 import logging
 from dateutil import parser
 import calendar, datetime
-
-from esasnappy import ProductIO
 
 from . import config as cfg
 from .utils import utils as u

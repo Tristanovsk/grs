@@ -10,9 +10,9 @@ import richdem as rd
 from dateutil import parser
 import logging
 
-from esasnappy import GPF, jpy
-from esasnappy import Product, ProductUtils, ProductIO, ProductData
-from esasnappy import FlagCoding, String, Mask
+# from esasnappy import GPF, jpy
+# from esasnappy import Product, ProductUtils, ProductIO, ProductData
+# from esasnappy import FlagCoding, String, Mask
 
 from . import config as cfg
 

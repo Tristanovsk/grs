@@ -64,7 +64,7 @@ contains
         real(rtype), dimension(nx, ny) :: mu0
         real(rtype), dimension(nband, nx, ny) :: muv, m
         real(rtype) :: rglint, tdiff_Ed, tdiff_Lu
-        real(rtype) :: scale
+        real(rtype) :: scale,pressure_corr_pix
 
         !----------------------------------------------
         ! set parameters for lut interpolation
@@ -99,7 +99,7 @@ contains
             ! scale = (0.01/aot550(ix, iy))**(1d0/8)*1.02
             ! do not process masked pixels
             if (mask(ix, iy) .ne. 0) cycle
-
+            pressure_corr_pix = pressure_corr(ix, iy)
             ! Land filter
             !if (rtoa(ix, iy,4) < rtoa(ix, iy,8) .and. rtoa(ix, iy,8) > 0.15) cycle
             mu0(ix, iy) = cos(sza(ix, iy) * degrad)
@@ -117,11 +117,12 @@ contains
             aotpt = aot550(ix, iy)
             ! print*,aotpt,fine_coef(ix, iy)
             ! correction for pressure level
-            rot_corr = pressure_corr(ix, iy) * rot
+
             aot_ = aot_tot(:, ix, iy)
             i = 0
             success = 0
             do
+                rot_corr = pressure_corr_pix * rot
                 !aotpt(:) = aotpt * scale
                 aotpt(:) = max(aotpt, 0.01)
                 aotpt(:) = min(aotpt, 0.8)
@@ -133,9 +134,9 @@ contains
                     !TODO  and for AOT > 0.8
 
                     muv(iband, ix, iy) = cos(vza(iband, ix, iy) * degrad)
-                    call rgrd1(naot, aotlut, pressure_corr(ix, iy) * rlut_f(:, iband, isza, iazi(iband), ivza(iband)), &
+                    call rgrd1(naot, aotlut, pressure_corr_pix * rlut_f(:, iband, isza, iazi(iband), ivza(iband)), &
                             &  maot, aotpt, rsimf(iband), intpol, w, l_w, iw, l_iw, ier)
-                    call rgrd1(naot, aotlut, pressure_corr(ix, iy) * rlut_c(:, iband, isza, iazi(iband), ivza(iband)), &
+                    call rgrd1(naot, aotlut, pressure_corr_pix * rlut_c(:, iband, isza, iazi(iband), ivza(iband)), &
                             &  maot, aotpt, rsimc(iband), intpol, w, l_w, iw, l_iw,ier)
                     !TODO understand why ndarray is inverted on the first dim aot
 !                    if (iband == 1) then
@@ -166,7 +167,7 @@ contains
                             &  .and. i .le. 8 .and. iband .lt. nband) then !iband .le. nband - 2 .and.
                         ! print*,'aot adjustment',aotpt ,aotpt * scale,scale
                         aotpt(:) = max(aotpt * scale, 0.01)
-
+                        !pressure_corr_pix=pressure_corr_pix*0.99
                         i = i + 1
                         exit
                     else

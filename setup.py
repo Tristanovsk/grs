@@ -3,10 +3,9 @@
 
 from setuptools import setup, find_packages
 
-# from grs import __version__, __package__
 
 __package__ = 'grs'
-__version__ = '1.5.0'
+__version__ = '2.0.0'
 
 setup(
     name=__package__,
@@ -20,10 +19,10 @@ setup(
     # },
     include_package_data=True,
 
-    url='https://gitlab.irstea.fr/telquel-obs2co/satellite/grs',
+    url='',
     license='MIT',
     author='T. Harmel',
-    author_email='tristan.harmel@ntymail.com',
+    author_email='tristan.harmel@gmail.com',
     description='scientific code for atmosphere and sunglint correction of Sentinel-2 and Landsat series',
 
     # Dependent packages (distributions)
