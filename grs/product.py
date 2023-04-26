@@ -30,12 +30,15 @@ class product():
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
 
-        self.processor = __package__ + ' ' + cfg.VERSION
+        self.processor = __package__ + '_' + cfg.VERSION
 
         self.raster = l1c_obj
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+        # add metadata for future export to L2product
+        self.raster.attrs['processing_time'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+        self.raster.attrs['processor'] = self.processor
         self.x = self.raster.x
         self.y = self.raster.y
         self.width = self.x.__len__()
@@ -61,6 +64,8 @@ class product():
         #########################
         # settings:
         #########################
+        self.wl_process = [443, 490, 560, 665, 705,
+                      740, 783, 842, 865, 1610, 2190]
         self.block_size = 512
         self.sunglint_bands = [12]
         # data type for pixel values
@@ -280,6 +285,9 @@ class product():
             self.watermask[water_true] = 1
 
         return
+
+
+
 
 class algo(product):
     def __init__(self, l1c_obj=None,

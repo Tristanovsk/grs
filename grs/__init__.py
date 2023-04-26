@@ -42,6 +42,8 @@ Version history:
 1.4.0: - process image by rectangular chunks
 
 1.5.0: change output parameter with addition of ndwi_nir and ndwi_swir
+
+2.0.0: remove snappy skeleton, simplification of the previous option, no more handling for Landsat
 '''
 
 __package__ = 'grs'
@@ -53,7 +55,7 @@ from .cams import cams_product
 from .auxdata import Aeronet, sensordata
 from .utils import utils
 from .product import product
-from .output import l2a
+from .output import l2a_product
 from .grs_process import process
 
 import logging
@@ -63,20 +65,3 @@ logger = logging.getLogger()
 
 level = logging.getLevelName("INFO")
 logger.setLevel(level)
-#from logging.handlers import RotatingFileHandler
-
-# file handle
-#file_handler = RotatingFileHandler("logs.txt", 'a', 1000000, 1)
-#formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s',
-#                                  datefmt='%Y-%m-%dT%H:%M:%S')
-
-#file_handler.setLevel(level)
-#file_handler.setFormatter(formatter)
-#logger.addHandler(file_handler)
-
-# stream handler
-#stream_handler = logging.StreamHandler()
-#stream_handler.setLevel(level)
-#stream_handler.setFormatter(formatter)
-#logger.addHandler(stream_handler)
-

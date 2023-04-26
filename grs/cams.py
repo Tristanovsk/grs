@@ -87,7 +87,10 @@ class cams_product:
         cams_aod = self.raster[param_aod].to_array(dim='wavelength')
         wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
         self.cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
-        del cams_aod
+        cams_ssa = self.raster[param_ssa].to_array(dim='wavelength')
+        wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
+        self.cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
+        del cams_aod, cams_ssa
 
         self.variables = list(cams.keys())
 
