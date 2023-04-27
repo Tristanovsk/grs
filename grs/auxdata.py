@@ -46,7 +46,6 @@ class sensordata:
     Construct object with values:
         * ``rot`` -- Rayleigh optical thickness for each band
         * ``band names`` for angles files format
-        * ``smac_band`` -- band names for SMAC files format
         * ``rg`` -- Cox-Munk Fresnel reflection factor ratio (R(wl)/Rref(2190nm) [Harmel et al., 2018]
         * ``angle_generator`` -- function to compute angles from metadata
     '''
@@ -87,8 +86,6 @@ class sensordata:
                     'vza_name': 'view_zenith_',
                     'azi_name': 'view_azimuth_',
                     'ang_proc': None,
-                    'smac_dir': os.path.join(cfg.smac_root, 'Coef_S2A_CONT_'),
-                    'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
                     'cirrus': ['B10', hcld_threshold],
                     'lut_name': 'S2A/lut_',
                     # rot and rglint from old RSR (now updated since Jan-2018)
@@ -120,9 +117,6 @@ class sensordata:
                     'vza_name': 'view_zenith_',
                     'azi_name': 'view_azimuth_',
                     'ang_proc': None,
-                    # TODO update for S2B after update of SMAC by CESBIO
-                    'smac_dir': os.path.join(cfg.smac_root, 'Coef_S2A_CONT_'),
-                    'smac_bands': ('B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'),
                     'cirrus': ['B10', hcld_threshold],
                     'lut_name': 'S2B/lut_',
                     'rot': [0.23745233, 0.15521662, 0.09104522, 0.04485828, 0.03557663,
@@ -149,8 +143,6 @@ class sensordata:
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
                           'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT4_'),
-                          'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no', hcld_threshold],
                           'lut_name': 'L4/lut_L4_',
                           'rot': [0.16389, 0.084813, 0.046737, 0.01785, 0.001091, 0.0003578],
@@ -174,8 +166,6 @@ class sensordata:
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
                           'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT5_'),
-                          'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no', hcld_threshold],
                           'lut_name': 'L5/lut_L5_',
                           'rot': [0.163419, 0.085201, 0.046514, 0.017945, 0.001098, 0.0003576],
@@ -199,8 +189,6 @@ class sensordata:
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
                           'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/TM/landsat_angles'),
-                          'smac_dir': os.path.join(cfg.smac_root, 'coef_LANDSAT7_'),
-                          'smac_bands': ('b1_CONT', 'b2_CONT', 'b3_CONT', 'b4_CONT', 'b5_CONT', 'b7_CONT'),
                           'cirrus': ['no', hcld_threshold],
                           'lut_name': 'L7/lut_L7_',
                           'rot': [0.174702, 0.091113, 0.046100, 0.018231, 0.001169, 0.0003645],
@@ -225,8 +213,6 @@ class sensordata:
                           'vza_name': 'Zenith_',
                           'azi_name': 'Azimuth_',
                           'ang_proc': os.path.join(cfg.grs_root, 'landsat_angles/OLI/l8_angles'),
-                          'smac_dir': os.path.join(cfg.smac_root, 'Coef_LANDSAT8_'),
-                          'smac_bands': ('440_1', '490_1', '560_1', 'PAN_1', '660_1', '860_1', '1630_1', '2250_1'),
                           'cirrus': ['cirrus', hcld_threshold],
                           'lut_name': 'L8/lut_L8_',
                           'rot': [0.22899, 0.16786, 0.08999, 0.077445, 0.04785, 0.015507, 0.00128, 0.000366],
@@ -249,8 +235,6 @@ class sensordata:
         self.rot = np.array(info['rot'])[idx]
         self.rg = np.array(info['rglint'])[idx]
         self.lutname = info['lut_name']
-        self.smac_dir = info['smac_dir']
-        self.smac_bands = np.array(info['smac_bands'])[idx]
         self.angle_processor = info['ang_proc']
         self.angle_names = np.array(info['ang_names'])[idx]
         self.vza_name = info['vza_name']

@@ -8,7 +8,7 @@ from dateutil import parser
 import logging
 from pkg_resources import resource_filename
 
-from . import config as cfg, auxdata, acutils
+from . import config as cfg, auxdata, acutils, __version__,__package__
 
 opj = os.path.join
 
@@ -30,12 +30,14 @@ class product():
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
 
-        self.processor = __package__ + '_' + cfg.VERSION
+        self.processor = __package__ + '_' + __version__
 
         self.raster = l1c_obj
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+        self.raster = self.raster.assign_coords({'time':self.date})
+
         # add metadata for future export to L2product
         self.raster.attrs['processing_time'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
         self.raster.attrs['processor'] = self.processor

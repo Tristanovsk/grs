@@ -1,8 +1,11 @@
 module grs
+    use, intrinsic :: ieee_arithmetic, only: IEEE_Value, IEEE_QUIET_NAN
+    use, intrinsic :: iso_fortran_env, only: real32
 
     integer, parameter :: dp = kind(0.d0)
     integer, parameter :: sp = kind(0.)
     integer, parameter :: rtype = sp
+
 
 contains
 
@@ -11,7 +14,7 @@ contains
             &                    rlut_f, rlut_c, Cext_f, Cext_c, &
             &                    vza, sza, azi, rtoa, mask, wl, &
             &                    pressure_corr, &
-            &                    rg_ratio, F0, rot, aot_tot, aot_sca, aot550, fine_coef, nodata, rrs, &
+            &                    rg_ratio, F0, rot, aot_tot, aot_sca, aot550, fine_coef, rrs, &
             &                    rcorr, rcorrg, aot550_est, brdf_est)
         !f2py -c -m main_algo main_algo.f95
 
@@ -39,7 +42,6 @@ contains
 
         real(rtype), dimension(naot, nband, nsza, nazi, nvza), intent(in) :: rlut_f, rlut_c
         real(rtype), dimension(nband), intent(in) :: Cext_f, Cext_c
-        real(rtype), intent(inout) :: nodata
         logical, intent(in) :: rrs
 
         real(rtype), dimension(nband, nx, ny), intent(out) :: rcorr, rcorrg
@@ -48,7 +50,7 @@ contains
         !f2py intent(in) nx, ny,nband,naot,nsza,nazi,nvza,aotlut,szalut, razilut, vzalut
         !f2py intent(in) vza,sza,azi,rtoa,mask,wl,pressure_corr,rlut_f,rlut_c
         !f2py intent(in) Cext_f,Cext_c,rg_ratio,F0, aot_sca,rot,fine_coef,rrs
-        !f2py intent(inout) aot_tot, aot550, nodata
+        !f2py intent(inout) aot_tot, aot550
         !f2py intent(out) rcorr, rcorrg, aot550_est, brdf_est
         !f2py depend(nx, ny) sza, aot550, mask, aot550_est, brdf_est, pressure_corr,fine_coef
         !f2py depend(nband) wl,rot,Cext_f,Cext_c,rg_ratio, F0
@@ -83,25 +85,27 @@ contains
         real(rtype), parameter :: pi = 4 * atan (1.0_rtype)
         real(rtype), parameter :: degrad = pi / 180._rtype
 
+        real(real32) :: nan
+        nan = IEEE_VALUE(nan, IEEE_QUIET_NAN)
 
         !----------------------------------------------
         ! initialize outputs
-        rcorr = nodata
-        rcorrg = nodata
-        brdf_est = nodata
-        aot550_est = nodata
+        rcorr = nan
+        rcorrg = nan
+        brdf_est = nan
+        aot550_est = nan
         !----------------------------------------------
 
         scale = 0.95
         do ix = 1, nx
           do iy = 1,ny
-
+            ! if input pixel is NaN pass to next pixel
+            if (rtoa(3,ix, iy) /= rtoa(3,ix, iy)) cycle
             ! scale = (0.01/aot550(ix, iy))**(1d0/8)*1.02
             ! do not process masked pixels
             if (mask(ix, iy) .ne. 0) cycle
             pressure_corr_pix = pressure_corr(ix, iy)
-            ! Land filter
-            !if (rtoa(ix, iy,4) < rtoa(ix, iy,8) .and. rtoa(ix, iy,8) > 0.15) cycle
+
             mu0(ix, iy) = cos(sza(ix, iy) * degrad)
 
             !---------------------------
@@ -153,7 +157,6 @@ contains
                         print*, 'AOT', aotpt, max(aotpt * scale, 0.01)
                         stop
                     endif
-                    !write(*,*)iband,aotpt, rtoa(ix, iy,iband),rsimc(iband)
 
                     rsim(iband) = fine_coef(ix, iy) * rsimf(iband) + (1 - fine_coef(ix, iy)) * rsimc(iband)
                     ! correction for absorbing aerosol

@@ -173,7 +173,7 @@ aot_tot = aot_tot_cams_res.interp(x=raster.x, y=raster.y)
 aot_sca = aot_sca_cams_res.interp(x=raster.x, y=raster.y)
 aot550guess= cams.raster.aod550.interp(x=raster.x, y=raster.y)
 fcoef = np.full((prod.height,prod.width),0.5)
-nodata = prod.nodata
+
 rrs = prod.rrs
 
 
@@ -182,8 +182,7 @@ p = grs_solver.grs.main_algo(Nx, Ny, *lut_shape,
                                          fine_refl, coarse_refl, fine_Cext, coarse_Cext,
                                          vza, sza, razi, band_rad, maskpixels,
                                          wl_sat, pressure_corr, eps_sunglint, solar_irr, rot,
-                                         aot_tot, aot_sca, aot550guess, fcoef,
-                                         nodata, rrs)
+                                         aot_tot, aot_sca, aot550guess, fcoef, rrs)
 
 rcorr, rcorrg, aot550pix, brdfpix = p
 
@@ -197,10 +196,17 @@ l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
 l2a = l2a_product(prod,l2_prod,cams,gas_trans)
 l2a.to_netcdf(opj(odir,ofile))
 
+
+
+##########################################
+# PLOTTING SECTION
+##########################################
+plt.figure()
+l2a.l2_prod.BRDFg.plot.imshow(robust=True,cmap=plt.cm.gray)
+
 l2a.l2_prod.Rrs.plot.imshow(col='wl',col_wrap=4,robust=True,vmin=0,vmax=0.015,cmap=plt.cm.Spectral_r)
 
 from matplotlib.colors import ListedColormap
-
 bcmap = ListedColormap(['khaki', 'lightblue'])
 
 
@@ -211,7 +217,6 @@ def water_mask(ndwi, threshold=0):
 
 def plot_water_mask(ndwi, ax, threshold=0):
     water = water_mask(ndwi, threshold)
-
     water.plot.imshow(ax=ax, cmap=bcmap,
                       cbar_kwargs={'ticks': [0, 1], 'shrink': shrink})
     ax.set_title(str(threshold) + ' < NDWI')

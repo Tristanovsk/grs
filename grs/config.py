@@ -2,8 +2,7 @@
 
 import os, sys
 import logging
-from .__init__ import __version__ as VERSION
-from .__init__ import __package__
+
 
 root = os.path.dirname(os.path.abspath(__file__))
 

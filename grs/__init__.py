@@ -47,9 +47,9 @@ Version history:
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 
-from .config import *
+
 from .acutils import aerosol, lut, misc, smac
 from .cams import cams_product
 from .auxdata import Aeronet, sensordata

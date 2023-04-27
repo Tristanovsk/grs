@@ -63,6 +63,8 @@ class cams_product:
         cams = cams.sel(time=self.date, method='nearest')
         cams = cams.sel(latitude=slice(prod.latmax + 1, prod.latmin - 1),
                         longitude=slice(prod.lonmin - 1, prod.lonmax + 1))
+        # rename "time" variable to avoid conflicts
+        cams = cams.rename({'time':'time_cams'})
         if cams.u10.shape[0] == 0 or cams.u10.shape[1] == 0:
             print('no cams data, enlarge subset')
 
