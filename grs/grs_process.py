@@ -8,18 +8,13 @@ import zipfile
 import tarfile
 import glob
 
-import matplotlib
-matplotlib.use('tkagg')
-import matplotlib.pyplot as plt
-
-plt.figure()
 import numpy as np
 import xarray as xr
 import logging
 
 from s2driver import driver_S2_SAFE as S2
-from grs import product, acutils, utils, cams_product, l2a_product
-from grs.fortran.grs import main_algo as grs_solver
+from . import product, acutils, utils, cams_product, l2a_product
+from .fortran.grs import main_algo as grs_solver
 
 
 class process:
@@ -105,7 +100,7 @@ class process:
         ######################################
         # Water mask
         ######################################
-        logging.info('compute gaseous transmittance from cams data')
+        logging.info('compute spectral index (e.g., NDWI)')
 
         green = prod.raster.bands.sel(wl=prod.b565)
         nir = prod.raster.bands.sel(wl=prod.b865)
@@ -115,10 +110,19 @@ class process:
         ndwi = (green - nir) / (green + nir)
         ndwi_swir = (green - swir) / (green + swir)
 
+        prod.raster['ndwi'] = ndwi
+        prod.raster.ndwi.attrs = {
+            'description': 'Normalized difference spectral index between bands at ' + str(prod.b565) + ' and ' + str(
+                prod.b865) + ' nm', 'units': '-'}
+        prod.raster['ndwi_swir'] = ndwi_swir
+        prod.raster.ndwi_swir.attrs = {
+            'description': 'Normalized difference spectral index between bands at ' + str(prod.b565) + ' and ' + str(
+                prod.b1600) + ' nm', 'units': '-'}
+
         if allpixels:
             masked_raster = prod.raster.bands
         else:
-            logging.info('compute gaseous transmittance from cams data')
+            logging.info('apply water masking')
             masked_raster = prod.raster.bands.where(ndwi > prod.ndwi_threshold). \
                 where(b2200 < prod.sunglint_threshold). \
                 where(ndwi_swir > prod.green_swir_index_threshold)
@@ -126,7 +130,7 @@ class process:
         ######################################
         # Rounding angle variables to save time in LUT interpolation
         ######################################
-        logging.info('compute gaseous transmittance from cams data')
+        logging.info('round angles for speed up lut interpolation')
         def rounding(xarr, resol=1):
             vals = np.unique(xarr.round(resol))
             return vals[~np.isnan(vals)]
@@ -143,7 +147,6 @@ class process:
         wl_process = prod.wl_process
         eps_sunglint = prod.sensordata.rg
         rot = prod.sensordata.rot
-        nodata = prod.nodata
         rrs = prod.rrs
         Nx = prod.width
         Ny = prod.height
@@ -186,8 +189,7 @@ class process:
                                      fine_refl, coarse_refl, fine_Cext, coarse_Cext,
                                      vza, sza, razi, band_rad, maskpixels,
                                      wl_process, pressure_corr, eps_sunglint, solar_irr, rot,
-                                     aot_tot, aot_sca, aot550guess, fcoef,
-                                     nodata, rrs)
+                                     aot_tot, aot_sca, aot550guess, fcoef, rrs)
 
         ######################################
         # Write final product
@@ -200,6 +202,6 @@ class process:
         brdfg = xr.DataArray(brdfpix, coords={'y': raster.y, 'x': raster.x}, name='BRDFg')
         l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
         l2_prod = l2_prod.drop_vars('pressure')
-        l2a = l2a_product(prod, l2_prod, cams, gas_trans)
-        l2a.to_netcdf(ofile)
+        self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
+        self.l2a.to_netcdf(ofile)
 

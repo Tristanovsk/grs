@@ -253,7 +253,7 @@ class gaseous_transmittance(gases):
             Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
                                           ).assign_coords({'pressure': val}))
         Tg_raster = xr.concat(Tg_raster, dim='pressure')
-        return Tg_raster.interp(pressure=pressure)
+        return Tg_raster.interp(pressure=pressure).drop_vars(['pressure'])
 
     def Tgas(self, gas_name):
 
