@@ -1,7 +1,7 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [-o <ofile>] [--odir <odir>]  [--output param] [--resolution=res] \
+  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>]  [--output param] [--resolution res] \
    [--levname <lev>] [--no_clobber] [--allpixels]
   grs -h | --help
   grs -v | --version
@@ -12,33 +12,38 @@ Options:
 
   <input_file>     Input file to be processed
 
+  --cams_file file     Absolute path of the CAMS file to be used (mandatory)
+
   -o ofile         Full (absolute or relative) path to output L2 image.
   --odir odir      Ouput directory [default: ./]
-  --levname lev    Level naming used for output product [default: L2grs]
+  --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res  spatial resolution of the scene pixels
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
 
+  Example:
+      grs /media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
+
 '''
 
-import os
+import os, sys
 from docopt import docopt
 import logging
-from .config import *
+from . import __package__,__version__
 from .grs_process import process
 
 
 def main():
-    args = docopt(__doc__, version=__package__ + ' ' + VERSION)
+    args = docopt(__doc__, version=__package__ + '_' +__version__)
     print(args)
 
     file = args['<input_file>']
     lev = args['--levname']
-    cams_dir = args['--cams_dir']
+    cams_file = args['--cams_file']
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
-    resolution = args['--resolution']
+    resolution = int(args['--resolution'])
     output = args['--output']
 
     ##################################
@@ -64,11 +69,15 @@ def main():
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
 
+    print('call grs_process for the following paramater. File:' +
+                 file + ', output file:' + outfile +
+                 ', cams_file:' + cams_file +
+                 ', resolution:' + str(resolution))
     logging.info('call grs_process for the following paramater. File:' +
                  file + ', output file:' + outfile +
-                 ', cams_dir:' + cams_dir +
+                 ', cams_file:' + cams_file +
                  ', resolution:' + str(resolution))
-    process().execute(file, outfile, cams_dir, resolution=resolution,
+    process().execute(file, outfile, cams_file=cams_file, resolution=resolution,
                       output=output, allpixels=allpixels)
     return
 

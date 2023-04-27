@@ -46,18 +46,24 @@ class cams_product:
     '''
 
     def __init__(self,prod,
+                 cams_file=None,
                  dir='./',
                  type='cams-global-atmospheric-composition-forecasts',
                  wls = [400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]):
 
         self.date = prod.date
         date_str = prod.date.strftime('%Y-%m-%d')
-        self.dir = dir
-        self.file = date_str + '-' + type + '.nc'
+        if cams_file:
+            self.file = os.path.basename(cams_file)
+            self.dir = os.path.dirname(cams_file)
+        else:
+            self.dir = dir
+            self.file = date_str + '-' + type + '.nc'
+
         xmin, ymin, xmax, ymax = prod.raster.rio.bounds()
 
         # lazy loading
-        cams = xr.open_dataset(opj(dir, self.file), decode_cf=True,
+        cams = xr.open_dataset(opj(self.dir, self.file), decode_cf=True,
                                chunks={'time': 1, 'x': 500, 'y': 500})
         # slicing
         cams = cams.sel(time=self.date, method='nearest')

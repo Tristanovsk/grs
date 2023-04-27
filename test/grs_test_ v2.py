@@ -28,6 +28,7 @@ opj = os.path.join
 odir = '/sat_data/satellite/sentinel2/L2A'
 file = '/sat_data/satellite/sentinel2/L1C/31TFJ/S2A_MSIL1C_20201004T104031_N0209_R008_T31TFJ_20201004T125253.SAFE'
 file = '/media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE'
+cams_file = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc'
 file_nc = file.replace('.SAFE', '.nc')
 basename = os.path.basename(file)
 ofile = basename.replace('.SAFE', '.nc').replace('L1C','L2Agrs')
@@ -63,7 +64,7 @@ else:
 ##################################
 # prod.get_cams()
 cams_dir = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS'
-cams = cams_product(prod,dir='/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS')
+cams = cams_product(prod,cams_file='/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS')
 cams.plot_params()
 
 ##################################
