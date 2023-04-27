@@ -24,7 +24,7 @@ class process:
         self.bandIds = range(13)
 
     def execute(self, file, ofile,
-                cams_dir,
+                cams_file='./cams.nc',
                 resolution=20,
                 allpixels=False,
                 output='Rrs',
@@ -36,7 +36,7 @@ class process:
 
         :param file: Input file to be processed
         :param ofile: Absolute path of the output file
-        :param cams_dir: Absolute path for root directory of CAMS data
+        :param cams_file: Absolute path for root directory of CAMS data
         :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
         :param resolution: pixel resolution in meters (integer), choice between: 10, 20, 60 m
@@ -68,7 +68,7 @@ class process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         logging.info('get CAMS auxilliary data')
-        cams = cams_product(prod, dir=cams_dir)
+        cams = cams_product(prod, cams_file=cams_file)
 
         ##################################
         ## ADD ELEVATION AND PRESSURE BAND
@@ -194,14 +194,15 @@ class process:
         ######################################
         # Write final product
         ######################################
-        logging.info('write final product')
+        logging.info('construct final product')
         rcorr, rcorrg, aot550pix, brdfpix = p
         Rrs = xr.DataArray(rcorr, coords=raster.coords, name='Rrs')
         Rrs_g = xr.DataArray(rcorrg, coords=raster.coords, name='Rrs_g')
         aot550 = xr.DataArray(aot550pix, coords={'y': raster.y, 'x': raster.x}, name='aot550')
         brdfg = xr.DataArray(brdfpix, coords={'y': raster.y, 'x': raster.x}, name='BRDFg')
         l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
-        l2_prod = l2_prod.drop_vars('pressure')
         self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
+
+        logging.info('export final product into netcdf')
         self.l2a.to_netcdf(ofile)
 
