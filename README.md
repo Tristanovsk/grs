@@ -49,7 +49,6 @@ transmittances) calculated for the bimodal aerosol model from the LUT. The versi
 response of each band of Sentinel-2 A and B as well as Landsat-8 and it is based on the CAMS aerosol data for the
 spectral value of $`\tau _a`$.
 
-![flowchart](images/flowchart_sunglint_S2.png)
 
 ## Getting Started
 
@@ -57,17 +56,17 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
+### please use conda environment
+conda activate "name of your conda env"
+
+conda install gdal numba rasterio
+
+python setup.py install
+
+### To download CAMS data
 [Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
 
-Download and install the [SNAP software](http://step.esa.int/main/download/). 
-Configure the [SNAP-python interface](https://senbox.atlassian.net/wiki/spaces/SNAP/pages/50855941/Configure+Python+to+use+the+SNAP-Python+snappy+interface) 
-and link the obtained `snappy` folder to your python site-packages as `esasnappy`. For example:
-
-```bash
-ln -s /FULL_PATH/.snap/snap-python/snappy /PATH_TO_LIB_PYTHON/lib/python3.6/site-packages/esasnappy
-```
-
-
+### to compile fortran codes
 Compilers such gcc and gfortran are needed to install the package.
  
 Bindings are made based on F2PY. Please update the version of F2PY accordingly to your python version 

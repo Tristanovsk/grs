@@ -53,7 +53,6 @@ __version__ = '2.0.1'
 from .acutils import aerosol, lut, misc, smac
 from .cams import cams_product
 from .auxdata import Aeronet, sensordata
-from .utils import utils
 from .product import product
 from .output import l2a_product
 from .grs_process import process
