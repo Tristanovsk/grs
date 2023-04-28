@@ -13,7 +13,7 @@ import xarray as xr
 import logging
 
 from s2driver import driver_S2_SAFE as S2
-from . import product, acutils, utils, cams_product, l2a_product
+from . import product, acutils, cams_product, l2a_product
 from .fortran.grs import main_algo as grs_solver
 
 
