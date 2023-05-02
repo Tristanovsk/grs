@@ -85,9 +85,9 @@ class product():
         self.hcld_threshold = 3e-3
 
         # pre-computed auxiliary data
-        self.dirdata = resource_filename(__package__, '../grsdata/')
+        self.dirdata = cfg.data_root #resource_filename(__package__, '../grsdata/')
         self.abs_gas_file = opj(self.dirdata, 'gases', 'lut_abs_opt_thickness_normalized.nc')
-        self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
+        #self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
         self.water_vapor_transmittance_file = opj(self.dirdata, 'gases', 'water_vapor_transmittance.nc')
         self.load_auxiliary_data()
 
