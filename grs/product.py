@@ -1,14 +1,10 @@
-import os, sys, re, glob
-
 import numpy as np
 import xarray as xr
 import datetime
 
-from dateutil import parser
 import logging
 from pkg_resources import resource_filename
-
-from . import config as cfg, auxdata, acutils, __version__,__package__
+import os
 
 opj = os.path.join
 
@@ -30,8 +26,8 @@ class product():
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
 
+        from . import config as cfg, auxdata, __version__,__package__
         self.processor = __package__ + '_' + __version__
-
         self.raster = l1c_obj
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
@@ -313,7 +309,6 @@ def get_elevation(gdal_info_tgt, dem_glo30_dir, temp_dir=None, copy_dem_path=Non
     '''load elevation 10m data from Copernicus GLO30 into numpy array
 
             '''
-
     start_time_loc = datetime.utcnow()
 
     print('Computing DEM from GLO30 dir: %s' % dem_glo30_dir)
