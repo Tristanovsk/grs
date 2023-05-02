@@ -22,7 +22,7 @@ class l2a_product():
         self.l2_prod.attrs = native_raster.attrs
 
         keys = ['sunglint_threshold', 'ndwi_threshold', 'green_swir_index_threshold', 'hcld_threshold',
-                'dirdata', 'abs_gas_file', 'lut_file', 'water_vapor_transmittance_file']
+                'dirdata', 'abs_gas_file', 'water_vapor_transmittance_file']
 
         for key in keys:
             self.l2_prod.attrs[key] = str(self.prod.__dict__[key])

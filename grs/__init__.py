@@ -50,7 +50,7 @@ __package__ = 'grs'
 __version__ = '2.0.1'
 
 
-from .acutils import aerosol, lut, misc, smac
+from .acutils import aerosol, lut, misc
 from .cams import cams_product
 from .auxdata import Aeronet, sensordata
 from .product import product
