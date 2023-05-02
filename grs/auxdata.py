@@ -1,20 +1,10 @@
-import sys
 import os
 import numpy as np
 import pandas
-import xarray as xr
-import dask
 
 from scipy.interpolate import interp1d
-import netCDF4 as nc
 
 import logging
-from dateutil import parser
-import calendar, datetime
-
-from . import config as cfg
-
-from .acutils import aerosol
 
 # ------------------------
 # set threshold for masking
@@ -51,6 +41,9 @@ class sensordata:
     '''
 
     def __init__(self, sensor):
+        
+        from . import config as cfg
+        
         self.sensor = sensor
 
         ##################################
@@ -254,7 +247,6 @@ class Aeronet:
     '''Contains functions for importing AERONET measurements.
     Modifified from:
        Copyright 2012 Robin Wilson and contributors listed in the CONTRIBUTORS file.'''
-    import pandas
 
     @classmethod
     def import_aeronet_data(cls, data, filename, time):

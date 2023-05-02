@@ -2,12 +2,6 @@
 Main program
 '''
 
-from pathlib import Path
-import os, shutil
-import zipfile
-import tarfile
-import glob
-
 import numpy as np
 import xarray as xr
 import logging

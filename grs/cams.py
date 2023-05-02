@@ -4,18 +4,13 @@ import os, sys
 import numpy as np
 import pandas
 from scipy.interpolate import interp1d
-import netCDF4 as nc
 import xarray as xr
-import dask
 
 import matplotlib.pyplot as plt
 
 import logging
-from dateutil import parser
 import calendar, datetime
 
-from . import config as cfg
-from .acutils import aerosol
 opj = os.path.join
 
 class cams_product:
@@ -269,7 +264,6 @@ class Aeronet:
     '''Contains functions for importing AERONET measurements.
     Modifified from:
        Copyright 2012 Robin Wilson and contributors listed in the CONTRIBUTORS file.'''
-    import pandas
 
     @classmethod
     def import_aeronet_data(cls, data, filename, time):
