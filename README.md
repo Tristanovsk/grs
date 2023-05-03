@@ -163,9 +163,9 @@ First and foremost, you must have the coresponding version of s2driver at the sa
 You should also make sure that the grsdata folder is full (itis a LTS).
 Eventually, you must get Dockerfile off of grs2 folder to have a structure as diplayed below.
 
-head_folder
- ├grs2
- ├s2driver
+head_folder  
+ ├grs2  
+ ├s2driver  
  └Dockerfile
 
 Note that anything in this folder tree will be added to the Docker build context, so make it light.
@@ -210,4 +210,5 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 with the snappy API.
 * The authors are very grateful to Olivier Hagolle
 for providing open source codes to perform gaseous absorption correction and massive Sentinel-2 data download.
+
 
