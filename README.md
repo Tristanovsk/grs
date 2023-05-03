@@ -117,7 +117,7 @@ Usage:
 Create the conda environment using the definition file available in the conda folder :
 ```
 conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
-````
+```
 The option -p set the directory where the conda environment will be installed
 
 To install the package grs in conda :
@@ -147,7 +147,7 @@ Another examples of output images before (1st column) and after  (2nd column) su
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
 
-### Lauch with docker :
+### Lauch with docker [deprecated]:
 ```
 qsub -q qdev -I -l walltime=4:00:00
 
@@ -157,6 +157,38 @@ qsub -q qdev -I -l walltime=4:00:00
 ## Deployment
 
 See examples in [exe](exe).
+
+## Compile Docker image locally
+First and foremost, you must have the coresponding version of s2driver at the same level as grs2.
+You should also make sure that the grsdata folder is full (itis a LTS).
+Eventually, you must get Dockerfile off of grs2 folder to have a structure as diplayed below.
+
+head_folder
+ ├grs2
+ ├s2driver
+ └Dockerfile
+
+Note that anything in this folder tree will be added to the Docker build context, so make it light.
+You might consider removing the notebooks and all useless files from the grs2 & s2driver folders to make the resulting image
+as light as possible.
+
+Once all those requirements are met, you can compile the Docker image using the following command:
+```
+docker build *path_to_head_folder* -f *path_to_Dockerfile*
+```
+
+When the compilation has ended, you can access the image namewith command:
+```
+docker images
+```
+
+To run the Docker image in a container on a S2 raster you can use the ru_docker.sh script as follow:
+```
+./grs2/run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_path_for_output> <desired_resolution>
+```
+
+The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
+You can adapt the sh script to modify this behaviour.
 
 ## Contributing
 
@@ -178,3 +210,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 with the snappy API.
 * The authors are very grateful to Olivier Hagolle
 for providing open source codes to perform gaseous absorption correction and massive Sentinel-2 data download.
+
