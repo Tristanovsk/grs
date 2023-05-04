@@ -160,8 +160,8 @@ See examples in [exe](exe).
 
 ## Compile Docker image locally
 First and foremost, you must have the coresponding version of s2driver at the same level as grs2.
-You should also make sure that the grsdata folder is full (itis a LTS).
-Eventually, you must get Dockerfile off of grs2 folder to have a structure as diplayed below.
+You should also make sure that the grsdata folder is full (it is a LTS).
+Eventually, you must get Dockerfile out of grs2 folder to have a structure as diplayed below.
 
 head_folder  
  ├grs2  
@@ -169,22 +169,26 @@ head_folder
  └Dockerfile
 
 Note that anything in this folder tree will be added to the Docker build context, so make it light.
-You might consider removing the notebooks and all useless files from the grs2 & s2driver folders to make the resulting image
-as light as possible.
+You might consider removing the notebooks and all useless files and directories from the grs2 & s2driver
+folders to make the resulting image as light as possible (.git, illustration, notebook...).
 
 Once all those requirements are met, you can compile the Docker image using the following command:
 ```
-docker build *path_to_head_folder* -f *path_to_Dockerfile*
+docker build -t grs2:<version_tag> *path_to_head_folder* -f *path_to_Dockerfile*
 ```
 
-When the compilation has ended, you can access the image namewith command:
+When the compilation has ended, you can access the image with the command:
 ```
 docker images
 ```
 
-To run the Docker image in a container on a S2 raster you can use the ru_docker.sh script as follow:
+To run the Docker image in a container on a S2 raster you can use the run_docker.sh script as follow:
 ```
-./grs2/run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_path_for_output> <desired_resolution>
+./run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_name_for_output> <desired_path_for_output> <desired_resolution>
+```
+Example:
+```
+./run_docker.sh grs2:v2_CNES /DATA/Sentinel-2/S2B_MSIL1C_20230104T103329_N0509_R108_T31TFJ_20230104T110718.SAFE /DATA/CAMS/2023/01/04/2023-01-04-cams-global-atmospheric-composition-forecasts.nc L2AGRS_20230104T103329_N0509_R108_T31TFJ_20230104T110718.nc /DATA/L2AGRS 60
 ```
 
 The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
@@ -210,5 +214,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 with the snappy API.
 * The authors are very grateful to Olivier Hagolle
 for providing open source codes to perform gaseous absorption correction and massive Sentinel-2 data download.
-
 
