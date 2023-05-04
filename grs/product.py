@@ -1,10 +1,12 @@
+import os
+
 import numpy as np
 import xarray as xr
 import datetime
 
 import logging
-from pkg_resources import resource_filename
-import os
+
+from . import config as cfg, auxdata, __version__, __package__
 
 opj = os.path.join
 
@@ -26,13 +28,12 @@ class product():
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
 
-        from . import config as cfg, auxdata, __version__,__package__
         self.processor = __package__ + '_' + __version__
         self.raster = l1c_obj
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
-        self.raster = self.raster.assign_coords({'time':self.date})
+        self.raster = self.raster.assign_coords({'time': self.date})
 
         # add metadata for future export to L2product
         self.raster.attrs['processing_time'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
@@ -54,8 +55,9 @@ class product():
         # convert into mW cm-2 um-1
         self.solar_irradiance = xr.DataArray(l1c_obj.solar_irradiance / 10,
                                              coords={'wl': self.wl},
-                                             attrs={'description':'extraterrestrial solar irradiance from satellite metadata',
-                                                    'units':'mW cm-2 um-1'})
+                                             attrs={
+                                                 'description': 'extraterrestrial solar irradiance from satellite metadata',
+                                                 'units': 'mW cm-2 um-1'})
         self.auxdatabase = auxdatabase
         self.output = output
 
@@ -63,7 +65,7 @@ class product():
         # settings:
         #########################
         self.wl_process = [443, 490, 560, 665, 705,
-                      740, 783, 842, 865, 1610, 2190]
+                           740, 783, 842, 865, 1610, 2190]
         self.block_size = 512
         self.sunglint_bands = [12]
         # data type for pixel values
@@ -81,9 +83,9 @@ class product():
         self.hcld_threshold = 3e-3
 
         # pre-computed auxiliary data
-        self.dirdata = cfg.data_root #resource_filename(__package__, '../grsdata/')
+        self.dirdata = cfg.data_root  # resource_filename(__package__, '../grsdata/')
         self.abs_gas_file = opj(self.dirdata, 'gases', 'lut_abs_opt_thickness_normalized.nc')
-        #self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
+        # self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
         self.water_vapor_transmittance_file = opj(self.dirdata, 'gases', 'water_vapor_transmittance.nc')
         self.load_auxiliary_data()
 
@@ -100,7 +102,7 @@ class product():
                                       aero + '_ws2_pressure1015.2.nc')
 
         # set path for CAMS/ECMWF dataset
-        self.cams_folder = cfg.cams_folder
+        #self.cams_folder = cfg.cams_folder
 
         # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
         self.rrs = False
@@ -178,8 +180,6 @@ class product():
         :return:
         '''
         self.aeronetfile = file
-
-
 
     def get_flag(self, product, flag_name):
         '''
@@ -285,13 +285,11 @@ class product():
         return
 
 
-
-
 class algo(product):
     def __init__(self, l1c_obj=None,
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
-        product.__init__(self, l1c_obj,auxdatabase, output)
+        product.__init__(self, l1c_obj, auxdatabase, output)
 
     def apply_gaseous_transmittance(self):
         gas_trans = acutils.gaseous_transmittance(self.__init__(), cams)
@@ -302,7 +300,6 @@ class algo(product):
 
     def process(self):
         return
-
 
 
 def get_elevation(gdal_info_tgt, dem_glo30_dir, temp_dir=None, copy_dem_path=None):

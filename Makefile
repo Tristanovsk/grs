@@ -1,4 +1,4 @@
-export F2PY=/root/micromamba/bin/f2py3.10
+export F2PY=f2py #/root/micromamba/bin/f2py3.10
 # please use an updated version of gcc
 # in HAL env:
 # module load gcc
