@@ -88,7 +88,9 @@ class process:
         Tg_raster = gas_trans.get_gaseous_transmittance()
 
         logging.info('correct for gaseous absorption')
-        prod.raster['bands'] = prod.raster.bands / Tg_raster
+        for wl in prod.wl.values:
+            prod.raster['bands'].loc[wl] = prod.raster.bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=prod.raster.x,
+                                                                                                      y=prod.raster.y)
         prod.raster.bands.attrs['gas_absorption_correction'] = True
 
         ######################################
@@ -117,7 +119,7 @@ class process:
             masked_raster = prod.raster.bands
         else:
             logging.info('apply water masking')
-            masked_raster = prod.raster.bands.where(ndwi > prod.ndwi_threshold). \
+            prod.raster['bands'] = prod.raster.bands.where(ndwi > prod.ndwi_threshold). \
                 where(b2200 < prod.sunglint_threshold). \
                 where(ndwi_swir > prod.green_swir_index_threshold)
 
@@ -125,20 +127,27 @@ class process:
         # Rounding angle variables to save time in LUT interpolation
         ######################################
         logging.info('round angles for speed up lut interpolation')
-        def rounding(xarr, resol=1):
-            vals = np.unique(xarr.round(resol))
-            return vals[~np.isnan(vals)]
+        # def rounding(xarr, resol=1):
+        #     vals = np.unique(xarr.round(resol))
+        #     return vals[~np.isnan(vals)]
+        #
+        # sza_ = rounding(prod.raster.sza, 1)
+        # azi_ = rounding((180 - prod.raster.raa) % 360, 0)
+        # vza_ = rounding(prod.raster.vza, 1)
+        wl_process = prod.wl_process
+        vza = prod.raster.vza.sel(wl=wl_process)
+        sza = prod.raster.sza
+        raa = 180 - prod.raster.raa.sel(wl=wl_process)
 
-        sza_ = rounding(prod.raster.sza, 1)
-        azi_ = rounding((180 - prod.raster.raa) % 360, 0)
-        vza_ = rounding(prod.raster.vza, 1)
-
+        sza_ = np.linspace(sza.min(), sza.max(), 10)
+        vza_ = np.linspace(vza.min(), vza.max(), 20)
+        raa_ = np.linspace(raa.min(), raa.max(), 60)
 
         ######################################
         # Set final parameters for grs processing
         ######################################
         logging.info('set final parameters for grs processing')
-        wl_process = prod.wl_process
+
         eps_sunglint = prod.sensordata.rg
         rot = prod.sensordata.rot
         rrs = prod.rrs
@@ -146,17 +155,14 @@ class process:
         Ny = prod.height
 
         logging.info('slice raster for desired wavelengths')
-        raster = masked_raster.sel(wl=wl_process)
+        raster = prod.raster['bands'].sel(wl=wl_process)
         band_rad = raster.values
-        vza = prod.raster.sel(wl=wl_process).vza.values
-        sza = prod.raster.sel(wl=wl_process).sza.values
-        razi = prod.raster.sel(wl=wl_process).raa.values
         solar_irr = prod.solar_irradiance.sel(wl=wl_process).values
 
         logging.info('get/set aerosol parameters')
         aotlut = np.array(lutf.aot, dtype=prod.type)
-        fine_refl = lutf.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
-        coarse_refl = lutc.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
+        fine_refl = lutf.refl.interp(vza=vza_).interp(azi=raa_).interp(sza=sza_)
+        coarse_refl = lutc.refl.interp(vza=vza_).interp(azi=raa_).interp(sza=sza_)
         lut_shape = fine_refl.shape
         fine_Cext = lutf.Cext
         coarse_Cext = lutc.Cext
@@ -179,9 +185,9 @@ class process:
         ######################################
         logging.info('run grs process')
         p = grs_solver.grs.main_algo(Nx, Ny, *lut_shape,
-                                     aotlut, sza_, azi_, vza_,
+                                     aotlut, sza_, raa_, vza_,
                                      fine_refl, coarse_refl, fine_Cext, coarse_Cext,
-                                     vza, sza, razi, band_rad, maskpixels,
+                                     vza, sza, raa, band_rad, maskpixels,
                                      wl_process, pressure_corr, eps_sunglint, solar_irr, rot,
                                      aot_tot, aot_sca, aot550guess, fcoef, rrs)
 

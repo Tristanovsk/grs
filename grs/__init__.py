@@ -47,7 +47,7 @@ Version history:
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 
 
 from .acutils import aerosol, lut, misc

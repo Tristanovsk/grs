@@ -195,8 +195,7 @@ contains
                 tdiff_Ed = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / mu0(ix, iy)))
                 tdiff_Lu = exp(-(0.52 * rot_corr(iband) + 0.16 * aot_(iband)) * (1. / muv(iband, ix, iy)))
 
-                rglint = (tud(iband) * rg_ratio(iband) * 0.1*brdf(nband) + tud(iband) * rg_ratio(iband) &
-                        & / rg_ratio(nband - 1) * 0.9*brdf(nband - 1))
+                rglint = tud(iband) * rg_ratio(iband) * (0.1*brdf(nband) + 0.9*brdf(nband - 1)/ rg_ratio(nband - 1))
                 rcorr(iband, ix, iy) = rcorrg(iband, ix, iy) - rglint
                 rcorr(iband, ix, iy) = rcorr(iband, ix, iy) / pi / tdiff_Lu / tdiff_Ed
                 rcorrg(iband, ix, iy) = rcorrg(iband, ix, iy) / pi / tdiff_Lu / tdiff_Ed
