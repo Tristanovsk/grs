@@ -16,6 +16,8 @@ class process:
 
     def __init__(self):
         self.bandIds = range(13)
+        self.type= np.float32
+        self.chunk = 512
 
     def execute(self, file, ofile,
                 cams_file='./cams.nc',
@@ -42,7 +44,6 @@ class process:
         :return:
         '''
 
-
         ##################################
         # Get image data
         ##################################
@@ -68,8 +69,7 @@ class process:
         ## ADD ELEVATION AND PRESSURE BAND
         ##################################
         # TODO activate DEM loading to improve pressure computation
-        #prod.get_elevation()
-
+        # prod.get_elevation()
 
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
@@ -135,6 +135,7 @@ class process:
         # azi_ = rounding((180 - prod.raster.raa) % 360, 0)
         # vza_ = rounding(prod.raster.vza, 1)
         wl_process = prod.wl_process
+        Nband = len(wl_process)
         vza = prod.raster.vza.sel(wl=wl_process)
         sza = prod.raster.sza
         raa = 180 - prod.raster.raa.sel(wl=wl_process)
@@ -151,12 +152,13 @@ class process:
         eps_sunglint = prod.sensordata.rg
         rot = prod.sensordata.rot
         rrs = prod.rrs
-        Nx = prod.width
-        Ny = prod.height
+        width = prod.width
+        height = prod.height
+        chunk = self.chunk
 
         logging.info('slice raster for desired wavelengths')
         raster = prod.raster['bands'].sel(wl=wl_process)
-        band_rad = raster.values
+
         solar_irr = prod.solar_irradiance.sel(wl=wl_process).values
 
         logging.info('get/set aerosol parameters')
@@ -168,34 +170,65 @@ class process:
         coarse_Cext = lutc.Cext
         aot_tot_cams_res = cams.cams_aod.interp(wavelength=wl_process)
         aot_sca_cams_res = aot_tot_cams_res * cams.cams_ssa.interp(wavelength=wl_process)
-        aot_tot = aot_tot_cams_res.interp(x=raster.x, y=raster.y)
-        aot_sca = aot_sca_cams_res.interp(x=raster.x, y=raster.y)
-        aot550guess = cams.raster.aod550.interp(x=raster.x, y=raster.y)
-        fcoef = np.full((prod.height, prod.width), 0.5)
 
 
         # TODO implement pre-masking, now set to zero
         maskpixels = np.zeros((prod.height, prod.width))
 
         logging.info('get pressure full raster')
-        pressure_corr = cams.raster.sp.interp(x=raster.x, y=raster.y) * 1e-2 / prod.pressure_ref
 
         ######################################
         # Run grs processing
         ######################################
+        rcorr = np.full((Nband, width,height), np.nan,dtype=self.type)  # , order='F').T
+        rcorrg = np.full((Nband, width,height), np.nan,dtype=self.type)  # , order='F').T
+        aot550pix = np.full((width,height), np.nan,dtype=self.type)
+        brdfpix = np.full((width,height), np.nan,dtype=self.type)
+
         logging.info('run grs process')
-        p = grs_solver.grs.main_algo(Nx, Ny, *lut_shape,
-                                     aotlut, sza_, raa_, vza_,
-                                     fine_refl, coarse_refl, fine_Cext, coarse_Cext,
-                                     vza, sza, raa, band_rad, maskpixels,
-                                     wl_process, pressure_corr, eps_sunglint, solar_irr, rot,
-                                     aot_tot, aot_sca, aot550guess, fcoef, rrs)
+        for iy in range(0, width, chunk):
+            yc = iy + chunk
+            if yc > width:
+                yc = width
+            for ix in range(0, height, chunk):
+                xc = ix + chunk
+                if xc > height:
+                    xc = height
+
+                _sza = sza[ix:xc, iy:yc]
+                nx, ny = _sza.shape
+                if (nx == 0) or (ny == 0):
+                    continue
+                _raa = raa[:, ix:xc, iy:yc]
+                _vza = vza[:, ix:xc, iy:yc]
+                _maskpixels = maskpixels[ix:xc, iy:yc]
+                _band_rad = raster[:, ix:xc, iy:yc]
+
+                # prepare aerosol parameters
+                aot_tot = aot_tot_cams_res.interp(x=_band_rad.x, y=_band_rad.y)
+                aot_sca = aot_sca_cams_res.interp(x=_band_rad.x, y=_band_rad.y)
+                aot550guess = cams.raster.aod550.interp(x=_band_rad.x, y=_band_rad.y)
+                fcoef = np.full((nx,ny), 0.65)
+
+                pressure_corr = cams.raster.sp.interp(x=_band_rad.x, y=_band_rad.y) * 1e-2 / prod.pressure_ref
+
+                p = grs_solver.grs.main_algo(nx, ny, *lut_shape,
+                                             aotlut, sza_, raa_, vza_,
+                                             fine_refl, coarse_refl, fine_Cext, coarse_Cext,
+                                             _vza, _sza, _raa, _band_rad.values, _maskpixels,
+                                             wl_process, pressure_corr, eps_sunglint, solar_irr, rot,
+                                             aot_tot, aot_sca, aot550guess, fcoef, rrs)
+
+                rcorr[:, ix:xc, iy:yc] = p[0]
+                rcorrg[:, ix:xc, iy:yc] = p[1]
+                aot550pix[ix:xc, iy:yc] = p[2]
+                brdfpix[ix:xc, iy:yc] = p[3]
 
         ######################################
         # Write final product
         ######################################
         logging.info('construct final product')
-        rcorr, rcorrg, aot550pix, brdfpix = p
+
         Rrs = xr.DataArray(rcorr, coords=raster.coords, name='Rrs')
         Rrs_g = xr.DataArray(rcorrg, coords=raster.coords, name='Rrs_g')
         aot550 = xr.DataArray(aot550pix, coords={'y': raster.y, 'x': raster.x}, name='aot550')
@@ -205,4 +238,3 @@ class process:
 
         logging.info('export final product into netcdf')
         self.l2a.to_netcdf(ofile)
-
