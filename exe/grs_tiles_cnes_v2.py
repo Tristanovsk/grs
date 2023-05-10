@@ -33,38 +33,25 @@ sitefile = 'exe/list/list_grs_cnes_obs2mod.csv'
 sitefile = sys.argv[1]
 
 # number of processors to be used
-ncore =int(sys.argv[2])
+ncore = int(sys.argv[2])
 
-#sitefile = 'exe/list/list_landsat_jegou.csv'
+# sitefile = 'exe/list/list_landsat_jegou.csv'
 sites = pd.read_csv(sitefile)
 
-lev = 'L2GRS'
-
-logdir = './tmp'
-
 dirsat = '/datalake/'
-
 l1cdir = {'s2': '/datalake/S2-L1C',
           'landsat': '/datalake/watcal/L8-L1-C2/'}
-odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
+odir_root = {'s2': '/datalake/watcal/S2-L2A-GRS/',
              'landsat': '/datalake/watcal/L8-L2GRS-C2/'}
-
-dem=True #True
-angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
-noclobber = True # False #True
-memory_safe = False  # True #
-aeronet_file = 'no'
-aerosol = 'cams'
-# aerosol = 'user_model'
-aot550 = 0.08  # used if aerosol = 'user_model'
-angstrom = 1.6  # used if aerosol = 'user_model'
-allpixels = False  # True
-
+cams_folder = '/datalake/watcal/ECMWF/CAMS'
+noclobber = False # True  #True
+lev = 'L2Agrs'
+logdir = './tmp'
 
 # --------------------------------------------------------------------------------
 basename = "tmp_grslist"
 suffix = datetime.now().strftime("%y%m%d_%H%M%S")
-tmp_file = "_".join([basename, suffix])+'.tmp'
+tmp_file = "_".join([basename, suffix]) + '.tmp'
 
 args_list = []
 
@@ -77,7 +64,7 @@ for idx, site in sites.iterrows():
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
     if sat == 'landsat':
-        tile ='{:06d}'.format(tile)
+        tile = '{:06d}'.format(tile)
 
     resolution = int(resolution)
     allpixels = True
@@ -90,18 +77,19 @@ for idx, site in sites.iterrows():
     for date in daterange:
         kwarg = ''
 
-
         # ------------------
         # check if L1C exists and set directories / files
-        subdir = opj(tile, '{:04d}'.format(date.year), '{:02d}'.format(date.month), '{:02d}'.format(date.day))
+        year = date.strftime('%Y')
+        month = date.strftime('%m')
+        day = date.strftime('%d')
+        subdir = opj(tile, year, month, day)
         l1c_dir = opj(l1cdir[sat], subdir)
         if not os.path.exists(l1c_dir):
             continue
 
-
-        if sat =='landsat':
+        if sat == 'landsat':
             l1c = glob.glob(opj(l1c_dir, 'L*.tar'))
-            kwarg+=' --untar'
+            kwarg += ' --untar'
         else:
             l1c = glob.glob(opj(l1c_dir, 'S2*.SAFE'))
         if not l1c:
@@ -110,22 +98,22 @@ for idx, site in sites.iterrows():
         else:
             l1c = l1c[-1]
 
-        #-------------------
+        # -------------------
         # get Metadata
-        #-------------------
+        # -------------------
         # if bad definition of suffix
         if name != name:
             name = ''
         if sat == 's2':
-            print('tt:'+l1c)
-            filename = gdal.Open(opj(l1c,'MTD_MSIL1C.xml'))
+            print('tt:' + l1c)
+            filename = gdal.Open(opj(l1c, 'MTD_MSIL1C.xml'))
             metadata = filename.GetMetadata()
-            cc=round(float(metadata['CLOUD_COVERAGE_ASSESSMENT']))
-            cc_str=f'{cc:03}'
+            cc = round(float(metadata['CLOUD_COVERAGE_ASSESSMENT']))
+            cc_str = f'{cc:03}'
             print(metadata)
-            suffix='_cc'+cc_str+name
+            suffix = '_cc' + cc_str + name
         else:
-            suffix=name
+            suffix = name
 
         # ------------------
         # check / create output directory
@@ -134,15 +122,14 @@ for idx, site in sites.iterrows():
         if not os.path.exists(odir):
             os.makedirs(odir)
 
-
         # force no suffix
-        #name = ''
+        # name = ''
         # ------------------
         # get image basename for output naming
         basename = os.path.basename(l1c)
-        outfile = misc.set_ofile(basename, odir=odir, suffix=suffix,level_name=lev)
+        outfile = misc.set_ofile(basename, odir=odir, suffix=suffix, level_name=lev)
         print(outfile)
-        if noclobber & os.path.exists(outfile + '.nc'):
+        if noclobber & os.path.exists(outfile):
             print(basename, ' already processed; skipping image; set noclobber as False to force processing')
             continue
 
@@ -154,36 +141,34 @@ for idx, site in sites.iterrows():
         # ------------------
         #  CAMS data selection
         # TODO check data availability from CAMS and update the dates below
-        if date.year > 2018:
-            ancillary = 'cds_forecast'
-        elif (date.year == 2018) and (date.month > 6):
-            ancillary = 'cds_forecast'
-        else:
-            ancillary = 'cams_forecast' #'cams_reanalysis'
 
-        #if 'cams' in aerosol:
-        aerosol = ancillary
+        cams_file = opj(cams_folder, year, month, day,
+                        date.strftime('%Y-%m-%d') + '-cams-global-atmospheric-composition-forecasts.nc')
+        if (not os.path.exists(cams_file)):
+            cams_file = opj(cams_folder, year, date.strftime('%Y-%m') +
+                            '_month_cams-global-atmospheric-composition-forecasts.nc')
 
-        command = 'grs ' + l1c + ' -o ' + outfile + ' --aerosol ' + aerosol + ' --dem --resolution ' + str(resolution) + kwarg
+        command = 'grs ' + l1c + ' -o ' + outfile + ' --cams_file ' + cams_file + ' --resolution ' + str(
+            resolution) + kwarg
 
         # -------------------
         # fetch L2A MAJA
         # -------------------
-        l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
-        l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
-        if not l2a_maja:
-            print(l2a_dir + ' not loaded on /datalake')
-            # continue
-            l2a_maja = None
-        else:
-            l2a_maja = l2a_maja[0]
-            command+=' --maja '+l2a_maja
+        # l2a_dir = opj(dirsat, 'S2-L2A-THEIA', subdir, '*')
+        # l2a_maja = glob.glob(opj(l2a_dir, 'S*MTD_ALL.xml'))
+        # if not l2a_maja:
+        #     print(l2a_dir + ' not loaded on /datalake')
+        #     # continue
+        #     l2a_maja = None
+        # else:
+        #     l2a_maja = l2a_maja[0]
+        #     command+=' --maja '+l2a_maja
 
         if allpixels:
-            command+=' --allpixels '
+            command += ' --allpixels '
 
         with open(tmp_file, 'a') as file:
-            file.write(command+'\n')
+            file.write(command + '\n')
 
 
 # with Pool(processes=ncore) as pool:
@@ -195,6 +180,7 @@ def call(command):
     print(command)
     pipeline_out = subprocess.call(command, stderr=subprocess.STDOUT, shell=True)
     return
+
 
 command = pd.read_csv(tmp_file).values
 
