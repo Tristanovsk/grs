@@ -9,6 +9,7 @@ class l2a_product():
         self.l2_prod = l2_prod
         self.cams = cams
         self.gas_trans = gas_trans
+        self.ancillary = None
         self.wl_cirrus_band = 1375
         self.wl_o2_band = 945
         self.complevel = 5
@@ -49,10 +50,10 @@ class l2a_product():
         ndwi_swir = native_raster.ndwi_swir
 
         # final merge
-        self.l2_prod = xr.merge([self.l2_prod,  o2band, cirrus, ndwi, ndwi_swir,
-                                 transmittance_raster,cams_raster])
+        self.l2_prod = xr.merge([self.l2_prod, o2band, cirrus, ndwi, ndwi_swir])
+        self.ancillary = xr.merge([transmittance_raster, cams_raster])
 
-    def to_netcdf(self, ofile):
+    def to_netcdf(self, output_path):
         '''
         Create output product dimensions, variables, attributes, flags....
         :return:
@@ -62,6 +63,10 @@ class l2a_product():
         complevel = self.complevel
 
         encoding = {
+            'aot550': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True,
+                       "complevel": complevel},
+            'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
+                      "complevel": complevel},
             'Rrs': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                     "complevel": complevel},
             'Rrs_g': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
@@ -75,24 +80,34 @@ class l2a_product():
                      "complevel": complevel},
             'ndwi_swir': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
                           "complevel": complevel},
-            'aot550': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True,
-                       "complevel": complevel},
             'vza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True, "complevel": complevel},
             'raa': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True, "complevel": complevel},
             'sza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True, "complevel": complevel},
-            'aot550': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True,
-                       "complevel": complevel},
-            'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                      "complevel": complevel},
+
         }
 
-        # write file
-        if os.path.exists(ofile):
-            os.remove(ofile)
+        # get file naming and create folder
+        basename = os.path.basename(output_path)
+        ofile = os.path.join(output_path, basename)
 
-        odir = os.path.dirname(ofile)
-        if not os.path.exists(odir):
-            os.mkdir(odir)
+        if not os.path.exists(output_path):
+            os.mkdir(output_path)
 
-        self.l2_prod.to_netcdf(ofile, encoding=encoding)
+        # clean up to avoid permission denied
+        if os.path.exists(ofile + '.nc'):
+            os.remove(ofile + '.nc')
+        if os.path.exists(ofile + '_anc.nc'):
+            os.remove(ofile + '_anc.nc')
+
+        # export full raster data
+        arg = 'w'
+        for variable in list(self.l2_prod.keys()):
+            self.l2_prod[variable].to_netcdf(ofile + '.nc', arg, encoding={variable: encoding[variable]})
+            arg = 'a'
         self.l2_prod.close()
+
+        # export ancillary data (coarse resolution)
+        encoding = {}
+        for variable in list(self.ancillary.keys()):
+            encoding[variable] = {"zlib": True, "complevel": complevel}
+        self.ancillary.to_netcdf(ofile + '_anc.nc', encoding=encoding)  # ,group='ancillary')

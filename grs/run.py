@@ -56,7 +56,7 @@ def main():
     if outfile == None:
         basename = os.path.basename(file)
         outfile = basename.replace('L1C', lev)
-        outfile = outfile.replace('.SAFE', '.nc').rstrip('/')
+        outfile = outfile.replace('.SAFE', '').rstrip('/')
 
     odir = args['--odir']
     if odir == './':
