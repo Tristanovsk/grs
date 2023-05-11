@@ -42,11 +42,6 @@ path_of_env=grs_v2
 
 conda activate $path_of_env
 
-#set the variable environment for je jpy and snap use
-export JDK_HOME=$JDKHOME
-export JAVAHOME=$JAVA_HOME
-export SNAP_HOME=$SNAPHOME
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 export OMP_NUM_THREADS=5
 
 #open monitoring tool
