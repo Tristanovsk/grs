@@ -11,6 +11,7 @@ from netCDF4 import Dataset
 from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import curve_fit
 
+
 class lut:
     '''Load LUT FROM RT COMPUTATION (OSOAA_h)
     '''
@@ -48,7 +49,7 @@ class lut:
                 * ``Cext550`` -- aerosol extinction coefficient at 550 nm
                 * ``vza`` -- viewing zenith angle (in deg)
                 * ``sza`` -- solar zenith angle (in deg)
-                * ``azi`` -- relative azimuth between sun and sensor (in opposition when azi = 0)
+                * ``azi`` -- relative azimuth between sun and sensor (in opposition when azi = 180)
                 * ``wl`` -- central wavelength of the sensor bands
                 * ``refl`` -- Top-of-atmosphere reflectance (or normalized radiance if reflectance == False);
                                 xarray of dims: [wl, sza, azi, vza]
@@ -66,6 +67,7 @@ class lut:
             self.Cext550 = lut.variables['Cext550'][0]
             self.vza = lut.variables['vza'][:]
             self.sza = lut.variables['sza'][:]
+            # azimuth in raditive transfer convention (0 deg whe n Sun and sensor in opposition)
             self.azi = lut.variables['azi'][:]
             self.wl = lut.variables['wavelength'][ind_wl]
             # shrink vza range (unused for S2)
@@ -86,6 +88,11 @@ class lut:
                 nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
         # print(nrad.shape)
         self.refl = self._toxr(nrad)
+        # reformat for remote sensing azimuth convention
+        self.refl = self.refl.drop_isel(azi=-1)
+        new_azi = (180 - self.refl.azi.values) % 360
+        self.refl['azi'] = new_azi
+        self.refl = xr.concat([self.refl, self.refl.sel(azi=0).assign_coords({'azi': 360})], dim='azi').sortby('azi')
 
     def _toxr(self, arr):
         # arr = np.array(arr)
@@ -219,14 +226,14 @@ class gaseous_transmittance(gases):
         self.cams_gases = {'ch4': cams_params('tc_ch4', 4),
                            'no2': cams_params('tcno2', 7),
                            'o3': cams_params('gtco3', 4),
-                           'h2o': cams_params('tcwv', 1),}
+                           'h2o': cams_params('tcwv', 1), }
 
     def Tgas_background(self):
         gl = self.gas_lut
         pressure = self.pressure.round(1)
         self.ot_air = (gl.co + self.coef_abs_scat * gl.co2 +
-                  self.coef_abs_scat * gl.o2 +
-                  self.coef_abs_scat * gl.o4) / 1000
+                       self.coef_abs_scat * gl.o2 +
+                       self.coef_abs_scat * gl.o4) / 1000
 
         wl_ref = gl.wl
         SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
@@ -254,9 +261,9 @@ class gaseous_transmittance(gases):
 
     def Tgas(self, gas_name):
 
-        renorm=1.
+        renorm = 1.
         if gas_name == 'h2o':
-            renorm=0.4
+            renorm = 0.4
 
         cams_gas = self.cams_gases[gas_name].name
         resol = self.cams_gases[gas_name].resol
@@ -300,7 +307,7 @@ class gaseous_transmittance(gases):
 
     def get_gaseous_transmittance(self):
         Tg_tot = self.Tgas('ch4') * self.Tgas('no2') * \
-                   self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
+                 self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
 
         # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
         # Nx = len(Tg_other.x)
@@ -311,10 +318,9 @@ class gaseous_transmittance(gases):
         # Tg_other['y'] = y
         self.Tg_tot_coarse = Tg_tot
         # TODO remove interp for the whole object and proceed with loop on spectral bands to save memory
-        return Tg_tot #.interp(x=self.prod.raster.x, y=self.prod.raster.y)
+        return Tg_tot  # .interp(x=self.prod.raster.x, y=self.prod.raster.y)
 
     def correct_gaseous_transmittance(self):
-
 
         return
 
