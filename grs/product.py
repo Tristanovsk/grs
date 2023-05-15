@@ -30,6 +30,8 @@ class product():
 
         self.processor = __package__ + '_' + __version__
         self.raster = l1c_obj
+        # TODO check why s2driver sends an object for wl coordinates instead of array of int
+        self.raster['wl'] = self.raster['wl'].astype(int)
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -42,7 +44,7 @@ class product():
         self.y = self.raster.y
         self.width = self.x.__len__()
         self.height = self.y.__len__()
-        self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds("+init=epsg:4326")
+        self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
         self.wl = self.raster.wl
         self.vza_mean = self.raster.vza.mean()

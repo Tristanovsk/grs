@@ -61,7 +61,8 @@ conda activate "name of your conda env"
 
 conda install gdal numba rasterio
 
-python setup.py install
+pip install -e .
+
 
 ### To download CAMS data
 [Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
