@@ -14,7 +14,7 @@ try:
 except Exception as error:
     logging.info("environment variable DATA_ROOT does not exist")
      
-data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/datalake/watcal/GRS/grsdata'))
+data_root = os.path.abspath(os.environ.get('DATA_ROOT', '/DATA//grsdata'))
 lut_root = os.path.join(data_root, "LUT")
 
 # -----------------

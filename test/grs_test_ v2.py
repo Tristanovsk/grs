@@ -9,16 +9,16 @@ import tarfile
 import glob
 
 import matplotlib
+
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
-
 
 import numpy as np
 import xarray as xr
 import logging
 
 from s2driver import driver_S2_SAFE as S2
-from grs import product, acutils, utils, cams_product, l2a_product
+from grs import product, acutils, cams_product, l2a_product
 from grs.fortran.grs import main_algo as grs_solver
 
 opj = os.path.join
@@ -29,9 +29,12 @@ odir = '/sat_data/satellite/sentinel2/L2A'
 file = '/sat_data/satellite/sentinel2/L1C/31TFJ/S2A_MSIL1C_20201004T104031_N0209_R008_T31TFJ_20201004T125253.SAFE'
 file = '/media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE'
 cams_file = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc'
+
+file = '/media/harmel/vol1/Dropbox/satellite/S2/L1C//S2A_MSIL1C_20220713T103041_N0400_R108_T31TFJ_20220713T141110.SAFE'
+cams_file = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-13-cams-global-atmospheric-composition-forecasts.nc'
 file_nc = file.replace('.SAFE', '.nc')
 basename = os.path.basename(file)
-ofile = basename.replace('.SAFE', '.nc').replace('L1C','L2Agrs')
+ofile = basename.replace('.SAFE', '.nc').replace('L1C', 'L2Agrs')
 
 bandIds = range(13)
 resolution = 60
@@ -41,10 +44,14 @@ if not os.path.exists(file_nc):
     print(l1c.crs)
     l1c.load_product()
     prod = product(l1c.prod)
-    encoding = {'bands': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768},
-                'vza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
-                'raa': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
-                'sza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999}}
+    encoding = {
+        'bands': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
+                  "complevel": 6},
+        'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": 6},
+        'raa': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 180, '_FillValue': -32768, "zlib": True,
+                "complevel": 6},
+        'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768, "zlib": True,
+                "complevel": 6}}
     l1c.prod.to_netcdf(file_nc, encoding=encoding)
     l1c.prod.close()
 
@@ -64,7 +71,7 @@ else:
 ##################################
 # prod.get_cams()
 cams_dir = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS'
-cams = cams_product(prod,cams_file='/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS')
+cams = cams_product(prod, cams_file=cams_file)
 cams.plot_params()
 
 ##################################
@@ -95,19 +102,18 @@ lutc.load_lut(prod.lutcoarse, prod.sensordata.indband)
 ####################################
 #    absorbing gases correction
 ####################################
-gas_trans = acutils.gaseous_transmittance(prod,cams)
+gas_trans = acutils.gaseous_transmittance(prod, cams)
 Tg_raster = gas_trans.get_gaseous_transmittance()
 Tg_raster_coarse = gas_trans.Tg_tot_coarse
 
-prod.raster['bands'] = prod.raster.bands/Tg_raster
+prod.raster['bands'] = prod.raster.bands / Tg_raster
 prod.raster.bands.attrs['gas_absorption_correction'] = True
 
 plt.figure()
-Tg_raster.mean('x').mean('y').plot()
+Tg_raster.mean('x').mean('y').squeeze().plot(x='wl')
 # Tg_raster.isel(wl=1).plot()
 p = Tg_raster.plot.imshow(col='wl', col_wrap=3, robust=True, cmap=plt.cm.Spectral_r,
                           subplot_kws=dict(xlabel='', ylabel='', xticks=[], yticks=[]))
-
 
 ######################################
 # Water mask
@@ -122,32 +128,37 @@ ndwi = (green - nir) / (green + nir)
 ndwi_swir = (green - swir) / (green + swir)
 
 prod.raster['ndwi'] = ndwi
-prod.raster.ndwi.attrs = {'description':'Normalized difference spectral index between bands at '+str(prod.b565)+' and '+str(prod.b865)+' nm','units':'-'}
+prod.raster.ndwi.attrs = {
+    'description': 'Normalized difference spectral index between bands at ' + str(prod.b565) + ' and ' + str(
+        prod.b865) + ' nm', 'units': '-'}
 prod.raster['ndwi_swir'] = ndwi_swir
-prod.raster.ndwi_swir.attrs = {'description':'Normalized difference spectral index between bands at '+str(prod.b565)+' and '+str(prod.b1600)+' nm','units':'-'}
-
+prod.raster.ndwi_swir.attrs = {
+    'description': 'Normalized difference spectral index between bands at ' + str(prod.b565) + ' and ' + str(
+        prod.b1600) + ' nm', 'units': '-'}
 
 self = prod
 masked_raster = prod.raster.bands.where(ndwi > self.ndwi_threshold). \
     where(b2200 < self.sunglint_threshold). \
     where(ndwi_swir > self.green_swir_index_threshold)
 
-
-wl_process =[443,  490,  560,  665,  705,
-             740,  783,  842,  865, 1610 , 2190]
+wl_process = [443, 490, 560, 665, 705,
+              740, 783, 842, 865, 1610, 2190]
 raster = masked_raster.sel(wl=wl_process)
 
 Nx = prod.width
 Ny = prod.height
 
 aotlut = lutf.aot
-def rounding(xarr,resol=1):
-    vals = np.unique(xarr.round(resol))
-    return  vals[~np.isnan(vals)]
 
-sza_ = rounding(prod.raster.sza,1)
-azi_ = rounding((180-prod.raster.raa)%360,0)
-vza_ = rounding(prod.raster.vza,1)
+
+def rounding(xarr, resol=1):
+    vals = np.unique(xarr.round(resol))
+    return vals[~np.isnan(vals)]
+
+
+sza_ = rounding(prod.raster.sza, 1)
+azi_ = rounding((180 - prod.raster.raa) % 360, 0)
+vza_ = rounding(prod.raster.vza, 1)
 
 aotlut = np.array(lutf.aot, dtype=prod.type)
 
@@ -160,9 +171,9 @@ vza = prod.raster.sel(wl=wl_process).vza.values
 sza = prod.raster.sel(wl=wl_process).sza.values
 razi = prod.raster.sel(wl=wl_process).raa.values
 band_rad = raster.values
-maskpixels = np.zeros((prod.height,prod.width))
+maskpixels = np.zeros((prod.height, prod.width))
 wl_sat = wl_process
-pressure_corr = cams.raster.sp.interp(x=raster.x, y=raster.y)*1e-2/ prod.pressure_ref
+pressure_corr = cams.raster.sp.interp(x=raster.x, y=raster.y) * 1e-2 / prod.pressure_ref
 eps_sunglint = prod.sensordata.rg
 solar_irr = prod.solar_irradiance.sel(wl=wl_process).values
 rot = prod.sensordata.rot
@@ -172,42 +183,39 @@ aot_sca_cams_res = aot_tot_cams_res * cams.cams_ssa.interp(wavelength=wl_process
 
 aot_tot = aot_tot_cams_res.interp(x=raster.x, y=raster.y)
 aot_sca = aot_sca_cams_res.interp(x=raster.x, y=raster.y)
-aot550guess= cams.raster.aod550.interp(x=raster.x, y=raster.y)
-fcoef = np.full((prod.height,prod.width),0.5)
+aot550guess = cams.raster.aod550.interp(x=raster.x, y=raster.y)
+fcoef = np.full((prod.height, prod.width), 0.5)
 
 rrs = prod.rrs
 
-
 p = grs_solver.grs.main_algo(Nx, Ny, *lut_shape,
-                                         aotlut, sza_, azi_, vza_,
-                                         fine_refl, coarse_refl, fine_Cext, coarse_Cext,
-                                         vza, sza, razi, band_rad, maskpixels,
-                                         wl_sat, pressure_corr, eps_sunglint, solar_irr, rot,
-                                         aot_tot, aot_sca, aot550guess, fcoef, rrs)
+                             aotlut, sza_, azi_, vza_,
+                             fine_refl, coarse_refl, fine_Cext, coarse_Cext,
+                             vza, sza, razi, band_rad, maskpixels,
+                             wl_sat, pressure_corr, eps_sunglint, solar_irr, rot,
+                             aot_tot, aot_sca, aot550guess, fcoef, rrs)
 
 rcorr, rcorrg, aot550pix, brdfpix = p
 
-
-Rrs = xr.DataArray(rcorr,coords=raster.coords,name='Rrs')
-Rrs_g = xr.DataArray(rcorrg,coords=raster.coords,name='Rrs_g')
-aot550 = xr.DataArray(aot550pix,coords={'y':raster.y,'x':raster.x},name='aot550')
-brdfg  = xr.DataArray(brdfpix,coords={'y':raster.y,'x':raster.x},name='BRDFg')
+Rrs = xr.DataArray(rcorr, coords=raster.coords, name='Rrs')
+Rrs_g = xr.DataArray(rcorrg, coords=raster.coords, name='Rrs_g')
+aot550 = xr.DataArray(aot550pix, coords={'y': raster.y, 'x': raster.x}, name='aot550')
+brdfg = xr.DataArray(brdfpix, coords={'y': raster.y, 'x': raster.x}, name='BRDFg')
 l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
 
-l2a = l2a_product(prod,l2_prod,cams,gas_trans)
-l2a.to_netcdf(opj(odir,ofile))
-
-
+l2a = l2a_product(prod, l2_prod, cams, gas_trans)
+l2a.to_netcdf(opj(odir, ofile))
 
 ##########################################
 # PLOTTING SECTION
 ##########################################
 plt.figure()
-l2a.l2_prod.BRDFg.plot.imshow(robust=True,cmap=plt.cm.gray)
+l2a.l2_prod.BRDFg.plot.imshow(robust=True, cmap=plt.cm.gray)
 
-l2a.l2_prod.Rrs.plot.imshow(col='wl',col_wrap=4,robust=True,vmin=0,vmax=0.015,cmap=plt.cm.Spectral_r)
+l2a.l2_prod.Rrs.plot.imshow(col='wl', col_wrap=4, robust=True, vmin=0, vmax=0.015, cmap=plt.cm.Spectral_r)
 
 from matplotlib.colors import ListedColormap
+
 bcmap = ListedColormap(['khaki', 'lightblue'])
 
 
@@ -239,4 +247,3 @@ for i, threshold in enumerate([-0.2, 0., 0.2]):
     plot_water_mask(ndwi_, axs[i + 1], threshold=threshold)
 
 plt.show()
-

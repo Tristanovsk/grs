@@ -16,7 +16,7 @@ class process:
 
     def __init__(self):
         self.bandIds = range(13)
-        self.type= np.float32
+        self.type = np.float32
         self.chunk = 512
 
     def execute(self, file, ofile,
@@ -89,6 +89,9 @@ class process:
 
         logging.info('correct for gaseous absorption')
         for wl in prod.wl.values:
+            if (wl>1300) and (wl<1400):
+                #do not correct outside atmospheric windows (e.g., cirrus bands)
+                continue
             prod.raster['bands'].loc[wl] = prod.raster.bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=prod.raster.x,
                                                                                                       y=prod.raster.y)
         prod.raster.bands.attrs['gas_absorption_correction'] = True
@@ -122,6 +125,7 @@ class process:
             prod.raster['bands'] = prod.raster.bands.where(ndwi > prod.ndwi_threshold). \
                 where(b2200 < prod.sunglint_threshold). \
                 where(ndwi_swir > prod.green_swir_index_threshold)
+        self.raster = prod.raster
 
         ######################################
         # Rounding angle variables to save time in LUT interpolation
@@ -138,7 +142,7 @@ class process:
         Nband = len(wl_process)
         vza = prod.raster.vza.sel(wl=wl_process)
         sza = prod.raster.sza
-        raa = 180 - prod.raster.raa.sel(wl=wl_process)
+        raa = prod.raster.raa.sel(wl=wl_process)
 
         sza_ = np.linspace(sza.min(), sza.max(), 10)
         vza_ = np.linspace(vza.min(), vza.max(), 20)
@@ -171,7 +175,6 @@ class process:
         aot_tot_cams_res = cams.cams_aod.interp(wavelength=wl_process)
         aot_sca_cams_res = aot_tot_cams_res * cams.cams_ssa.interp(wavelength=wl_process)
 
-
         # TODO implement pre-masking, now set to zero
         maskpixels = np.zeros((prod.height, prod.width))
 
@@ -180,10 +183,10 @@ class process:
         ######################################
         # Run grs processing
         ######################################
-        rcorr = np.full((Nband, width,height), np.nan,dtype=self.type)  # , order='F').T
-        rcorrg = np.full((Nband, width,height), np.nan,dtype=self.type)  # , order='F').T
-        aot550pix = np.full((width,height), np.nan,dtype=self.type)
-        brdfpix = np.full((width,height), np.nan,dtype=self.type)
+        rcorr = np.full((Nband, width, height), np.nan, dtype=self.type)  # , order='F').T
+        rcorrg = np.full((Nband, width, height), np.nan, dtype=self.type)  # , order='F').T
+        aot550pix = np.full((width, height), np.nan, dtype=self.type)
+        brdfpix = np.full((width, height), np.nan, dtype=self.type)
 
         logging.info('run grs process')
         for iy in range(0, width, chunk):
@@ -208,7 +211,7 @@ class process:
                 aot_tot = aot_tot_cams_res.interp(x=_band_rad.x, y=_band_rad.y)
                 aot_sca = aot_sca_cams_res.interp(x=_band_rad.x, y=_band_rad.y)
                 aot550guess = cams.raster.aod550.interp(x=_band_rad.x, y=_band_rad.y)
-                fcoef = np.full((nx,ny), 0.65)
+                fcoef = np.full((nx, ny), 0.65)
 
                 pressure_corr = cams.raster.sp.interp(x=_band_rad.x, y=_band_rad.y) * 1e-2 / prod.pressure_ref
 
@@ -233,7 +236,7 @@ class process:
         Rrs_g = xr.DataArray(rcorrg, coords=raster.coords, name='Rrs_g')
         aot550 = xr.DataArray(aot550pix, coords={'y': raster.y, 'x': raster.x}, name='aot550')
         brdfg = xr.DataArray(brdfpix, coords={'y': raster.y, 'x': raster.x}, name='BRDFg')
-        l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
+        l2_prod = xr.merge([aot550, brdfg, Rrs, Rrs_g ])
         self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
 
         logging.info('export final product into netcdf')
