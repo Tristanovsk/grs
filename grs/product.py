@@ -30,7 +30,7 @@ class product():
 
         self.processor = __package__ + '_' + __version__
         self.raster = l1c_obj
-        # TODO check why s2driver sends an object for wl coordinates instead of array of int
+        # TODO check why drivers sends an object for wl coordinates instead of array of int
         self.raster['wl'] = self.raster['wl'].astype(int)
         self.sensor = l1c_obj.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
