@@ -28,26 +28,17 @@ module load conda
 # ------------------------
 path_of_env=/softs/rh7/conda-envs/amalthee_prod_client
 conda activate $path_of_env
-$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
+#$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 
 # ------------------------
 # second section: process available couples of L1C/L2A images with GRS
 # ------------------------
-
-#load modules snap and jdk
-module load snap/8.0 jdk/1.8.0_112
-
 ##activate conda environement
 path_of_env=grs_v2
 
 conda activate $path_of_env
 
-#set the variable environment for je jpy and snap use
-export JDK_HOME=$JDKHOME
-export JAVAHOME=$JAVA_HOME
-export SNAP_HOME=$SNAPHOME
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
-export OMP_NUM_THREADS=5
+export OMP_NUM_THREADS=6
 
 #open monitoring tool
 module load monitoring/1.0
