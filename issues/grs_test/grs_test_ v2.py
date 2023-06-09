@@ -2,11 +2,7 @@
 Main program
 '''
 
-from pathlib import Path
-import os, shutil
-import zipfile
-import tarfile
-import glob
+import os
 
 import matplotlib
 matplotlib.use('tkagg')
@@ -17,8 +13,8 @@ import numpy as np
 import xarray as xr
 import logging
 
-from s2driver import driver_S2_SAFE as S2
-from grs import product, acutils, utils, cams_product, l2a_product
+from grs.s2driver import driver_S2_SAFE as S2
+from grs import product, acutils, cams_product, l2a_product
 from grs.fortran.grs import main_algo as grs_solver
 
 opj = os.path.join
