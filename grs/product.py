@@ -47,6 +47,9 @@ class product():
         self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
         self.wl = self.raster.wl
+
+        # correct for bug with VZA == Inf
+        self.raster['vza']=self.raster.vza.where(self.raster.vza < 88)
         self.vza_mean = self.raster.vza.mean()
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
