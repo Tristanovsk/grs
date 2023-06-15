@@ -44,6 +44,7 @@ class product():
         self.y = self.raster.y
         self.width = self.x.__len__()
         self.height = self.y.__len__()
+
         self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
         self.wl = self.raster.wl
@@ -53,6 +54,10 @@ class product():
         self.vza_mean = self.raster.vza.mean()
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
+
+        # surfwater object:
+        self.surfwater = xr.ones_like(self.raster.bands.isel(wl=0,drop=True).squeeze().astype(np.int8))
+        self.surfwater.name = 'surfwater'
 
         self.sensordata = auxdata.sensordata(self.sensor)
 

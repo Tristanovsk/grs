@@ -2,7 +2,7 @@
 #!/bin/bash
 
 
-#PBS -N grs_obs2
+#PBS -N grs2_obs2
 #PBS -l select=1:ncpus=40:mpiprocs=8:mem=180gb:generation=g2019
 #PBS -l walltime=48:00:00
 #mpiprocs=4:

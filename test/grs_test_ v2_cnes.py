@@ -26,8 +26,9 @@ opj = os.path.join
 
 # from grs.fortran.grs import main_algo as grs_solver
 odir = '/work/scratch/harmelt/dev/data'
-file = '/datalake/S2-L1C/31TFJ/2022/07/13/S2A_MSIL1C_20220713T103041_N0400_R108_T31TFJ_20220713T141110.SAFE'
-cams_file = '/datalake/watcal/ECMWF/CAMS/2022/07/13/2022-07-13-cams-global-atmospheric-composition-forecasts.nc'
+file = '/datalake/S2-L1C/31NDH/2022/03/29/S2A_MSIL1C_20220329T100611_N0400_R022_T31NDH_20220329T121808.SAFE'
+
+cams_file = '/datalake/watcal/ECMWF/CAMS/2022/03/29/2022-03-29-cams-global-atmospheric-composition-forecasts.nc'
 
 
 file_nc = file.replace('.SAFE', '.nc')
@@ -64,8 +65,8 @@ else:
 # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
 ##################################
 # prod.get_cams()
-cams_dir = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS'
-cams = cams_product(prod,cams_file='/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS')
+
+cams = cams_product(prod,cams_file=cams_file)
 cams.plot_params()
 
 ##################################
