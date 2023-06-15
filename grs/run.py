@@ -1,8 +1,8 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>]  [--output param] [--resolution res] \
-   [--levname <lev>] [--no_clobber] [--allpixels]
+  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] \
+   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file]
   grs -h | --help
   grs -v | --version
 
@@ -18,9 +18,9 @@ Options:
   --odir odir      Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
   --resolution=res  spatial resolution of the scene pixels
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
+  --surfwater file  Absolute path of the surfwater geotiff file to be used
 
   Example:
       grs /media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
@@ -43,10 +43,10 @@ def main():
     file = args['<input_file>']
     lev = args['--levname']
     cams_file = args['--cams_file']
+    surfwater_file = args['--surfwater']
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
-    output = args['--output']
 
     ##################################
     # File naming convention
@@ -80,7 +80,7 @@ def main():
                  ', cams_file:' + cams_file +
                  ', resolution:' + str(resolution))
     process().execute(file, outfile, cams_file=cams_file, resolution=resolution,
-                      output=output, allpixels=allpixels)
+                      allpixels=allpixels,surfwater_file=surfwater_file)
     return
 
 

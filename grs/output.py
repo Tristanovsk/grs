@@ -80,6 +80,7 @@ class l2a_product():
                      "complevel": complevel},
             'ndwi_swir': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
                           "complevel": complevel},
+            'surfwater': {'dtype': 'int8', "zlib": True, "complevel": complevel},
             'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": complevel},
             'raa': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 180, '_FillValue': -32768, "zlib": True, "complevel": complevel},
             'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768, "complevel": complevel},
@@ -104,6 +105,11 @@ class l2a_product():
         for variable in list(self.l2_prod.keys()):
             self.l2_prod[variable].to_netcdf(ofile + '.nc', arg, encoding={variable: encoding[variable]})
             arg = 'a'
+
+        # add other flag/mask/indicator
+        # surfwater
+        variable = 'surfwater'
+        self.prod.surfwater.to_netcdf(ofile + '.nc', arg, encoding={variable: encoding[variable]})
         self.l2_prod.close()
 
         # export ancillary data (coarse resolution)
@@ -111,3 +117,5 @@ class l2a_product():
         for variable in list(self.ancillary.keys()):
             encoding[variable] = {"zlib": True, "complevel": complevel}
         self.ancillary.to_netcdf(ofile + '_anc.nc', encoding=encoding)  # ,group='ancillary')
+
+

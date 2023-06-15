@@ -44,10 +44,16 @@ Version history:
 1.5.0: change output parameter with addition of ndwi_nir and ndwi_swir
 
 2.0.0: remove snappy skeleton, simplification of the previous option, no more handling for Landsat
+
+2.0.1: fix for I/O
+
+2.0.2: memory optimization
+
+2.0.3: add surfwater
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.2'
+__version__ = '2.0.3'
 
 
 from .acutils import aerosol, lut, misc

@@ -4,6 +4,7 @@ Main program
 
 import numpy as np
 import xarray as xr
+import rioxarray as rio
 import logging
 
 from .drivers import driver_S2_SAFE as S2
@@ -21,18 +22,18 @@ class process:
 
     def execute(self, file, ofile,
                 cams_file='./cams.nc',
+                surfwater_file=None,
                 resolution=20,
-                allpixels=False,
-                output='Rrs',
-                logfile="log.txt",
-                log_level="INFO",
+                allpixels=False
                 ):
+
         '''
         Main program calling all GRS steps
 
         :param file: Input file to be processed
         :param ofile: Absolute path of the output file
         :param cams_file: Absolute path for root directory of CAMS data
+
         :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
                     (by default sensor type is retrieved from input file name)
         :param resolution: pixel resolution in meters (integer), choice between: 10, 20, 60 m
@@ -65,6 +66,14 @@ class process:
         logging.info('get CAMS auxilliary data')
         cams = cams_product(prod, cams_file=cams_file)
 
+        if surfwater_file:
+            prod.surfwater = rio.open_rasterio(surfwater_file).squeeze()
+            prod.surfwater = prod.surfwater.where(prod.surfwater != 255., 32).astype(np.int8)
+            prod.surfwater = prod.surfwater.interp(x=prod.x, y=prod.y, method='nearest')
+            prod.surfwater.name = 'surfwater'
+            prod.surfwater.attrs={'description':'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
+
+
         ##################################
         ## ADD ELEVATION AND PRESSURE BAND
         ##################################
@@ -93,7 +102,7 @@ class process:
                 #do not correct outside atmospheric windows (e.g., cirrus bands)
                 continue
             prod.raster['bands'].loc[wl] = prod.raster.bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=prod.raster.x,
-                                                                                                      y=prod.raster.y)
+                                                                                              y=prod.raster.y)
         prod.raster.bands.attrs['gas_absorption_correction'] = True
 
         ######################################
