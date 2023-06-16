@@ -131,8 +131,8 @@ class process:
             masked_raster = prod.raster.bands
         else:
             logging.info('apply water masking')
-            prod.raster['bands'] = prod.raster.bands.where(ndwi > prod.ndwi_threshold). \
-                where(b2200 < prod.sunglint_threshold). \
+            prod.raster['bands'] = prod.raster.bands.where((ndwi > prod.ndwi_threshold)| \
+                (b2200 < prod.sunglint_threshold)). \
                 where(ndwi_swir > prod.green_swir_index_threshold)
         self.raster = prod.raster
 
