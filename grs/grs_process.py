@@ -250,3 +250,5 @@ class process:
 
         logging.info('export final product into netcdf')
         self.l2a.to_netcdf(ofile)
+
+        return

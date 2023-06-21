@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 
 __package__ = 'grs'
-__version__ = '2.0.3'
+__version__ = '2.0.4'
 
 setup(
     name=__package__,

@@ -51,7 +51,14 @@ class l2a_product():
 
         # final merge
         self.l2_prod = xr.merge([self.l2_prod, o2band, cirrus, ndwi, ndwi_swir])
+        self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y', inplace=True)
+        self.l2_prod.rio.write_coordinate_system(inplace=True)
+        self.l2_prod.rio.write_crs(inplace=True)
+
         self.ancillary = xr.merge([transmittance_raster, cams_raster])
+        self.ancillary.rio.set_spatial_dims(x_dim='xc', y_dim='yc', inplace=True)
+        self.ancillary.rio.write_coordinate_system(inplace=True)
+        self.ancillary.rio.write_crs(inplace=True)
 
     def to_netcdf(self, output_path):
         '''
@@ -64,26 +71,28 @@ class l2a_product():
 
         encoding = {
             'aot550': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True,
-                       "complevel": complevel},
+                       "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                      "complevel": complevel},
+                      "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'Rrs': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                    "complevel": complevel},
+                    "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'Rrs_g': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                      "complevel": complevel},
+                      "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'o2_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                        "complevel": complevel},
+                        "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'cirrus_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768,
                             "zlib": True,
-                            "complevel": complevel},
+                            "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'ndwi': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
-                     "complevel": complevel},
+                     "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'ndwi_swir': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
-                          "complevel": complevel},
-            'surfwater': {'dtype': 'int8', "zlib": True, "complevel": complevel},
-            'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": complevel},
-            'raa': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 180, '_FillValue': -32768, "zlib": True, "complevel": complevel},
-            'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768, "complevel": complevel},
+                          "complevel": complevel, 'grid_mapping': 'spatial_ref'},
+            'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": complevel,
+                    'grid_mapping': 'spatial_ref'},
+            'raa': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 180, '_FillValue': -32768, "zlib": True,
+                    "complevel": complevel, 'grid_mapping': 'spatial_ref'},
+            'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768,
+                    "complevel": complevel, 'grid_mapping': 'spatial_ref'},
 
         }
 
@@ -101,21 +110,23 @@ class l2a_product():
             os.remove(ofile + '_anc.nc')
 
         # export full raster data
-        arg = 'w'
-        for variable in list(self.l2_prod.keys()):
-            self.l2_prod[variable].to_netcdf(ofile + '.nc', arg, encoding={variable: encoding[variable]})
-            arg = 'a'
+        self.l2_prod.to_netcdf(ofile + '.nc', encoding=encoding)
 
         # add other flag/mask/indicator
         # surfwater
-        variable = 'surfwater'
-        self.prod.surfwater.to_netcdf(ofile + '.nc', arg, encoding={variable: encoding[variable]})
+        self.prod.surfwater.to_netcdf(ofile + '.nc', 'a',
+                                      encoding={'surfwater':
+                                                    {'dtype': 'int8', "zlib": True,
+                                                     "complevel": complevel, 'grid_mapping': 'spatial_ref'}})
         self.l2_prod.close()
 
         # export ancillary data (coarse resolution)
         encoding = {}
         for variable in list(self.ancillary.keys()):
-            encoding[variable] = {"zlib": True, "complevel": complevel}
-        self.ancillary.to_netcdf(ofile + '_anc.nc', encoding=encoding)  # ,group='ancillary')
+            encoding[variable] = {"zlib": True, "complevel": complevel, 'grid_mapping': 'spatial_ref'}
 
+        self.ancillary.to_netcdf(ofile + '_anc.nc','w')#, encoding=encoding)  # ,group='ancillary')
 
+        self.ancillary.close()
+
+        return
