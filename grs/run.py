@@ -23,7 +23,7 @@ Options:
   --surfwater file  Absolute path of the surfwater geotiff file to be used
 
   Example:
-      grs /media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
+      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
   For CNES datalake:
       grs /datalake/S2-L1C/31TFJ/2022/07/31/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /datalake/watcal/ECMWF/CAMS/2022/07/31/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 20
 

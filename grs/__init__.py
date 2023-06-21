@@ -50,10 +50,12 @@ Version history:
 2.0.2: memory optimization
 
 2.0.3: add surfwater
+
+2.0.4: adapt format for QGIS
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.3'
+__version__ = '2.0.4'
 
 
 from .acutils import aerosol, lut, misc
