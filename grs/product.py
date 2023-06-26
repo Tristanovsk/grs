@@ -46,7 +46,10 @@ class product():
         self.height = self.y.__len__()
 
         self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
+        # set longitude between 0 and 360 deg
+        self.lonmin,self.lonmax,=self.lonmin%360, self.lonmax%360
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
+
         self.wl = self.raster.wl
 
         # correct for bug with VZA == Inf
