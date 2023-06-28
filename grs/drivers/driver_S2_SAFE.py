@@ -13,10 +13,8 @@ import xmltodict
 from rasterio.features import rasterize
 import scipy.odr as odr
 from affine import Affine
-from osgeo import gdal, ogr
-import cartopy.crs as ccrs
-from pyproj import CRS
-import eoreader as eo
+from osgeo import gdal
+
 from eoreader.reader import Reader
 
 opj = os.path.join
@@ -109,11 +107,7 @@ class s2image():
         minx, miny, maxx, maxy = self.bounds.values[0]
         self.crs = self.prod.crs()
         self.epsg = self.extent.crs.to_epsg()
-        str_epsg = str(self.epsg)
-        zone = str_epsg[-2:]
-        is_south = str_epsg[2] == 7
-        self.proj = ccrs.UTM(zone, is_south)
-        # self.proj = CRS.from_dict({'proj': 'utm', 'zone': zone, 'south': is_south})
+
         self.transform = Affine(resolution, 0., minx, 0., -resolution, maxy)
 
         # -------------------------
