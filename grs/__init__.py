@@ -52,10 +52,12 @@ Version history:
 2.0.3: add surfwater
 
 2.0.4: adapt format for QGIS
+
+2.0.5: new output format compliant with SNAP "beam format"
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.4'
+__version__ = '2.0.5'
 
 
 from .acutils import aerosol, lut, misc

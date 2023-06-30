@@ -29,10 +29,11 @@ class product():
                  output='Rrs'):
 
         self.processor = __package__ + '_' + __version__
-        self.raster = l1c_obj
+        self.l1c = l1c_obj
+        self.raster = l1c_obj.prod
         # TODO check why drivers sends an object for wl coordinates instead of array of int
         self.raster['wl'] = self.raster['wl'].astype(int)
-        self.sensor = l1c_obj.attrs['satellite']
+        self.sensor = l1c_obj.prod.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
         self.raster = self.raster.assign_coords({'time': self.date})
@@ -40,6 +41,8 @@ class product():
         # add metadata for future export to L2product
         self.raster.attrs['processing_time'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
         self.raster.attrs['processor'] = self.processor
+        self.raster.attrs['version'] = __version__
+
         self.x = self.raster.x
         self.y = self.raster.y
         self.width = self.x.__len__()
@@ -64,9 +67,9 @@ class product():
 
         self.sensordata = auxdata.sensordata(self.sensor)
 
-        self.U = l1c_obj.attrs['REFLECTANCE_CONVERSION_U']
+        self.U =  self.raster.attrs['REFLECTANCE_CONVERSION_U']
         # convert into mW cm-2 um-1
-        self.solar_irradiance = xr.DataArray(l1c_obj.solar_irradiance / 10,
+        self.solar_irradiance = xr.DataArray( self.raster.solar_irradiance / 10,
                                              coords={'wl': self.wl},
                                              attrs={
                                                  'description': 'extraterrestrial solar irradiance from satellite metadata',
@@ -201,12 +204,10 @@ class product():
         :param flag_name: name of the flag to be loaded
         :return:
         '''
-
+        # TODO implement bit masks
         w, h = self.width, self.height
         flag_raster = np.zeros((w, h), dtype=np.int32, order='F').T
-        flag = product.getMaskGroup().get(flag_name)
-        flag = jpy.cast(flag, Mask)
-        flag.readPixels(0, 0, w, h, flag_raster)
+
         return flag_raster
 
     def get_elevation(self, source='Copernicus30m'):

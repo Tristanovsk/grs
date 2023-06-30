@@ -2,7 +2,7 @@
 
 Usage:
   grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] \
-   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file]
+   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -21,6 +21,7 @@ Options:
   --resolution=res  spatial resolution of the scene pixels
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
   --surfwater file  Absolute path of the surfwater geotiff file to be used
+  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
 
   Example:
       grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
@@ -47,6 +48,7 @@ def main():
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
+    snap_compliant = args['--snap_compliant']
 
     ##################################
     # File naming convention
@@ -80,7 +82,7 @@ def main():
                  ', cams_file:' + cams_file +
                  ', resolution:' + str(resolution))
     process().execute(file, outfile, cams_file=cams_file, resolution=resolution,
-                      allpixels=allpixels,surfwater_file=surfwater_file)
+                      allpixels=allpixels,surfwater_file=surfwater_file,snap_compliant=snap_compliant)
     return
 
 
