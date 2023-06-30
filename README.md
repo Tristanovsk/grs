@@ -54,14 +54,93 @@ spectral value of $`\tau _a`$.
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### Prerequisites
+## Installing
 
 ### please use conda environment
+``` 
 conda activate "name of your conda env"
+```
 
-conda install gdal numba rasterio
+Python >= 3.9 is recommended, example:
+``` 
+conda create python=3.10 -n grs_v2
+conda activate grs_v2
+``` 
+Then, install python dependencies:
+``` 
+conda install gdal geopandas -c conda-forge-remote
 
-pip install -e .
+pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
+```
+
+Compile the FORTRAN kernel:
+```commandline
+make
+```
+
+Finally, install grs with:
+```commandline
+pip install .
+```
+
+Now you can type:
+```commandline
+grs -h
+```
+
+You should see something like:
+```commandline
+ Executable to process Sentinel-2 L1C images for aquatic environment
+
+Usage:
+  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res]    [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--snap_compliant]
+  grs -h | --help
+  grs -v | --version
+
+Options:
+  -h --help        Show this screen.
+  -v --version     Show version.
+
+  <input_file>     Input file to be processed
+
+  --cams_file file     Absolute path of the CAMS file to be used (mandatory)
+
+  -o ofile         Full (absolute or relative) path to output L2 image.
+  --odir odir      Ouput directory [default: ./]
+  --levname lev    Level naming used for output product [default: L2Agrs]
+  --no_clobber     Do not process <input_file> if <output_file> already exists.
+  --resolution=res  spatial resolution of the scene pixels
+  --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
+  --surfwater file  Absolute path of the surfwater geotiff file to be used
+  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+
+  Example:
+      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
+  For CNES datalake:
+      grs /datalake/S2-L1C/31TFJ/2022/07/31/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /datalake/watcal/ECMWF/CAMS/2022/07/31/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 20
+
+```
+
+### Script for installation on the CNES HPC:
+```commandline
+# set your grs path here
+your_path_to_grs=/work/scratch/$USER/dev/grs
+
+cd $your_path_to_grs
+git clone git@gitlab.cnes.fr:waterquality/grs2.git
+ml conda/4.12.0
+mkdir /work/scratch/$USER/tmp
+export TMPDIR=/work/scratch/$USER/tmp
+conda create python=3.10 -n grs_v2
+conda activate grs_v2
+conda install gdal geopandas -c conda-forge-remote
+pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
+ml gcc
+make
+pip install .
+
+grs -h
+```
 
 
 ### To download CAMS data
@@ -89,29 +168,6 @@ Generate the `config.py` file:
  * Then, edit `config.py` according to your folders tree and path to your grs installation folder. 
 
 
-
-### Installing
-
-To install the package:
-```
-python setup.py install
-```
-
-or 
-
-```
-python setup.py install --user
-```
-
-If the installation is successful, you should have:
-```
-
-$ grs
-Usage:
-  grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]   [--longlat <longmax,longmin,latmax,latmin> ]    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>]    [--aot550=aot] [--angstrom=ang] [--output param]   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
-  grs -h | --help
-  grs -v | --version
-```
 
 ### On the PBS cluster : installing from sources with conda on the cluster CNES
 
