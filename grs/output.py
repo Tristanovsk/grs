@@ -60,7 +60,7 @@ class l2a_product():
         self.ancillary.rio.write_coordinate_system(inplace=True)
         self.ancillary.rio.write_crs(inplace=True)
 
-    def to_netcdf(self, output_path):
+    def to_netcdf(self, output_path,snap_compliant=False):
         '''
         Create output product dimensions, variables, attributes, flags....
         :return:
@@ -73,10 +73,6 @@ class l2a_product():
             'aot550': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999, "zlib": True,
                        "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                      "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'Rrs': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                    "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'Rrs_g': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                       "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'o2_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                         "complevel": complevel, 'grid_mapping': 'spatial_ref'},
@@ -93,8 +89,48 @@ class l2a_product():
                     "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768,
                     "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-
         }
+
+        if snap_compliant:
+            # explode Rrs array to get one variable per band to be SNAP compliant
+            for var in ['Rrs', 'Rrs_g']:
+                img_snap = self.l2_prod[var].to_dataset("wl")
+                suff = ''
+                if var == 'Rrs_g':
+                    suff = 'with sunglint '
+                for band in img_snap.keys():
+                    band_name = var + '_{:d}'.format(band)
+                    band_ref = 'B{:d}'.format(band)
+                    wavelength = self.prod.l1c.band_info[band_ref]['central_wavelength']
+                    bandwidth = self.prod.l1c.band_info[band_ref]['bandwidth']
+                    img_snap[band].attrs = {'long_name': 'Remote sensing reflectance' + suff + ' at {:d} nm'.format(band),
+                                            'Unit': 'sr-1',
+                                            'units': 'sr-1',
+                                            'radiation_wavelength': wavelength,
+                                            'radiation_wavelength_unit': 'nm',
+                                            'bandwidth': bandwidth,
+                                            'wavelength': wavelength,
+                                            'valid_pixel_expression': ''}
+                    encoding[band_name] = {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
+                                           '_FillValue': -32768, "zlib": True,
+                                           "complevel": complevel, 'grid_mapping': 'spatial_ref'}
+
+                    img_snap = img_snap.rename({band: band_name})
+                self.l2_prod = xr.merge([self.l2_prod.drop_vars(var), img_snap])
+            self.l2_prod.attrs['auto_grouping'] = 'Rrs:Rrs_g'
+            self.l2_prod.attrs['metadata_profile'] = 'beam'
+        else:
+            for band_name in ['Rrs', 'Rrs_g']:
+                encoding[band_name] = {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
+                                   '_FillValue': -32768, "zlib": True,
+                                   "complevel": complevel, 'grid_mapping': 'spatial_ref'}
+
+            wavelengths = []
+            for band in self.l2_prod.wl:
+                band_ref = 'B{:d}'.format(band)
+                wavelengths.append(self.prod.l1c.band_info[band_ref]['central_wavelength'])
+            self.l2_prod['central_wavelength'] = ('wl',wavelengths)
+            self.l2_prod.attrs['metadata_profile'] = 'datacube'
 
         # get file naming and create folder
         basename = os.path.basename(output_path)
@@ -118,15 +154,15 @@ class l2a_product():
                                       encoding={'surfwater':
                                                     {'dtype': 'int8', "zlib": True,
                                                      "complevel": complevel, 'grid_mapping': 'spatial_ref'}})
-        self.l2_prod.close()
+        #self.l2_prod.close()
 
         # export ancillary data (coarse resolution)
         encoding = {}
         for variable in list(self.ancillary.keys()):
             encoding[variable] = {"zlib": True, "complevel": complevel, 'grid_mapping': 'spatial_ref'}
 
-        self.ancillary.to_netcdf(ofile + '_anc.nc','w')#, encoding=encoding)  # ,group='ancillary')
+        self.ancillary.to_netcdf(ofile + '_anc.nc', 'w', encoding=encoding)  # ,group='ancillary')
 
-        self.ancillary.close()
+        #self.ancillary.close()
 
         return

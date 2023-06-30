@@ -24,7 +24,8 @@ class process:
                 cams_file='./cams.nc',
                 surfwater_file=None,
                 resolution=20,
-                allpixels=False
+                allpixels=False,
+                snap_compliant=False
                 ):
 
         '''
@@ -52,7 +53,7 @@ class process:
         l1c = S2.s2image(file, band_idx=self.bandIds, resolution=resolution)
         l1c.load_product()
         logging.info('pass raw image as grs product object')
-        prod = product(l1c.prod)
+        prod = product(l1c)
 
         ##################################
         # Fetch optional mask products
@@ -249,6 +250,6 @@ class process:
         self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
 
         logging.info('export final product into netcdf')
-        self.l2a.to_netcdf(ofile)
+        self.l2a.to_netcdf(ofile,snap_compliant=snap_compliant)
 
         return

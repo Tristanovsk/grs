@@ -20,7 +20,7 @@ from eoreader.reader import Reader
 opj = os.path.join
 BAND_NAMES = np.array(['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B10', 'B11', 'B12'])
 BAND_NAMES_EOREADER = np.array(['CA', 'BLUE', 'GREEN', 'RED', 'VRE_1',
-                                'VRE_2', 'VRE_3', 'NARROW_NIR', 'NIR',
+                                'VRE_2', 'VRE_3', 'NIR', 'NARROW_NIR',
                                 'WV', 'SWIR_CIRRUS', 'SWIR_1', 'SWIR_2'])
 
 BAND_ID = [b.replace('B', '') for b in BAND_NAMES]
@@ -75,6 +75,7 @@ class s2image():
 
         # Spectral Response Functions
         SRFs = []
+        self.band_info = {}
         wl_hr = np.arange(400, 2350)
         for _ in self.metadata2['n1:Level-1C_User_Product'][
             'n1:General_Info']['Product_Image_Characteristics']['Spectral_Information_List']['Spectral_Information']:
@@ -83,7 +84,11 @@ class s2image():
             if not self.band_idx.__contains__(bandID):
                 continue
 
+            central_wavelength = float(_['Wavelength']['CENTRAL']['#text'])
             wl_min, wl_max = float(_['Wavelength']['MIN']['#text']), float(_['Wavelength']['MAX']['#text'])
+            self.band_info['B{:d}'.format(WAVELENGTH[bandID])] = {'central_wavelength': central_wavelength,
+                                      'bandwidth': wl_max - wl_min}
+
             step = float(_['Spectral_Response']['STEP']['#text'])
             wl = np.arange(wl_min, wl_max + step, step)
             RSF = np.asarray(_['Spectral_Response']['VALUES'].split(), dtype=np.float32)
