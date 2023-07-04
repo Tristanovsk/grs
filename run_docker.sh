@@ -17,7 +17,8 @@ if [ -z "$7" ]
 then
     sudo docker exec grs2 grs /home/L1C --cams_file /home/CAMS -o $4 --resolution $6
 else
-    sudo docker exec grs2 grs /home/L1C --surfwater $7 --cams_file /home/CAMS -o $4 --resolution $6
+    sudo docker cp $7 grs2:/home/SW
+    sudo docker exec grs2 grs /home/L1C --surfwater /home/SW/$7 --cams_file /home/CAMS -o $4 --resolution $6
 fi
 sudo docker cp grs2:/home/$4 $5/$4
 echo Result written at location $5/$4
