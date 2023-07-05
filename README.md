@@ -241,11 +241,17 @@ docker images
 
 To run the Docker image in a container on a S2 raster you can use the run_docker.sh script as follow:
 ```
-./run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_name_for_output> <desired_path_for_output> <desired_resolution>
+./run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_name_for_output> <desired_path_for_output> <desired_resolution> <surfwater_tif_path>
 ```
 Example:
 ```
-./run_docker.sh grs2:v2_CNES /DATA/Sentinel-2/S2B_MSIL1C_20230104T103329_N0509_R108_T31TFJ_20230104T110718.SAFE /DATA/CAMS/2023/01/04/2023-01-04-cams-global-atmospheric-composition-forecasts.nc L2AGRS_20230104T103329_N0509_R108_T31TFJ_20230104T110718.nc /DATA/L2AGRS 60
+./run_docker.sh grs2:V2_CNES \
+/DATA/S2_raster/S2B_MSIL1C_20220228T102849_N0400_R108_T31TFJ_20220228T123819.SAFE \
+/DATA/CAMS/2022-02-28-cams-global-atmospheric-composition-forecasts.nc \
+S2B_L2Agrs_20220228T102849_N0400_R108_T31TFJ_20220228T123819 \
+/DATA/grs_outputs \
+60 \
+/DATA/Surfwater/SURFWATER_OPTICAL-SINGLE_T31TFJ_20220228T103850_20220228T103850_1-0-4_06/SURFWATER_OPTICAL-SINGLE_T31TFJ_20220228T103850_20220228T103850_1-0-4_06.tif
 ```
 
 The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
