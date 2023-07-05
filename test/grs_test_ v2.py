@@ -16,18 +16,19 @@ import logging
 from grs.drivers import driver_S2_SAFE as S2
 from grs import product, acutils, cams_product, l2a_product
 from grs.fortran.grs import main_algo as grs_solver
-
+from grs import __version__
+print(__version__)
 opj = os.path.join
 # from grs import product, l2a, utils, acutils, auxdata
 
 # from grs.fortran.grs import main_algo as grs_solver
-odir = '/sat_data/satellite/sentinel2/L2A'
-file = '/sat_data/satellite/sentinel2/L1C/31TFJ/S2A_MSIL1C_20201004T104031_N0209_R008_T31TFJ_20201004T125253.SAFE'
+odir = '/data/satellite/sentinel2/L2A'
+file = '/data/satellite/sentinel2/L1C/31TFJ/S2A_MSIL1C_20201004T104031_N0209_R008_T31TFJ_20201004T125253.SAFE'
 file = '/media/harmel/vol1/Dropbox/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE'
 cams_file = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc'
 
-file = '/media/harmel/vol1/Dropbox/satellite/S2/L1C//S2A_MSIL1C_20220713T103041_N0400_R108_T31TFJ_20220713T141110.SAFE'
-cams_file = '/media/harmel/vol1/Dropbox/satellite/S2/cnes/CAMS/2022-07-13-cams-global-atmospheric-composition-forecasts.nc'
+file = '/data/satellite/S2/L1C//S2A_MSIL1C_20220713T103041_N0400_R108_T31TFJ_20220713T141110.SAFE'
+cams_file = '/data/satellite/S2/cnes/CAMS/2022-07-13-cams-global-atmospheric-composition-forecasts.nc'
 file_nc = file.replace('.SAFE', '.nc')
 basename = os.path.basename(file)
 ofile = basename.replace('.SAFE', '.nc').replace('L1C', 'L2Agrs')
@@ -39,7 +40,7 @@ if not os.path.exists(file_nc):
     l1c = S2.s2image(file, band_idx=bandIds, resolution=resolution)
     print(l1c.crs)
     l1c.load_product()
-    prod = product(l1c.prod)
+    prod = product(l1c)
     encoding = {
         'bands': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                   "complevel": 6},
@@ -157,6 +158,26 @@ azi_ = rounding((180 - prod.raster.raa) % 360, 0)
 vza_ = rounding(prod.raster.vza, 1)
 
 aotlut = np.array(lutf.aot, dtype=prod.type)
+
+# load OPAC LUT
+lut_file = '/DATA/git/satellite_app/hgrs/data/lut/opac_osoaa_lut_v3.nc'
+aero_lut = xr.open_dataset(lut_file)
+aero_lut['wl']=aero_lut['wl']*1000
+
+models = [ 'COAV_rh70', 'DESE_rh70']#'ANTA' + rh, 'ARCT' + rh,
+wl = prod.central_wavelength
+lut_aod = aero_lut.aot.sel(model=models, aot_ref=1).interp(wl=wl)
+idx = np.abs((cams_aod / cams.aod550) - lut_aod).sum('wl').argmin()
+opac_model = aero_lut.sel(model=models).model.values[idx]
+
+lut_ = lutf.refl.sel(vza=slice(np.min(vza_)-1,np.max(vza_)+1),azi=slice(np.min(azi_)-1,np.max(azi_)+1))
+mu0=np.linspace(0.01,1)
+plt.figure()
+for wl in range(8):
+    z=np.polyfit(np.cos(np.radians(lutf.sza)),lutf.refl.isel(vza=2,azi=2,aot=2,wl=wl),2)
+    p=np.poly1d(z)
+    plt.plot(np.cos(np.radians(lutf.sza)),lutf.refl.isel(vza=2,azi=2,aot=2,wl=wl))
+    plt.plot(mu0,p(mu0),ls='--',color='gray')
 
 fine_refl = lutf.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
 coarse_refl = lutc.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)

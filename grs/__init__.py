@@ -54,10 +54,12 @@ Version history:
 2.0.4: adapt format for QGIS
 
 2.0.5: new output format compliant with SNAP "beam format"
+
+2.1.0: Major update on radiative transfer look-up tables and aerosol models
 '''
 
 __package__ = 'grs'
-__version__ = '2.0.5'
+__version__ = '2.1.0'
 
 
 from .acutils import aerosol, lut, misc

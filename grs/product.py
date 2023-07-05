@@ -54,6 +54,10 @@ class product():
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
 
         self.wl = self.raster.wl
+        self.central_wavelength = []
+        for band in self.wl:
+            band_ref = 'B{:d}'.format(band)
+            self.central_wavelength.append(self.l1c.band_info[band_ref]['central_wavelength'])
 
         # correct for bug with VZA == Inf
         self.raster['vza']=self.raster.vza.where(self.raster.vza < 88)
