@@ -11,7 +11,7 @@ class l2a_product():
         self.gas_trans = gas_trans
         self.ancillary = None
         self.wl_cirrus_band = 1375
-        self.wl_o2_band = 945
+        self.wl_wv_band = 945
         self.complevel = 5
         self.construct_l2a()
 
@@ -41,16 +41,16 @@ class l2a_product():
             'description': 'TOA reflectance in cirrus band from L1C image, might be used to filter out high clouds',
             'wavelength': str(self.wl_cirrus_band)}
 
-        o2band = native_raster.bands.sel(wl=self.wl_o2_band)
-        o2band.name = 'o2_band'
-        o2band.attrs = {
-            'description': 'TOA reflectance in O2 band from L1C image',
-            'wavelength': str(self.wl_o2_band)}
+        wvband = native_raster.bands.sel(wl=self.wl_wv_band)
+        wvband.name = 'wv_band'
+        wvband.attrs = {
+            'description': 'TOA reflectance in water vapor band from L1C image',
+            'wavelength': str(self.wl_wv_band)}
         ndwi = native_raster.ndwi
         ndwi_swir = native_raster.ndwi_swir
 
         # final merge
-        self.l2_prod = xr.merge([self.l2_prod, o2band, cirrus, ndwi, ndwi_swir])
+        self.l2_prod = xr.merge([self.l2_prod, wvband, cirrus, ndwi, ndwi_swir])
         self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y', inplace=True)
         self.l2_prod.rio.write_coordinate_system(inplace=True)
         self.l2_prod.rio.write_crs(inplace=True)
@@ -74,7 +74,7 @@ class l2a_product():
                        "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                       "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'o2_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
+            'wv_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                         "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'cirrus_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768,
                             "zlib": True,

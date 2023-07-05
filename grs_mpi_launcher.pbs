@@ -28,7 +28,7 @@ module load conda
 # ------------------------
 path_of_env=/softs/rh7/conda-envs/amalthee_prod_client
 conda activate $path_of_env
-#$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
+$path_of_env/bin/python $GRSHOME/exe/call_amalthee.py $list_filepath
 
 # ------------------------
 # second section: process available couples of L1C/L2A images with GRS
