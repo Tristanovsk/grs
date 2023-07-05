@@ -95,8 +95,9 @@ for idx, site in sites.iterrows():
         if not l1c:
             # print(l1c_dir + ' not loaded on /datalake')
             continue
-        else:
-            l1c = l1c[-1]
+
+        l1c.sort()
+        l1c = l1c[-1]
 
         # -------------------
         # get Metadata
@@ -183,7 +184,7 @@ def call(command):
 
 
 command = pd.read_csv(tmp_file).values
-
-with Pool(processes=ncore) as pool:
-    pool.map(call, command)
-    pool.close
+#
+# with Pool(processes=ncore) as pool:
+#     pool.map(call, command)
+#     pool.close
