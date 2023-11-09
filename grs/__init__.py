@@ -62,9 +62,9 @@ __package__ = 'grs'
 __version__ = '2.1.0'
 
 
-from .acutils import aerosol, lut, misc
+from .acutils import aerosol, misc
 from .cams import cams_product
-from .auxdata import Aeronet, sensordata
+from .auxdata import Aeronet, sensordata, auxdata
 from .product import product
 from .output import l2a_product
 from .grs_process import process

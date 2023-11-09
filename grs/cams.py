@@ -39,14 +39,14 @@ class cams_product:
 
     '''
 
-    def __init__(self,prod,
+    def __init__(self,raster,
                  cams_file=None,
                  dir='./',
                  type='cams-global-atmospheric-composition-forecasts',
                  wls = [400, 440, 500, 550, 645, 670, 800, 865, 1020, 1240, 1640, 2130]):
 
-        self.date = prod.date
-        date_str = prod.date.strftime('%Y-%m-%d')
+        self.date = raster.time
+        date_str = str(raster.time.dt.strftime('%Y-%m-%d').values) #raster.time.strftime('%Y-%m-%d')
         if cams_file:
             self.file = os.path.basename(cams_file)
             self.dir = os.path.dirname(cams_file)
@@ -54,22 +54,25 @@ class cams_product:
             self.dir = dir
             self.file = date_str + '-' + type + '.nc'
 
-        xmin, ymin, xmax, ymax = prod.raster.rio.bounds()
+        xmin, ymin, xmax, ymax = raster.rio.bounds()
+        lonmin, latmin, lonmax, latmax = raster.rio.transform_bounds(4326)
+        # set longitude between 0 and 360 deg
+        lonmin, lonmax, = lonmin % 360, lonmax % 360
 
         # lazy loading
         cams = xr.open_dataset(opj(self.dir, self.file), decode_cf=True,
                                chunks={'time': 1, 'x': 500, 'y': 500})
         # slicing
         cams = cams.sel(time=self.date, method='nearest')
-        cams = cams.sel(latitude=slice(prod.latmax + 1, prod.latmin - 1),
-                        longitude=slice(prod.lonmin - 1, prod.lonmax + 1))
+        cams = cams.sel(latitude=slice(latmax + 1, latmin - 1),
+                        longitude=slice(lonmin - 1, lonmax + 1)).compute()
         # rename "time" variable to avoid conflicts
         cams = cams.rename({'time':'time_cams'})
         if cams.u10.shape[0] == 0 or cams.u10.shape[1] == 0:
             print('no cams data, enlarge subset')
 
-        self.raster = cams.interp(longitude=np.linspace(prod.lonmin, prod.lonmax, 12),
-                   latitude=np.linspace(prod.latmax, prod.latmin, 12),
+        self.raster = cams.interp(longitude=np.linspace(lonmin, lonmax, 12),
+                   latitude=np.linspace(latmax, latmin, 12),
                    kwargs={"fill_value": "extrapolate"})
         self.raster= self.raster.rename({'longitude': 'x', 'latitude': 'y'})
         Nx = len(self.raster.x)
@@ -79,19 +82,20 @@ class cams_product:
         self.raster['x'] = x
         self.raster['y'] = y
 
-        self.raster.rio.write_crs(prod.raster.rio.crs, inplace=True)
+        self.raster.rio.write_crs(raster.rio.crs, inplace=True)
 
         param_ssa, param_aod = [], []
         for wl in wls:
             wl_ = str(wl)
             param_aod.append('aod' + wl_)
             param_ssa.append('ssa' + wl_)
-        cams_aod = self.raster[param_aod].to_array(dim='wavelength')
-        wl_cams = cams_aod.wavelength.str.replace('aod', '').astype(float)
-        self.cams_aod = cams_aod.assign_coords(wavelength=wl_cams)
-        cams_ssa = self.raster[param_ssa].to_array(dim='wavelength')
-        wl_cams = cams_ssa.wavelength.str.replace('ssa', '').astype(float)
-        self.cams_ssa = cams_ssa.assign_coords(wavelength=wl_cams)
+        cams_aod = self.raster[param_aod].to_array(dim='wl')
+
+        wl_cams = cams_aod.wl.str.replace('aod', '').astype(float)
+        self.cams_aod = cams_aod.assign_coords(wl=wl_cams)
+        cams_ssa = self.raster[param_ssa].to_array(dim='wl')
+        wl_cams = cams_ssa.wl.str.replace('ssa', '').astype(float)
+        self.cams_ssa = cams_ssa.assign_coords(wl=wl_cams)
         del cams_aod, cams_ssa
 
         self.variables = list(cams.keys())
@@ -120,13 +124,14 @@ class cams_product:
     def plot_params(self,params = ['aod550', 'aod2130', 'ssa550',
                                    't2m', 'msl', 'sp','tcco', 'tchcho',
                                    'tc_oh', 'tc_ch4', 'tcno2', 'gtco3',
-                                   'tc_c3h8', 'tcwv', 'u10', 'v10']):
+                                   'tc_c3h8', 'tcwv', 'u10', 'v10'],
+                    **kwargs):
 
         Nrows = (len(params) + 1) // 4
         fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
         axs = axs.ravel()
         for i, param in enumerate(params):
-            fig = self.raster[param].plot.imshow(robust=True, ax=axs[i])
+            fig = self.raster[param].plot.imshow(robust=True, ax=axs[i],**kwargs)
             fig.axes.set_title(param)
             fig.colorbar.set_label(self.raster[param].units)
             fig.axes.set(xticks=[], yticks=[])

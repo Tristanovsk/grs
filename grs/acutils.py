@@ -5,135 +5,57 @@ Atmospheric Correction utilities to manage LUT and atmosphere parameters (aeroso
 import os, sys
 import numpy as np
 import xarray as xr
-import logging
-from matplotlib import pyplot as plt
-from netCDF4 import Dataset
-from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import curve_fit
 
+from numba import njit, prange
 
-class lut:
-    '''Load LUT FROM RT COMPUTATION (OSOAA_h)
-    '''
 
-    def __init__(self, band):
+@njit()
+def _getnearpos(array, value):
+    idx = (np.abs(array - value)).argmin()
+    return idx
 
-        self.smac_bands = []
-        self.N = len(band)
-        N = self.N
-        self.lut_generator = "OSOAA_h"
-        self.wl = []
-        self.Cext = []
-        self.Cext550 = 0
-        self.Csca = []
-        self.Csca550 = 0
-        self.vza = []
-        self.sza = []
-        self.azi = []
-        self.aot = []
-        self.refl = []
 
-    def load_lut(self, lut_file, ind_wl, aot=[0.01, 0.05, 0.1, 0.3, 0.5, 0.8], vza_max=20, reflectance=True):
-        '''load lut calculated from OSOAA code
+@njit()
+def _interp_Rlut(szas, _sza,
+                 vzas, _vza,
+                 azis, _azi,
+                 aot_refs, _aot_ref,
+                 Nwl, Ny, Nx, lut):
+    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+    mus = np.cos(np.radians(_sza))
+    for _iy in range(Ny):
+        for _ix in range(Nx):
+            if np.isnan(_sza[_iy, _ix]):
+                continue
+            isza = _getnearpos(szas, _sza[_iy, _ix])
+            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+            for _iwl in range(Nwl):
+                iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+    return arr_lut
 
-            Arguments:
-                * ``lut_file`` -- netcdf file where lut data are stored for a given aerosol model
-                * ``ind_wl`` -- indices of the desired central wavelength in ``lut_file``
-                * ``aot`` -- aerosol optical thickness at 550 nm for which lut are loaded
-                * ``vza_max`` -- load all lut data for vza <= vza_max
-                * ``reflectance`` -- if true: return data in reflectance unit, return normalized radiane otherwise
 
-            Construct object with:
-                * ``aot`` -- aerosol optical thickness at 550 nm for which lut are loaded
-                * ``Cext`` -- aerosol extinction coefficient (spectral)
-                * ``Cext550`` -- aerosol extinction coefficient at 550 nm
-                * ``vza`` -- viewing zenith angle (in deg)
-                * ``sza`` -- solar zenith angle (in deg)
-                * ``azi`` -- relative azimuth between sun and sensor (in opposition when azi = 180)
-                * ``wl`` -- central wavelength of the sensor bands
-                * ``refl`` -- Top-of-atmosphere reflectance (or normalized radiance if reflectance == False);
-                                xarray of dims: [wl, sza, azi, vza]
-              '''
+@njit()
+def _interp_aotlut(aot_refs, _aot_ref,
+                   Nwl, Ny, Nx, lut):
+    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
 
-        self.aot = aot
+    for _iy in range(Ny):
+        for _ix in range(Nx):
+            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+            for _iwl in range(Nwl):
+                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl]
+    return arr_lut
 
-        Naot = len(aot)
-        ok = 0
-        for iaot in range(Naot):
 
-            file = lut_file.replace('aot0.01', 'aot' + str(aot[iaot]))
-            lut = Dataset(file, mode='r')
-            self.Cext = lut.variables['Cext'][ind_wl]
-            self.Cext550 = lut.variables['Cext550'][0]
-            self.vza = lut.variables['vza'][:]
-            self.sza = lut.variables['sza'][:]
-            # azimuth in raditive transfer convention (0 deg whe n Sun and sensor in opposition)
-            self.azi = lut.variables['azi'][:]
-            self.wl = lut.variables['wavelength'][ind_wl]
-            # shrink vza range (unused for S2)
-            ind_vza = self.vza <= vza_max
-            self.vza = self.vza[ind_vza]
-            # allocate lut array
-            if ok == 0:
-                ok = 1
-                nrad = np.zeros((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)))
-
-            # fill in lut array
-            nrad[iaot, :, :, :, :] = lut.variables['Istokes'][ind_wl, :, :, ind_vza]
-
-        if reflectance:
-            # convert into reflectance
-
-            for i in range(len(self.sza)):
-                nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
-        # print(nrad.shape)
-        self.refl = self._toxr(nrad)
-        # reformat for remote sensing azimuth convention
-        self.refl = self.refl.drop_isel(azi=-1)
-        new_azi = (180 - self.refl.azi.values) % 360
-        self.refl['azi'] = new_azi
-        self.refl = xr.concat([self.refl, self.refl.sel(azi=0).assign_coords({'azi': 360})], dim='azi').sortby('azi')
-
-    def _toxr(self, arr):
-        # arr = np.array(arr)
-
-        return xr.DataArray(arr,
-                            dims=('aot', 'wl', 'sza', 'azi', 'vza'),
-                            coords={'aot': self.aot,
-                                    'wl': self.wl,
-                                    'sza': self.sza,
-                                    'azi': self.azi,
-                                    'vza': self.vza})
-
-    def interp_n_slice(self, sza_: np.array, vza_: np.array, azi_: np.array):
-        '''
-        Linear Interpolation of the lut array on the given angles
-        '''
-
-        self.refl = self.refl.interp(azi=azi_).interp(vza=vza_).interp(sza=sza_)
-
-    def interp_lut(self, points, values, x):
-        '''expected x dims: [[sza1, azi1, vza1],[sza2, azi2, vza2]...]'''
-        from scipy.interpolate import interpn
-
-        interp = np.ma.masked_invalid(interpn(points, values, x, bounds_error=False))
-
-        return interp
-
-    def plot_lut(self, vza, azi, values):
-
-        spl = RectBivariateSpline(azi, vza, values)
-
-        azi_ = np.linspace(0, max(azi), 360)
-        vza_ = np.linspace(0, max(vza), 150)
-        values_ = spl(azi_, vza_, grid=True)
-
-        r, theta = np.meshgrid(vza_, np.radians(azi_))
-        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-        # ax.contourf(theta,r, values)
-        quadmesh = ax.pcolormesh(theta, r, values_)
-        ax.grid(True)
-        fig.colorbar(quadmesh, ax=ax)
+@njit()
+def _multiplicate(arrwl, raster, arresult):
+    Nwl, Ny, Nx = arresult.shape
+    for iwl in range(Nwl):
+        arresult[iwl] = arrwl[iwl] * raster
+    return arresult
 
 
 class aerosol:
@@ -394,3 +316,11 @@ class misc:
 
         palt = psl * (1. - 0.0065 * np.nan_to_num(alt) / 288.15) ** 5.255
         return palt
+
+    @staticmethod
+    def transmittance_dir(aot, air_mass, rot=0):
+        return np.exp(-(rot + aot) * air_mass)
+
+    @staticmethod
+    def air_mass(sza, vza):
+        return 1 / np.cos(np.radians(vza)) + 1 / np.cos(np.radians(sza))

@@ -21,7 +21,7 @@ class l2a_product():
         # first get attributes from native product
         self.l2_prod.attrs = native_raster.attrs
 
-        keys = ['sunglint_threshold', 'ndwi_threshold', 'green_swir_index_threshold', 'hcld_threshold',
+        keys = ['sunglint_threshold', 'ndwi_threshold', 'vis_swir_index_threshold', 'hcld_threshold',
                 'dirdata', 'abs_gas_file', 'water_vapor_transmittance_file']
 
         for key in keys:
@@ -34,18 +34,21 @@ class l2a_product():
         self.l2_prod['sza'] = native_raster.sza
         self.l2_prod['raa'] = native_raster.raa.mean('wl')
 
-        # add cirrus and O2 bands
-        cirrus = native_raster.bands.sel(wl=self.wl_cirrus_band)
-        cirrus.name = 'cirrus_band'
-        cirrus.attrs = {
-            'description': 'TOA reflectance in cirrus band from L1C image, might be used to filter out high clouds',
-            'wavelength': str(self.wl_cirrus_band)}
+        # add cirrus and water vapor bands
+        if self.prod.bcirrus:
+            cirrus = self.prod.cirrus
+            cirrus.name = 'cirrus_band'
+            cirrus.attrs = {
+                'description': 'TOA reflectance in cirrus band from L1C image, might be used to filter out high clouds',
+                'wavelength': str(self.wl_cirrus_band)}
 
-        wvband = native_raster.bands.sel(wl=self.wl_wv_band)
-        wvband.name = 'wv_band'
-        wvband.attrs = {
-            'description': 'TOA reflectance in water vapor band from L1C image',
-            'wavelength': str(self.wl_wv_band)}
+        if self.prod.bwv:
+            wvband = self.prod.wv
+            wvband.name = 'wv_band'
+            wvband.attrs = {
+                'description': 'TOA reflectance in water vapor band from L1C image',
+                'wavelength': str(self.wl_wv_band)}
+
         ndwi = native_raster.ndwi
         ndwi_swir = native_raster.ndwi_swir
 
@@ -60,7 +63,7 @@ class l2a_product():
         self.ancillary.rio.write_coordinate_system(inplace=True)
         self.ancillary.rio.write_crs(inplace=True)
 
-    def to_netcdf(self, output_path,snap_compliant=False):
+    def to_netcdf(self, output_path, snap_compliant=False):
         '''
         Create output product dimensions, variables, attributes, flags....
         :return:
@@ -93,24 +96,25 @@ class l2a_product():
 
         if snap_compliant:
             # explode Rrs array to get one variable per band to be SNAP compliant
-            for var in ['Rrs', 'Rrs_g']:
+            for var in ['Rrs']:
                 img_snap = self.l2_prod[var].to_dataset("wl")
                 suff = ''
                 if var == 'Rrs_g':
                     suff = 'with sunglint '
-                for band in img_snap.keys():
+                for ii,band in enumerate(img_snap.keys()):
                     band_name = var + '_{:d}'.format(band)
                     band_ref = 'B{:d}'.format(band)
-                    wavelength = self.prod.l1c.band_info[band_ref]['central_wavelength']
-                    bandwidth = self.prod.l1c.band_info[band_ref]['bandwidth']
-                    img_snap[band].attrs = {'long_name': 'Remote sensing reflectance' + suff + ' at {:d} nm'.format(band),
-                                            'Unit': 'sr-1',
-                                            'units': 'sr-1',
-                                            'radiation_wavelength': wavelength,
-                                            'radiation_wavelength_unit': 'nm',
-                                            'bandwidth': bandwidth,
-                                            'wavelength': wavelength,
-                                            'valid_pixel_expression': ''}
+                    wavelength = self.prod.raster.wl_true.values[ii]
+                    #bandwidth = self.prod.l1c.band_info[band_ref]['bandwidth']
+                    img_snap[band].attrs = {
+                        'long_name': 'Remote sensing reflectance' + suff + ' at {:d} nm'.format(band),
+                        'Unit': 'sr-1',
+                        'units': 'sr-1',
+                        'radiation_wavelength': wavelength,
+                        'radiation_wavelength_unit': 'nm',
+                        #'bandwidth': bandwidth,
+                        'wavelength': wavelength,
+                        'valid_pixel_expression': ''}
                     encoding[band_name] = {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
                                            '_FillValue': -32768, "zlib": True,
                                            "complevel": complevel, 'grid_mapping': 'spatial_ref'}
@@ -120,16 +124,13 @@ class l2a_product():
             self.l2_prod.attrs['auto_grouping'] = 'Rrs:Rrs_g'
             self.l2_prod.attrs['metadata_profile'] = 'beam'
         else:
-            for band_name in ['Rrs', 'Rrs_g']:
+            for band_name in ['Rrs']:
                 encoding[band_name] = {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
-                                   '_FillValue': -32768, "zlib": True,
-                                   "complevel": complevel, 'grid_mapping': 'spatial_ref'}
+                                       '_FillValue': -32768, "zlib": True,
+                                       "complevel": complevel, 'grid_mapping': 'spatial_ref'}
 
-            wavelengths = []
-            for band in self.l2_prod.wl:
-                band_ref = 'B{:d}'.format(band)
-                wavelengths.append(self.prod.l1c.band_info[band_ref]['central_wavelength'])
-            self.l2_prod['central_wavelength'] = ('wl',wavelengths)
+
+            self.l2_prod['central_wavelength'] = ('wl', self.prod.raster.wl_true.values)
             self.l2_prod.attrs['metadata_profile'] = 'datacube'
 
         # get file naming and create folder
@@ -154,7 +155,7 @@ class l2a_product():
                                       encoding={'surfwater':
                                                     {'dtype': 'int8', "zlib": True,
                                                      "complevel": complevel, 'grid_mapping': 'spatial_ref'}})
-        #self.l2_prod.close()
+        # self.l2_prod.close()
 
         # export ancillary data (coarse resolution)
         encoding = {}
@@ -163,6 +164,6 @@ class l2a_product():
 
         self.ancillary.to_netcdf(ofile + '_anc.nc', 'w', encoding=encoding)  # ,group='ancillary')
 
-        #self.ancillary.close()
+        # self.ancillary.close()
 
         return
