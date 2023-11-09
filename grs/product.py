@@ -15,7 +15,6 @@ class product():
     '''
 
     :param product:
-    :param sensordata:
     :param aerosol:
     :param ancillary:
     :param output: set the unit of the retrievals:
@@ -29,11 +28,11 @@ class product():
                  output='Rrs'):
 
         self.processor = __package__ + '_' + __version__
-        self.l1c = l1c_obj
-        self.raster = l1c_obj.prod
+
+        self.raster = l1c_obj #.prod
         # TODO check why drivers sends an object for wl coordinates instead of array of int
         self.raster['wl'] = self.raster['wl'].astype(int)
-        self.sensor = l1c_obj.prod.attrs['satellite']
+        self.sensor = self.raster.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
         self.raster = self.raster.assign_coords({'time': self.date})
@@ -54,10 +53,7 @@ class product():
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
 
         self.wl = self.raster.wl
-        self.central_wavelength = []
-        for band in self.wl:
-            band_ref = 'B{:d}'.format(band)
-            self.central_wavelength.append(self.l1c.band_info[band_ref]['central_wavelength'])
+        self.central_wavelength = self.raster.wl_true.values
 
         # correct for bug with VZA == Inf
         self.raster['vza']=self.raster.vza.where(self.raster.vza < 88)
@@ -69,8 +65,9 @@ class product():
         self.surfwater = xr.ones_like(self.raster.bands.isel(wl=0,drop=True).squeeze().astype(np.int8))
         self.surfwater.name = 'surfwater'
 
-        self.sensordata = auxdata.sensordata(self.sensor)
 
+
+        # TODO remove or harmonize with landsat
         self.U =  self.raster.attrs['REFLECTANCE_CONVERSION_U']
         # convert into mW cm-2 um-1
         self.solar_irradiance = xr.DataArray( self.raster.solar_irradiance / 10,
@@ -84,22 +81,27 @@ class product():
         #########################
         # settings:
         #########################
-        self.wl_process = [443, 490, 560, 665, 705,
-                           740, 783, 842, 865, 1610, 2190]
+        self.wl_process = self.raster.wl_to_process
         self.block_size = 512
-        self.sunglint_bands = [12]
+        # self.sunglint_bands = [12]
         # data type for pixel values
         self.type = np.float32
 
-        self.b565 = 560
-        self.b865 = 865
-        self.b1600 = 1610
-        self.b2200 = 2190
+        self.bvis = 490
+        self.bnir = 842
+        self.bswir = 1610
+        self.bswir2 = 2190
+
+        # set extra bands (e.g., cirrus, water vapor)
+        self.bcirrus = 1375
+        self.cirrus = None
+        self.bwv = 945
+        self.wv = None
 
         # mask thresholding parameters
-        self.sunglint_threshold = 0.11
-        self.ndwi_threshold = 0.01
-        self.green_swir_index_threshold = 0.1
+        self.sunglint_threshold = 0.2
+        self.ndwi_threshold = 0.0
+        self.vis_swir_index_threshold = 0.
         self.hcld_threshold = 3e-3
 
         # pre-computed auxiliary data
@@ -109,17 +111,7 @@ class product():
         self.water_vapor_transmittance_file = opj(self.dirdata, 'gases', 'water_vapor_transmittance.nc')
         self.load_auxiliary_data()
 
-        # LUT for atmosphere radiance
-        aero = 'rg0.10_sig0.46'
-        self.lutfine = os.path.join(cfg.lut_root,
-                                    self.sensordata.lutname +
-                                    'osoaa_band_integrated_aot0.01_aero_' +
-                                    aero + '_ws2_pressure1015.2.nc')
-        aero = 'rg0.80_sig0.60'
-        self.lutcoarse = os.path.join(cfg.lut_root,
-                                      self.sensordata.lutname +
-                                      'osoaa_band_integrated_aot0.01_aero_' +
-                                      aero + '_ws2_pressure1015.2.nc')
+
 
         # set path for CAMS/ECMWF dataset
         #self.cams_folder = cfg.cams_folder
@@ -132,10 +124,6 @@ class product():
         #########################
         # variables:
         #########################
-        self.product = product
-        # set band to be used in the process
-        self.band_names = self.sensordata.band_names
-        self.N = len(self.sensordata.band_names)
 
         self.headerfile = ''
         self.l2_product = None
@@ -214,6 +202,7 @@ class product():
 
         return flag_raster
 
+    # TODO implement DEM fetching
     def get_elevation(self, source='Copernicus30m'):
 
         self.elevation = xr.DataArray(np.zeros((self.height, self.width)), name="dem", coords=dict(
@@ -224,157 +213,24 @@ class product():
                                           units="m")
                                       )
 
-    def load_flags(self):
+    def mu_N(self,sza, vza, azi):
         '''
-        Set flags from L1 data (must be called after `load_data`
-        :return:
+        self.azi: azimuth in rad for convention azi=180 when sun-sensenor in oppositioon
+        :return: cosine of normal angle to sunglint wave facets
         '''
+        vzar = np.radians(vza)
+        azir = np.radians(azi)
+        szar = np.radians(sza)
+        cos_alpha = np.cos(azir) * np.sin(vzar) * np.sin(szar) + np.cos(vzar) * np.cos(szar)
+        xmu_N = (np.cos(szar) + np.cos(vzar)) / np.sqrt(2 * (1 + cos_alpha))
+        # ensure similar shape as inputs
+        return xmu_N.transpose('wl', 'y', 'x')
 
-        # compute NDWI and set corresponding mask
-        self.ndwi = np.array((self.band_rad[self.sensordata.NDWI_vis] - self.band_rad[self.sensordata.NDWI_nir]) /
-                             (self.band_rad[self.sensordata.NDWI_vis] + self.band_rad[self.sensordata.NDWI_nir]))
-        ndwi_ = (self.ndwi < self.sensordata.NDWI_threshold[0]) | (self.ndwi > self.sensordata.NDWI_threshold[1])
-        self.mask[ndwi_] = 2
-        self.flags = self.flags + (ndwi_ << 2)
-
-        # compute NDWI and set corresponding mask
-        self.ndwi_swir = np.array(
-            (self.band_rad[self.sensordata.NDWI_swir_nir] - self.band_rad[self.sensordata.NDWI_swir_swir]) /
-            (self.band_rad[self.sensordata.NDWI_swir_nir] + self.band_rad[self.sensordata.NDWI_swir_swir]))
-        ndwi_swir_ = (self.ndwi_swir < self.sensordata.NDWI_swir_threshold[0]) | (
-                self.ndwi_swir > self.sensordata.NDWI_swir_threshold[1])
-        self.flags = self.flags + (ndwi_swir_ << 3)
-
-        # --------------------------------
-        # set mask cloud mask and/or export L1 flags
-        # --------------------------------
-        # TODO export L1 flags waiting for snap bug to be solved (subset remove mask info,
-        #  https://forum.step.esa.int/t/problems-with-selecting-masks-as-input-in-graph-builder/3494/7 )
-        # set high cloud cirrus mask
-        if self.sensordata.cirrus:
-            self.flags = self.flags + ((self.hcld > self.sensordata.cirrus[1]) << 5)
-        if self.sensordata.O2band:
-            self.flags = self.flags + ((self.O2band_raster > self.sensordata.O2band[1]) << 6)
-        if self.sensordata.O2band:
-            self.flags = self.flags + ((self.O2band_raster > self.sensordata.O2band[2]) << 7)
-
-        try:
-            cloud = self.get_flag(self.product, self.sensordata.cloud_flag)
-            cirrus = self.get_flag(self.product, self.sensordata.cirrus_flag)
-            self.flags = self.flags + (cloud << 8) + (cirrus << 9)
-        except:
-            pass
-
-        if self.sensordata.shadow_flag != '':
-            shadow = self.get_flag(self.product, self.sensordata.shadow_flag)
-            self.flags = self.flags + (shadow << 10)
-
-        # -------------------
-        # for Sentinel 2
-        # if MAJA L2A image is provided load MAJA flags
-        mask_id = 11
-        if self.maja:
-            logging.info("copying MAJA masks...")
-            # CLM masks
-            masks = self.get_raster(self.maja, 'Aux_Mask_Cloud_R1', dtype=np.uint32)
-            logging.info('CLM ' + str(np.unique(masks << mask_id)))
-            logging.info('flags ' + str(np.unique(self.flags)))
-            self.flags = self.flags + (masks << mask_id)
-            logging.info('flags ' + str(np.unique(self.flags)))
-            mask_id += len(self.clm_masks)
-
-            # MG2 masks
-            masks = self.get_raster(self.maja, 'Aux_Mask_MG2_R1', dtype=np.uint32)
-            logging.info('MG2 ' + str(np.unique(masks << mask_id)))
-            self.flags = self.flags + (masks << mask_id)
-            logging.info('flags ' + str(np.unique(self.flags)))
-            mask_id += len(self.mg2_masks)
-
-        # -------------------
-        # for Sentinel 2
-        # if WaterDetect image is provided load Water Mask
-        if self.waterdetect:
-            water_true = (self.get_raster(self.waterdetect, 'band_1', dtype=np.uint32) == 1)
-            self.flags = self.flags + (water_true << mask_id)
-            # reinitialize watermask array to non-water
-            self.watermask.fill(0)
-            self.watermask[water_true] = 1
-
-        return
-
-
-class algo(product):
-    def __init__(self, l1c_obj=None,
-                 auxdatabase='cams-global-atmospheric-composition-forecasts',
-                 output='Rrs'):
-        product.__init__(self, l1c_obj, auxdatabase, output)
-
-    def apply_gaseous_transmittance(self):
-        gas_trans = acutils.gaseous_transmittance(self.__init__(), cams)
-        Tg_raster = gas_trans.get_gaseous_transmittance()
-
-        self.raster['bands'] = self.raster.bands / Tg_raster
-        self.raster.bands.attrs['other_gas_correction'] = True
-
-    def process(self):
-        return
-
-
-def get_elevation(gdal_info_tgt, dem_glo30_dir, temp_dir=None, copy_dem_path=None):
-    '''load elevation 10m data from Copernicus GLO30 into numpy array
-
-            '''
-    start_time_loc = datetime.utcnow()
-
-    print('Computing DEM from GLO30 dir: %s' % dem_glo30_dir)
-
-    # create temp dir
-
-    if 'TMPDIR' in os.environ:
-
-        temp_dir = os.environ['TMPDIR']
-
-    else:
-
-        temp_dir = os.path.abspath(os.getcwd())
-
-    os.makedirs(temp_dir, exist_ok=True)
-
-    temp_dir_session = None
-
-    try:
-
-        temp_dir_session = tempfile.mkdtemp(dir=temp_dir, prefix='grs2_dem_')
-
-        # source band 10m from S2 L1C to read geometry. For example, B02 = 10m, B05=20m, B01=60m
-
-        # try loading world vrt file containing info for all Copernicus GLO30 dems
-
-        vrt_file = os.path.join(dem_glo30_dir, 'world.vrt')
-
-        if not os.path.exists(vrt_file):
-            # TODO : use gdalbuildvrt
-
-            raise NotImplementedError('construction of .vrt file on the fly not implemented yet')
-
-        # create .vrt file if general .vrt file does not exist
-
-        target_file = os.path.join(temp_dir_session, 'dem.tif')
-
-        print(' -> computing elevation from Copernicus GLO30 DEM, %s' % vrt_file)
-
-        elevation = reproject_simple(vrt_file, gdal_info_tgt, target_file, resample_method='near', return_array=True)
-
-        print(' -> min elevation=%s, max elevation=%s' % (np.min(elevation), np.max(elevation)))
-
-        if copy_dem_path is not None:
-            shutil.copy(target_file, copy_dem_path)
-
-    finally:
-
-        if temp_dir_session is not None:
-            shutil.rmtree(temp_dir_session)
-
-    print(' -> DEM generated in %s' % (datetime.utcnow() - start_time_loc))
-
-    return elevation
+    def p_slope(self,sza, vza, azi, sigma2=0.02):
+        cosN = self.mu_N(sza, vza, azi)
+        thetaN = np.arccos(cosN)
+        # stats == 'cm_iso':
+        # TODO check consitency between sigma2 and formulation
+        # Pdist_ = 1. / (np.pi *2.* sigma2) * np.exp(-1./2 * np.tan(thetaN) ** 2 / sigma2)
+        xp_slope = 1. / (np.pi * sigma2) * np.exp(- np.tan(thetaN) ** 2 / sigma2) / cosN ** 4
+        return xp_slope.transpose('wl', 'y', 'x')

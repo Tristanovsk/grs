@@ -1,10 +1,15 @@
 import os
+import logging
 import numpy as np
-import pandas
+import pandas as pd
+import xarray as xr
 
 from scipy.interpolate import interp1d
 
-import logging
+from pkg_resources import resource_filename
+
+opj = os.path.join
+
 
 # ------------------------
 # set threshold for masking
@@ -18,6 +23,43 @@ NDWI_nir_threshold = [-0.03, 1.]
 NDWI_swir_threshold = [0.12,2.]
 
 # NDWI_nir_threshold = [-0., 1.]
+
+
+
+# ******************************************************************************************************
+dir, filename = os.path.split(__file__)
+
+sunglint_eps_file = resource_filename(__package__, '../data/aux/mean_rglint_small_angles_vza_le_12_sza_le_60.txt')
+rayleigh_file = resource_filename(__package__, '../data/aux/rayleigh_bodhaine.txt')
+
+
+class auxdata():
+    def __init__(self, wl=None):
+        # load data from raw files
+
+        self.sunglint_eps = pd.read_csv(sunglint_eps_file, sep='\s+', index_col=0).to_xarray()
+        self.rayleigh()
+
+
+        # reproject onto desired wavelengths
+        if wl is not None:
+            self.sunglint_eps = self.sunglint_eps['mean'].interp(wl=wl)
+            self.rot = self.rot.interp(wl=wl)
+
+    def rayleigh(self):
+        '''
+        Rayleigh Optical Thickness for
+        P=1013.25mb,
+        T=288.15K,
+        CO2=360ppm
+        from
+        Bodhaine, B.A., Wood, N.B, Dutton, E.G., Slusser, J.R. (1999). On Rayleigh
+        Optical Depth Calculations, J. Atmos. Ocean Tech., 16, 1854-1861.
+        '''
+        data = pd.read_csv(rayleigh_file, skiprows=16, sep=' ', header=None)
+        data.columns = ('wl', 'rot', 'dpol')
+        self.rot_pressure_ref = 101325
+        self.rot = data.set_index('wl').to_xarray().rot
 
 
 class sensordata:

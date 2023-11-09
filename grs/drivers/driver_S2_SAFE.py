@@ -36,14 +36,19 @@ INFO = pd.DataFrame({'bandId': range(13),
                      'Resolution (m)': NATIVE_RESOLUTION}).set_index('bandId').T
 
 
-class s2image():
-    def __init__(self, imageSAFE, band_idx=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                 resolution=20, verbose=False, **kwargs):
+class sentinel2_driver():
+    def __init__(self, imageSAFE,
+                 band_idx=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                 band_tbp_idx=[0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12],
+                 resolution=20,
+                 verbose=False,
+                 **kwargs):
 
         abspath = os.path.abspath(imageSAFE)
         dirroot, basename = os.path.split(abspath)
         self.verbose = verbose
         self.band_idx = band_idx
+        self.band_tbp_idx = band_tbp_idx
         self.resolution = resolution
         self.INFO = INFO[band_idx]
 
@@ -87,12 +92,12 @@ class s2image():
             central_wavelength = float(_['Wavelength']['CENTRAL']['#text'])
             wl_min, wl_max = float(_['Wavelength']['MIN']['#text']), float(_['Wavelength']['MAX']['#text'])
             self.band_info['B{:d}'.format(WAVELENGTH[bandID])] = {'central_wavelength': central_wavelength,
-                                      'bandwidth': wl_max - wl_min}
+                                                                  'bandwidth': wl_max - wl_min}
 
             step = float(_['Spectral_Response']['STEP']['#text'])
             wl = np.arange(wl_min, wl_max + step, step)
-            RSF = np.asarray(_['Spectral_Response']['VALUES'].split(), dtype=np.float32)
-            SRFs.append(xr.DataArray(RSF, coords=dict(wl_hr=wl), name='SRF').interp(wl_hr=wl_hr).assign_coords(
+            SRF = np.asarray(_['Spectral_Response']['VALUES'].split(), dtype=np.float32)
+            SRFs.append(xr.DataArray(SRF, coords=dict(wl_hr=wl), name='SRF').interp(wl_hr=wl_hr).assign_coords(
                 dict(wl=WAVELENGTH[bandID])))
         self.SRFs = xr.concat(SRFs, dim='wl')
         self.SRFs.attrs['description'] = 'Spectral response function of each band'
@@ -132,9 +137,11 @@ class s2image():
         else:
             self._open_mask = prod._open_mask_gt_4_0
 
-    def load_product(self, add_time=False, **kwargs):
+    def load_product(self,
+                     add_time=False,
+                     **kwargs):
 
-        self.load_bands(add_time=False, **kwargs)
+        self.load_bands(add_time=add_time, **kwargs)
         self.load_geom()
         self.prod.attrs = self.metadata
         self.prod.attrs['satellite'] = self.prod.attrs['PRODUCT_URI'].split('_')[0]
@@ -144,21 +151,38 @@ class s2image():
         # add spectral response function
         self.prod = xr.merge([self.prod, self.SRFs]).drop_vars('bandID')
 
-    def load_bands(self, add_time=False, **kwargs):
+    def load_bands(self,
+                   add_time=False,
+                   **kwargs):
 
         # ----------------------------------
         # getting bands
         # ----------------------------------
         bands = self.prod.stack(list(BAND_NAMES_EOREADER[self.band_idx]), resolution=self.resolution, **kwargs)
-        bands = bands.rename({'z': 'bandID'})
+        # fix for naming in differnt EOreader versions
+        if 'z' in bands.coords:
+            bands = bands.rename({'z': 'bandID'})
 
         # ----------------------------------
         # setting up coordinates and dimensions
         # ----------------------------------
-        self.prod = bands.assign_coords(wl=('bandID', self.INFO.loc['Wavelength (nm)'])). \
-            swap_dims({'bandID': 'wl'}).drop({'band', 'bandID', 'variable'})
+        self.prod = bands.assign_coords(wl=('bands', self.INFO.loc['Wavelength (nm)'])). \
+            swap_dims({'bands': 'wl'}).drop({'band', 'bands', 'variable'})
         self.prod = self.prod.assign_coords(bandID=('wl', self.INFO.loc['ESA'].values))
         self.prod = self.prod.to_dataset(name='bands', promote_attrs=True)
+        self.prod.attrs['wl_to_process'] = WAVELENGTH[self.band_tbp_idx]
+
+        # add spectral response function
+        self.prod = xr.merge([self.prod, self.SRFs.sel(wl=self.prod.wl.values)]).drop_vars('bandID')
+
+        # compute central wavelengths
+        wl_true = []
+        for wl_, srf in self.prod.SRF.groupby('wl'):
+            srf = srf.dropna('wl_hr')
+            wl_true.append((srf.wl_hr * srf).integrate('wl_hr') / srf.integrate('wl_hr'))
+        wl_true = xr.concat(wl_true, dim='wl')
+        wl_true.name = 'wl_true'
+        self.prod = xr.merge([self.prod, wl_true])
 
         # add time
         if add_time:
