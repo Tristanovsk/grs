@@ -53,7 +53,7 @@ class l2a_product():
         ndwi_swir = native_raster.ndwi_swir
 
         # final merge
-        self.l2_prod = xr.merge([self.l2_prod, wvband, cirrus, ndwi, ndwi_swir])
+        self.l2_prod = xr.merge([self.l2_prod, wvband, cirrus, ndwi, ndwi_swir, native_raster.surfwater])
         self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y', inplace=True)
         self.l2_prod.rio.write_coordinate_system(inplace=True)
         self.l2_prod.rio.write_crs(inplace=True)
@@ -86,6 +86,7 @@ class l2a_product():
                      "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'ndwi_swir': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
                           "complevel": complevel, 'grid_mapping': 'spatial_ref'},
+            'surfwater': {'dtype': 'int8',  "complevel": complevel, "zlib": True, 'grid_mapping': 'spatial_ref'},
             'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": complevel,
                     'grid_mapping': 'spatial_ref'},
             'raa': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 180, '_FillValue': -32768, "zlib": True,
@@ -149,12 +150,6 @@ class l2a_product():
         # export full raster data
         self.l2_prod.to_netcdf(ofile + '.nc', encoding=encoding)
 
-        # add other flag/mask/indicator
-        # surfwater
-        self.prod.surfwater.to_netcdf(ofile + '.nc', 'a',
-                                      encoding={'surfwater':
-                                                    {'dtype': 'int8', "zlib": True,
-                                                     "complevel": complevel, 'grid_mapping': 'spatial_ref'}})
         # self.l2_prod.close()
 
         # export ancillary data (coarse resolution)

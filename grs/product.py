@@ -62,9 +62,9 @@ class product():
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
         # surfwater object:
-        self.surfwater = xr.ones_like(self.raster.bands.isel(wl=0,drop=True).squeeze().astype(np.int8))
-        self.surfwater.name = 'surfwater'
-
+        surfwater= xr.ones_like(self.raster.bands.isel(wl=0,drop=True).squeeze().astype(np.int8))
+        surfwater.name = 'surfwater'
+        self.raster['surfwater'] = surfwater
 
 
         # TODO remove or harmonize with landsat
