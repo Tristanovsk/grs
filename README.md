@@ -68,15 +68,9 @@ conda activate grs_v2
 ``` 
 Then, install python dependencies:
 ``` 
-conda install gdal geopandas -c conda-forge-remote
-
-pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
+conda install -c conda-forge-remote eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba
 ```
 
-Compile the FORTRAN kernel:
-```commandline
-make
-```
 
 Finally, install grs with:
 ```commandline
