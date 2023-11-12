@@ -97,11 +97,11 @@ class process:
         _wind = wind.mean().values
 
         if surfwater_file:
-            prod.surfwater = rio.open_rasterio(surfwater_file).squeeze()
-            prod.surfwater = prod.surfwater.where(prod.surfwater != 255., 32).astype(np.int8)
-            prod.surfwater = prod.surfwater.interp(x=prod.x, y=prod.y, method='nearest')
-            prod.surfwater.name = 'surfwater'
-            prod.surfwater.attrs = {
+            prod.raster.surfwater = rio.open_rasterio(surfwater_file).squeeze()
+            prod.raster.surfwater = prod.raster.surfwater.where(prod.raster.surfwater != 255., 32).astype(np.int8)
+            prod.raster.surfwater = prod.raster.surfwater.interp(x=prod.x, y=prod.y, method='nearest')
+            prod.raster.surfwater.name = 'surfwater'
+            prod.raster.surfwater.attrs = {
                 'description': 'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
 
         #####################################
