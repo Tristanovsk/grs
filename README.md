@@ -68,7 +68,7 @@ conda activate grs_v2
 ``` 
 Then, install python dependencies:
 ``` 
-conda install -c conda-forge-remote eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba
+conda install -c conda-forge eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba
 ```
 
 
