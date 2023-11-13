@@ -105,9 +105,9 @@ class product():
 
         # pre-computed auxiliary data
         self.dirdata = cfg.data_root  # resource_filename(__package__, '../grsdata/')
-        self.abs_gas_file = opj(files('grs.data.lut.gases'), 'lut_abs_opt_thickness_normalized.nc')
+        self.abs_gas_file = files('grs.data.lut.gases').joinpath('lut_abs_opt_thickness_normalized.nc')
         # self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
-        self.water_vapor_transmittance_file = opj(files('grs.data.lut.gases'), 'water_vapor_transmittance.nc')
+        self.water_vapor_transmittance_file = files('grs.data.lut.gases').joinpath('water_vapor_transmittance.nc')
         self.load_auxiliary_data()
 
         # set path for CAMS/ECMWF dataset
