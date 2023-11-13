@@ -56,10 +56,12 @@ Version history:
 2.0.5: new output format compliant with SNAP "beam format"
 
 2.1.0: Major update on radiative transfer look-up tables and aerosol models
+
+2.1.1: package data
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 
 
 from .acutils import aerosol, misc
