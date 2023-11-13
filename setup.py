@@ -5,18 +5,20 @@ from setuptools import setup, find_packages
 
 
 __package__ = 'grs'
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 
 setup(
     name=__package__,
     version=__version__,
-    packages=find_packages(exclude=['build']),
-    package_data={'': ['*.so', '*h', '*angles*']},
+    packages=find_packages(),
+    #package_dir={"data": "data"},
+    package_data={'': ['*.so', '*h', '*angles*'],
     #     # If any package contains *.txt files, include them:
-    #     '': ['*.txt'],
-    #     'lut': ['data/lut/*.nc'],
+         '': ['*.txt'],
+
+         '':['data/lut/gases/*.nc'],
     #     'aux': ['data/aux/*']
-    # },
+    },
     include_package_data=True,
 
     url='',
