@@ -151,7 +151,7 @@ sza_ = rounding(prod.raster.sza,1)
 azi_ = rounding((180-prod.raster.raa)%360,0)
 vza_ = rounding(prod.raster.vza,1)
 
-aotlut = np.array(lutf.aot, dtype=prod.type)
+aotlut = np.array(lutf.aot, dtype=prod._type)
 
 fine_refl = lutf.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)
 coarse_refl = lutc.refl.interp(vza=vza_).interp(azi=azi_).interp(sza=sza_)

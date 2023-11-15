@@ -266,7 +266,7 @@ vza_ = _utils.remove_na(np.unique(l2h.vza.round(1)))
 azi_ = _utils.remove_na(np.unique(l2h.razi.round(0)))
 lutf.interp_n_slice(sza_,vza_,azi_)
 lutc.interp_n_slice(sza_,vza_,azi_)
-aotlut = np.array(lutf.aot, dtype=l2h.type)
+aotlut = np.array(lutf.aot, dtype=l2h._type)
 
 # plotting
 lutf.refl.isel(sza=0,vza=0,azi=[0,10]).plot(x='wl',hue='aot',col='azi')
@@ -276,11 +276,11 @@ lutc.refl.isel(sza=0,vza=0,azi=[0,10]).plot(x='wl',hue='aot',col='azi')
 # GET ANCILLARY DATA (AEROSOL)
 ##################################
 aero = acutils.aerosol()
-aot550rast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
-aotscarast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
+aot550rast = np.zeros([l2h.height, l2h.width], dtype=l2h._type, order='F')
+aotscarast = np.zeros([l2h.height, l2h.width], dtype=l2h._type, order='F')
 # ssarast = np.zeros([l2h.N,l2h.width, l2h.height], dtype=l2h.type)
-aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h.type, order='F')
-fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
+aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h._type, order='F')
+fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h._type, order='F')
 # set mean SSA value to adjust scattering AOT when info is not available
 ssacoef = 0.99
 if l2h.aerosol == 'cds_forecast':
@@ -354,8 +354,8 @@ else:
     nCext_c = lutc.Cext / lutc.Cext550
     logging.info('param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
     aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
-    logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h.type)}')
-    l2h.fcoef = aero.fcoef.astype(l2h.type)
+    logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h._type)}')
+    l2h.fcoef = aero.fcoef.astype(l2h._type)
     fcoefrast.fill(l2h.fcoef[0])
     for i in range(l2h.N):
         aotrast[i].fill(l2h.aot[i])
@@ -379,18 +379,18 @@ l2h.aux.no2 = smac.uno2
 # reshaping for fortran binding
 ######################################
 
-aot550guess = np.zeros(l2h.width, dtype=l2h.type)
-rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-maskpixels_ = np.full(l2h.width, 1, dtype=l2h.type, order='F')
+aot550guess = np.zeros(l2h.width, dtype=l2h._type)
+rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h._type, order='F')
+rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h._type, order='F')
+maskpixels_ = np.full(l2h.width, 1, dtype=l2h._type, order='F')
 
 w, h = l2h.width, l2h.height
 
-rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
-rcorrg = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
-aot550pix = np.zeros((w, h), dtype=l2h.type, order='F').T
-betapix = np.zeros((w, h), dtype=l2h.type, order='F').T
-brdfpix = np.zeros((w, h), dtype=l2h.type, order='F').T
+rcorr = np.zeros((l2h.N, h, w), dtype=l2h._type)#, order='F').T
+rcorrg = np.zeros((l2h.N, h, w), dtype=l2h._type)#, order='F').T
+aot550pix = np.zeros((w, h), dtype=l2h._type, order='F').T
+betapix = np.zeros((w, h), dtype=l2h._type, order='F').T
+brdfpix = np.zeros((w, h), dtype=l2h._type, order='F').T
 
 l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)
 l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
@@ -463,7 +463,7 @@ for iy in range(0, w, yblock):
             pressure_corr = pressure / l2h.pressure_ref
         else:
             pressure_corr = np.full((xshape, yshape),l2h.pressure / l2h.pressure_ref)
-        pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
+        pressure_corr = np.array(pressure_corr, dtype=l2h._type, order='F')
 
         # ---------
         # if maja L2A image provided, use AOT_MAJA product
@@ -474,11 +474,11 @@ for iy in range(0, w, yblock):
         # else:
         #     aot550guess = aot550rast[i]
 
-        aot550guess = np.array(aot550rast[ix:xc, iy:yc], dtype=l2h.type, order='F')
-        fcoef = np.array(fcoefrast[ix:xc, iy:yc], dtype=l2h.type, order='F')
-        aot_tot = np.array(aotrast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
+        aot550guess = np.array(aot550rast[ix:xc, iy:yc], dtype=l2h._type, order='F')
+        fcoef = np.array(fcoefrast[ix:xc, iy:yc], dtype=l2h._type, order='F')
+        aot_tot = np.array(aotrast[:, ix:xc, iy:yc], dtype=l2h._type, order='F')
         if l2h.aerosol == 'cds_forecast':
-            aot_sca = np.array(aotscarast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
+            aot_sca = np.array(aotscarast[:, ix:xc, iy:yc], dtype=l2h._type, order='F')
         else:
             aot_sca = aot_tot
 

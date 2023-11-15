@@ -132,6 +132,7 @@ class l2a_product():
 
 
             self.l2_prod['central_wavelength'] = ('wl', self.prod.raster.wl_true.values)
+            self.l2_prod = self.l2_prod.set_coords('central_wavelength')
             self.l2_prod.attrs['metadata_profile'] = 'datacube'
 
         # get file naming and create folder
