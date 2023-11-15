@@ -56,12 +56,19 @@ class cams_product:
 
         xmin, ymin, xmax, ymax = raster.rio.bounds()
         lonmin, latmin, lonmax, latmax = raster.rio.transform_bounds(4326)
-        # set longitude between 0 and 360 deg
-        lonmin, lonmax, = lonmin % 360, lonmax % 360
+
 
         # lazy loading
         cams = xr.open_dataset(opj(self.dir, self.file), decode_cf=True,
                                chunks={'time': 1, 'x': 500, 'y': 500})
+
+        # check if image is on Greenwich meridian and adapt longitude convention
+        if lonmin <= 0 and lonmax >= 0:
+            cams.assign_coords({"longitude": (((cams.longitude + 180) % 360) - 180)}).sortby('longitude')
+        else:
+            # set longitude between 0 and 360 deg
+            lonmin, lonmax, = lonmin % 360, lonmax % 360
+
         # slicing
         cams = cams.sel(time=self.date, method='nearest')
         cams = cams.sel(latitude=slice(latmax + 1, latmin - 1),

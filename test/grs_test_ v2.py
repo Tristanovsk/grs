@@ -157,7 +157,7 @@ sza_ = rounding(prod.raster.sza, 1)
 azi_ = rounding((180 - prod.raster.raa) % 360, 0)
 vza_ = rounding(prod.raster.vza, 1)
 
-aotlut = np.array(lutf.aot, dtype=prod.type)
+aotlut = np.array(lutf.aot, dtype=prod._type)
 
 # load OPAC LUT
 lut_file = '/DATA/git/satellite_app/hgrs/data/lut/opac_osoaa_lut_v3.nc'

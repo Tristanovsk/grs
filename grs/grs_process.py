@@ -25,7 +25,7 @@ class process:
 
     def __init__(self):
         self.bandIds = range(13)
-        self.type = np.float32
+        self._type = np.float32
         self.chunk = 512
         self.lut_file = '/data/vrtc/xlut/toa_lut_opac_wind_up.nc'
         self.Nproc = 38
@@ -255,8 +255,8 @@ class process:
         ######################################
         logging.info('run grs process')
         global chunk_process
-        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, width, height), np.nan, dtype=self.type))
-        Rf_result = np.ctypeslib.as_ctypes(np.full((width, height), np.nan, dtype=self.type))
+        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, width, height), np.nan, dtype=self._type))
+        Rf_result = np.ctypeslib.as_ctypes(np.full((width, height), np.nan, dtype=self._type))
         shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
         shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
 
@@ -270,7 +270,7 @@ class process:
             _band_rad = prod.raster.bands[:, iy:yc, ix:xc]
 
             Nwl, Ny, Nx = _band_rad.shape
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=self._type)
 
             # subsetting
             _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
@@ -300,7 +300,7 @@ class process:
             # direct transmittance up/down
             Tdir = acutils.misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
 
-            Rf = np.full((len(self.iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
+            Rf = np.full((len(self.iwl_swir), Ny, Nx), np.nan, dtype=self._type)
 
             for iwl in self.iwl_swir:
                 Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl])

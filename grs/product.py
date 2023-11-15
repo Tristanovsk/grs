@@ -83,8 +83,6 @@ class product():
         self.wl_process = self.raster.wl_to_process
         self.block_size = 512
         # self.sunglint_bands = [12]
-        # data type for pixel values
-        self.type = np.float32
 
         self.bvis = 490
         self.bnir = 842
