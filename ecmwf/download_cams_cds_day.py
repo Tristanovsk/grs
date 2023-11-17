@@ -6,13 +6,14 @@ The main program takes two argument : start  and end year
 
 import argparse
 import os
+from datetime import date, timedelta
 
 import cdsapi
+from pathlib import Path
 
 
 def main(dic, i):
     data_type = 'cams-global-reanalysis-eac4'  # dic['mode']
-    from datetime import date, timedelta
     today = date.today() - timedelta(days=i)
     print(today)
     yesterday=today - timedelta(days=1)
@@ -21,7 +22,7 @@ def main(dic, i):
     
     # specify the period to catch data
     # try:
-    odir = "/datalake/watcal/ECMWF/CAMS/" + str(yesterday.strftime("%Y")) + "/" + str(yesterday.strftime("%m"))+"/"+ str(yesterday.strftime("%d")) + "/"
+    odir = Path(dic['outdir'], yesterday.strftime("%Y"), yesterday.strftime("%m"), yesterday.strftime("%d"))
    
     print(str(odir))
     if not os.path.exists(odir):
@@ -37,6 +38,7 @@ def main(dic, i):
             c.retrieve(
                 data_type,
                     {
+                    'nocache': '456',
                     'format': 'netcdf',
                     'date': date,  # '2003-09-01/2003-09-30',
                     'time': [
@@ -61,13 +63,14 @@ def main(dic, i):
                 datafile)
     else:
             data_type = 'cams-global-atmospheric-composition-forecasts'
-            datafile = odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc')
-            if os.path.exists(datafile):
-                print('!!' + datafile + 'already exists !!')
-            print('processing ' + datafile + '...')
+            datafile = Path(odir, f"{yesterday.strftime('%Y-%m-%d')}-{data_type}.nc").resolve()
+            if datafile.exists():
+                print(f'!! {datafile} already exists !!')
+            print(f'processing {datafile} ...')
             c.retrieve(
                 data_type,
                 {
+                    'nocache': '456',
                     'date': date,
                     'type': 'forecast',
                     'format': 'netcdf',
@@ -100,7 +103,7 @@ def main(dic, i):
                     ],
                     'time': '00:00',
                 },
-                datafile)
+                str(datafile))
 
 
 # except:
@@ -112,6 +115,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Download Cams datasets from CDS')
     parser.add_argument('mode',
                         help='choose `reanalysis` or `forecast` dataset')
+    parser.add_argument('outdir',
+                        help='output directory where the products will be downloaded',
+                        default="/datalake/watcal/ECMWF/CAMS/")
     args = parser.parse_args()
     #for i in range(1, 100):
     main(vars(args), 2)
