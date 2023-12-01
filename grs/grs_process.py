@@ -25,12 +25,8 @@ class process:
 
     def __init__(self):
         self.bandIds = range(13)
-        self._type = np.float32
-        self.chunk = 512
         self.lut_file = '/data/vrtc/xlut/toa_lut_opac_wind_up.nc'
         self.Nproc = 38
-        self.pressure_ref = 101500.
-        self.iwl_swir = [-2, -1]
 
     def execute(self, file, ofile,
                 cams_file='./cams.nc',
@@ -67,6 +63,7 @@ class process:
         l1c.load_product()
         logging.info('pass raw image as grs product object')
         prod = product(l1c.prod)
+        self.prod=prod
         wl_true = prod.raster.wl_true
 
         # clear memory (TODO make it work!!)
@@ -255,22 +252,22 @@ class process:
         ######################################
         logging.info('run grs process')
         global chunk_process
-        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, width, height), np.nan, dtype=self._type))
-        Rf_result = np.ctypeslib.as_ctypes(np.full((width, height), np.nan, dtype=self._type))
+        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, width, height), np.nan, dtype=self.prod._type))
+        Rf_result = np.ctypeslib.as_ctypes(np.full((width, height), np.nan, dtype=self.prod._type))
         shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
         shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
 
         def chunk_process(args):
             iy, ix = args
-            yc = min(height, iy + self.chunk)
-            xc = min(width, ix + self.chunk)
+            yc = min(height, iy + self.prod.chunk)
+            xc = min(width, ix + self.prod.chunk)
             Rrs_tmp = np.ctypeslib.as_array(shared_Rrs)
             Rf_tmp = np.ctypeslib.as_array(shared_Rf)
 
             _band_rad = prod.raster.bands[:, iy:yc, ix:xc]
 
             Nwl, Ny, Nx = _band_rad.shape
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=self._type)
+            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=self.prod._type)
 
             # subsetting
             _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
@@ -300,9 +297,9 @@ class process:
             # direct transmittance up/down
             Tdir = acutils.misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
 
-            Rf = np.full((len(self.iwl_swir), Ny, Nx), np.nan, dtype=self._type)
+            Rf = np.full((len(self.prod.iwl_swir), Ny, Nx), np.nan, dtype=self.prod._type)
 
-            for iwl in self.iwl_swir:
+            for iwl in self.prod.iwl_swir:
                 Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl])
             Rf[Rf < 0] = 0.
             Rf = np.min(Rf, axis=0)
@@ -314,8 +311,8 @@ class process:
             return
 
         window_idxs = [(i, j) for i, j in
-                       itertools.product(range(0, width, self.chunk),
-                                         range(0, height, self.chunk))]
+                       itertools.product(range(0, width, self.prod.chunk),
+                                         range(0, height, self.prod.chunk))]
 
         global pool
         pool = Pool(self.Nproc)

@@ -81,9 +81,12 @@ class product():
         # settings:
         #########################
         self.wl_process = self.raster.wl_to_process
-        self.block_size = 512
-        # self.sunglint_bands = [12]
+        self.chunk = 512
+        self._type = np.float32
 
+        # self.sunglint_bands = [12]
+        self.pressure_ref = 101500.
+        self.iwl_swir = [-2, -1]
         self.bvis = 490
         self.bnir = 842
         self.bswir = 1610

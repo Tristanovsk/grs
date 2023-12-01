@@ -70,14 +70,19 @@ class cams_product:
             lonmin, lonmax, = lonmin % 360, lonmax % 360
 
         # slicing
-        cams = cams.sel(time=self.date, method='nearest')
+
         cams = cams.sel(latitude=slice(latmax + 1, latmin - 1),
                         longitude=slice(lonmin - 1, lonmax + 1)).compute()
         # rename "time" variable to avoid conflicts
-        cams = cams.rename({'time':'time_cams'})
+        #cams = cams.rename({'time':'time_cams'})
         if cams.u10.shape[0] == 0 or cams.u10.shape[1] == 0:
             print('no cams data, enlarge subset')
 
+        # temporal interpolation
+        # TODO implement interpolation to extrapolate with nearest values
+        cams = cams.interp(time=self.date,kwargs={"fill_value":"extrapolate"})
+
+        #spatial inetrpolation
         self.raster = cams.interp(longitude=np.linspace(lonmin, lonmax, 12),
                    latitude=np.linspace(latmax, latmin, 12),
                    kwargs={"fill_value": "extrapolate"})
@@ -91,19 +96,15 @@ class cams_product:
 
         self.raster.rio.write_crs(raster.rio.crs, inplace=True)
 
-        param_ssa, param_aod = [], []
+        param_aod = []
         for wl in wls:
             wl_ = str(wl)
             param_aod.append('aod' + wl_)
-            param_ssa.append('ssa' + wl_)
+
         cams_aod = self.raster[param_aod].to_array(dim='wl')
 
         wl_cams = cams_aod.wl.str.replace('aod', '').astype(float)
         self.cams_aod = cams_aod.assign_coords(wl=wl_cams)
-        cams_ssa = self.raster[param_ssa].to_array(dim='wl')
-        wl_cams = cams_ssa.wl.str.replace('ssa', '').astype(float)
-        self.cams_ssa = cams_ssa.assign_coords(wl=wl_cams)
-        del cams_aod, cams_ssa
 
         self.variables = list(cams.keys())
 
@@ -128,15 +129,17 @@ class cams_product:
 
         return
 
-    def plot_params(self,params = ['aod550', 'aod2130', 'ssa550',
-                                   't2m', 'msl', 'sp','tcco', 'tchcho',
-                                   'tc_oh', 'tc_ch4', 'tcno2', 'gtco3',
-                                   'tc_c3h8', 'tcwv', 'u10', 'v10'],
+    def plot_params(self,params = ['amaod550','bcaod550','duaod550','niaod550',
+                                   'omaod550','ssaod550','soaod550','suaod550',
+                                   'aod550',
+                                   't2m', 'msl', 'sp','tcco', 'tc_ch4', 'tcno2', 'gtco3',
+                                   'tcwv', 'u10', 'v10'],
                     **kwargs):
 
         Nrows = (len(params) + 1) // 4
         fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
         axs = axs.ravel()
+        [axi.set_axis_off() for axi in axs]
         for i, param in enumerate(params):
             fig = self.raster[param].plot.imshow(robust=True, ax=axs[i],**kwargs)
             fig.axes.set_title(param)
