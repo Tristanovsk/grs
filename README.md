@@ -56,7 +56,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Installing
 
-### please use conda environment
+**### please use conda environment
 ``` 
 conda activate "name of your conda env"
 ```
@@ -65,7 +65,7 @@ Python >= 3.9 is recommended, example:
 ``` 
 conda create python=3.10 -n grs_v2
 conda activate grs_v2
-``` 
+```** 
 Then, install python dependencies:
 ``` 
 conda install -c conda-forge eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba

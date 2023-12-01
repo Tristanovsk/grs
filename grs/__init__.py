@@ -58,10 +58,14 @@ Version history:
 2.1.0: Major update on radiative transfer look-up tables and aerosol models
 
 2.1.1: package data
+
+2.1.2: fix for tiles straddling Greenwich meridian
+
+2.1.3: new cams automated loading and revised parameters
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.1'
+__version__ = '2.1.2'
 
 
 from .acutils import aerosol, misc
