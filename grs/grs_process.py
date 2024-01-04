@@ -19,6 +19,7 @@ import itertools
 import GRSdriver
 
 from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
+from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
 
@@ -176,8 +177,11 @@ class Process:
             elif 'SAFE' in extension:
                 logging.info('Open L1C Sentinel 2 image and compute angle parameters')
                 global l1c
-                l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
-                l1c.load_product()
+                try:
+                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
+                    l1c.load_product()
+                except Exception as exc:
+                    raise GRS_IO_Exception(l1c_prod, exc)
                 logging.info('pass raw image as grs product object')
                 prod = Product(l1c.prod)
                 # clear memory (TODO make it work!!)
@@ -185,10 +189,12 @@ class Process:
                 gc.collect()
             elif ('LC09_L1' in basename) or ('LC08_L1' in basename):
                 logging.info('Open L1TP Landsat image')
-
-                l1c = GRSdriver.LandsatDriver(l1c_prod, resolution=resolution)
-                l1c.load_mask()
-                l1c.load_product()
+                try:
+                    l1c = GRSdriver.LandsatDriver(l1c_prod, resolution=resolution)
+                    l1c.load_mask()
+                    l1c.load_product()
+                except Exception as exc:
+                    raise GRS_IO_Exception(l1c_prod, exc)
                 logging.info('pass raw image as grs product object')
                 prod = Product(l1c.prod)
                 # clear memory (TODO make it work!!)
@@ -200,9 +206,9 @@ class Process:
         elif isinstance(l1c_prod, xr.Dataset):
             try:
                 prod = Product(l1c_prod)
-            except:
+            except Exception as exc:
                 logging.info('input file format not recognized, stop')
-                return
+                raise GRS_IO_Exception(l1c_prod, exc)
 
         self.prod = prod
         wl_true = prod.raster.wl_true
@@ -222,13 +228,16 @@ class Process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         logging.info('get CAMS auxilliary data')
-        if cams_file:
-            cams = CamsProduct(prod.raster, cams_file=cams_file)
-        else:
-            tile = prod.raster.attrs['tile']
-            cams_dir = os.path.join(self.cams_dir, tile)
-            cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
-        cams.load()
+        try:
+            if cams_file:
+                cams = CamsProduct(prod.raster, cams_file=cams_file)
+            else:
+                tile = prod.raster.attrs['tile']
+                cams_dir = os.path.join(self.cams_dir, tile)
+                cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
+            cams.load()
+        except Exception as exc:
+            raise GRS_IO_Exception(cams_file, exc)
 
         # Cox-Munk isotropic mean square slope (sigma2)
         wind = np.sqrt(cams.raster['v10'] ** 2 + cams.raster['u10'] ** 2)
@@ -245,15 +254,18 @@ class Process:
         logging.info('flagging from l1c data')
 
         if surfwater_file:
-            logging.info('loading surfwater data file')
-            prod.raster['surfwater'] = rio.open_rasterio(surfwater_file
-                                                         ).astype(np.uint8
-                                                                  ).squeeze().interp(x=prod.x,
-                                                                                     y=prod.y,
-                                                                                     method='nearest')
-            prod.raster.surfwater.name = 'surfwater'
-            prod.raster.surfwater.attrs = {
-                'description': 'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
+            try:
+                logging.info('loading surfwater data file')
+                prod.raster['surfwater'] = rio.open_rasterio(surfwater_file
+                                                             ).astype(np.uint8
+                                                                      ).squeeze().interp(x=prod.x,
+                                                                                         y=prod.y,
+                                                                                         method='nearest')
+                prod.raster.surfwater.name = 'surfwater'
+                prod.raster.surfwater.attrs = {
+                    'description': 'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
+            except Exception as exc:
+                raise GRS_IO_Exception(surfwater_file, exc)
 
         masking_ = Masking(prod.raster)
         prod.raster = masking_.process(output="prod")
@@ -282,10 +294,16 @@ class Process:
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
         logging.info('loading look-up tables')
-        Ttot_Ed = xr.open_dataset(self.trans_lut_file)
+        try:
+            Ttot_Ed = xr.open_dataset(self.trans_lut_file)
+        except Exception as exc:
+            raise GRS_IO_Exception(self.trans_lut_file, exc)
         Ttot_Ed['wl'] = Ttot_Ed['wl'] * 1000
 
-        aero_lut = xr.open_dataset(self.lut_file)
+        try:
+            aero_lut = xr.open_dataset(self.lut_file)
+        except Exception as exc:
+            raise GRS_IO_Exception(self.lut_file, exc)
         aero_lut['wl'] = aero_lut['wl'] * 1000
         aero_lut['aot'] = aero_lut.aot.isel(wind=0).squeeze()
 
@@ -300,8 +318,11 @@ class Process:
         #    absorbing gases correction
         ####################################
         logging.info('compute gaseous transmittance from cams data')
-        gas_trans = acutils.GaseousTransmittance(prod, cams)
-        Tg_raster = gas_trans.get_gaseous_transmittance()
+        try:
+            gas_trans = acutils.GaseousTransmittance(prod, cams)
+            Tg_raster = gas_trans.get_gaseous_transmittance()
+        except Exception as exc:
+            raise GRS_IO_Exception(cams_file, exc)
 
         logging.info('correct for gaseous absorption')
         for wl in prod.raster.wl.values:
