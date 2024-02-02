@@ -65,7 +65,7 @@ Python >= 3.9 is recommended, example:
 ``` 
 conda create python=3.10 -n grs_v2
 conda activate grs_v2
-```** 
+```
 Then, install python dependencies:
 ``` 
 conda install -c conda-forge eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba
