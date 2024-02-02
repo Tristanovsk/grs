@@ -139,8 +139,8 @@ class l2a_product():
         basename = os.path.basename(output_path)
         ofile = os.path.join(output_path, basename)
 
-        if not os.path.exists(output_path):
-            os.mkdir(output_path)
+        # create directory if not existing
+        os.makedirs(output_path,exist_ok=True)
 
         # clean up to avoid permission denied
         if os.path.exists(ofile + '.nc'):

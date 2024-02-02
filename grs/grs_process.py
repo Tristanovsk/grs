@@ -2,6 +2,11 @@
 Main program
 '''
 
+import os
+
+import importlib_resources
+import yaml
+
 import numpy as np
 import xarray as xr
 import rioxarray as rio
@@ -13,11 +18,20 @@ from multiprocessing import sharedctypes
 import itertools
 
 from s2driver import driver_S2_SAFE as S2
-# from .drivers import driver_S2_SAFE as S2
+
 from . import product, acutils, auxdata, cams_product, l2a_product
 
+opj = os.path.join
 
-# from .fortran.grs import main_algo as grs_solver
+configfile = importlib_resources.files(__package__) / 'config.yml'
+with open(configfile, 'r') as file:
+    config = yaml.safe_load(file)
+
+GRSDATA = config['path']['grsdata']
+TOALUT = config['path']['toa_lut']
+TRANSLUT = config['path']['trans_lut']
+CAMS_PATH = config['path']['trans_lut']
+NCPU = config['processor']['ncpu']
 
 
 class process:
@@ -25,13 +39,17 @@ class process:
 
     def __init__(self):
         self.bandIds = range(13)
-        self.lut_file = '/data/vrtc/xlut/toa_lut_opac_wind_up.nc'
-        self.Nproc = 38
+        self.lut_file = opj(GRSDATA, TOALUT)
+        self.trans_lut_file = opj(GRSDATA, TRANSLUT)
+        self.cams_dir = CAMS_PATH
+        self.Nproc = NCPU
 
     def execute(self, file, ofile,
-                cams_file='./cams.nc',
+                cams_file=None,
                 surfwater_file=None,
+                dem_file=None,
                 resolution=20,
+                scale_aot=1,
                 allpixels=False,
                 snap_compliant=False
                 ):
@@ -63,7 +81,7 @@ class process:
         l1c.load_product()
         logging.info('pass raw image as grs product object')
         prod = product(l1c.prod)
-        self.prod=prod
+        self.prod = prod
         wl_true = prod.raster.wl_true
 
         # clear memory (TODO make it work!!)
@@ -80,10 +98,13 @@ class process:
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         logging.info('get CAMS auxilliary data')
-        cams = cams_product(prod.raster, cams_file=cams_file)
-
-        # get aerosol optical thickness at 550nm
-        cams_aot_ref = cams.cams_aod.interp(wl=550, method='quadratic').compute()
+        if cams_file:
+            cams = cams_product(prod.raster, cams_file=cams_file)
+        else:
+            tile = prod.raster.attrs['tile']
+            cams_dir = os.path.join(self.cams_dir, tile)
+            cams = cams_product(prod.raster, dir=cams_dir, suffix='_' + tile)
+        cams.load()
 
         # Cox-Munk isotropic mean square slope (sigma2)
         wind = np.sqrt(cams.raster['v10'] ** 2 + cams.raster['u10'] ** 2)
@@ -121,9 +142,16 @@ class process:
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
         logging.info('loading look-up tables')
+        Ttot_Ed = xr.open_dataset(self.trans_lut_file)
+        Ttot_Ed['wl'] = Ttot_Ed['wl'] * 1000
+
         aero_lut = xr.open_dataset(self.lut_file)
         aero_lut['wl'] = aero_lut['wl'] * 1000
         aero_lut['aot'] = aero_lut.aot.isel(wind=0).squeeze()
+
+        # remove URBAN aerosol model for this example
+        models = aero_lut.drop_sel(model='URBA_rh70').model.values
+
         _auxdata = auxdata(wl=wl_true)  # wl=masked.wl)
         sunglint_eps = _auxdata.sunglint_eps  # ['mean'].interp(wl=wl_true)
         rot = _auxdata.rot
@@ -179,15 +207,15 @@ class process:
         ######################################
         logging.info('lut interpolation')
 
-        #select appropriate opac aerosol model from CAMS aod
-        #remove URBAN for the moment
+        # select appropriate opac aerosol model from CAMS aod
+        # remove URBAN for the moment
         models = aero_lut.drop_sel(model='URBA_rh70').model.values
         # get mean aot and aot550 from CAMS
         cams_aot_mean = cams.cams_aod.mean(['x', 'y'])
         cams_aot_ref = cams.cams_aod.interp(wl=550, method='quadratic')
         cams_aot_ref_mean = cams_aot_ref.mean(['x', 'y'])
 
-        # get the model that has the closest aot spactral shape
+        # get the model that has the closest aot spectral shape
         lut_aod = aero_lut.aot.sel(model=models, aot_ref=1).interp(wl=cams.cams_aod.wl)
         idx = np.abs((cams_aot_mean / cams_aot_ref_mean) - lut_aod).sum('wl').argmin()
         opac_model = aero_lut.sel(model=models).model.values[idx]
@@ -196,42 +224,61 @@ class process:
         aero_lut_ = aero_lut.sel(wind=_wind, method='nearest').sel(model=opac_model)
 
         # get AOT550 raster (TODO replace with optimal estimation)
-        aot_ref_raster = cams_aot_ref
-        ang_resol = {'sza': 1, 'vza': 1, 'raa': 0}
-        for param in ['sza', 'vza', 'raa']:
-            prod.raster[param + '_trunc'] = prod.raster[param].round(ang_resol[param])
+        aot_ref_raster = cams_aot_ref * scale_aot
 
-        sza_ = np.unique(prod.raster.sza_trunc)
-        vza_ = np.unique(prod.raster.vza_trunc)
-        azi_ = (180 - np.unique(prod.raster.raa_trunc)) % 360
-        sza_ = sza_[~np.isnan(sza_)]
-        vza_ = vza_[~np.isnan(vza_)]
+        # get unique values for angles and further lut interpolation
+        ang_resol = {'sza': 0.1, 'vza': 0.1, 'raa_round': 0}
+        szamin, szamax = float(prod.raster['sza'].min()), float(prod.raster['sza'].max())
+        vzamin, vzamax = float(prod.raster['vza'].isel(wl=0).min()), float(prod.raster['vza'].isel(wl=0).max())
+
+        # check for out-of-range
+        def check_out_of_range(vmin, vmax, ceiling=88):
+            vmin = np.max([0, vmin])
+            vmax = np.min([ceiling, vmax])
+            return vmin, vmax
+
+        szamin, szamax = check_out_of_range(szamin, szamax)
+        vzamin, vzamax = check_out_of_range(vzamin, vzamax, ceiling=25)
+
+        sza_ = np.arange(szamin, szamax + ang_resol['sza'], ang_resol['sza'])
+        vza_ = np.arange(vzamin, vzamax + ang_resol['vza'], ang_resol['vza'])
+
+        azi_ = (180 - np.unique(prod.raster['raa'].isel(wl=0).round(ang_resol['raa_round']))) % 360
         azi_ = azi_[~np.isnan(azi_)]
 
         sza_lut_step = 2
         vza_lut_step = 2
+
         sza_slice = slice(np.min(sza_) - sza_lut_step, np.max(sza_) + sza_lut_step)
         vza_slice = slice(np.min(vza_) - vza_lut_step, np.max(vza_) + vza_lut_step)
-        tweak = 4
+
+        tweak = 3
         aot_ref_ = np.unique((aot_ref_raster / tweak).round(3)) * tweak
         aot_ref_min = aot_ref_raster.min()
         aot_ref_max = aot_ref_raster.max()
         aot_lut = aero_lut_.aot.interp(wl=wl_true, method='quadratic')
         aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max, 1000))  # .plot(hue='wl')
 
-        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice, vza=vza_slice).interp(wl=wl_true, method='quadratic')
-        Rdiff_lut = Rdiff_lut.interp(sza=sza_).interp(aot_ref=aot_ref_, method='quadratic').interp(vza=vza_).interp(
+        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice, vza=vza_slice).interp(wl=wl_true, method='quadratic').interp(
             azi=azi_)
+        Rdiff_lut = Rdiff_lut.interp(sza=sza_, vza=vza_)
+        Rray = Rdiff_lut.sel(aot_ref=0)
+        Rdiff_lut = Rdiff_lut.interp(aot_ref=aot_ref_, method='quadratic')
 
         szas = Rdiff_lut.sza.values
         vzas = Rdiff_lut.vza.values
         azis = Rdiff_lut.azi.values
         aot_refs = Rdiff_lut.aot_ref.values
 
+        Ttot_Ed_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=szas).interp(
+            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed
+        Ttot_Lu_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=vzas).interp(
+            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed ** 1.05
+
         ######################################
         # Set final parameters for grs processing
         ######################################
-
+        logging.info('set final parameters')
         width = prod.width
         height = prod.height
         Nwl = len(prod.raster.wl_to_process)
@@ -243,9 +290,17 @@ class process:
         # prepare aerosol parameters
         aot_ref_raster = cams_aot_ref.interp(x=prod.raster.x, y=prod.raster.y).drop('wl')
         aot_ref_raster.name = 'aot550'
-        # _aot = aot_lut.interp(aot_ref=_aot_ref)
-        _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
         _rot = rot.values
+
+        # _aot = aot_lut.interp(aot_ref=_aot_ref)
+        if dem_file:
+            logging.info('compute surface pressure from dem')
+            dem = xr.open_dataset(dem_file).squeeze().interp(y=prod.raster.y, x=prod.raster.x, method='nearest')
+            dem = dem.rename_vars({'band_data': 'elevation'})
+            presure_msl = cams.raster.msl.interp(y=prod.raster.y, x=prod.raster.x)
+            _pressure = (presure_msl * (1. - 0.0065 * dem.elevation / 288.15) ** 5.255).values
+        else:
+            _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
 
         ######################################
         # Run grs processing
@@ -274,6 +329,7 @@ class process:
             _raa = prod.raster.raa[:, iy:yc, ix:xc]
             _azi = (180. - _raa) % 360
             _vza = prod.raster.vza[:, iy:yc, ix:xc]
+            _vza_mean = np.mean(_vza, axis=0).values
             _air_mass_ = acutils.misc.air_mass(_sza,
                                                _vza).values  # air_mass[:, iy:yc,ix:xc] #air_mass(_sza,_vza).values #_p_slope = prod.raster.p_slope[:, iy:yc,ix:xc]
             _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2).values  # _p_slope[:, iy:yc,ix:xc]
@@ -289,6 +345,14 @@ class process:
                                           azis, _azi.values,
                                           aot_refs, _aot_ref,
                                           Nwl, Ny, Nx, Rdiff_lut.values)
+
+            _Rray = acutils._interp_Rlut_rayleigh(szas, _sza.values,
+                                                  vzas, _vza.values,
+                                                  azis, _azi.values,
+                                                  Nwl, Ny, Nx, Rray.values)
+
+            _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
+
             _aot = acutils._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
 
             #  correction for diffuse light
@@ -296,6 +360,12 @@ class process:
 
             # direct transmittance up/down
             Tdir = acutils.misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
+
+            # vTotal transmittance (for Ed and Lu)
+            Tdown = acutils._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
+                                         Ttot_Ed_.values)
+            Tup = acutils._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
+            Ttot_du = Tdown * Tup
 
             Rf = np.full((len(self.prod.iwl_swir), Ny, Nx), np.nan, dtype=self.prod._type)
 
@@ -307,7 +377,7 @@ class process:
             Rf = acutils._multiplicate(_sunglint_eps, Rf, arr_tmp)
             Rf = Tdir * _p_slope_ * Rf
 
-            Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi)
+            Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi) / Ttot_du
             return
 
         window_idxs = [(i, j) for i, j in

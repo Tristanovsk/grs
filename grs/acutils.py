@@ -17,6 +17,26 @@ def _getnearpos(array, value):
 
 
 @njit()
+def _interp_Rlut_rayleigh(szas, _sza,
+                          vzas, _vza,
+                          azis, _azi,
+                          Nwl, Ny, Nx, lut):
+    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+    mus = np.cos(np.radians(_sza))
+    for _iy in range(Ny):
+        for _ix in range(Nx):
+            if np.isnan(_sza[_iy, _ix]):
+                continue
+            isza = _getnearpos(szas, _sza[_iy, _ix])
+
+            for _iwl in range(Nwl):
+                iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+    return arr_lut
+
+
+@njit()
 def _interp_Rlut(szas, _sza,
                  vzas, _vza,
                  azis, _azi,
@@ -34,6 +54,22 @@ def _interp_Rlut(szas, _sza,
                 iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
                 ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
                 arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+    return arr_lut
+
+
+@njit()
+def _interp_Tlut(szas, _sza,
+                 aot_refs, _aot_ref,
+                 Nwl, Ny, Nx, lut):
+    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+    for _iy in range(Ny):
+        for _ix in range(Nx):
+            if np.isnan(_sza[_iy, _ix]):
+                continue
+            isza = _getnearpos(szas, _sza[_iy, _ix])
+            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+            for _iwl in range(Nwl):
+                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza]
     return arr_lut
 
 

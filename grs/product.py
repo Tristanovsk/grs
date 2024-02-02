@@ -6,9 +6,16 @@ import datetime
 
 import logging
 from importlib.resources import files
+import yaml
 from . import config as cfg, auxdata, __version__, __package__
 
 opj = os.path.join
+
+
+configfile = files(__package__) / 'config.yml'
+with open(configfile, 'r') as file:
+    config = yaml.safe_load(file)
+
 
 class product():
     '''
@@ -34,7 +41,8 @@ class product():
         self.sensor = self.raster.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
         self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
-        self.raster = self.raster.assign_coords({'time': self.date})
+        if not 'time' in self.raster.coords:
+            self.raster = self.raster.assign_coords({'time': self.date})
 
         # add metadata for future export to L2product
         self.raster.attrs['processing_time'] = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
@@ -105,14 +113,13 @@ class product():
         self.hcld_threshold = 3e-3
 
         # pre-computed auxiliary data
-        self.dirdata = cfg.data_root  # resource_filename(__package__, '../grsdata/')
+        self.dirdata = config['path']['grsdata']
         self.abs_gas_file = files('grs.data.lut.gases').joinpath('lut_abs_opt_thickness_normalized.nc')
         # self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
         self.water_vapor_transmittance_file = files('grs.data.lut.gases').joinpath('water_vapor_transmittance.nc')
         self.load_auxiliary_data()
 
-        # set path for CAMS/ECMWF dataset
-        #self.cams_folder = cfg.cams_folder
+
 
         # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
         self.rrs = False
