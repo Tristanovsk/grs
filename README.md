@@ -54,9 +54,14 @@ spectral value of $`\tau _a`$.
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-## Installing
 
-**### please use conda environment
+
+## Installing
+### Download the LUT files:
+click [grsdata](https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing)
+download and save in your desired path (your_GRSDATA_PATH) 
+
+### please use conda environment
 ``` 
 conda activate "name of your conda env"
 ```
@@ -70,7 +75,11 @@ Then, install python dependencies:
 ``` 
 conda install -c conda-forge eoreader cdsapi netCDF4 docopt dask[array] xmltodict bokeh numba
 ```
-
+Set the `config.yml` file:
+```
+path:
+  grsdata: your_GRSDATA_PATH
+``` 
 
 Finally, install grs with:
 ```commandline
@@ -140,26 +149,9 @@ grs -h
 ### To download CAMS data
 [Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
 
-### to compile fortran codes
-Compilers such gcc and gfortran are needed to install the package.
- 
-Bindings are made based on F2PY. Please update the version of F2PY accordingly to your python version 
-in [Makefile](Makefile); for instance:
 
-``` 
-export F2PY=f2py3.6
-```
 
-Compile all C and fortran files into shared libraries:
 
-```
-make
-```
-
-Generate the `config.py` file:
- * In the ./grs/grs folder, copy `config_local.py` to `config.py`. 
- 
- * Then, edit `config.py` according to your folders tree and path to your grs installation folder. 
 
 
 
