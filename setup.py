@@ -15,7 +15,7 @@ setup(
     package_data={'': ['*.so', '*h', '*angles*'],
     #     # If any package contains *.txt files, include them:
          '': ['*.txt'],
-
+         'grs':['*.yml'],
          '':['data/lut/gases/*.nc'],
     #     'aux': ['data/aux/*']
     },
