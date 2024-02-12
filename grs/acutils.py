@@ -205,8 +205,8 @@ class gaseous_transmittance(gases):
             Tg = Tg.rename({'wl': 'wl_hr'})
 
             Tg_int = []
-            for label, srf in SRF_hr.groupby('wl'):
-                srf = srf.dropna('wl_hr').squeeze()
+            for label, srf in SRF_hr.groupby('wl', squeeze=True):
+                srf = srf.dropna('wl_hr') #.squeeze()
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
@@ -240,8 +240,8 @@ class gaseous_transmittance(gases):
             Tg = Tg.rename({'wl': 'wl_hr'})
 
             Tg_int = []
-            for label, srf in SRF_hr.groupby('wl'):
-                srf = srf.dropna('wl_hr').squeeze()
+            for label, srf in SRF_hr.groupby('wl', squeeze=True):
+                srf = srf.dropna('wl_hr')#.squeeze()
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
