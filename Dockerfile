@@ -23,7 +23,6 @@ RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /ka
     && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
         software-properties-common \
         gcc \
-        gfortran \
         python3.10 \
         python3-dev \
         build-essential \
@@ -40,11 +39,10 @@ COPY ecmwf ./grs2/ecmwf
 COPY exe ./grs2/exe
 COPY grs ./grs2/grs
 COPY grsdata ./grs2/grsdata
-COPY Makefile ./grs2/
 COPY setup.py ./grs2/
 WORKDIR /home/grs2
 
-RUN make
+
 
 #########################
 FROM ${IMAGE_SOURCE}ubuntu:22.04
@@ -92,9 +90,9 @@ RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /ka
         pyproj \
         python-dateutil \
         scipy \
-        "xarray<=2023.4.2" \
+        "xarray==2023.8.0" \
         # other dependencies        
-        "eoreader<=0.19.4" \
+        "eoreader==0.20.3" \
          numba \
     && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
