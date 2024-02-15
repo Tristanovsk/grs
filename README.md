@@ -66,7 +66,7 @@ To complete installation please type in your conda grs_cnes environment:
 pip install .
 ```
 
-You are done, please check [Testing](##Testing )
+You are done, please check [Testing](#testing)
   
 
 ## Installation on other machine
@@ -101,7 +101,7 @@ Finally, install grs with:
 pip install .
 ```
 
-## Testing
+## Testing <a name="testing"></a>
 
 After installation, you can type:
 ```commandline
