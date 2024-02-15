@@ -43,6 +43,7 @@ from docopt import docopt
 import logging
 from osgeo import gdal
 
+from . import class_logger
 from . import __package__, __version__
 from .grs_process import Process
 
@@ -92,6 +93,8 @@ def main():
 
     outfile = os.path.join(odir, outfile)
 
+    class_logger.ServiceLogger(log_file=os.path.join(odir, 'log_file.log'), output_dir=odir, log_level='INFO', log_console=False)
+
     if os.path.exists(outfile) & noclobber:
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
@@ -101,19 +104,21 @@ def main():
                  f', cams_file:{cams_file}' +
                  ', resolution:' + str(resolution))
 
-    process_ = Process()
-    process_.execute(file,
-                     ofile=outfile,
-                     cams_file=cams_file,
-                     resolution=resolution,
-                     scale_aot=scale_aot,
-                     opac_model=opac_model,
-                     dem_file=dem_file,
-                     allpixels=allpixels,
-                     surfwater_file=surfwater_file,
-                     snap_compliant=snap_compliant)
-    process_.write_output()
-
+    try:
+        process_ = Process()
+        process_.execute(file,
+                         ofile=outfile,
+                         cams_file=cams_file,
+                         resolution=resolution,
+                         scale_aot=scale_aot,
+                         opac_model=opac_model,
+                         dem_file=dem_file,
+                         allpixels=allpixels,
+                         surfwater_file=surfwater_file,
+                         snap_compliant=snap_compliant)
+        process_.write_output()
+    except Exception:
+        logging.error("Fatal error in grs_process", exc_info=True)
     return
 
 

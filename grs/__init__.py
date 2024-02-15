@@ -118,10 +118,4 @@ from .output import L2aProduct
 from .mask import Masking
 from .grs_process import Process
 
-import logging
 
-#init logger
-logger = logging.getLogger()
-
-level = logging.getLevelName("INFO")
-logger.setLevel(level)
