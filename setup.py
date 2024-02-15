@@ -22,8 +22,8 @@ setup(
     description='scientific code for atmosphere and sunglint correction of Sentinel-2 and Landsat series',
 
     # Dependent packages (distributions)
-    install_requires=['cdsapi', 'pandas', 'geopandas', 'scipy', 'numba', 'numpy', 'netCDF4',
-                      'matplotlib', 'docopt', 'python-dateutil', 'pyproj', 'xarray'],
+    #install_requires=['cdsapi', 'pandas', 'geopandas', 'scipy', 'numba', 'numpy', 'netCDF4',
+    #                  'matplotlib', 'docopt', 'python-dateutil', 'pyproj', 'xarray'],
 
     entry_points={
         'console_scripts': [
