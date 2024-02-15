@@ -247,7 +247,7 @@ def get_stat(in_sys_time:float, in_user_time:float, in_total_mem:float):
     with open(stat_file, 'r') as stat_fp:
         for ligne in stat_fp:
             if "VmPeak:" in ligne:
-                logger.info(ligne.replace("VmPeak:", "peak_vm:").rstrip('\n'))
+                logger.info(ligne.replace("VmPeak:", "peak_vm: ").replace('\t','').rstrip('\n'))
         stat_fp.close()
 
     # reading /proc/self/stat to get user and cpu time
