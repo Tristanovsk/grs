@@ -7,7 +7,7 @@ import datetime
 import logging
 from importlib.resources import files
 import yaml
-from . import config as cfg, auxdata, __version__, __package__
+from . import auxdata, __version__, __package__
 
 opj = os.path.join
 

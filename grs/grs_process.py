@@ -50,27 +50,26 @@ class process:
                 dem_file=None,
                 resolution=20,
                 scale_aot=1,
+                opac_model=None,
                 allpixels=False,
                 snap_compliant=False
                 ):
-
         '''
         Main program calling all GRS steps
-
-        :param file: Input file to be processed
+        :param file:  Input file to be processed
         :param ofile: Absolute path of the output file
         :param cams_file: Absolute path for root directory of CAMS data
-
-        :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
-                    (by default sensor type is retrieved from input file name)
-        :param resolution: pixel resolution in meters (integer), choice between: 10, 20, 60 m
-        :param allpixels: force to process all pixels even they are flagged as "Vegetation" or "Non-water"
-        :param output: set the unit of the retrievals:
-                 * 'Lwn', normalized water-leaving radiance (in  :math:`mW cm^{-2} sr^{-1} \mu m^{-1})`
-                 * 'Rrs', remote sensing reflectance (in  :math:`sr^{-1}`)
-                 {default: 'Rrs'}
+        :param surfwater_file: Absolute path the surfwater filr (.tif)
+        :param dem_file: Absolute path of the DEM geotiff file
+        :param resolution: pixel resolution in meter
+        :param scale_aot: scaling factor applied to CAMS aod550 raster
+        :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
+        :param allpixels: if True process all pixels (no water pixel masking)
+        :param snap_compliant: Output format compliant with SNAP software for practical analysis
         :return:
         '''
+
+
 
         ##################################
         # Get image data
@@ -216,14 +215,17 @@ class process:
         cams_aot_ref_mean = cams_aot_ref.mean(['x', 'y'])
 
         # get the model that has the closest aot spectral shape
-        lut_aod = aero_lut.aot.sel(model=models, aot_ref=1).interp(wl=cams.cams_aod.wl)
-        idx = np.abs((cams_aot_mean / cams_aot_ref_mean) - lut_aod).sum('wl').argmin()
-        opac_model = aero_lut.sel(model=models).model.values[idx]
+        if opac_model is None:
+            lut_aod = aero_lut.aot.sel(model=models, aot_ref=1).interp(wl=cams.cams_aod.wl)
+            idx = np.abs((cams_aot_mean / cams_aot_ref_mean) - lut_aod).sum('wl').argmin()
+            opac_model = aero_lut.sel(model=models).model.values[idx]
 
+        logging.info('selected aerosol model: '+opac_model)
         # slice LUT
         aero_lut_ = aero_lut.sel(wind=_wind, method='nearest').sel(model=opac_model)
 
         # get AOT550 raster (TODO replace with optimal estimation)
+        logging.info('scaling aot by: ' + str(scale_aot))
         aot_ref_raster = cams_aot_ref * scale_aot
 
         # get unique values for angles and further lut interpolation
@@ -288,7 +290,7 @@ class process:
         _sunglint_eps = sunglint_eps.values
 
         # prepare aerosol parameters
-        aot_ref_raster = cams_aot_ref.interp(x=prod.raster.x, y=prod.raster.y).drop('wl')
+        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop('wl')
         aot_ref_raster.name = 'aot550'
         _rot = rot.values
 
@@ -322,6 +324,8 @@ class process:
             _band_rad = prod.raster.bands[:, iy:yc, ix:xc]
 
             Nwl, Ny, Nx = _band_rad.shape
+            if Ny == 0 or Nx == 0:
+                return
             arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=self.prod._type)
 
             # subsetting
@@ -330,9 +334,8 @@ class process:
             _azi = (180. - _raa) % 360
             _vza = prod.raster.vza[:, iy:yc, ix:xc]
             _vza_mean = np.mean(_vza, axis=0).values
-            _air_mass_ = acutils.misc.air_mass(_sza,
-                                               _vza).values  # air_mass[:, iy:yc,ix:xc] #air_mass(_sza,_vza).values #_p_slope = prod.raster.p_slope[:, iy:yc,ix:xc]
-            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2).values  # _p_slope[:, iy:yc,ix:xc]
+            _air_mass_ = acutils.misc.air_mass(_sza, _vza).values
+            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2).values
             _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
 
@@ -389,7 +392,7 @@ class process:
         res = pool.map(chunk_process, window_idxs)
         pool.terminate()
         pool = None
-        print('success')
+        logging.info('success')
 
         ######################################
         # Write final product

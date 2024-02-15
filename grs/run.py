@@ -2,7 +2,7 @@
 
 Usage:
   grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--scale_aot factor]\
-   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
+   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -24,6 +24,9 @@ Options:
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
   --scale_aot factor scaling factor applied to CAMS aod550 raster
                     [default: 1]
+  --opac_model name  Force the aerosol model (OPAC) to be 'name'
+                    (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
+                                'MACL_rh70', 'URBA_rh70'])
   --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
 
   Example:
@@ -36,12 +39,12 @@ Options:
 import os, sys
 from docopt import docopt
 import logging
-from . import __package__,__version__
+from . import __package__, __version__
 from .grs_process import process
 
 
 def main():
-    args = docopt(__doc__, version=__package__ + '_' +__version__)
+    args = docopt(__doc__, version=__package__ + '_' + __version__)
     print(args)
 
     file = args['<input_file>']
@@ -53,6 +56,7 @@ def main():
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
     scale_aot = float(args['--scale_aot'])
+    opac_model = args['--opac_model']
     snap_compliant = args['--snap_compliant']
 
     ##################################
@@ -78,7 +82,6 @@ def main():
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
 
-
     logging.info('call grs_process for the following paramater. File:' +
                  file + ', output file:' + outfile +
                  f', cams_file:{cams_file}' +
@@ -87,6 +90,7 @@ def main():
                       cams_file=cams_file,
                       resolution=resolution,
                       scale_aot=scale_aot,
+                      opac_model=opac_model,
                       dem_file=dem_file,
                       allpixels=allpixels,
                       surfwater_file=surfwater_file,

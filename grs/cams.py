@@ -202,7 +202,7 @@ class cams_product:
                                   'tcwv', 'u10', 'v10'],
                     **kwargs):
 
-        Nrows = (len(params) + 1) // 4
+        Nrows = (len(params) + 4) // 4
         fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
         axs = axs.ravel()
         [axi.set_axis_off() for axi in axs]
