@@ -53,16 +53,27 @@ spectral value of $`\tau _a`$.
 ## Getting Started
 
 ## Installation on TREX (CNES)
-First install s2driver from https://gitlab.cnes.fr/waterquality/io/s2driver following the README instruction.
+1. First install s2driver from https://gitlab.cnes.fr/waterquality/io/s2driver following the README instruction.
 You should have now a conda environment called grs_cnes up.
 
-Now, make sure that the grsdata variable is set as follows in the config.yml file:
+2. First clone the repository:
+```commandline
+git clone https://gitlab.cnes.fr/waterquality/grs2.git
+```
+And go on Branch v2.1
+```commandline
+git checkout v2.1
+```
+
+3. Make sure that the grsdata variable is set as follows in the config.yml file:
 ```commandline
 grsdata: '/work/datalake//watcal/GRS/grsdata_v21'
 ```
 
-To complete installation please type in your conda grs_cnes environment:
+4. To complete installation please activate your conda grs_cnes environment as follows:
 ```commandline
+ml conda
+conda activate grs_cnes
 pip install .
 ```
 
