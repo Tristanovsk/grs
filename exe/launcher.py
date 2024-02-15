@@ -1,10 +1,12 @@
+from grs import class_logger
+from grs import grs_process
 from pathlib import Path
 import yaml
 import sys, os
 import netCDF4 as nc
 import geopandas as gpd
 import logging
-from logging.handlers import RotatingFileHandler
+from datetime import datetime
 
 sys.path.extend([os.path.abspath(__file__)])
 from procutils import misc
@@ -55,26 +57,16 @@ if __name__ == '__main__':
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
 
-    from grs import grs_process
-    from logging.handlers import RotatingFileHandler
-
     # file handle
-    logger = logging.getLogger()
-    file_handler = RotatingFileHandler(data['logfile'], 'a', 1000000, 1)
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d    %(levelname)s:%(filename)s::%(funcName)s:%(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-
-    level = logging.getLevelName(data['level'])
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    log_folder = os.path.dirname(data['logfile'])
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+    class_logger.ServiceLogger(log_file=data['logfile'], output_dir=log_folder, log_level=data['level'], log_console=True)
 
     logging.info("dem is existing" + str(os.path.exists("/tmp/grs/.snap/auxdata/dem")))
     logging.debug("dem is a link :" + str(os.path.islink("/tmp/grs/.snap/auxdata/dem")))
-
     os.environ['DATA_ROOT'] = data['data_root']
     os.environ['CAMS_PATH'] = data['cams_folder']
-
-    from grs import grs_process
 
     try:
         if data['activate_dem']:
@@ -86,8 +78,7 @@ if __name__ == '__main__':
     except Exception as error:
         logging.debug(error)
 
-    #from grs import grs_process
-
+    #get all config
     with open(data['hymotep_config'], 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
 
@@ -97,7 +88,7 @@ if __name__ == '__main__':
         else:
             data[key]=None
     file = data["input_file"]
- 
+
     if data["shapefile"] != None:
         wkt = shp2wkt(data["shapefile"])
     else:
@@ -108,11 +99,11 @@ if __name__ == '__main__':
     unzip = False
     if os.path.splitext(file)[-1] == '.zip':
         unzip = True
-    
+
     untar = False
     if os.path.splitext(file)[-1] == '.tar':
-        unzip = True 
-        
+        unzip = True
+
     dem=False
     if data["dem"]:
         dem=True
@@ -126,9 +117,9 @@ if __name__ == '__main__':
         exit(-1)
 
     suffix='_'+str(data["chain_version"])+"_"+str(data["product_counter"])
-    
+
     outfile = misc.set_ofile(file.split("/")[-1], odir=data['output_dir'], level_name='l2grs', suffix=suffix)
-    
+
     # skip if already processed (the .dim exists)
     if os.path.isfile(outfile + ".dim") & data["noclobber"]:
         logger.info('File ' + outfile + ' already processed; skip!')
@@ -141,7 +132,7 @@ if __name__ == '__main__':
     if os.path.isfile(outfile+".nc") & data["noclobber"]:
         logger.info('File ' + outfile + ' already processed; skip!')
         exit(-1)
-   
+
     checksum = outfile+'.checksum'
     startrow=0
     try:
@@ -166,9 +157,12 @@ if __name__ == '__main__':
                                       angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"], xblock=data["xblock"],
                                       yblock=data["yblock"])
     except Exception as inst:
-        logging.info('-------------------------------')
-        logging.info('error for file  ', inst, ' skip')
-        logging.info('-------------------------------')
-        with open(data["logfile"], "a") as myfile:
-            myfile.write('error during grs \n')
+        logging.error('-------------------------------')
+        message='error for file  ' + str(inst) + ' skip'
+        logging.error(message)
+        logging.error('-------------------------------')
+        logging.error('error during grs', exc_info=True)
 
+    finally:
+        # Close logger and get stats
+        class_logger.get_instance().close()
