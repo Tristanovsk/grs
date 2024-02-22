@@ -146,6 +146,9 @@ Options:
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
   --scale_aot factor scaling factor applied to CAMS aod550 raster
                     [default: 1]
+  --opac_model name  Force the aerosol model (OPAC) to be 'name'
+                    (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
+                                'MACL_rh70', 'URBA_rh70'])
   --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
 
   Example:
