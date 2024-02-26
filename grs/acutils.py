@@ -248,7 +248,7 @@ class GaseousTransmittance(Gases):
     def __init__(self, prod, cams):
 
         Gases.__init__(self)
-        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds()
+        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds(recalc=True)
         self.prod = prod
         self.cams = cams
         self.gas_lut = prod.gas_lut

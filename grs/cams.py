@@ -136,7 +136,7 @@ class CamsProduct:
         '''
 
         # set geographic extents
-        xmin, ymin, xmax, ymax = self.prod.rio.bounds()
+        xmin, ymin, xmax, ymax = self.prod.rio.bounds(recalc=True)
         lonmin, latmin, lonmax, latmax = self.lonmin, self.latmin, self.lonmax, self.latmax
 
         if not os.path.exists(self.filepath):

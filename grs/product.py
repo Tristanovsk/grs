@@ -62,10 +62,10 @@ class Product():
         self.width = self.x.__len__()
         self.height = self.y.__len__()
 
-        self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
+        self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326, recalc=True)
         # set longitude between 0 and 360 deg
         self.lonmin, self.lonmax, = self.lonmin % 360, self.lonmax % 360
-        self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
+        self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds(recalc=True)
 
         self.wl = self.raster.wl
         self.central_wavelength = self.raster.wl_true.values
