@@ -1,8 +1,8 @@
 path:
-  grsdata: '/data/grs/grsdata'
+  grsdata: '/work/datalake//watcal/GRS/grsdata_v21'
   toa_lut: 'toa_lut_opac_wind_light_v2.nc'
   trans_lut: 'transmittance_lut_opac_wind_light_v2.nc'
-  cams: '/data/cams'
+  cams: '/work/datalake/watcal/cams'
 
 processor:
   ncpu: 8
