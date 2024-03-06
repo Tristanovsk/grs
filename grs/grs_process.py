@@ -44,7 +44,8 @@ class process:
         self.cams_dir = CAMS_PATH
         self.Nproc = NCPU
 
-    def execute(self, file, ofile,
+    def execute(self, l1c_prod,
+                ofile='',
                 cams_file=None,
                 surfwater_file=None,
                 dem_file=None,
@@ -56,7 +57,7 @@ class process:
                 ):
         '''
         Main program calling all GRS steps
-        :param file:  Input file to be processed
+        :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
         :param ofile: Absolute path of the output file
         :param cams_file: Absolute path for root directory of CAMS data
         :param surfwater_file: Absolute path the surfwater filr (.tif)
@@ -69,23 +70,42 @@ class process:
         :return:
         '''
 
-
+        self.ofile= ofile
+        self.snap_compliant = snap_compliant
 
         ##################################
         # Get image data
         ##################################
-        logging.info('Open raw image and compute angle parameters')
-        global l1c
-        l1c = S2.sentinel2_driver(file, band_idx=self.bandIds, resolution=resolution)
-        l1c.load_product()
-        logging.info('pass raw image as grs product object')
-        prod = product(l1c.prod)
+        if isinstance(l1c_prod, str):
+            # get extension
+            extension = l1c_prod.split('.')[-1]
+            if 'SAFE' in extension:
+                logging.info('Open raw image and compute angle parameters')
+                global l1c
+                l1c = S2.sentinel2_driver(l1c_prod, band_idx=self.bandIds, resolution=resolution)
+                l1c.load_product()
+                logging.info('pass raw image as grs product object')
+                prod = product(l1c.prod)
+                # clear memory (TODO make it work!!)
+                del l1c
+                gc.collect()
+            elif extension == 'nc':
+                logging.info('pass netcdf image as grs product object')
+                prod = product(xr.open_dataset(l1c_prod))
+            else:
+                logging.info('input file format not recognized, stop')
+                return
+        elif isinstance(l1c_prod, xr.Dataset):
+            try:
+                prod = product(l1c_prod)
+            except:
+                logging.info('input file format not recognized, stop')
+                return
+
         self.prod = prod
         wl_true = prod.raster.wl_true
 
-        # clear memory (TODO make it work!!)
-        del l1c
-        gc.collect()
+
 
         ##################################
         # Fetch optional mask products
@@ -309,8 +329,8 @@ class process:
         ######################################
         logging.info('run grs process')
         global chunk_process
-        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, width, height), np.nan, dtype=self.prod._type))
-        Rf_result = np.ctypeslib.as_ctypes(np.full((width, height), np.nan, dtype=self.prod._type))
+        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, height, width), np.nan, dtype=self.prod._type))
+        Rf_result = np.ctypeslib.as_ctypes(np.full((height, width), np.nan, dtype=self.prod._type))
         shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
         shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
 
@@ -384,8 +404,8 @@ class process:
             return
 
         window_idxs = [(i, j) for i, j in
-                       itertools.product(range(0, width, self.prod.chunk),
-                                         range(0, height, self.prod.chunk))]
+                       itertools.product(range(0, height, self.prod.chunk),
+                                         range(0, width, self.prod.chunk))]
 
         global pool
         pool = Pool(self.Nproc)
@@ -398,17 +418,22 @@ class process:
         # Write final product
         ######################################
         logging.info('construct final product')
-        xres = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
-                               BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf))),
+        self.aot_ref_raster = aot_ref_raster
+        l2_prod = xres = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
+                               BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
+                               aot550=(["y", "x"], aot_ref_raster.values)),
                           coords=dict(wl=prod.raster.wl,
                                       x=prod.raster.x,
                                       y=prod.raster.y),
                           )
 
-        l2_prod = xr.merge([aot_ref_raster, xres])
+        self.l2_prod = l2_prod
         self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
-
-        logging.info('export final product into netcdf')
-        self.l2a.to_netcdf(ofile, snap_compliant=snap_compliant)
-
         return
+
+    def write_output(self):
+        logging.info('export final product into netcdf')
+        self.l2a.to_netcdf(self.ofile,
+                           snap_compliant=self.snap_compliant)
+
+

@@ -1,3 +1,0 @@
-[lfs]
-    url = https://artifactory.cnes.fr/artifactory/api/lfs/obs2co-gitlfs
-    locksverify = false
