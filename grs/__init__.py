@@ -62,10 +62,14 @@ Version history:
 2.1.2: fix for tiles straddling Greenwich meridian
 
 2.1.3: new cams automated loading and revised parameters
+
+2.1.4: change input/output feature for grs process
+       (i.e., can be called as simple function within a script)
+       Change of output variable with addition of bitmask flags
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.3'
+__version__ = '2.1.4'
 
 
 from .acutils import aerosol, misc
