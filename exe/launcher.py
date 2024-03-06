@@ -155,16 +155,16 @@ if __name__ == '__main__':
        pass
 
     try:
-        grs_process.process().execute(file=file, outfile=outfile, wkt=wkt, 
-        altitude=data["altitude"], aerosol=data["aerosol"],
-        dem=dem, aeronet_file=data["aeronet_file"],
-        resolution=data["resolution"], aot550=data["aot550"], 
-        angstrom=data["angstrom"], unzip=unzip, untar=untar, 
-        startrow=startrow, maja_xml=data["maja_xml"],
-        waterdetect_file=data["waterdetect_file"], 
-        waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"], 
-        angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"], xblock=data["xblock"],
-        yblock=data["yblock"])
+        grs_process.process().execute(l1c_prod=file, outfile=outfile, wkt=wkt,
+                                      altitude=data["altitude"], aerosol=data["aerosol"],
+                                      dem=dem, aeronet_file=data["aeronet_file"],
+                                      resolution=data["resolution"], aot550=data["aot550"],
+                                      angstrom=data["angstrom"], unzip=unzip, untar=untar,
+                                      startrow=startrow, maja_xml=data["maja_xml"],
+                                      waterdetect_file=data["waterdetect_file"],
+                                      waterdetect_only=waterdetect_only, memory_safe=data["memory_safe"],
+                                      angleonly=data["angleonly"], grs_a=data["grs_a"], output=data["output"], xblock=data["xblock"],
+                                      yblock=data["yblock"])
     except Exception as inst:
         logging.info('-------------------------------')
         logging.info('error for file  ', inst, ' skip')

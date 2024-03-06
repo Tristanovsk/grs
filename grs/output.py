@@ -149,6 +149,11 @@ class l2a_product():
             os.remove(ofile + '_anc.nc')
 
         # export full raster data
+        # TODO check why or generalize the following approach:
+        # fix for conflicts with attrs and encoding, needs to remove 'grid_mapping' from input attrs
+        self.l2_prod.sza.attrs=''
+        self.l2_prod.surfwater.attrs=''
+
         self.l2_prod.to_netcdf(ofile + '.nc', encoding=encoding)
 
         # self.l2_prod.close()

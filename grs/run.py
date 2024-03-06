@@ -86,7 +86,9 @@ def main():
                  file + ', output file:' + outfile +
                  f', cams_file:{cams_file}' +
                  ', resolution:' + str(resolution))
-    process().execute(file, outfile,
+    process_ = process()
+    process_.execute(file,
+                      ofile = outfile,
                       cams_file=cams_file,
                       resolution=resolution,
                       scale_aot=scale_aot,
@@ -95,6 +97,8 @@ def main():
                       allpixels=allpixels,
                       surfwater_file=surfwater_file,
                       snap_compliant=snap_compliant)
+    process_.write_output()
+
     return
 
 
