@@ -17,7 +17,7 @@ import matplotlib
 #matplotlib.use('TkAgg')
 
 from esasnappy import ProductData, ProductIO
-from grs import info,utils, acutils, auxdata
+from grs import info,utils, acutils, AuxData
 import issues.lut_interpol.read_lut as read_lut
 
 #file='/sat_data/satellite/sentinel2/L1C/31TFJ/S2A_MSIL1C_20201004T104031_N0209_R008_T31TFJ_20201004T125253.SAFE'
@@ -33,7 +33,7 @@ print('Get sensor auxiliary data')
 _utils = utils()
 
 sensor = _utils.get_sensor(file)
-sensordata = auxdata.sensordata(sensor)
+sensordata = AuxData.sensordata(sensor)
 resolution = sensordata.resolution
 indband = sensordata.indband
 
@@ -49,7 +49,7 @@ product = ProductIO.readProduct(file)
 l2h = info(product, sensordata)
 l2h.headerfile = file
 #l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
-l2h.product = _utils.resampler(l2h.product, resolution=resolution)
+l2h.Product = _utils.resampler(l2h.Product, resolution=resolution)
 
 
 ##################################
@@ -57,7 +57,7 @@ l2h.product = _utils.resampler(l2h.product, resolution=resolution)
 ##################################
 l2h.get_bands(l2h.band_names)
 l2h.print_info()
-l2h.aux = auxdata.cams()
+l2h.aux = AuxData.cams()
 l2h.get_product_info()
 
 #####################################
@@ -75,13 +75,13 @@ lutc.load_lut(l2h.lutcoarse, indband)
 
 
 
-l2h.rot = l2h.sensordata.rot
+l2h.rot = l2h.SensorData.rot
 # normalization of Cext to get spectral dependence of fine and coarse modes
 nCext_f = lutf.Cext / lutf.Cext550
 nCext_c = lutc.Cext / lutc.Cext550
 l2h.set_outfile('test.nc')
-l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.product)
-l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
+l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.Product)
+l2h.crs = str(l2h.Product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
 
         ######################################
         #      Create output l2 product

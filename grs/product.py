@@ -1,3 +1,7 @@
+'''
+Module to build GRS object from input image.
+'''
+
 import os
 
 import numpy as np
@@ -7,35 +11,35 @@ import datetime
 import logging
 from importlib.resources import files
 import yaml
-from . import auxdata, __version__, __package__
+from . import AuxData, __version__, __package__
 
 opj = os.path.join
-
 
 configfile = files(__package__) / 'config.yml'
 with open(configfile, 'r') as file:
     config = yaml.safe_load(file)
 
 
-class product():
+class Product():
     '''
+    Assign the GRS product object and attributes from L1C image raster
 
-    :param product:
-    :param aerosol:
-    :param ancillary:
-    :param output: set the unit of the retrievals:
-             * 'Lwn', normalized water-leaving radiance (in mW cm-2 sr-1 \mum-1)
-             * 'Rrs', remote sensing reflectance (in sr-1)
-             {default: 'Rrs']
     '''
 
     def __init__(self, l1c_obj=None,
                  auxdatabase='cams-global-atmospheric-composition-forecasts',
                  output='Rrs'):
+        '''
+        Set the metadata of GRS object.
+
+        :param l1c_obj: input image
+        :param auxdatabase: Deprecated
+        :param output: Deprecated
+        '''
 
         self.processor = __package__ + '_' + __version__
 
-        self.raster = l1c_obj #.prod
+        self.raster = l1c_obj  # .prod
         # TODO check why drivers sends an object for wl coordinates instead of array of int
         self.raster['wl'] = self.raster['wl'].astype(int)
         self.sensor = self.raster.attrs['satellite']
@@ -56,28 +60,27 @@ class product():
 
         self.lonmin, self.latmin, self.lonmax, self.latmax = self.raster.rio.transform_bounds(4326)
         # set longitude between 0 and 360 deg
-        self.lonmin,self.lonmax,=self.lonmin%360, self.lonmax%360
+        self.lonmin, self.lonmax, = self.lonmin % 360, self.lonmax % 360
         self.xmin, self.ymin, self.xmax, self.ymax = self.raster.rio.bounds()
 
         self.wl = self.raster.wl
         self.central_wavelength = self.raster.wl_true.values
 
         # correct for bug with VZA == Inf
-        self.raster['vza']=self.raster.vza.where(self.raster.vza < 88)
+        self.raster['vza'] = self.raster.vza.where(self.raster.vza < 88)
         self.vza_mean = self.raster.vza.mean()
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
         # surfwater object:
-        surfwater= xr.ones_like(self.raster.bands.isel(wl=0,drop=True).squeeze().astype(np.int8))
+        surfwater = xr.ones_like(self.raster.bands.isel(wl=0, drop=True).squeeze().astype(np.int8))
         surfwater.name = 'surfwater'
         self.raster['surfwater'] = surfwater
 
-
         # TODO remove or harmonize with landsat
-        self.U =  self.raster.attrs['REFLECTANCE_CONVERSION_U']
+        self.U = self.raster.attrs['REFLECTANCE_CONVERSION_U']
         # convert into mW cm-2 um-1
-        self.solar_irradiance = xr.DataArray( self.raster.solar_irradiance / 10,
+        self.solar_irradiance = xr.DataArray(self.raster.solar_irradiance / 10,
                                              coords={'wl': self.wl},
                                              attrs={
                                                  'description': 'extraterrestrial solar irradiance from satellite metadata',
@@ -118,8 +121,6 @@ class product():
         # self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
         self.water_vapor_transmittance_file = files('grs.data.lut.gases').joinpath('water_vapor_transmittance.nc')
         self.load_auxiliary_data()
-
-
 
         # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
         self.rrs = False
@@ -169,6 +170,11 @@ class product():
         self.maja_masks = np.concatenate([self.clm_masks, self.mg2_masks])
 
     def load_auxiliary_data(self):
+        '''
+        Load look-up tables data for gas absorption and backgroud transmittance
+
+        :return:
+        '''
 
         # get LUT
         self.gas_lut = xr.open_dataset(self.abs_gas_file)
@@ -180,6 +186,7 @@ class product():
 
     def set_outfile(self, file):
         '''
+        Set name (path) of outputimage
 
         :param file:
         :return:
@@ -188,6 +195,7 @@ class product():
 
     def set_aeronetfile(self, file):
         '''
+        Deprecated
 
         :param file:
         :return:
@@ -196,7 +204,10 @@ class product():
 
     def get_flag(self, product, flag_name):
         '''
-        get binary flag raster `flag_name` from `product`
+        Deprecated: obsolete solution now handled by s2driver module
+
+        Get binary flag raster `flag_name` from `product`
+
         :param product: ProductIO object
         :param flag_name: name of the flag to be loaded
         :return:
@@ -218,9 +229,16 @@ class product():
                                           units="m")
                                       )
 
-    def mu_N(self,sza, vza, azi):
+    def mu_N(self, sza, vza, azi):
         '''
-        self.azi: azimuth in rad for convention azi=180 when sun-sensenor in oppositioon
+        Compute the normal angle to wave slopes that produce sunglint.
+        Warning: azi: azimuth in rad for convention azi=180 when sun-sensenor in oppositioon
+
+        :param sza: solar zenith angle in degree
+        :param vza: viewing zenith angle in degree
+        :param azi: relative azimuth bewteen sun and sensor
+        :return:
+
         :return: cosine of normal angle to sunglint wave facets
         '''
         vzar = np.radians(vza)
@@ -231,11 +249,22 @@ class product():
         # ensure similar shape as inputs
         return xmu_N.transpose('wl', 'y', 'x')
 
-    def p_slope(self,sza, vza, azi, sigma2=0.02):
+    def p_slope(self, sza, vza, azi, sigma2=0.02):
+        '''
+        Compute propability of wave slopes producing sunglint.
+
+        :param sza: solar zenith angle in degree
+        :param vza: viewing zenith angle in degree
+        :param azi: relative azimuth bewteen sun and sensor
+        :param sigma2: mean square slope of the wave slope distribution
+        :return:
+        '''
+
         cosN = self.mu_N(sza, vza, azi)
         thetaN = np.arccos(cosN)
         # stats == 'cm_iso':
         # TODO check consitency between sigma2 and formulation
         # Pdist_ = 1. / (np.pi *2.* sigma2) * np.exp(-1./2 * np.tan(thetaN) ** 2 / sigma2)
         xp_slope = 1. / (np.pi * sigma2) * np.exp(- np.tan(thetaN) ** 2 / sigma2) / cosN ** 4
+
         return xp_slope.transpose('wl', 'y', 'x')

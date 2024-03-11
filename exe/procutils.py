@@ -144,7 +144,7 @@ class multi_process:
 
             try:
                 from grs import grs_process
-                grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
+                grs_process.Process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
                                               dem=True, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
                                               startrow=startrow, allpixels=allpixels, angleonly=angleonly)
@@ -170,11 +170,11 @@ class multi_process:
 
         from grs import grs_process
 
-        grs_process.process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
+        grs_process.Process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
                                       dem=dem, aeronet_file=aeronet_file, resolution=resolution,
                                       maja_xml=maja_xml, waterdetect_file=waterdetect_file,
                                       aot550=aot550, angstrom=angstrom, memory_safe=mem_safe,
-                                       allpixels=allpixels, angleonly=angleonly)
+                                      allpixels=allpixels, angleonly=angleonly)
 
         # here sys.exit instead of "return" to terminate and close snappy and free memory
         sys.exit()

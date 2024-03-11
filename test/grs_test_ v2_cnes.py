@@ -18,7 +18,7 @@ import xarray as xr
 import logging
 
 from s2driver import driver_S2_SAFE as S2
-from grs import product, acutils, cams_product, l2a_product
+from grs import Product, acutils, CamsProduct, L2aProduct
 from grs.fortran.grs import main_algo as grs_solver
 
 opj = os.path.join
@@ -42,7 +42,7 @@ if not os.path.exists(file_nc):
     l1c = S2.s2image(file, band_idx=bandIds, resolution=resolution)
     print(l1c.crs)
     l1c.load_product()
-    prod = product(l1c.prod)
+    prod = Product(l1c.prod)
     encoding = {'bands': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768},
                 'vza': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
                 'raa': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -9999},
@@ -51,7 +51,7 @@ if not os.path.exists(file_nc):
     l1c.prod.close()
 
 else:
-    prod = product(xr.open_dataset(file_nc))
+    prod = Product(xr.open_dataset(file_nc))
 
 ##################################
 # Fetch optional mask products
@@ -66,7 +66,7 @@ else:
 ##################################
 # prod.get_cams()
 
-cams = cams_product(prod,cams_file=cams_file)
+cams = CamsProduct(prod, cams_file=cams_file)
 cams.plot_params()
 
 ##################################
@@ -97,7 +97,7 @@ lutc.load_lut(prod.lutcoarse, prod.sensordata.indband)
 ####################################
 #    absorbing gases correction
 ####################################
-gas_trans = acutils.gaseous_transmittance(prod,cams)
+gas_trans = acutils.GaseousTransmittance(prod, cams)
 Tg_raster = gas_trans.get_gaseous_transmittance()
 Tg_raster_coarse = gas_trans.Tg_tot_coarse
 
@@ -196,7 +196,7 @@ aot550 = xr.DataArray(aot550pix,coords={'y':raster.y,'x':raster.x},name='aot550'
 brdfg  = xr.DataArray(brdfpix,coords={'y':raster.y,'x':raster.x},name='BRDFg')
 l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
 
-l2a = l2a_product(prod,l2_prod,cams,gas_trans)
+l2a = L2aProduct(prod, l2_prod, cams, gas_trans)
 l2a.to_netcdf(opj(odir,ofile))
 
 

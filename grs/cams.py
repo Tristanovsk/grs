@@ -1,3 +1,8 @@
+'''
+Module dedicated to handle CAMS data with link to Copernicus API.
+'''
+
+
 import os, sys
 
 import numpy as np
@@ -14,14 +19,15 @@ import cdsapi
 opj = os.path.join
 
 
-class cams_product:
+class CamsProduct:
     '''
-    Unit Conversion
-    PWC (Precipitable Water Content), Grib Unit [kg/m^2]
-    MSL (Mean Sea Level pressure),    Grib Unit [Pa]
-    OZO (Ozone),                      Grib Unit [kg/m^2]
+    Unit Conversion:
 
-    calculation for Ozone according to R. Richter (20/1/2016):
+    - PWC (Precipitable Water Content), Grib Unit [kg/m^2]
+    - MSL (Mean Sea Level pressure),    Grib Unit [Pa]
+    - OZO (Ozone),                      Grib Unit [kg/m^2]
+
+    Calculation for Ozone according to R. Richter (20/1/2016):
     ----------------------------------------------------------
     GRIB_UNIT = [kg/m^2]
     standard ozone column is 300 DU (Dobson Units),
@@ -46,6 +52,14 @@ class cams_product:
                  type='forecast',
                  suffix=''
                  ):
+        '''
+
+        :param prod: l1c product from modeul product.prod
+        :param cams_file:
+        :param dir:
+        :param type:
+        :param suffix:
+        '''
 
         self.prod = prod
         self.date = prod.time
@@ -90,6 +104,11 @@ class cams_product:
             self.filepath = opj(self.dir, self.file)
 
     def cams_download(self):
+        '''
+        Autodownload from CAMS api of the cams netcdf data for the region-of-interest of the input image.
+
+        :return:
+        '''
 
         c = cdsapi.Client()
 
@@ -110,6 +129,11 @@ class cams_product:
         return
 
     def load(self):
+        '''
+        Lazy loading and then resmapling of the CAMS data for the region and date of interest.
+
+        :return:
+        '''
 
         # set geographic extents
         xmin, ymin, xmax, ymax = self.prod.rio.bounds()
@@ -201,6 +225,13 @@ class cams_product:
                                   'tcco', 'tc_ch4', 'tcno2', 'gtco3',
                                   'tcwv', 'u10', 'v10'],
                     **kwargs):
+        '''
+        Function to plot the cams data extracted for date and region of interest.
+
+        :param params: parameters to plot
+        :param kwargs: kwargs for matplotlib plotting
+        :return: fig, axs
+        '''
 
         Nrows = (len(params) + 4) // 4
         fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
