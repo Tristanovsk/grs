@@ -94,7 +94,7 @@ def _multiplicate(arrwl, raster, arresult):
     return arresult
 
 
-class aerosol:
+class Aerosol:
     '''
     aerosol parameters and parameterizations
     '''
@@ -148,13 +148,17 @@ class aerosol:
         return self.fcoef
 
 
-class cams_params:
+class CamsParams:
     def __init__(self, name, resol):
         self.name = name
         self.resol = resol
 
 
-class gases():
+class Gases():
+    '''
+     Intermediate class to set parameters for absorbing gases.
+    '''
+
     def __init__(self):
         # atmosphere auxiliary data
         # TODO get them from CAMS
@@ -166,11 +170,14 @@ class gases():
         self.coef_abs_scat = 0.3
 
 
-class gaseous_transmittance(gases):
+class GaseousTransmittance(Gases):
+    '''
+    Class containing functions to compute rasters of the direct transmittance of the absorbing gases.
+    '''
 
     def __init__(self, prod, cams):
 
-        gases.__init__(self)
+        Gases.__init__(self)
         self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds()
         self.prod = prod
         self.cams = cams
@@ -181,12 +188,17 @@ class gaseous_transmittance(gases):
         self.pressure = cams.raster.sp * 1e-2
         self.coef_abs_scat = 0.3
         self.Tg_tot_coarse = None
-        self.cams_gases = {'ch4': cams_params('tc_ch4', 4),
-                           'no2': cams_params('tcno2', 7),
-                           'o3': cams_params('gtco3', 4),
-                           'h2o': cams_params('tcwv', 1), }
+        self.cams_gases = {'ch4': CamsParams('tc_ch4', 4),
+                           'no2': CamsParams('tcno2', 7),
+                           'o3': CamsParams('gtco3', 4),
+                           'h2o': CamsParams('tcwv', 1), }
 
     def Tgas_background(self):
+        '''
+        Compute direct transmittance for background absorbing gases: $CO,\ O_2,\ O_4$
+
+        :return:
+        '''
         gl = self.gas_lut
         pressure = self.pressure.round(1)
         self.ot_air = (gl.co + self.coef_abs_scat * gl.co2 +
@@ -218,7 +230,16 @@ class gaseous_transmittance(gases):
         return Tg_raster.interp(pressure=pressure).drop_vars(['pressure'])
 
     def Tgas(self, gas_name):
+        '''
+        Compute hyperspectral transmittance for a given absorbing gas and
+        convolve it with the spectral respnse functions of the sattelite sensor.
 
+        :param gas_name: name of the absorbing gas, choose between:
+            - 'h2o'
+            - 'o3'
+            - n2o'
+        :return: Gaseous transmittance for satellite bands
+        '''
         renorm = 1.
         if gas_name == 'h2o':
             renorm = 0.4
@@ -253,6 +274,11 @@ class gaseous_transmittance(gases):
         return Tg_raster.interp(tc=rounded)
 
     def get_gaseous_optical_thickness(self):
+        '''
+        Get gaseous optival thickness from total column integrated concentration.
+        :return:
+        '''
+
         gas_lut = self.gas_lut
 
         ot_o3 = gas_lut.o3 * self.to3c
@@ -264,6 +290,10 @@ class gaseous_transmittance(gases):
         self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
 
     def get_gaseous_transmittance(self):
+        '''
+        Get the final total gaseous transmittance.
+        :return:
+        '''
         Tg_tot = self.Tgas('ch4') * self.Tgas('no2') * \
                  self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
 
@@ -283,7 +313,10 @@ class gaseous_transmittance(gases):
         return
 
     def get_gaseous_transmittance_old(self):
-
+        '''
+        Obsolete function
+        :return:
+        '''
         self.get_gaseous_optical_thickness()
         wl_ref = self.gas_lut.wl  # .values
         SRF_hr = self.SRF.interp(wl_hr=wl_ref.values)
@@ -302,6 +335,14 @@ class gaseous_transmittance(gases):
         self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})
 
     def other_gas_correction(self, raster_name='masked_raster', variable='Rtoa_masked'):
+        '''
+        Correct for transmittance of high altitude gases
+        (i.e., no coupling with low atmosphere scattering)
+
+        :param raster_name:
+        :param variable:
+        :return:
+        '''
         raster = self.__dict__[raster_name]
         attrs = raster[variable].attrs
         if attrs.__contains__('other_gas_correction'):
@@ -315,6 +356,13 @@ class gaseous_transmittance(gases):
         raster[variable].attrs['other_gas_correction'] = True
 
     def water_vapor_correction(self, raster_name='coarse_masked_raster', variable='Rtoa_masked'):
+        '''
+        Correct for water vapor transmittance.
+
+        :param raster_name:
+        :param variable:
+        :return:
+        '''
         raster = self.__dict__[raster_name]
         attrs = raster[variable].attrs
         if attrs.__contains__('water_vapor_correction'):
@@ -330,6 +378,12 @@ class gaseous_transmittance(gases):
         raster[variable].attrs['water_vapor_correction'] = True
 
     def get_wv_transmittance_raster(self, tcwv_raster):
+        '''
+        Get transmittance raster for correction of the image.
+
+        :param tcwv_raster:
+        :return:
+        '''
         tcwv_vals = tcwv_raster.tcwv.round(1)
         tcwvs = np.unique(tcwv_vals)
         tcwvs = tcwvs[~np.isnan(tcwvs)]
@@ -338,7 +392,7 @@ class gaseous_transmittance(gases):
         self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
 
 
-class misc:
+class Misc:
     '''
     Miscelaneous utilities
     '''

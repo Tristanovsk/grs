@@ -1,14 +1,22 @@
+'''
+Module to set output product and format.
+'''
 import os
+import numpy as np
 import xarray as xr
 import logging
 
 
-class l2a_product():
-    def __init__(self, prod, l2_prod, cams, gas_trans):
+class L2aProduct():
+    '''
+    Create and handle L2A object
+    '''
+    def __init__(self, prod, l2_prod, cams, gas_trans,dem):
         self.prod = prod
         self.l2_prod = l2_prod
         self.cams = cams
         self.gas_trans = gas_trans
+        self.dem = dem
         self.ancillary = None
         self.wl_cirrus_band = 1375
         self.wl_wv_band = 945
@@ -16,6 +24,11 @@ class l2a_product():
         self.construct_l2a()
 
     def construct_l2a(self):
+        '''
+        Construct rioxarray from raster data and metadata as attributes.
+
+        :return:
+        '''
         logging.info('construct l2a')
         native_raster = self.prod.raster
         # first get attributes from native product
@@ -52,8 +65,16 @@ class l2a_product():
         ndwi = native_raster.ndwi
         ndwi_swir = native_raster.ndwi_swir
 
+        # ------------------
+        # adding digital elevation model to output
+        dem =self.dem
+        # add empty DEM in raster
+        if dem is None:
+            dem = xr.full_like(self.l2_prod['sza'], np.nan, dtype=np.float32)
+            dem.name = 'dem'
+
         # final merge
-        self.l2_prod = xr.merge([self.l2_prod, wvband, cirrus, ndwi, ndwi_swir, native_raster.surfwater])
+        self.l2_prod = xr.merge([self.l2_prod, native_raster.flags_l1c,dem,native_raster.surfwater])
         self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y', inplace=True)
         self.l2_prod.rio.write_coordinate_system(inplace=True)
         self.l2_prod.rio.write_crs(inplace=True)
@@ -66,6 +87,7 @@ class l2a_product():
     def to_netcdf(self, output_path, snap_compliant=False):
         '''
         Create output product dimensions, variables, attributes, flags....
+
         :return:
         '''
         logging.info('export into encoded netcdf')
@@ -77,15 +99,10 @@ class l2a_product():
                        "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'BRDFg': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
                       "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'wv_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768, "zlib": True,
-                        "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'cirrus_band': {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3, '_FillValue': -32768,
-                            "zlib": True,
-                            "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'ndwi': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
+
+            'dem': {'dtype': 'int16', 'scale_factor': 0.00001,'add_offset': 1000, '_FillValue': -32768, "zlib": True,
                      "complevel": complevel, 'grid_mapping': 'spatial_ref'},
-            'ndwi_swir': {'dtype': 'int16', 'scale_factor': 0.0001, '_FillValue': -32768, "zlib": True,
-                          "complevel": complevel, 'grid_mapping': 'spatial_ref'},
+
             'surfwater': {'dtype': 'int8',  "complevel": complevel, "zlib": True, 'grid_mapping': 'spatial_ref'},
             'vza': {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -32768, "zlib": True, "complevel": complevel,
                     'grid_mapping': 'spatial_ref'},
@@ -93,6 +110,7 @@ class l2a_product():
                     "complevel": complevel, 'grid_mapping': 'spatial_ref'},
             'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768,
                     "complevel": complevel, 'grid_mapping': 'spatial_ref'},
+            'flags_l1c': {"complevel": complevel, 'grid_mapping': 'spatial_ref'}
         }
 
         if snap_compliant:
