@@ -2,12 +2,13 @@
 command to download images from a datasheet list
 '''
 
-import os, sys
-import re
-import pandas as pd
-import glob
 import datetime
 import multiprocessing
+import os
+import re
+import sys
+
+import pandas as pd
 
 # sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])

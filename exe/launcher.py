@@ -1,21 +1,22 @@
 from grs import class_logger
 from grs import grs_process
-from pathlib import Path
 import yaml
 import sys, os
 import netCDF4 as nc
 import geopandas as gpd
 import logging
-from datetime import datetime
+
+import yaml
 
 sys.path.extend([os.path.abspath(__file__)])
 from procutils import misc
-misc=misc()
+
+misc = misc()
 
 def rename_file(file, outfile, outdir):
 
     if outfile == None:
-        basename=os.path.basename(file)
+        basename = os.path.basename(file)
         outfile = basename.replace('L1C', "L2GRS")
         outfile = outfile.replace('.SAFE', '').rstrip('/')
         outfile = outfile.replace('.zip', '').rstrip('/')

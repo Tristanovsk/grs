@@ -2,7 +2,6 @@
 Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)
 '''
 
-import os, sys
 import numpy as np
 import xarray as xr
 from scipy.optimize import curve_fit

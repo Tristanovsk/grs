@@ -5,12 +5,13 @@ example:
 python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
 
-import os, sys
-import numpy as np
-import pandas as pd
 import glob
+import os
+import sys
 from datetime import datetime, timedelta
 from multiprocessing import Pool
+
+import pandas as pd
 
 sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])

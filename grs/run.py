@@ -38,9 +38,11 @@ Options:
 
 '''
 
-import os, sys
-from docopt import docopt
 import logging
+import os
+import sys
+
+from docopt import docopt
 from osgeo import gdal
 
 from . import class_logger

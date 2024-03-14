@@ -1,9 +1,11 @@
 '''
 command to process images over the aeronet-oc sites
 '''
-import os, sys
-import pandas as pd
 import glob
+import os
+import sys
+
+import pandas as pd
 
 sys.path.extend([os.path.abspath(__file__)])
 #sys.path.extend(['/home/harmel/Dropbox/work/git/satellite_app/grs/exe'])

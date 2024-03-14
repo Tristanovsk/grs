@@ -3,18 +3,11 @@ Module dedicated to handle CAMS data with link to Copernicus API.
 '''
 
 
-import os, sys
-
-import numpy as np
-import pandas
-from scipy.interpolate import interp1d
-import xarray as xr
+import os
 
 import matplotlib.pyplot as plt
-
-import logging
-import calendar, datetime
-import cdsapi
+import numpy as np
+import xarray as xr
 
 opj = os.path.join
 

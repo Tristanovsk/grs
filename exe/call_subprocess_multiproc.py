@@ -1,7 +1,7 @@
-import os, sys
-import pandas as pd
 import subprocess
 from multiprocessing import Pool
+
+import pandas as pd
 
 
 def call(command):

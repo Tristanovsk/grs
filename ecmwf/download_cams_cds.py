@@ -4,11 +4,10 @@ This function download the cams data used in grs from CDS API
 The main program takes two argument : start  and end year
 """
 
-import os, sys
-
 import argparse
-from datetime import date
 import calendar
+import os
+
 import cdsapi
 
 

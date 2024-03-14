@@ -5,15 +5,17 @@ example:
 python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
 
-import os, sys
+import glob
+import os
+import subprocess
+import sys
+from datetime import datetime, timedelta
+from multiprocessing import Pool
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import glob
-from datetime import datetime, timedelta
 from osgeo import gdal
-import geopandas as gpd
-from multiprocessing import Pool
-import subprocess
 
 # CNES lib for datalake managment
 # import lxml
@@ -21,7 +23,7 @@ import subprocess
 
 sys.path.extend([os.path.abspath(__file__)])
 sys.path.extend([os.path.abspath('exe')])
-from exe.procutils import misc, multi_process
+from exe.procutils import misc
 
 opj = os.path.join
 misc = misc()

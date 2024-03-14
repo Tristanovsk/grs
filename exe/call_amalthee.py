@@ -5,17 +5,15 @@ example:
 python3 call_amalthee.py list_grs_cnes_template.csv
 '''
 
-import os, sys
-import numpy as np
-import pandas as pd
-import glob
-from datetime import datetime, timedelta
+import sys
 import time
+from datetime import datetime, timedelta
+
+import pandas as pd
+from libamalthee import Amalthee
 
 # CNES lib for datalake managment
 # import lxml
-
-from libamalthee import Amalthee
 
 
 # start_date, end_date = '2021-03-01', '2021-03-30'

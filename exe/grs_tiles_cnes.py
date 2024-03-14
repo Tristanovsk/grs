@@ -5,13 +5,14 @@ example:
 python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
 
-import os, sys
-import numpy as np
-import pandas as pd
 import glob
+import os
+import sys
 from datetime import datetime, timedelta
-from osgeo import gdal
 from multiprocessing import Pool
+
+import pandas as pd
+from osgeo import gdal
 
 # CNES lib for datalake managment
 # import lxml

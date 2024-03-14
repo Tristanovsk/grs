@@ -1,11 +1,8 @@
 '''utils module dedicated to processing of massive dataset'''
 
-import os, sys
+import os
 import re
-import numpy as np
-import pandas as pd
-import glob
-import datetime
+import sys
 
 
 class misc:
