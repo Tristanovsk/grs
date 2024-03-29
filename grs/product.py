@@ -44,7 +44,11 @@ class Product():
         self.raster['wl'] = self.raster['wl'].astype(int)
         self.sensor = self.raster.attrs['satellite']
         self.date_str = self.raster.attrs['acquisition_date']
-        self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+        if 'S2' in self.sensor:
+            self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+        else:
+            self.date = datetime.datetime.strptime(self.date_str, '%Y-%m-%d %H:%M:%S')
+
         if not 'time' in self.raster.coords:
             self.raster = self.raster.assign_coords({'time': self.date})
 
@@ -78,13 +82,14 @@ class Product():
         self.raster['surfwater'] = surfwater
 
         # TODO remove or harmonize with landsat
-        self.U = self.raster.attrs['REFLECTANCE_CONVERSION_U']
+        # self.U = self.raster.attrs['REFLECTANCE_CONVERSION_U']
         # convert into mW cm-2 um-1
-        self.solar_irradiance = xr.DataArray(self.raster.solar_irradiance / 10,
-                                             coords={'wl': self.wl},
-                                             attrs={
-                                                 'description': 'extraterrestrial solar irradiance from satellite metadata',
-                                                 'units': 'mW cm-2 um-1'})
+        #self.solar_irradiance = xr.DataArray(self.raster.solar_irradiance / 10,
+        #                                     coords={'wl': self.wl},
+        #                                     attrs={
+        #                                         'description': 'extraterrestrial solar irradiance from satellite metadata',
+        #                                         'units': 'mW cm-2 um-1'})
+
         self.auxdatabase = auxdatabase
         self.output = output
 
@@ -229,7 +234,11 @@ class Product():
                                           units="m")
                                       )
 
-    def mu_N(self, sza, vza, azi):
+    def mu_N(self,
+             sza,
+             vza,
+             azi,
+             monoview=False):
         '''
         Compute the normal angle to wave slopes that produce sunglint.
         Warning: azi: azimuth in rad for convention azi=180 when sun-sensenor in oppositioon
@@ -237,7 +246,9 @@ class Product():
         :param sza: solar zenith angle in degree
         :param vza: viewing zenith angle in degree
         :param azi: relative azimuth bewteen sun and sensor
-        :return:
+        :param monoview: Set sensor viewing  configuration:
+            - monoview = True : same viewing angles for all the spectral bands
+            - monoview = False : viewing angles depend on spectral band (e.g. Sentinel-2 images)
 
         :return: cosine of normal angle to sunglint wave facets
         '''
@@ -246,10 +257,19 @@ class Product():
         szar = np.radians(sza)
         cos_alpha = np.cos(azir) * np.sin(vzar) * np.sin(szar) + np.cos(vzar) * np.cos(szar)
         xmu_N = (np.cos(szar) + np.cos(vzar)) / np.sqrt(2 * (1 + cos_alpha))
-        # ensure similar shape as inputs
-        return xmu_N.transpose('wl', 'y', 'x')
+        if monoview:
+            xmu_N = xmu_N.transpose('y', 'x')
+        else:
+            # ensure similar shape as inputs
+            xmu_N = xmu_N.transpose('wl', 'y', 'x')
+        return xmu_N
 
-    def p_slope(self, sza, vza, azi, sigma2=0.02):
+    def p_slope(self,
+                sza,
+                vza,
+                azi,
+                sigma2=0.02,
+                monoview=False):
         '''
         Compute propability of wave slopes producing sunglint.
 
@@ -257,14 +277,21 @@ class Product():
         :param vza: viewing zenith angle in degree
         :param azi: relative azimuth bewteen sun and sensor
         :param sigma2: mean square slope of the wave slope distribution
+        :param monoview: Set sensor viewing  configuration:
+            - monoview = True : same viewing angles for all the spectral bands
+            - monoview = False : viewing angles depend on spectral band (e.g. Sentinel-2 images)
+
         :return:
         '''
 
-        cosN = self.mu_N(sza, vza, azi)
+        cosN = self.mu_N(sza, vza, azi,monoview=monoview)
         thetaN = np.arccos(cosN)
         # stats == 'cm_iso':
         # TODO check consitency between sigma2 and formulation
         # Pdist_ = 1. / (np.pi *2.* sigma2) * np.exp(-1./2 * np.tan(thetaN) ** 2 / sigma2)
         xp_slope = 1. / (np.pi * sigma2) * np.exp(- np.tan(thetaN) ** 2 / sigma2) / cosN ** 4
-
-        return xp_slope.transpose('wl', 'y', 'x')
+        if monoview:
+            xp_slope = xp_slope.transpose('y', 'x')
+        else:
+            xp_slope = xp_slope.transpose('wl', 'y', 'x')
+        return xp_slope

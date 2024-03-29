@@ -2,7 +2,6 @@
 Main module to GRS process L1C images.
 '''
 
-
 import os
 
 import importlib_resources
@@ -20,7 +19,7 @@ import itertools
 
 from s2driver import driver_S2_SAFE as S2
 
-from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking
+from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
 
 opj = os.path.join
 
@@ -192,7 +191,15 @@ class Process:
         self.prod = prod
         wl_true = prod.raster.wl_true
 
+        ##################################
+        # Set sensor specifications
+        ##################################
+        # TODO check evolution concerning viewing angles computation for Lansdat, now in monoview mode
 
+        if 'S2' in prod.sensor:
+            _R_ = Rasterization(monoview=False)
+        else:
+            _R_ = Rasterization(monoview=True)
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
@@ -454,23 +461,23 @@ class Process:
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
 
             # construct wl,y,x raster for Rayleigh optical thickness
-            _rot_raster = acutils._multiplicate(_rot, _pressure_, arr_tmp)
+            _rot_raster = _R_._multiplicate(_rot, _pressure_, arr_tmp)
 
             # get LUT values
-            _Rdiff = acutils._interp_Rlut(szas, _sza.values,
-                                          vzas, _vza.values,
-                                          azis, _azi.values,
-                                          aot_refs, _aot_ref,
-                                          Nwl, Ny, Nx, Rdiff_lut.values)
+            _Rdiff = _R_.interp_Rlut(szas, _sza.values,
+                                      vzas, _vza.values,
+                                      azis, _azi.values,
+                                      aot_refs, _aot_ref,
+                                      Nwl, Ny, Nx, Rdiff_lut.values)
 
-            _Rray = acutils._interp_Rlut_rayleigh(szas, _sza.values,
-                                                  vzas, _vza.values,
-                                                  azis, _azi.values,
-                                                  Nwl, Ny, Nx, Rray.values)
+            _Rray = _R_.interp_Rlut_rayleigh(szas, _sza.values,
+                                              vzas, _vza.values,
+                                              azis, _azi.values,
+                                              Nwl, Ny, Nx, Rray.values)
 
             _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
 
-            _aot = acutils._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
+            _aot = _R_._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
 
             #  correction for diffuse light
             Rcorr = _band_rad.values - _Rdiff
@@ -479,9 +486,9 @@ class Process:
             Tdir = acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
 
             # vTotal transmittance (for Ed and Lu)
-            Tdown = acutils._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
-                                         Ttot_Ed_.values)
-            Tup = acutils._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
+            Tdown = _R_._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
+                                     Ttot_Ed_.values)
+            Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
             Ttot_du = Tdown * Tup
 
             Rf = np.full((len(self.prod.iwl_swir), Ny, Nx), np.nan, dtype=self.prod._type)
@@ -491,7 +498,7 @@ class Process:
             Rf[Rf < 0] = 0.
             Rf = np.min(Rf, axis=0)
             Rf_tmp[iy:yc, ix:xc] = Rf
-            Rf = acutils._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
             Rf = Tdir * _p_slope_ * Rf
 
             Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi) / Ttot_du
@@ -516,7 +523,7 @@ class Process:
         l2_prod = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
                                   BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
                                   aot550=(["y", "x"], aot_ref_raster.values)),
-                                  coords=dict(wl=prod.raster.wl,
+                             coords=dict(wl=prod.raster.wl,
                                          x=prod.raster.x,
                                          y=prod.raster.y),
                              )

@@ -144,7 +144,7 @@ class CamsProduct:
 
         # lazy loading
         cams = xr.open_dataset(self.filepath, decode_cf=True,
-                               chunks={'time': 1, 'x': 500, 'y': 500})
+                               chunks={'time': -1, 'x': 500, 'y': 500})
         cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         # check if image is on Greenwich meridian and adapt longitude convention
         if cams.longitude.min()>=0:
@@ -156,7 +156,7 @@ class CamsProduct:
                 lonmin, lonmax, = lonmin % 360, lonmax % 360
 
         # slicing
-        cams = cams.sel(longitude=slice(lonmin - 1, lonmax + 1)).compute()
+        cams = cams.sel(longitude=slice(lonmin - 1, lonmax + 1)).load()
 
         # rename "time" variable to avoid conflicts
         # cams = cams.rename({'time':'time_cams'})

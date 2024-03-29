@@ -11,7 +11,7 @@ class L2aProduct():
     '''
     Create and handle L2A object
     '''
-    def __init__(self, prod, l2_prod, cams, gas_trans,dem):
+    def __init__(self, prod, l2_prod, cams, gas_trans,dem=None):
         self.prod = prod
         self.l2_prod = l2_prod
         self.cams = cams
@@ -43,9 +43,15 @@ class L2aProduct():
         cams_raster = self.cams.raster.rename({"x": "xc", "y": "yc"})
         transmittance_raster = self.gas_trans.Tg_tot_coarse.rename({"x": "xc", "y": "yc", 'wl': 'wl_all'})
 
-        self.l2_prod['vza'] = native_raster.vza.mean('wl')
+        # save geometrie angles, take mean values if angle depends on spectral bands
+        def angle_extraction(angle):
+            if 'wl' in angle.coords:
+                return angle.mean('wl')
+            else:
+                return angle
+        self.l2_prod['vza'] = angle_extraction(native_raster.vza)
         self.l2_prod['sza'] = native_raster.sza
-        self.l2_prod['raa'] = native_raster.raa.mean('wl')
+        self.l2_prod['raa'] = angle_extraction(native_raster.raa)
 
         # add cirrus and water vapor bands
         if self.prod.bcirrus:

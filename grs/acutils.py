@@ -12,86 +12,154 @@ from numba import njit, prange
 
 @njit()
 def _getnearpos(array, value):
+    '''
+    Get index of nearest neighbor in an array.
+
+    :param array: array to search in
+    :param value: value you want the nearest index
+    :return:
+    '''
     idx = (np.abs(array - value)).argmin()
     return idx
+class Rasterization:
+    '''
+    Class to numba compile python code with heavy loops.
+    '''
 
+    def __init__(self,
+                 monoview=False):
+        '''
+        Set compiled function for:
+            - monoview = True : same viewing angles for all the spectral bands
+            - monoview = False : viewing angles depend on spectral band (e.g. Sentinel-2 images)
 
-@njit()
-def _interp_Rlut_rayleigh(szas, _sza,
-                          vzas, _vza,
-                          azis, _azi,
-                          Nwl, Ny, Nx, lut):
-    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-    mus = np.cos(np.radians(_sza))
-    for _iy in range(Ny):
-        for _ix in range(Nx):
-            if np.isnan(_sza[_iy, _ix]):
-                continue
-            isza = _getnearpos(szas, _sza[_iy, _ix])
+        :param monoview: True or False
+        '''
+        self.monoview = monoview
+        if monoview :
+            self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh_mono
+            self.interp_Rlut =  self._interp_Rlut_mono
+        else:
+            self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh
+            self.interp_Rlut = self._interp_Rlut
 
-            for _iwl in range(Nwl):
-                iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
-                ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
-                arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
-    return arr_lut
+    @staticmethod
+    @njit()
+    def _interp_Rlut_rayleigh_mono(szas, _sza,
+                              vzas, _vza,
+                              azis, _azi,
+                              Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iazi = _getnearpos(azis, _azi[_iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
+    @staticmethod
+    @njit()
+    def _interp_Rlut_mono(szas, _sza,
+                     vzas, _vza,
+                     azis, _azi,
+                     aot_refs, _aot_ref,
+                     Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iazi = _getnearpos(azis, _azi[_iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-@njit()
-def _interp_Rlut(szas, _sza,
-                 vzas, _vza,
-                 azis, _azi,
-                 aot_refs, _aot_ref,
-                 Nwl, Ny, Nx, lut):
-    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-    mus = np.cos(np.radians(_sza))
-    for _iy in range(Ny):
-        for _ix in range(Nx):
-            if np.isnan(_sza[_iy, _ix]):
-                continue
-            isza = _getnearpos(szas, _sza[_iy, _ix])
-            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
-            for _iwl in range(Nwl):
-                iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
-                ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
-                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
-    return arr_lut
+    @staticmethod
+    @njit()
+    def _interp_Rlut_rayleigh(szas, _sza,
+                              vzas, _vza,
+                              azis, _azi,
+                              Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
 
+                for _iwl in range(Nwl):
+                    iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                    ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-@njit()
-def _interp_Tlut(szas, _sza,
-                 aot_refs, _aot_ref,
-                 Nwl, Ny, Nx, lut):
-    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-    for _iy in range(Ny):
-        for _ix in range(Nx):
-            if np.isnan(_sza[_iy, _ix]):
-                continue
-            isza = _getnearpos(szas, _sza[_iy, _ix])
-            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
-            for _iwl in range(Nwl):
-                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza]
-    return arr_lut
+    @staticmethod
+    @njit()
+    def _interp_Rlut(szas, _sza,
+                     vzas, _vza,
+                     azis, _azi,
+                     aot_refs, _aot_ref,
+                     Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                    ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
+    @staticmethod
+    @njit()
+    def _interp_Tlut(szas, _sza,
+                     aot_refs, _aot_ref,
+                     Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza]
+        return arr_lut
 
-@njit()
-def _interp_aotlut(aot_refs, _aot_ref,
-                   Nwl, Ny, Nx, lut):
-    arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+    @staticmethod
+    @njit()
+    def _interp_aotlut(aot_refs, _aot_ref,
+                       Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
 
-    for _iy in range(Ny):
-        for _ix in range(Nx):
-            iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
-            for _iwl in range(Nwl):
-                arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl]
-    return arr_lut
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl]
+        return arr_lut
 
-
-@njit()
-def _multiplicate(arrwl, raster, arresult):
-    Nwl, Ny, Nx = arresult.shape
-    for iwl in range(Nwl):
-        arresult[iwl] = arrwl[iwl] * raster
-    return arresult
+    @staticmethod
+    @njit()
+    def _multiplicate(arrwl, raster, arresult):
+        Nwl, Ny, Nx = arresult.shape
+        for iwl in range(Nwl):
+            arresult[iwl] = arrwl[iwl] * raster
+        return arresult
 
 
 class Aerosol:
@@ -195,7 +263,7 @@ class GaseousTransmittance(Gases):
 
     def Tgas_background(self):
         '''
-        Compute direct transmittance for background absorbing gases: $CO,\ O_2,\ O_4$
+        Compute direct transmittance for background absorbing gases: :math:`CO,\ O_2,\ O_4`
 
         :return:
         '''

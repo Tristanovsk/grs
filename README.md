@@ -57,10 +57,15 @@ spectral value of $`\tau _a`$.
 1. First install s2driver from https://gitlab.cnes.fr/waterquality/io/s2driver following the README instruction.
 You should have now a conda environment called grs_cnes up.
 
-2. First clone the repository:
+2. First clone the repository (from https or ssh):
 ```commandline
 git clone https://gitlab.cnes.fr/waterquality/grs2.git
 ```
+or
+```commandline
+git clone git@gitlab.cnes.fr:waterquality/grs2.git
+```
+
 And go on Branch v2.1
 ```commandline
 git checkout v2.1

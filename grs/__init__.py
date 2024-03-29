@@ -98,13 +98,17 @@ Version history
       (i.e., can be called as simple function within a script)
     - Change of output variable with addition of bitmask flags
 
+2.1.5:
+    - repackaging of some classes
+    - include Landsat 8 and 9 imageries
+
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.4'
+__version__ = '2.1.5'
 
 
-from .acutils import Aerosol, Misc
+from .acutils import Aerosol, Misc, Rasterization
 from .cams import CamsProduct
 from .auxdata import SensorData, AuxData
 from .product import Product
