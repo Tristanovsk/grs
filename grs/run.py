@@ -40,7 +40,7 @@ import os, sys
 from docopt import docopt
 import logging
 from . import __package__, __version__
-from .grs_process import process
+from .grs_process import Process
 
 
 def main():
@@ -48,6 +48,7 @@ def main():
     print(args)
 
     file = args['<input_file>']
+
     lev = args['--levname']
     cams_file = args['--cams_file']
     surfwater_file = args['--surfwater']
@@ -86,7 +87,9 @@ def main():
                  file + ', output file:' + outfile +
                  f', cams_file:{cams_file}' +
                  ', resolution:' + str(resolution))
-    process_ = process()
+
+
+    process_ = Process()
     process_.execute(file,
                       ofile = outfile,
                       cams_file=cams_file,

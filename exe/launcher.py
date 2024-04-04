@@ -155,7 +155,7 @@ if __name__ == '__main__':
        pass
 
     try:
-        grs_process.process().execute(l1c_prod=file, outfile=outfile, wkt=wkt,
+        grs_process.Process().execute(l1c_prod=file, outfile=outfile, wkt=wkt,
                                       altitude=data["altitude"], aerosol=data["aerosol"],
                                       dem=dem, aeronet_file=data["aeronet_file"],
                                       resolution=data["resolution"], aot550=data["aot550"],

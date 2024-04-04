@@ -1,5 +1,5 @@
 '''
-Main program
+Main module to GRS process L1C images.
 '''
 
 import os
@@ -19,7 +19,7 @@ import itertools
 
 from s2driver import driver_S2_SAFE as S2
 
-from . import product, acutils, auxdata, cams_product, l2a_product
+from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
 
 opj = os.path.join
 
@@ -34,7 +34,7 @@ CAMS_PATH = config['path']['trans_lut']
 NCPU = config['processor']['ncpu']
 
 
-class process:
+class Process:
     ''' '''
 
     def __init__(self):
@@ -43,6 +43,7 @@ class process:
         self.trans_lut_file = opj(GRSDATA, TRANSLUT)
         self.cams_dir = CAMS_PATH
         self.Nproc = NCPU
+        self.pressure_ref = 101500.
 
     def execute(self, l1c_prod,
                 ofile='',
@@ -57,10 +58,11 @@ class process:
                 ):
         '''
         Main program calling all GRS steps
+
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
         :param ofile: Absolute path of the output file
         :param cams_file: Absolute path for root directory of CAMS data
-        :param surfwater_file: Absolute path the surfwater filr (.tif)
+        :param surfwater_file: Absolute path the surfwater file (.tif)
         :param dem_file: Absolute path of the DEM geotiff file
         :param resolution: pixel resolution in meter
         :param scale_aot: scaling factor applied to CAMS aod550 raster
@@ -68,9 +70,93 @@ class process:
         :param allpixels: if True process all pixels (no water pixel masking)
         :param snap_compliant: Output format compliant with SNAP software for practical analysis
         :return:
+
+        Examples
+        --------
+
+        >>> import grs
+        >>> file ='$YOUR_PATH_TO_IMG/S2A_MSIL1C_20181019T102031_N0500_R065_T30PYT_20230815T043850.SAFE'
+        >>> tile = file.split('_')[-2][1:]
+        >>> dem_file = '$YOUR_PATH_TO_DEM/COP-DEM_GLO-30-DGED_'+tile+'.tif'
+        >>> cams_file = '$YOUR_PATH_TO_CAMS/cams_forecast_2018-10.nc'
+        >>> process_ = grs.Process()
+
+        In this example, you force the aerosol model to be 'DESE_rh70' for desert dust
+
+        >>> process_.execute(file_nc,
+        ...                 cams_file=cams_file,
+        ...                 surfwater_file=None,
+        ...                 dem_file=dem_file,
+        ...                 scale_aot=1,
+        ...                 opac_model='DESE_rh70')
+        INFO:root:pass netcdf image as grs product object
+        INFO:root:get CAMS auxilliary data
+        INFO:root:flagging from l1c data
+        INFO:root:cloud masking with s2cloudless
+        INFO:root:land masking
+        INFO:root:cirrus masking
+        INFO:root:high swir masking
+        INFO:root:loading look-up tables
+        INFO:root:compute gaseous transmittance from cams data
+        INFO:root:correct for gaseous absorption
+        INFO:root:compute spectral index (e.g., NDWI)
+        INFO:root:apply water masking
+        INFO:root:lut interpolation
+        INFO:root:selected aerosol model: DESE_rh70
+        INFO:root:scaling aot by: 1
+        INFO:root:set final parameters
+        INFO:root:compute surface pressure from dem
+        INFO:root:run grs process
+        INFO:root:success
+        INFO:root:construct final product
+        INFO:root:construct l2a
+
+        >>> process_.l2a.l2_prod
+
+        <xarray.Dataset>
+        Dimensions:      (wl: 11, y: 1818, x: 2523)
+        Coordinates:
+          * wl           (wl) int64 443 490 560 665 705 740 783 842 865 1610 2190
+            time         datetime64[ns] 2018-10-19T10:20:31.024000
+          * x            (x) float64 7.299e+05 7.299e+05 7.3e+05 ... 7.803e+05 7.804e+05
+          * y            (y) float64 1.3e+06 1.3e+06 1.3e+06 ... 1.264e+06 1.264e+06
+            band         int64 1
+            spatial_ref  int64 0
+        Data variables:
+            Rrs          (wl, y, x) float32 nan nan nan nan nan ... nan nan nan nan nan
+            BRDFg        (y, x) float32 nan nan nan nan nan nan ... nan nan nan nan nan
+            aot550       (y, x) float32 0.187 0.187 0.187 0.187 ... 0.1929 0.1929 0.1929
+            vza          (y, x) float32 6.489 6.489 6.483 6.483 ... 2.13 2.125 2.125
+            sza          (y, x) float32 nan nan nan nan nan nan ... nan nan nan nan nan
+            raa          (y, x) float32 332.5 332.5 332.5 332.5 ... 290.0 289.9 289.9
+            flags_l1c    (y, x) int64 184 56 184 184 184 184 ... 160 160 160 160 160 160
+            dem          (y, x) float32 282.9 282.7 282.5 282.3 ... 237.3 237.3 237.4
+            surfwater    (y, x) int8 1 1 1 1 1 1 1 1 1 1 1 1 ... 1 1 1 1 1 1 1 1 1 1 1 1
+        Attributes: (12/71)
+            long_name:                           CA BLUE GREEN RED VRE_1 VRE_2 VRE_3 ...
+            constellation:                       Sentinel-2
+            constellation_id:                    S2
+            product_path:                        /data/satellite/Sentinel-2/L1C/30PYT...
+            product_name:                        S2A_MSIL1C_20181019T102031_N0500_R06...
+            product_filename:                    S2A_MSIL1C_20181019T102031_N0500_R06...
+            ...                                  ...
+            ndwi_threshold:                      0.0
+            vis_swir_index_threshold:            0.0
+            hcld_threshold:                      0.003
+            dirdata:                             /data/grs/grsdata
+            abs_gas_file:                        /home/harmel/Dropbox/Dropbox/work/gi...
+            water_vapor_transmittance_file:      /home/harmel/Dropbox/Dropbox/work/gi...
+
+        You can either further play with the l2a xarray or save it into netcdf:
+
+        >>> process_.ofile='./name_of_your_output_l2a_netcdf'
+        >>> process_.write_output()
+        INFO:root:export final product into netcdf
+        INFO:root:export into encoded netcdf
+
         '''
 
-        self.ofile= ofile
+        self.ofile = ofile
         self.snap_compliant = snap_compliant
 
         ##################################
@@ -85,19 +171,19 @@ class process:
                 l1c = S2.sentinel2_driver(l1c_prod, band_idx=self.bandIds, resolution=resolution)
                 l1c.load_product()
                 logging.info('pass raw image as grs product object')
-                prod = product(l1c.prod)
+                prod = Product(l1c.prod)
                 # clear memory (TODO make it work!!)
                 del l1c
                 gc.collect()
             elif extension == 'nc':
                 logging.info('pass netcdf image as grs product object')
-                prod = product(xr.open_dataset(l1c_prod))
+                prod = Product(xr.open_dataset(l1c_prod))
             else:
                 logging.info('input file format not recognized, stop')
                 return
         elif isinstance(l1c_prod, xr.Dataset):
             try:
-                prod = product(l1c_prod)
+                prod = Product(l1c_prod)
             except:
                 logging.info('input file format not recognized, stop')
                 return
@@ -105,24 +191,26 @@ class process:
         self.prod = prod
         wl_true = prod.raster.wl_true
 
-
-
         ##################################
-        # Fetch optional mask products
+        # Set sensor specifications
         ##################################
-        # TODO (if necessary) activate MAJA reader and flag retrieval
-        # prod.get_flags()
+        # TODO check evolution concerning viewing angles computation for Lansdat, now in monoview mode
+
+        if 'S2' in prod.sensor:
+            _R_ = Rasterization(monoview=False)
+        else:
+            _R_ = Rasterization(monoview=True)
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
         logging.info('get CAMS auxilliary data')
         if cams_file:
-            cams = cams_product(prod.raster, cams_file=cams_file)
+            cams = CamsProduct(prod.raster, cams_file=cams_file)
         else:
             tile = prod.raster.attrs['tile']
             cams_dir = os.path.join(self.cams_dir, tile)
-            cams = cams_product(prod.raster, dir=cams_dir, suffix='_' + tile)
+            cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
         cams.load()
 
         # Cox-Munk isotropic mean square slope (sigma2)
@@ -132,6 +220,14 @@ class process:
         # get mean values to set LUT
         _sigma2 = sigma2.mean().values
         _wind = wind.mean().values
+
+        ##################################
+        # Pixel classification
+        # Generate the flags_l1c raster
+        ##################################
+        logging.info('flagging from l1c data')
+        masking_ = Masking(self.prod.raster)
+        self.prod.raster = masking_.process(output="prod")
 
         if surfwater_file:
             prod.raster.surfwater = rio.open_rasterio(surfwater_file).squeeze()
@@ -171,7 +267,7 @@ class process:
         # remove URBAN aerosol model for this example
         models = aero_lut.drop_sel(model='URBA_rh70').model.values
 
-        _auxdata = auxdata(wl=wl_true)  # wl=masked.wl)
+        _auxdata = AuxData(wl=wl_true)  # wl=masked.wl)
         sunglint_eps = _auxdata.sunglint_eps  # ['mean'].interp(wl=wl_true)
         rot = _auxdata.rot
 
@@ -179,7 +275,7 @@ class process:
         #    absorbing gases correction
         ####################################
         logging.info('compute gaseous transmittance from cams data')
-        gas_trans = acutils.gaseous_transmittance(prod, cams)
+        gas_trans = acutils.GaseousTransmittance(prod, cams)
         Tg_raster = gas_trans.get_gaseous_transmittance()
 
         logging.info('correct for gaseous absorption')
@@ -240,13 +336,14 @@ class process:
             idx = np.abs((cams_aot_mean / cams_aot_ref_mean) - lut_aod).sum('wl').argmin()
             opac_model = aero_lut.sel(model=models).model.values[idx]
 
-        logging.info('selected aerosol model: '+opac_model)
+        logging.info('selected aerosol model: ' + opac_model)
         # slice LUT
         aero_lut_ = aero_lut.sel(wind=_wind, method='nearest').sel(model=opac_model)
 
         # get AOT550 raster (TODO replace with optimal estimation)
         logging.info('scaling aot by: ' + str(scale_aot))
         aot_ref_raster = cams_aot_ref * scale_aot
+        aot_ref_raster = aot_ref_raster.astype(np.float32)
 
         # get unique values for angles and further lut interpolation
         ang_resol = {'sza': 0.1, 'vza': 0.1, 'raa_round': 0}
@@ -305,12 +402,12 @@ class process:
         height = prod.height
         Nwl = len(prod.raster.wl_to_process)
 
-        pressure_ref = 101500.
+        pressure_ref = self.pressure_ref
 
         _sunglint_eps = sunglint_eps.values
 
         # prepare aerosol parameters
-        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop('wl')
+        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop('wl').astype(np.float32)
         aot_ref_raster.name = 'aot550'
         _rot = rot.values
 
@@ -318,10 +415,14 @@ class process:
         if dem_file:
             logging.info('compute surface pressure from dem')
             dem = xr.open_dataset(dem_file).squeeze().interp(y=prod.raster.y, x=prod.raster.x, method='nearest')
-            dem = dem.rename_vars({'band_data': 'elevation'})
+            dem = dem.rename_vars({'band_data': 'dem'})
+            dem.dem.attrs['long_name'] = 'digital elevation model'
+            dem.dem.attrs['units'] = 'm'
+            dem.dem.attrs['source'] = dem_file
             presure_msl = cams.raster.msl.interp(y=prod.raster.y, x=prod.raster.x)
-            _pressure = (presure_msl * (1. - 0.0065 * dem.elevation / 288.15) ** 5.255).values
+            _pressure = (presure_msl * (1. - 0.0065 * dem.dem / 288.15) ** 5.255).values
         else:
+            dem = None
             _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
 
         ######################################
@@ -354,40 +455,40 @@ class process:
             _azi = (180. - _raa) % 360
             _vza = prod.raster.vza[:, iy:yc, ix:xc]
             _vza_mean = np.mean(_vza, axis=0).values
-            _air_mass_ = acutils.misc.air_mass(_sza, _vza).values
+            _air_mass_ = acutils.Misc.air_mass(_sza, _vza).values
             _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2).values
             _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
 
             # construct wl,y,x raster for Rayleigh optical thickness
-            _rot_raster = acutils._multiplicate(_rot, _pressure_, arr_tmp)
+            _rot_raster = _R_._multiplicate(_rot, _pressure_, arr_tmp)
 
             # get LUT values
-            _Rdiff = acutils._interp_Rlut(szas, _sza.values,
-                                          vzas, _vza.values,
-                                          azis, _azi.values,
-                                          aot_refs, _aot_ref,
-                                          Nwl, Ny, Nx, Rdiff_lut.values)
+            _Rdiff = _R_.interp_Rlut(szas, _sza.values,
+                                      vzas, _vza.values,
+                                      azis, _azi.values,
+                                      aot_refs, _aot_ref,
+                                      Nwl, Ny, Nx, Rdiff_lut.values)
 
-            _Rray = acutils._interp_Rlut_rayleigh(szas, _sza.values,
-                                                  vzas, _vza.values,
-                                                  azis, _azi.values,
-                                                  Nwl, Ny, Nx, Rray.values)
+            _Rray = _R_.interp_Rlut_rayleigh(szas, _sza.values,
+                                              vzas, _vza.values,
+                                              azis, _azi.values,
+                                              Nwl, Ny, Nx, Rray.values)
 
             _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
 
-            _aot = acutils._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
+            _aot = _R_._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
 
             #  correction for diffuse light
             Rcorr = _band_rad.values - _Rdiff
 
             # direct transmittance up/down
-            Tdir = acutils.misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
+            Tdir = acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
 
             # vTotal transmittance (for Ed and Lu)
-            Tdown = acutils._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
-                                         Ttot_Ed_.values)
-            Tup = acutils._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
+            Tdown = _R_._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
+                                     Ttot_Ed_.values)
+            Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
             Ttot_du = Tdown * Tup
 
             Rf = np.full((len(self.prod.iwl_swir), Ny, Nx), np.nan, dtype=self.prod._type)
@@ -397,7 +498,7 @@ class process:
             Rf[Rf < 0] = 0.
             Rf = np.min(Rf, axis=0)
             Rf_tmp[iy:yc, ix:xc] = Rf
-            Rf = acutils._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
             Rf = Tdir * _p_slope_ * Rf
 
             Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi) / Ttot_du
@@ -419,21 +520,19 @@ class process:
         ######################################
         logging.info('construct final product')
         self.aot_ref_raster = aot_ref_raster
-        l2_prod = xres = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
-                               BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
-                               aot550=(["y", "x"], aot_ref_raster.values)),
-                          coords=dict(wl=prod.raster.wl,
-                                      x=prod.raster.x,
-                                      y=prod.raster.y),
-                          )
+        l2_prod = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
+                                  BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
+                                  aot550=(["y", "x"], aot_ref_raster.values)),
+                             coords=dict(wl=prod.raster.wl,
+                                         x=prod.raster.x,
+                                         y=prod.raster.y),
+                             )
 
         self.l2_prod = l2_prod
-        self.l2a = l2a_product(prod, l2_prod, cams, gas_trans)
+        self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
         return
 
     def write_output(self):
         logging.info('export final product into netcdf')
         self.l2a.to_netcdf(self.ofile,
                            snap_compliant=self.snap_compliant)
-
-

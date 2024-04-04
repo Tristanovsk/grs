@@ -3,7 +3,7 @@ import datetime as dt
 from dateutil.relativedelta import relativedelta
 import matplotlib
 
-from grs import auxdata
+from grs import AuxData
 
 lat, lon = 47, -1.5
 
@@ -21,7 +21,7 @@ for date in datespan(dt.datetime(2019,7,17,12),dt.datetime.now()+relativedelta(m
     print(date)
     cams_file=os.path.join(cams_folder, date.strftime('%Y-%m') + '_month_'+type+'.nc')
 
-    cams = auxdata.cams()
+    cams = AuxData.cams()
     cams.load_cams_data(cams_file, date, data_type=type)
 
 def wktbox(center_lon, center_lat, width=1, height=1):
