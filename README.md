@@ -1,6 +1,8 @@
 # GRS algorithm package
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
+Please check [grs documentation](./docs/build/html/index.html)
+
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
 handle and correct for the direct sunlight reflected by the water surface and potentially reaching the sensor (i.e.,
@@ -9,9 +11,8 @@ processor consists of three main modules to correct for (i) gaseous absorption, 
 reflection by the air-water interface and (iii) the sunglint signal in order to retrieve the water-leaving signal at the
 water surface level. 
 
-First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed with the SMAC
-software (Rahman & Dedieu, 1994) based on parameterizations of the gas transmittances from full radiative transfer
-computations using 6S (Kotchenova et al., 2006). Atmospheric pressure and gas concentrations are retrieved from bilinear
+First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed based on parameterizations of the gas transmittances from full radiative transfer
+computations using lidRadtran v2.0.4. Atmospheric pressure and gas concentrations are retrieved from bilinear
 interpolation within the grid of the Copernicus Atmosphere Monitoring Service dataset (CAMS). Then, spectral radiances
 are corrected for the diffuse sky light and its reflection on the air-water interface. For each pixel, the diffuse
 radiance component is reconstructed for the given viewing geometry (i.e., sensor and Sun viewing angles and relative
@@ -56,10 +57,15 @@ spectral value of $`\tau _a`$.
 1. First install s2driver from https://gitlab.cnes.fr/waterquality/io/s2driver following the README instruction.
 You should have now a conda environment called grs_cnes up.
 
-2. First clone the repository:
+2. First clone the repository (from https or ssh):
 ```commandline
 git clone https://gitlab.cnes.fr/waterquality/grs2.git
 ```
+or
+```commandline
+git clone git@gitlab.cnes.fr:waterquality/grs2.git
+```
+
 And go on Branch v2.1
 ```commandline
 git checkout v2.1

@@ -1,3 +1,7 @@
+'''
+Module dedicated to auxiliary data management.
+'''
+
 import os
 import logging
 import numpy as np
@@ -11,20 +15,18 @@ from importlib.resources import files
 
 opj = os.path.join
 
-
 # ------------------------
 # set threshold for masking
-O2band_cloud = [0.08,0.12]
+O2band_cloud = [0.08, 0.12]
 high_nir_threshold = 0.0275
 hcld_threshold = 0.003  # (0.2 % check http://www.cesbio.ups-tlse.fr/multitemp/?p=12894)
 
 # -----------------
 # set values bracketing the Normalized Difference Water Index for rough land/water masking
 NDWI_nir_threshold = [-0.03, 1.]
-NDWI_swir_threshold = [0.12,2.]
+NDWI_swir_threshold = [0.12, 2.]
 
 # NDWI_nir_threshold = [-0., 1.]
-
 
 
 # ******************************************************************************************************
@@ -34,13 +36,19 @@ sunglint_eps_file = files('grs.data.aux').joinpath('mean_rglint_small_angles_vza
 rayleigh_file = files('grs.data.aux').joinpath('rayleigh_bodhaine.txt')
 
 
-class auxdata():
+class AuxData():
+    '''
+    Class to load auxiliary data:
+
+    - Rayleigh optical thickness
+    - Factor for the spectral variation of the Fresnel reflectance to be applied to sunglint calculation.
+    '''
+
     def __init__(self, wl=None):
         # load data from raw files
 
         self.sunglint_eps = pd.read_csv(sunglint_eps_file, sep='\s+', index_col=0).to_xarray()
         self.rayleigh()
-
 
         # reproject onto desired wavelengths
         if wl is not None:
@@ -63,8 +71,10 @@ class auxdata():
         self.rot = data.set_index('wl').to_xarray().rot
 
 
-class sensordata:
-    '''Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.
+class SensorData:
+    ''' TODO Obsolete module: needs to be removed
+
+    Dictionnaries of the auxilliary data, functions to be applied for the sensors data to process.
 
     Arguments:
         * ``sensor`` -- Name of the sensor to process:
@@ -84,9 +94,8 @@ class sensordata:
     '''
 
     def __init__(self, sensor):
-        
         from . import config as cfg
-        
+
         self.sensor = sensor
 
         ##################################
@@ -136,7 +145,7 @@ class sensordata:
                     'ndwi_nir_conf': [2, 8, NDWI_nir_threshold],
                     'ndwi_swir_conf': [8, 9, NDWI_swir_threshold],
                     'high_nir': [8, high_nir_threshold],
-                    'O2band':['B9', *O2band_cloud],
+                    'O2band': ['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -162,7 +171,7 @@ class sensordata:
                     'ndwi_nir_conf': [2, 8, NDWI_nir_threshold],
                     'ndwi_swir_conf': [8, 9, NDWI_swir_threshold],
                     'high_nir': [8, high_nir_threshold],
-                    'O2band':['B9', *O2band_cloud],
+                    'O2band': ['B9', *O2band_cloud],
                     'l1_flags': ['opaque_clouds_10m', 'cirrus_clouds_10m', '']
                     },
 
@@ -186,7 +195,7 @@ class sensordata:
                           'ndwi_nir_conf': [1, 3, NDWI_nir_threshold],
                           'ndwi_swir_conf': [3, 4, NDWI_swir_threshold],
                           'high_nir': [3, high_nir_threshold],
-                          'O2band':None,
+                          'O2band': None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -209,7 +218,7 @@ class sensordata:
                           'ndwi_nir_conf': [1, 3, NDWI_nir_threshold],
                           'ndwi_swir_conf': [3, 5, NDWI_swir_threshold],
                           'high_nir': [3, high_nir_threshold],
-                          'O2band':None,
+                          'O2band': None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -232,7 +241,7 @@ class sensordata:
                           'ndwi_nir_conf': [1, 3, NDWI_nir_threshold],
                           'ndwi_swir_conf': [3, 5, NDWI_swir_threshold],
                           'high_nir': [3, high_nir_threshold],
-                          'O2band':None,
+                          'O2band': None,
                           'l1_flags': ['', '', '']
                           },
 
@@ -256,7 +265,7 @@ class sensordata:
                           'ndwi_nir_conf': [2, 5, NDWI_nir_threshold],
                           'ndwi_swir_conf': [5, 6, NDWI_swir_threshold],
                           'high_nir': [5, high_nir_threshold],
-                          'O2band':None,
+                          'O2band': None,
                           'l1_flags': ['cloud_confidence_high', 'cirrus_confidence_high',
                                        'cloud_shadow_confidence_high']
                           }
@@ -283,161 +292,3 @@ class sensordata:
         self.cirrus = info['cirrus']
         self.high_nir = info['high_nir']
         self.O2band = info['O2band']
-
-
-
-class Aeronet:
-    '''Contains functions for importing AERONET measurements.
-    Modifified from:
-       Copyright 2012 Robin Wilson and contributors listed in the CONTRIBUTORS file.'''
-
-    @classmethod
-    def import_aeronet_data(cls, data, filename, time):
-        '''Imports data from an AERONET data file to a given ``aeronet`` object.
-
-        Arguments:
-          * ``data`` -- Aeronet object to store the paramaters of interest (e.g., wavelenghts, aot, ozone)
-          * ``filename`` -- The filename of the AERONET file described above
-          * ``time`` -- The date and time of the simulation you want to run, used to choose the AERONET data which is closest
-            in time. Provide this as a string in almost any format, and Python will interpret it. For example, ``'12/03/2010 15:39'``. When dates are ambiguous, the parsing routine will favour DD/MM/YY rather than MM/DD/YY.
-
-        Return value:
-          The function will return ``s`` with the ``aero_profile`` and ``aot550`` fields filled in from the AERONET data.
-
-        Notes: Beware, this function returns ``data`` from ``filename`` for the closest measurement time in the limit
-        of plus or minus 2 days from ``time``.
-        '''
-
-        # Load in the data from the file
-        # TODO read and get exact wavelengths of CIMEL sensor from the AERONET file
-        try:
-            # header = pandas.read_csv(filename, skiprows=6,header=None,nrows=1)
-            # df = pandas.read_csv(filename, skiprows=7, na_values=['N/A',-999.0], names = header.values[0].astype('str'))
-            df = pandas.read_csv(filename, skiprows=6, na_values=['N/A', -999.0])
-        except:
-            logging.error('Could not read file:', filename)
-            return False
-        # Parse the dates/times properly and set them up as the index
-        df['Date(dd-mm-yyyy)'] = df['Date(dd-mm-yyyy)'].apply(cls._to_iso_date)
-        df['timestamp'] = df.apply(lambda s: pandas.to_datetime(s['Date(dd-mm-yyyy)'] + ' ' + s['Time(hh:mm:ss)']),
-                                   axis=1)
-        df.index = pandas.DatetimeIndex(df.timestamp)
-
-        given_time = time  # dateutil.parser.parse(time, dayfirst=True)
-
-        df['timediffs'] = np.abs(df.timestamp - given_time).astype('timedelta64[ns]')
-        # keep data within + or - 2 days
-        df = df[df.timediffs < pandas.Timedelta('2 day')]
-
-        # Get the AOT data
-        data.wavelengths, data.aot550, data.aot = cls._get_aot(df)
-        logging.info(data.aot550, data.aot)
-        data.o3du, data.no2du = cls._get_gaseous_abs(df)
-
-        return
-
-    @classmethod
-    def _get_model_columns(cls, df):
-        refr_ind = []
-        refi_ind = []
-        wvs = []
-        radii_ind = []
-        radii = []
-
-        for i, col in enumerate(df.columns):
-            if 'REFR' in col:
-                refr_ind.append(i)
-            elif 'REFI' in col:
-                refi_ind.append(i)
-                wv = int(col.replace('REFI', '').replace('(', '').replace(')', ''))
-                wvs.append(wv)
-            else:
-                try:
-                    rad = float(col)
-                except:
-                    continue
-                radii_ind.append(i)
-                radii.append(rad)
-
-        return refr_ind, refi_ind, wvs, radii_ind, radii
-
-    @classmethod
-    def _to_iso_date(cls, s):
-        '''Converts the date which is, bizarrely, given as dd:mm:yyyy to the ISO standard
-        of yyyy-mm-dd.'''
-        spl = s.split(':')
-        spl.reverse()
-
-        return '-'.join(spl)
-
-    @classmethod
-    def _get_aot(cls, df):
-        '''Gets the AOT data from the AERONET dataset, choosing the AOT at the closest time
-        to the time requested, and choosing the AOT measurement at the wavelength closest
-        to 550nm.'''
-        inds = []
-        aot = []
-        for i, col in enumerate(df.columns):
-            if 'AOD_' in col:
-                inds.append(i)
-
-        inds.append(len(df.columns) - 1)
-        inds = np.array(inds)
-
-        # Remove the columns for AOT wavelengths with no data
-        aot_df = df.ix[:, inds]
-
-        aot_df = aot_df.dropna(axis=1, how='all')
-        aot_df = aot_df.dropna(axis=0, how='any')
-
-        wvs = []
-        inds = []
-        logging.info(aot_df.columns)
-        for i, col in enumerate(aot_df.columns):
-            if 'AOD_' in col:
-                wvs.append(int(col.replace('AOD_', '').replace('nm', '')))
-                inds.append(i)
-
-        wvs = np.array(wvs)
-        inds = np.array(inds)
-        logging.info(wvs)
-
-        # wv_diffs = np.abs(wvs - 550)
-        # logging.info(wv_diffs)
-        # aot_col_index = wv_diffs.argmin()
-        #
-        # if (wv_diffs[aot_col_index] > 70):
-        #     warnings.warn('Using AOT measured more than 70nm away from 550nm as nothing closer available - could cause inaccurate results.')
-
-        rowind = aot_df.timediffs.idxmin()
-        # aot550 = aot_df.ix[rowind, aot_col_index]
-        aot = aot_df.ix[rowind, range(len(wvs))]
-        aot_interp = interp1d(wvs, aot)
-        aot550 = aot_interp(550.0)
-        return wvs, aot550, np.array(pandas.to_numeric(aot))
-
-    @classmethod
-    def _get_gaseous_abs(cls, df):
-        'ozone in dobson'
-        o3col = []
-        no2col = []
-        inds = []
-        for i, col in enumerate(df.columns):
-            if 'Ozone' in col:
-                o3col = i
-            elif 'NO2' in col:
-                no2col = i
-
-        inds = len(df.columns) - 1
-        inds = np.array([o3col, no2col, inds])
-
-        # Remove the columns for AOT wavelengths with no data
-        df = df.ix[:, inds]
-        df = df.dropna(axis=1, how='all')
-        df = df.dropna(axis=0, how='any')
-
-        rowind = df.timediffs.idxmin()
-
-        o3du = df.ix[rowind, 0]
-        no2du = df.ix[rowind, 1]
-        return 1000 * o3du, 1000 * no2du
