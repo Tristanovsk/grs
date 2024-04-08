@@ -1,0 +1,16 @@
+
+
+# Doc
+
+ipython  # workaround
+sphinx-book-theme
+sphinx-copybutton
+myst-nb
+myst-parser
+linkify-it-py
+
+jupyter
+matplotlib
+cartopy
+hvplot
+geoviews
