@@ -14,3 +14,5 @@ matplotlib
 cartopy
 hvplot
 geoviews
+
+-e .
