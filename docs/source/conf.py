@@ -46,8 +46,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
-    #'myst_nb',
-    #'IPython.sphinxext.ipython_console_highlighting'
+    'myst_nb',
+    'IPython.sphinxext.ipython_console_highlighting'
 
 ]
 ## Include Python objects as they appear in source files
