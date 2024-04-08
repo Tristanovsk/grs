@@ -12,7 +12,7 @@
 #
 import os
 import sys
-import grs
+
 
 sys.path.insert(0, os.path.abspath('../..'))
 
@@ -26,7 +26,7 @@ author = 'T. Harmel'
 # The full version, including alpha/beta/rc tags
 
 # The short X.Y version.
-version = grs.__version__
+version = '2.1.5'
 # The full version, including alpha/beta/rc tags.
 release = version
 
