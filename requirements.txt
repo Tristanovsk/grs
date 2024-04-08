@@ -1,6 +1,5 @@
 
 eoreader>=0.21.1
-Cartopy>=0.22.0
 cdsapi>=0.6.1
 
 rasterio
