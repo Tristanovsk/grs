@@ -1,3 +1,4 @@
+importlib_resources
 
 eoreader>=0.21.1
 cdsapi>=0.6.1
@@ -11,4 +12,3 @@ pyproj
 
 rioxarray>=0.15.0
 s2cloudless>=1.7.1
-
