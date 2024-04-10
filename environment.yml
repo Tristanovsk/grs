@@ -1,4 +1,4 @@
-name: grs_cnes
+name: grs
 channels:
   - conda-forge
   - defaults

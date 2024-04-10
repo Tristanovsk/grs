@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 import logging
 
-from grs.s2driver import driver_S2_SAFE as S2
+from grs.GRSdriver import driver_S2_SAFE as S2
 from grs import Product, acutils, CamsProduct, L2aProduct
 from grs.fortran.grs import main_algo as grs_solver
 
