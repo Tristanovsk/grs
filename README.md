@@ -54,7 +54,7 @@ spectral value of $`\tau _a`$.
 ## Getting Started
 
 ## Installation on TREX (CNES)
-1. First install s2driver from https://gitlab.cnes.fr/waterquality/io/s2driver following the README instruction.
+1. First install GRSdriver from https://gitlab.cnes.fr/waterquality/io/GRSdriver following the README instruction.
 You should have now a conda environment called grs_cnes up.
 
 2. First clone the repository (from https or ssh):
@@ -250,17 +250,17 @@ qsub -q qdev -I -l walltime=4:00:00
 See examples in [exe](exe).
 
 ## Compile Docker image locally
-First and foremost, you must have the coresponding version of s2driver at the same level as grs2.
+First and foremost, you must have the coresponding version of GRSdriver at the same level as grs2.
 You should also make sure that the grsdata folder is full (it is a LTS).
 Eventually, you must get Dockerfile out of grs2 folder to have a structure as diplayed below.
 
 head_folder  
  ├grs2  
- ├s2driver  
+ ├GRSdriver  
  └Dockerfile
 
 Note that anything in this folder tree will be added to the Docker build context, so make it light.
-You might consider removing the notebooks and all useless files and directories from the grs2 & s2driver
+You might consider removing the notebooks and all useless files and directories from the grs2 & GRSdriver
 folders to make the resulting image as light as possible (.git, illustration, notebook...).
 
 Once all those requirements are met, you can compile the Docker image using the following command:

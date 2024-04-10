@@ -209,7 +209,7 @@ class Product():
 
     def get_flag(self, product, flag_name):
         '''
-        Deprecated: obsolete solution now handled by s2driver module
+        Deprecated: obsolete solution now handled by GRSdriver module
 
         Get binary flag raster `flag_name` from `product`
 

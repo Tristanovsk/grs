@@ -102,10 +102,12 @@ Version history
     - repackaging of some classes
     - include Landsat 8 and 9 imageries
 
+2.1.6:
+    - use GRSdriver instead s2driver
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.5'
+__version__ = '2.1.6'
 
 
 from .acutils import Aerosol, Misc, Rasterization
