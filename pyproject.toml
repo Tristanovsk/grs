@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
-keywords = ["Sentinel-2","Landsat-8","Landsat-9","driver", "EO satellite"]
+keywords = ["Sentinel-2","Landsat-8","Landsat-9","atmospheric correction", "EO satellite"]
 dependencies = [
     "eoreader >= 0.21.1",
   ]
@@ -25,7 +25,7 @@ requires-python = ">=3.9"
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/Tristanovsk/GRSdriver"
+Homepage = "https://github.com/Tristanovsk/grs"
 
 #[project.scripts]
 #realpython = "GRSdriver.__main__:main"

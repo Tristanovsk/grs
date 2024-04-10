@@ -21,6 +21,8 @@ def _getnearpos(array, value):
     '''
     idx = (np.abs(array - value)).argmin()
     return idx
+
+
 class Rasterization:
     '''
     Class to numba compile python code with heavy loops.
@@ -36,9 +38,9 @@ class Rasterization:
         :param monoview: True or False
         '''
         self.monoview = monoview
-        if monoview :
+        if monoview:
             self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh_mono
-            self.interp_Rlut =  self._interp_Rlut_mono
+            self.interp_Rlut = self._interp_Rlut_mono
         else:
             self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh
             self.interp_Rlut = self._interp_Rlut
@@ -46,9 +48,9 @@ class Rasterization:
     @staticmethod
     @njit()
     def _interp_Rlut_rayleigh_mono(szas, _sza,
-                              vzas, _vza,
-                              azis, _azi,
-                              Nwl, Ny, Nx, lut):
+                                   vzas, _vza,
+                                   azis, _azi,
+                                   Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
         mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
@@ -65,10 +67,10 @@ class Rasterization:
     @staticmethod
     @njit()
     def _interp_Rlut_mono(szas, _sza,
-                     vzas, _vza,
-                     azis, _azi,
-                     aot_refs, _aot_ref,
-                     Nwl, Ny, Nx, lut):
+                          vzas, _vza,
+                          azis, _azi,
+                          aot_refs, _aot_ref,
+                          Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
         mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
