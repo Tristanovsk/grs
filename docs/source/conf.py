@@ -26,7 +26,7 @@ author = 'T. Harmel'
 # The full version, including alpha/beta/rc tags
 
 # The short X.Y version.
-version = '2.1.5'
+version = '2.1.6'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -119,7 +119,7 @@ htmlhelp_basename = "grsdoc"
 # --------------------------------
 
 nbsphinx_execute = 'never'
-jupyter_execute_notebooks = "off"
+nb_execution_mode = "off"
 
 myst_enable_extensions = [
     "amsmath",
