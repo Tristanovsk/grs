@@ -1,4 +1,4 @@
-GDAL
+
 importlib_resources
 
 cdsapi>=0.6.1
