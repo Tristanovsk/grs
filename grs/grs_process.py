@@ -17,7 +17,7 @@ from multiprocessing import Pool  # Process pool
 from multiprocessing import sharedctypes
 import itertools
 
-from s2driver import driver_S2_SAFE as S2
+from GRSdriver import driver_S2_SAFE as S2
 
 from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
 
