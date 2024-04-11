@@ -2,7 +2,7 @@
 importlib_resources
 
 cdsapi>=0.6.1
-GRSdriver >= 1.0.0
+GRSdriver >= 1.0.2
 xmltodict
 docopt
 rasterio
