@@ -118,7 +118,6 @@ htmlhelp_basename = "grsdoc"
 # For Jupyter notebook rendering
 # --------------------------------
 
-
 myst_enable_extensions = [
     "amsmath",
     "colon_fence",
