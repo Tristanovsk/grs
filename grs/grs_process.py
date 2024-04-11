@@ -168,7 +168,7 @@ class Process:
             if 'SAFE' in extension:
                 logging.info('Open raw image and compute angle parameters')
                 global l1c
-                l1c = S2.sentinel2_driver(l1c_prod, band_idx=self.bandIds, resolution=resolution)
+                l1c = S2.Sentinel2Driver(l1c_prod, band_idx=self.bandIds, resolution=resolution)
                 l1c.load_product()
                 logging.info('pass raw image as grs product object')
                 prod = Product(l1c.prod)
