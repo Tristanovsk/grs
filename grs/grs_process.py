@@ -1,6 +1,3 @@
-'''
-Main module to GRS process L1C images.
-'''
 
 import os
 
@@ -35,7 +32,10 @@ NCPU = config['processor']['ncpu']
 
 
 class Process:
-    ''' '''
+    '''
+    Main GRS class.
+
+    '''
 
     def __init__(self):
         self.bandIds = range(13)
@@ -56,6 +56,7 @@ class Process:
                 allpixels=False,
                 snap_compliant=False
                 ):
+
         '''
         Main program calling all GRS steps
 
@@ -112,7 +113,6 @@ class Process:
         INFO:root:construct l2a
 
         >>> process_.l2a.l2_prod
-
         <xarray.Dataset>
         Dimensions:      (wl: 11, y: 1818, x: 2523)
         Coordinates:
@@ -148,6 +148,7 @@ class Process:
             water_vapor_transmittance_file:      /home/harmel/Dropbox/Dropbox/work/gi...
 
         You can either further play with the l2a xarray or save it into netcdf:
+
 
         >>> process_.ofile='./name_of_your_output_l2a_netcdf'
         >>> process_.write_output()
