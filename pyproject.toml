@@ -26,7 +26,7 @@ where = ["."]
 "*"= ['data/lut/gases/*.nc', 'data/aux/*.txt']
 
 [tool.setuptools.exclude-package-data]
-"*" = ["build", ".gitattributes"]
+"*" = [".gitattributes"]
 
 [project.scripts]
 grs = "grs.run:main"
