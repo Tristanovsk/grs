@@ -10,8 +10,11 @@ build:
   tools:
     python: "miniconda3-4.7"
   jobs:
-    pre_create_environment:
-      - conda update --yes --quiet --name=base --channel=defaults conda
+    pre_build:
+      # Generate on-the-fly Sphinx configuration from Jupyter Book's _config.yml
+      - "jupyter-book config sphinx docs/"
+    #pre_create_environment:
+      #- conda update --yes --quiet --name=base --channel=defaults conda
 
     # You can also specify other tool versions:
     # nodejs: "20"
