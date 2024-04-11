@@ -2,7 +2,7 @@
 importlib_resources
 
 cdsapi>=0.6.1
-GRSdriver >= 1.0.2
+GRSdriver >= 1.0.3
 xmltodict
 docopt
 rasterio
@@ -11,6 +11,6 @@ numba
 numpy
 pandas>=2.0.3
 pyproj
-
+xarray
 rioxarray>=0.15.0
 s2cloudless>=1.7.1
