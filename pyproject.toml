@@ -40,6 +40,3 @@ dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
 Homepage = "https://github.com/Tristanovsk/grs"
-
-#[project.scripts]
-#realpython = "GRSdriver.__main__:main"
