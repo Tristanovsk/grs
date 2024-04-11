@@ -6,6 +6,7 @@ dependencies:
   - gdal
   - xarray
   - rioxarray
+  - pyproj
   - pip>=20.1  # pip is needed as dependency
   - pip:
     - myst-nb
@@ -17,3 +18,13 @@ dependencies:
     - geopandas
     - jupyter
     - cartopy
+    - importlib_resources
+    - cdsapi>=0.6.1
+    - GRSdriver >= 1.0.3
+    - xmltodict
+    - docopt
+    - netCDF4
+    - numba
+    - numpy
+    - pandas>=2.0.3
+    - s2cloudless>=1.7.1
