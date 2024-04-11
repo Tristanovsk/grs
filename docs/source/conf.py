@@ -118,8 +118,6 @@ htmlhelp_basename = "grsdoc"
 # For Jupyter notebook rendering
 # --------------------------------
 
-nbsphinx_execute = 'never'
-nb_execution_mode = False
 
 myst_enable_extensions = [
     "amsmath",
@@ -140,10 +138,11 @@ autodoc_default_options = {
     'show-inheritance': True,
 }
 
-
 # Notebook integration parameters
-nb_execution_mode = "cache"
-nb_execution_timeout = -1
+nbsphinx_execute = 'never'
+nb_execution_mode = "off"
+#nb_execution_mode = "cache"
+#nb_execution_timeout = -1
 
 # Manage new READTHEDOCS output mechanism
 cache_path = os.getenv('READTHEDOCS_OUTPUT')
