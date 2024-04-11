@@ -1,7 +1,6 @@
 -r ../requirements.txt
 
 # Doc
-GDAL
 ipython  # workaround
 sphinx-book-theme
 sphinx-copybutton
