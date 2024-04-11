@@ -1,6 +1,10 @@
 name: grs
 channels:
   - conda-forge
+  - default
 dependencies:
   - gdal
-
+  - pip>=20.1  # pip is needed as dependency
+  - pip:
+    - myst-nb
+    - myst-parser
