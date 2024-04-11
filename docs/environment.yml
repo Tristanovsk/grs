@@ -4,6 +4,8 @@ channels:
   - default
 dependencies:
   - gdal
+  - xarray
+  - rioxarray
   - pip>=20.1  # pip is needed as dependency
   - pip:
     - myst-nb
