@@ -28,3 +28,4 @@ dependencies:
     - numpy
     - pandas>=2.0.3
     - s2cloudless>=1.7.1
+    - eoreader
