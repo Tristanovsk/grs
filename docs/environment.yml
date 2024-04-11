@@ -8,3 +8,10 @@ dependencies:
   - pip:
     - myst-nb
     - myst-parser
+    - ipython
+    - sphinx-book-theme
+    - sphinx-copybutton
+    - linkify-it-py
+    - geopandas
+    - jupyter
+    - cartopy
