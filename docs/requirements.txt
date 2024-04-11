@@ -8,7 +8,7 @@ sphinx-copybutton
 myst-nb
 myst-parser
 linkify-it-py
-
+geopandas
 jupyter
 matplotlib
 cartopy
