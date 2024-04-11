@@ -1,7 +1,6 @@
 Advanced
 ==============
-.. toctree::
-   :maxdepth: 1
-   :caption: Experimental Landsat
 
-   grs_v2_landsat_dev
+`advanced landsat step-by-step processing <../_static/grs_v2_landsat_dev.html>`_
+
+
