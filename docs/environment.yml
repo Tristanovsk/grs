@@ -33,3 +33,4 @@ dependencies:
     - holoviews
     - datashader
     - bokeh
+    - -e ..
