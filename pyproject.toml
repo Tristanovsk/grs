@@ -4,10 +4,10 @@ requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "grs"
+name = "GRSprocessor"
 version = "2.1.6"
 description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
-readme = "README.md"
+readme = "pypi_README.rst"
 authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
 license = { file = "LICENSE" }
 classifiers = [
@@ -40,3 +40,4 @@ dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
 Homepage = "https://github.com/Tristanovsk/grs"
+Documentation = "https://grs.readthedocs.io"
