@@ -2,16 +2,16 @@
 
 # Doc
 ipython
-sphinx-book-theme
+sphinx <=7.2.6
+sphinx-book-theme<=1.1.2
 sphinx-copybutton
 myst-nb
 myst-parser
 linkify-it-py
+
 geopandas
 jupyter
 matplotlib
 cartopy
 hvplot
-geoviews
 
--e .
