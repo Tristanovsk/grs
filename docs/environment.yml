@@ -12,6 +12,7 @@ dependencies:
     - myst-nb
     - myst-parser
     - ipython
+    - pydata-sphinx-theme
     - sphinx-book-theme
     - sphinx-copybutton
     - linkify-it-py
