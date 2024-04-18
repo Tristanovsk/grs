@@ -33,4 +33,4 @@ dependencies:
     - holoviews
     - datashader
     - bokeh
-    - -r requirements-doc.txt
+    - -r requirements.txt
