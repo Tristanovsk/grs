@@ -1,4 +1,3 @@
-
 import os
 
 import importlib_resources
@@ -6,6 +5,9 @@ import yaml
 
 import numpy as np
 import xarray as xr
+
+# keep attributes through operatyion on xarray objects
+xr.set_options(keep_attrs=True)
 import rioxarray as rio
 import logging
 import gc
@@ -44,6 +46,8 @@ class Process:
         self.cams_dir = CAMS_PATH
         self.Nproc = NCPU
         self.pressure_ref = 101500.
+        self.flags_tokeep = [3]
+        self.flags_tomask = [0,1,10,16]
 
     def execute(self, l1c_prod,
                 ofile='',
@@ -129,7 +133,7 @@ class Process:
             vza          (y, x) float32 6.489 6.489 6.483 6.483 ... 2.13 2.125 2.125
             sza          (y, x) float32 nan nan nan nan nan nan ... nan nan nan nan nan
             raa          (y, x) float32 332.5 332.5 332.5 332.5 ... 290.0 289.9 289.9
-            flags_l1c    (y, x) int64 184 56 184 184 184 184 ... 160 160 160 160 160 160
+            flags    (y, x) int64 184 56 184 184 184 184 ... 160 160 160 160 160 160
             dem          (y, x) float32 282.9 282.7 282.5 282.3 ... 237.3 237.3 237.4
             surfwater    (y, x) int8 1 1 1 1 1 1 1 1 1 1 1 1 ... 1 1 1 1 1 1 1 1 1 1 1 1
         Attributes: (12/71)
@@ -224,23 +228,31 @@ class Process:
 
         ##################################
         # Pixel classification
-        # Generate the flags_l1c raster
+        # Generate the flags raster
         ##################################
         logging.info('flagging from l1c data')
-        masking_ = Masking(self.prod.raster)
-        self.prod.raster = masking_.process(output="prod")
 
         if surfwater_file:
-            prod.raster.surfwater = rio.open_rasterio(surfwater_file).squeeze()
-            prod.raster.surfwater = prod.raster.surfwater.where(prod.raster.surfwater != 255., 32).astype(np.int8)
-            prod.raster.surfwater = prod.raster.surfwater.interp(x=prod.x, y=prod.y, method='nearest')
+            logging.info('loading surfwater data file')
+            prod.raster['surfwater'] = rio.open_rasterio(surfwater_file
+                                                         ).astype(np.uint8
+                                                                  ).squeeze().interp(x=prod.x,
+                                                                                     y=prod.y,
+                                                                                     method='nearest')
             prod.raster.surfwater.name = 'surfwater'
             prod.raster.surfwater.attrs = {
                 'description': 'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
 
+        masking_ = Masking(prod.raster)
+        prod.raster = masking_.process(output="prod")
+
+        # -- clean up
+        prod.raster = prod.raster.drop_vars(["surfwater"])
+
         #####################################
         # SUBSET RASTER TO KEEP REQUESTED BANDS
         #####################################
+        # TODO check if we can remove cirrus and water vapor band from output object
         if prod.bcirrus:
             prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest')
         if prod.bwv:
@@ -288,6 +300,7 @@ class Process:
         ######################################
         # Water mask
         ######################################
+        # TODO remove ndwi export / replace this part with flags masking instead
         logging.info('compute spectral index (e.g., NDWI)')
 
         vis = prod.raster.bands.sel(wl=prod.bvis, method='nearest')
@@ -315,8 +328,6 @@ class Process:
             masked = prod.raster.bands.where(mask)
             prod.raster['bands'] = masked
             prod.raster['sza'] = prod.raster['sza'].where(mask)
-
-        self.raster = prod.raster
 
         ######################################
         # LUT preparation
@@ -431,15 +442,15 @@ class Process:
         ######################################
         logging.info('run grs process')
         global chunk_process
-        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, height, width), np.nan, dtype=self.prod._type))
-        Rf_result = np.ctypeslib.as_ctypes(np.full((height, width), np.nan, dtype=self.prod._type))
+        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, height, width), np.nan, dtype=prod._type))
+        Rf_result = np.ctypeslib.as_ctypes(np.full((height, width), np.nan, dtype=prod._type))
         shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
         shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
 
         def chunk_process(args):
             iy, ix = args
-            yc = min(height, iy + self.prod.chunk)
-            xc = min(width, ix + self.prod.chunk)
+            yc = min(height, iy + prod.chunk)
+            xc = min(width, ix + prod.chunk)
             Rrs_tmp = np.ctypeslib.as_array(shared_Rrs)
             Rf_tmp = np.ctypeslib.as_array(shared_Rf)
 
@@ -448,7 +459,7 @@ class Process:
             Nwl, Ny, Nx = _band_rad.shape
             if Ny == 0 or Nx == 0:
                 return
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=self.prod._type)
+            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=prod._type)
 
             # subsetting
             _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
@@ -466,15 +477,15 @@ class Process:
 
             # get LUT values
             _Rdiff = _R_.interp_Rlut(szas, _sza.values,
-                                      vzas, _vza.values,
-                                      azis, _azi.values,
-                                      aot_refs, _aot_ref,
-                                      Nwl, Ny, Nx, Rdiff_lut.values)
+                                     vzas, _vza.values,
+                                     azis, _azi.values,
+                                     aot_refs, _aot_ref,
+                                     Nwl, Ny, Nx, Rdiff_lut.values)
 
             _Rray = _R_.interp_Rlut_rayleigh(szas, _sza.values,
-                                              vzas, _vza.values,
-                                              azis, _azi.values,
-                                              Nwl, Ny, Nx, Rray.values)
+                                             vzas, _vza.values,
+                                             azis, _azi.values,
+                                             Nwl, Ny, Nx, Rray.values)
 
             _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
 
@@ -492,9 +503,9 @@ class Process:
             Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
             Ttot_du = Tdown * Tup
 
-            Rf = np.full((len(self.prod.iwl_swir), Ny, Nx), np.nan, dtype=self.prod._type)
+            Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
 
-            for iwl in self.prod.iwl_swir:
+            for iwl in prod.iwl_swir:
                 Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl])
             Rf[Rf < 0] = 0.
             Rf = np.min(Rf, axis=0)
@@ -506,8 +517,8 @@ class Process:
             return
 
         window_idxs = [(i, j) for i, j in
-                       itertools.product(range(0, height, self.prod.chunk),
-                                         range(0, width, self.prod.chunk))]
+                       itertools.product(range(0, height, prod.chunk),
+                                         range(0, width, prod.chunk))]
 
         global pool
         pool = Pool(self.Nproc)
@@ -517,7 +528,7 @@ class Process:
         logging.info('success')
 
         ######################################
-        # Write final product
+        # construct l2a object
         ######################################
         logging.info('construct final product')
         self.aot_ref_raster = aot_ref_raster
@@ -529,8 +540,34 @@ class Process:
                                          y=prod.raster.y),
                              )
 
+        l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
+        l2_prod = l2_prod.set_coords('central_wavelength')
+
+        ##############################################
+        # Update flags and create mask from recipe
+        ##############################################
+        # flags for negative blue/green Rrs
+        bitmask = 16
+        prod.raster['flags'] = prod.raster.flags + (((l2_prod.Rrs.sel(wl=490, method='nearest') < -0.0005) |
+                                                     (l2_prod.Rrs.sel(wl=565, method='nearest') < -0.0005)) << bitmask)
+        # add name and description
+        prod.raster.flags.attrs['flag_descriptions'][bitmask] = 'negative Rrs for blue or green bands'
+        prod.raster.flags.attrs['flag_names'][bitmask] = 'neg_rrs'
+
+        # mask from recipe
+        mask = masking_.create_mask(prod.raster.flags,
+                                    tomask=self.flags_tomask,
+                                    tokeep=self.flags_tokeep,
+                                    mask_name="mask")
+        l2_prod = xr.merge([l2_prod, mask])
+
+        ######################################
+        # Write final product
+        ######################################
+        logging.info('construct final product')
         self.l2_prod = l2_prod
         self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
+
         return
 
     def write_output(self):
