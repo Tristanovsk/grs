@@ -147,7 +147,7 @@ nb_execution_allow_errors = True
 # Manage new READTHEDOCS output mechanism
 cache_path = os.getenv('READTHEDOCS_OUTPUT')
 if cache_path is not None:
-    nb_execution_cache_path = f"{cache_path}/../docs/_build/.jupyter_cache"
+    nb_execution_cache_path = f"{cache_path}/../docs/build/.jupyter_cache"
 
 # Merge stderr and stdout
 nb_merge_streams = True
