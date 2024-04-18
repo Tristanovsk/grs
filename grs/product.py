@@ -77,9 +77,14 @@ class Product():
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
         # surfwater object:
-        surfwater = xr.ones_like(self.raster.bands.isel(wl=0, drop=True).squeeze().astype(np.int8))
+        surfwater = xr.ones_like(self.raster.bands.isel(wl=0, drop=True).squeeze().astype(np.uint8))
         surfwater.name = 'surfwater'
         self.raster['surfwater'] = surfwater
+
+        # make sure that raster are encoding in float32
+        for key in self.raster.keys():
+            if self.raster[key].dtype == "float64":
+                self.raster[key] = self.raster[key].astype(np.float32)
 
         # TODO remove or harmonize with landsat
         # self.U = self.raster.attrs['REFLECTANCE_CONVERSION_U']
