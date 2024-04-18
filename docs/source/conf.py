@@ -67,6 +67,8 @@ exclude_patterns = []
 
 
 # -- Options for HTML output -------------------------------------------------
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
@@ -125,7 +127,7 @@ myst_enable_extensions = [
     "dollarmath",
     "html_admonition",
     "html_image",
-    #"linkify",
+    "linkify",
     "replacements",
     "smartquotes",
     "substitution",
@@ -147,7 +149,7 @@ nb_execution_allow_errors = True
 # Manage new READTHEDOCS output mechanism
 cache_path = os.getenv('READTHEDOCS_OUTPUT')
 if cache_path is not None:
-    nb_execution_cache_path = f"{cache_path}/../docs/_build/.jupyter_cache"
+    nb_execution_cache_path = f"{cache_path}/../docs/build/.jupyter_cache"
 
 # Merge stderr and stdout
 nb_merge_streams = True

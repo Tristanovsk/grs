@@ -9,12 +9,6 @@ dependencies:
   - pyproj
   - pip>=20.1  # pip is needed as dependency
   - pip:
-    - myst-nb
-    - myst-parser
-    - ipython
-    - sphinx-book-theme
-    - sphinx-copybutton
-    - linkify-it-py
     - geopandas
     - jupyter
     - cartopy
@@ -33,4 +27,4 @@ dependencies:
     - holoviews
     - datashader
     - bokeh
-    - -e ..
+    - -r requirements.txt
