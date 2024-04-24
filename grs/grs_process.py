@@ -16,7 +16,7 @@ from multiprocessing import Pool  # Process pool
 from multiprocessing import sharedctypes
 import itertools
 
-from GRSdriver import driver_S2_SAFE as S2
+import GRSdriver
 
 from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
 
@@ -40,14 +40,13 @@ class Process:
     '''
 
     def __init__(self):
-        self.bandIds = range(13)
         self.lut_file = opj(GRSDATA, TOALUT)
         self.trans_lut_file = opj(GRSDATA, TRANSLUT)
         self.cams_dir = CAMS_PATH
         self.Nproc = NCPU
         self.pressure_ref = 101500.
         self.flags_tokeep = [3]
-        self.flags_tomask = [0,1,10,16]
+        self.flags_tomask = [0,1,10,13,14,18]
 
     def execute(self, l1c_prod,
                 ofile='',
@@ -170,19 +169,31 @@ class Process:
         if isinstance(l1c_prod, str):
             # get extension
             extension = l1c_prod.split('.')[-1]
-            if 'SAFE' in extension:
-                logging.info('Open raw image and compute angle parameters')
+            basename = os.path.basename(l1c_prod)
+            if extension == 'nc':
+                logging.info('pass netcdf image as grs product object')
+                prod = Product(xr.open_dataset(l1c_prod))
+            elif 'SAFE' in extension:
+                logging.info('Open L1C Sentinel 2 image and compute angle parameters')
                 global l1c
-                l1c = S2.Sentinel2Driver(l1c_prod, band_idx=self.bandIds, resolution=resolution)
+                l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
                 l1c.load_product()
                 logging.info('pass raw image as grs product object')
                 prod = Product(l1c.prod)
                 # clear memory (TODO make it work!!)
                 del l1c
                 gc.collect()
-            elif extension == 'nc':
-                logging.info('pass netcdf image as grs product object')
-                prod = Product(xr.open_dataset(l1c_prod))
+            elif ('LC09_L1' in basename) or ('LC08_L1' in basename):
+                logging.info('Open L1TP Landsat image')
+
+                l1c = GRSdriver.LandsatDriver(l1c_prod, resolution=resolution)
+                l1c.load_mask()
+                l1c.load_product()
+                logging.info('pass raw image as grs product object')
+                prod = Product(l1c.prod)
+                # clear memory (TODO make it work!!)
+                del l1c
+                gc.collect()
             else:
                 logging.info('input file format not recognized, stop')
                 return
@@ -202,9 +213,10 @@ class Process:
         # TODO check evolution concerning viewing angles computation for Lansdat, now in monoview mode
 
         if 'S2' in prod.sensor:
-            _R_ = Rasterization(monoview=False)
+            monoview = False
         else:
-            _R_ = Rasterization(monoview=True)
+            monoview = True
+        _R_ = Rasterization(monoview=monoview)
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
@@ -360,7 +372,7 @@ class Process:
         # get unique values for angles and further lut interpolation
         ang_resol = {'sza': 0.1, 'vza': 0.1, 'raa_round': 0}
         szamin, szamax = float(prod.raster['sza'].min()), float(prod.raster['sza'].max())
-        vzamin, vzamax = float(prod.raster['vza'].isel(wl=0).min()), float(prod.raster['vza'].isel(wl=0).max())
+        vzamin, vzamax = float(prod.raster.isel(wl=0)['vza'].min()), float(prod.raster.isel(wl=0)['vza'].max())
 
         # check for out-of-range
         def check_out_of_range(vmin, vmax, ceiling=88):
@@ -374,7 +386,7 @@ class Process:
         sza_ = np.arange(szamin, szamax + ang_resol['sza'], ang_resol['sza'])
         vza_ = np.arange(vzamin, vzamax + ang_resol['vza'], ang_resol['vza'])
 
-        azi_ = (180 - np.unique(prod.raster['raa'].isel(wl=0).round(ang_resol['raa_round']))) % 360
+        azi_ = (180 - np.unique(prod.raster.isel(wl=0)['raa'].round(ang_resol['raa_round']))) % 360
         azi_ = azi_[~np.isnan(azi_)]
 
         sza_lut_step = 2
@@ -463,12 +475,18 @@ class Process:
 
             # subsetting
             _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
-            _raa = prod.raster.raa[:, iy:yc, ix:xc]
+            if monoview:
+                _raa = prod.raster.raa[iy:yc, ix:xc]
+                _vza = prod.raster.vza[iy:yc, ix:xc]
+                _vza_mean = _vza.values
+            else:
+                _raa = prod.raster.raa[:, iy:yc, ix:xc]
+                _vza = prod.raster.vza[:, iy:yc, ix:xc]
+                _vza_mean = np.mean(_vza, axis=0).values
+
             _azi = (180. - _raa) % 360
-            _vza = prod.raster.vza[:, iy:yc, ix:xc]
-            _vza_mean = np.mean(_vza, axis=0).values
             _air_mass_ = acutils.Misc.air_mass(_sza, _vza).values
-            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2).values
+            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
             _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
 
@@ -504,13 +522,21 @@ class Process:
             Ttot_du = Tdown * Tup
 
             Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
-
+            nRf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
             for iwl in prod.iwl_swir:
-                Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl])
+                Rf[iwl] = Rcorr[iwl] / Tdir[iwl]
+                if monoview:
+                    nRf[iwl] = Rf[iwl] / (_sunglint_eps[iwl] * _p_slope_)
+                else:
+                    nRf[iwl] = Rf[iwl] / (_sunglint_eps[iwl] * _p_slope_[iwl])
+
             Rf[Rf < 0] = 0.
-            Rf = np.min(Rf, axis=0)
-            Rf_tmp[iy:yc, ix:xc] = Rf
-            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            nRf[nRf < 0] = 0.
+            nRf = np.min(nRf, axis=0)
+            Rf_tmp[iy:yc, ix:xc] = np.min(Rf, axis=0)
+
+            Rf = _R_._multiplicate(_sunglint_eps, nRf, arr_tmp)
+
             Rf = Tdir * _p_slope_ * Rf
 
             Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi) / Ttot_du
@@ -547,7 +573,7 @@ class Process:
         # Update flags and create mask from recipe
         ##############################################
         # flags for negative blue/green Rrs
-        bitmask = 16
+        bitmask = 18
         prod.raster['flags'] = prod.raster.flags + (((l2_prod.Rrs.sel(wl=490, method='nearest') < -0.0005) |
                                                      (l2_prod.Rrs.sel(wl=565, method='nearest') < -0.0005)) << bitmask)
         # add name and description
