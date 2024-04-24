@@ -31,7 +31,7 @@ class Settings:
         # mask thresholding parameters
         self.swir_threshold = 0.2
         self.ndwi_threshold = 0.0
-        self.vis_swir_index_threshold = 0.
+        self.vis_swir_index_threshold = 0.2
         self.thin_cirrus_threshold = 3e-3
         self.opac_cirrus_threshold = 9e-3
 
@@ -56,10 +56,16 @@ class Masking(Settings):
         '''
         Settings.__init__(self)
         self.prod = prod
+
+        # if not(FLAG_NAME in prod.raster.keys()):
+        #    self.prod[FLAG_NAME] = ...
+
         if "S2" in prod.attrs['constellation_id']:
             self.bcirrus = 1375
+            self.sentinel2 = True
         elif (prod.attrs['constellation_id'] == 'L8') or (prod.attrs['constellation_id'] == 'L9'):
             self.bcirrus = 1370
+            self.sentinel2 = False
 
         self.flag_descriptions = np.empty(self.number_of_flags,
                                           dtype='object')  # np.dtype('U', 1000))
@@ -67,15 +73,15 @@ class Masking(Settings):
                                    dtype='object')  # np.dtype('U', 1000))
 
         # generate flag raster from nodata mask
-        #self.create_flags()
+        # self.create_flags()
         self.flags = xr.DataArray()
         self.flags.attrs['long_name'] = 'flags computed from l1c image'
         self.flag_stats = {}
 
     def nodata_mask(self,
-                     bitmask=0,
-                     name='nodata',
-                     description='nodata in input image'):
+                    bitmask=0,
+                    name='nodata',
+                    description='nodata in input image'):
         '''
         set flag nodata: condition either nan or crazy numerical values
 
@@ -140,11 +146,11 @@ class Masking(Settings):
         del cloud_detector, cloud_mask, probability_maps
 
     def water_mask(self,
-                  bitmasks=[3, 4],
-                  names=['water_swir_visible_index', 'water_red_visible_index'],
-                  descriptions=['water mask from normalized index from swir and visible band',
-                                'water mask from normalized index from nir and visible band, warning could fail for turbid waters'],
-                  ):
+                   bitmasks=[3, 4],
+                   names=['water_swir_visible_index', 'water_red_visible_index'],
+                   descriptions=['water mask from normalized index from swir and visible band',
+                                 'water mask from normalized index from nir and visible band, warning could fail for turbid waters'],
+                   ):
         '''
         apply water/land mask
         compute mask from NDWI from visible and NIR and visible and SWIR
@@ -196,7 +202,7 @@ class Masking(Settings):
         '''
 
         logging.info('cirrus masking')
-        cirrus = self.prod.bands.sel(wl=self.bcirrus)
+        cirrus = self.prod.bands.sel(wl=self.bcirrus,method='nearest')
         thresholds = [self.thin_cirrus_threshold, self.opac_cirrus_threshold]
         for ii in range(2):
             self.flags = self.flags + ((cirrus.values > thresholds[ii]) << bitmasks[ii])
@@ -260,6 +266,41 @@ class Masking(Settings):
             self.flag_descriptions[bitmasks[ii]] = descriptions[ii]
             self.flag_names[bitmasks[ii]] = names[ii]
 
+    def duplicate_landsat_flags(self,
+                                bitmasks=[11, 12, 13, 14, 15, 16, 17],
+                                landsat_bitmasks=[1,2,3,4,5,6,7],
+                                names=['l1_dilated_cloud', 'l1_cirrus', 'l1_cloud',
+                                       'l1_cloud_shadow', 'l1_snow', 'l1_clear', 'l1_water'],
+                                descriptions=['landsat dilated cloud mask',
+                                              'landsat cirrus mask',
+                                              'landsat cloud mask',
+                                              'landsat cloud shadow mask',
+                                              'landsat snow mask',
+                                              'landsat clear mask',
+                                              'landsat water mask'],
+                                flags_landsat_band='flags_l1'
+                                ):
+        '''
+        Save and duplicate landsat main masks from level 1 flags
+
+        :param bitmasks: bit numbers on which the flags are coded
+        :param landsat_bitmasks: bit numbers of the landsat flags
+        :param names: name of the flags
+        :param descriptions: description of the flags
+        :param flags_landsat_band: name of the landsat flags band
+        :return:
+        '''
+
+        logging.info('duplicating landsat level 1 flags')
+
+        for ii, bit in enumerate(bitmasks):
+            flag_value = 1 << landsat_bitmasks[ii]
+            mask = (self.prod[flags_landsat_band] & flag_value) != 0
+            # set flags raster
+            self.flags = self.flags + (mask << bit)
+            self.flag_descriptions[bit] = descriptions[ii]
+            self.flag_names[bit] = names[ii]
+
     def get_stats(self):
         '''
         Compute image statistics for each flag and save them into dictionary
@@ -310,7 +351,10 @@ class Masking(Settings):
         '''
         # apply the masking processors
         self.nodata_mask()
-        self.cloud_mask()
+        if self.sentinel2:
+            self.cloud_mask()
+        else:
+            self.duplicate_landsat_flags()
         self.water_mask()
         if self.bcirrus:
             self.cirrus_mask()
@@ -337,14 +381,12 @@ class Masking(Settings):
             flags.attrs.update(self.flag_stats)
             return flags
 
-
-
     @staticmethod
     def create_mask(flags,
                     tomask=[0, 2],
                     tokeep=[3],
-                    mask_name = "mask",
-                    _type = np.uint8
+                    mask_name="mask",
+                    _type=np.uint8
                     ):
         '''
         Create binary mask from bitmask flags, with selection of bitmask to mask or to keep (by bit number).
@@ -386,7 +428,6 @@ class Masking(Settings):
 
         '''
 
-
         mask = xr.zeros_like(flags, dtype=_type)
 
         flag_value_tomask = 0
@@ -411,4 +452,3 @@ class Masking(Settings):
         mask.attrs["description"] = "good pixels for mask == 0, bad pixels when mask == 1"
         mask.name = mask_name
         return mask
-
