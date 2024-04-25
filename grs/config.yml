@@ -1,0 +1,9 @@
+path:
+  grsdata: '/data/grs/grsdata'
+  toa_lut: 'toa_lut_opac_wind_light_v2.nc'
+  trans_lut: 'transmittance_lut_opac_wind_light_v2.nc'
+  cams: '/data/cams'
+
+processor:
+  ncpu: 8
+  chunk: 512

@@ -1,0 +1,5 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
+1,Greece,2018-06-06,2018-06-09,S2,35SMD,39.2,26.4,20
+1,Greece,2019-04-18,2019-06-07,S2,35SMD,39.2,26.4,20
+0,Greece,2021-06-11,2021-06-11,S2,35SMD,39.2,26.4,20
+1,Cyprus,2018-12-15,2018-12-15,S2,36SWD,34.7,33.6,20

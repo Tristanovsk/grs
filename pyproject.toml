@@ -1,0 +1,43 @@
+# pyproject.toml
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GRSprocessor"
+version = "2.1.6"
+description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
+readme = "pypi_README.rst"
+authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["Sentinel-2","Landsat-8","Landsat-9","atmospheric correction", "EO satellite"]
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+"grs"= ['*.yml']
+"*"= ['data/lut/gases/*.nc', 'data/aux/*.txt']
+
+[tool.setuptools.exclude-package-data]
+"*" = [".gitattributes"]
+
+[project.scripts]
+grs = "grs.run:main"
+
+#dynamic = ["dependencies"]
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/Tristanovsk/grs"
+Documentation = "https://grs.readthedocs.io"

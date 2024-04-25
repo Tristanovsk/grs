@@ -1,0 +1,2 @@
+site lon lat alt tile
+22KFB -49.612 -21.378 380 22KFB
