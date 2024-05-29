@@ -20,12 +20,12 @@ Options:
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
-                            in decimal number [default 1]
+                            in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
   --surfwater file  Absolute path of the surfwater geotiff file to be used
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
   --scale_aot factor  scaling factor applied to CAMS aod550 raster
-                    [default: 1]
+                      [default: 1]
   --opac_model name  Force the aerosol model (OPAC) to be 'name'
                      (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
                      'MACL_rh70', 'URBA_rh70'])

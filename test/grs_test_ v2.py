@@ -49,7 +49,7 @@ if not os.path.exists(file_nc):
                 "complevel": 6},
         'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768, "zlib": True,
                 "complevel": 6}}
-    l1c.prod.to_netcdf(file_nc, encoding=encoding)
+    l1c.prod.export_to_netcdf(file_nc, encoding=encoding)
     l1c.prod.close()
 
 else:
@@ -221,7 +221,7 @@ brdfg = xr.DataArray(brdfpix, coords={'y': raster.y, 'x': raster.x}, name='BRDFg
 l2_prod = xr.merge([Rrs, Rrs_g, aot550, brdfg])
 
 l2a = L2aProduct(prod, l2_prod, cams, gas_trans)
-l2a.to_netcdf(opj(odir, ofile))
+l2a.export_to_netcdf(opj(odir, ofile))
 
 ##########################################
 # PLOTTING SECTION
