@@ -1,7 +1,7 @@
 # GRS algorithm package
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
-Please check [grs documentation](./docs/build/html/index.html)
+Please check [grs documentation](https://grs.readthedocs.io/)
 
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
@@ -54,10 +54,8 @@ spectral value of $`\tau _a`$.
 ## Getting Started
 
 ## Installation on TREX (CNES)
-1. First install GRSdriver from https://gitlab.cnes.fr/waterquality/io/GRSdriver following the README instruction.
-You should have now a conda environment called grs_cnes up.
 
-2. First clone the repository (from https or ssh):
+1. First clone the repository (from https or ssh):
 ```commandline
 git clone https://gitlab.cnes.fr/waterquality/grs2.git
 ```
@@ -66,17 +64,17 @@ or
 git clone git@gitlab.cnes.fr:waterquality/grs2.git
 ```
 
-And go on Branch v2.1
+Choose your branch (example grs_cnes_v2.1.6)
 ```commandline
-git checkout v2.1
+git checkout grs_cnes_v2.1.6
 ```
 
-3. Make sure that the grsdata variable is set as follows in the config.yml file:
+2. Make sure that the grsdata variable is set as follows in the config.yml file:
 ```commandline
 grsdata: '/work/datalake//watcal/GRS/grsdata_v21'
 ```
 
-4. To complete installation please activate your conda grs_cnes environment as follows:
+3. To complete installation please activate your conda grs_cnes environment as follows:
 ```commandline
 ml conda
 conda activate grs_cnes
