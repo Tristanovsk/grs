@@ -219,7 +219,7 @@ class CamsProduct:
         return
 
     def plot_params(self, params=['amaod550', 'bcaod550', 'duaod550', 'niaod550',
-                                  'omaod550', 'ssaod550', 'soaod550', 'suaod550',
+                                  'omaod550', 'ssaod550',  'suaod550',
                                   'aod550',
                                   't2m', 'msl', 'sp',
                                   'tcco', 'tc_ch4', 'tcno2', 'gtco3',
@@ -227,6 +227,7 @@ class CamsProduct:
                     **kwargs):
         '''
         Function to plot the cams data extracted for date and region of interest.
+        Note that secondary organic aerosols optical thickness at 550 nm is not available for the whole timeserires (check parameter 'soaod550')
 
         :param params: parameters to plot
         :param kwargs: kwargs for matplotlib plotting
