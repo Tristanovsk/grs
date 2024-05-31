@@ -359,14 +359,15 @@ class GaseousTransmittance(Gases):
                   self.coef_abs_scat * gas_lut.o4) * self.pressure / 1000
         self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
 
-    def get_gaseous_transmittance(self):
+    def get_gaseous_transmittance(self,
+                                  gases=['ch4','no2','o3','h2o']):
         '''
         Get the final total gaseous transmittance.
         :return:
         '''
-        Tg_tot = self.Tgas('ch4') * self.Tgas('no2') * \
-                 self.Tgas('o3') * self.Tgas('h2o') * self.Tgas_background()
-
+        Tg_tot = self.Tgas_background()
+        for gas in gases:
+            Tg_tot =Tg_tot *self.Tgas(gas)
         # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
         # Nx = len(Tg_other.x)
         # Ny = len(Tg_other.y)

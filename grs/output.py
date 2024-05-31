@@ -90,7 +90,7 @@ class L2aProduct():
         self.ancillary.rio.write_coordinate_system(inplace=True)
         self.ancillary.rio.write_crs(inplace=True)
 
-    def to_netcdf(self, output_path, snap_compliant=False):
+    def export_to_netcdf(self, output_path, snap_compliant=False):
         '''
         Create output product dimensions, variables, attributes, flags....
 
@@ -174,7 +174,9 @@ class L2aProduct():
         # export full raster data
         # TODO check why or generalize the following approach:
         # fix for conflicts with attrs and encoding, needs to remove 'grid_mapping' from input attrs
-        self.l2_prod.sza.attrs = ''
+        for var in self.l2_prod.keys():
+            if 'grid_mapping' in self.l2_prod[var].attrs:
+                del self.l2_prod[var].attrs['grid_mapping']
 
         self.l2_prod.to_netcdf(ofile + '.nc', encoding=encoding)
 

@@ -1,7 +1,7 @@
 # GRS algorithm package
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
-Please check [grs documentation](./docs/build/html/index.html)
+Please check [grs documentation](https://grs.readthedocs.io/en/latest/)
 
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
@@ -14,7 +14,7 @@ water surface level.
 First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed based on parameterizations of the gas transmittances from full radiative transfer
 computations using lidRadtran v2.0.4. Atmospheric pressure and gas concentrations are retrieved from bilinear
 interpolation within the grid of the Copernicus Atmosphere Monitoring Service dataset (CAMS). Then, spectral radiances
-are corrected for the diffuse sky light and its reflection on the air-water interface. For each pixel, the diffuse
+are corrected for the diffuse skylight and its reflection on the air-water interface. For each pixel, the diffuse
 radiance component is reconstructed for the given viewing geometry (i.e., sensor and Sun viewing angles and relative
 azimuth) from pre-computed look-up tables (LUT). The Rayleigh optical thickness is rescaled based on the actual pressure
 at the scene level to take into account the effects of the altitude on the scattering properties of the atmosphere.

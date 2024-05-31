@@ -591,12 +591,12 @@ class Process:
         # Write final product
         ######################################
         logging.info('construct final product')
-        self.l2_prod = l2_prod
+        #self.l2_prod = l2_prod
         self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
-
+        del prod, l2_prod, cams, gas_trans, dem
         return
 
     def write_output(self):
         logging.info('export final product into netcdf')
-        self.l2a.to_netcdf(self.ofile,
-                           snap_compliant=self.snap_compliant)
+        self.l2a.export_to_netcdf(self.ofile,
+                                  snap_compliant=self.snap_compliant)
