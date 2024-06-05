@@ -1,0 +1,107 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - docker
+
+# Default configuration for all jobs
+default:
+  tags:
+    - Usine_Logicielle
+
+# Definition des variables globales pour tous les jobs
+variables:
+  # Variable pour afficher des logs supplémentaires.
+  # Cette façon permet pour lancer les pipelines manuelles d'avoir les variables pré-définies : https://docs.gitlab.com/ee/ci/pipelines/index.html#prefill-variables-in-manual-pipelines
+  DEBUG:
+    value: "false"
+    description: "Afficher des logs supplémentaires"
+  # predetermined variables
+  ARTIFACTORY_HOST: "artifactory.cnes.fr"
+  ARTIFACTORY_URL: "${ARTIFACTORY_HOST}/publicremotes-docker"
+  ARTIFACTORY_URL_WITH_TOKEN: "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@artifactory.cnes.fr/artifactory"
+  # Version de Jfrog CLI et l'OS de la machine (sur Gitlab-CI ce sera toujours du amd64)
+  JFROG_VERSION: "v2/2.14.0"
+  JFROG_CLI_MODULE: "jfrog-cli/2.12.1"
+  JFROG_OS: "jfrog-cli-linux-amd64"
+  # JFROG_CLI_HOME_DIR : [Default: ~/.jfrog]. Définit le chemin du fichier de configuration de Jfrog CLI. 
+  JFROG_CLI_HOME_DIR: ".jfrog"
+  # Permet de minimiser les logs inutiles ex : % d'avancement de l'upload ou download
+  CI: "true"
+  TAG_IMAGE_KANIKO:  "kaniko-project/executor:v1.9.1-debug"
+  # Docker build variables
+  CI_REGISTRY_IMAGE: "${ARTIFACTORY_HOST}/obs2co-docker/grs"
+  CI_REGISTRY: "https://${ARTIFACTORY_HOST}"
+  CI_REGISTRY_USER: "${ARTIFACTORY_USER}"
+  CI_REGISTRY_PASSWORD: "${ARTIFACTORY_TOKEN}"
+
+pre_kaniko_build:
+  stage: docker
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
+  before_script:
+    #Cette partie est nécessaire pour un build kaniko, il s'agit d'installer jfrgo cli
+    # Installation de Jfrog CLI 2.14.0 (18 mars 2022)
+    - curl -sS --cacert ${CNES_CERTIFICATE} -u "${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}" -O "https://${ARTIFACTORY_HOST}/artifactory/jfrog-cli-go-remote/${JFROG_VERSION}/${JFROG_OS}/jfrog"
+    # On donne les permissions pour utiliser la commande jfrog
+    - chmod 755 jfrog
+    # Définition d'un UUID unique
+    - export UUID=$(cat /proc/sys/kernel/random/uuid)
+    # Export de UUID pour le faire passer entre les jobs
+    - touch uuid.txt
+    - echo ${UUID} > uuid.txt
+    # Ajout des certificats du CNES dans jfrog CLI pour accéder à Artifactory en HTTPS
+    - mkdir -p "${JFROG_CLI_HOME_DIR}/security/certs/"
+    - cp ${CNES_CERTIFICATE} "${JFROG_CLI_HOME_DIR}/security/certs/"
+  script:
+    # Configuration de jfrog CLI
+    - ./jfrog config add ${UUID} --artifactory-url=https://${ARTIFACTORY_HOST}/artifactory  --access-token=${ARTIFACTORY_TOKEN} --user=${ARTIFACTORY_USER} --enc-password --interactive=false
+    - ./jfrog rt build-add-git --server-id ${UUID}
+  artifacts:
+    untracked: true
+    expire_in: 1 day
+    paths:
+      - uuid.txt
+
+kaniko_build:
+  stage: docker
+  image:
+    name: ${ARTIFACTORY_URL}/${TAG_IMAGE_KANIKO}
+    entrypoint: [""]
+  needs:
+    - pre_kaniko_build
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
+  before_script:
+    # Il faut renseigner les certificats dans /kaniko/ssl/certs/additional-ca-cert-bundle.crt afin de pouvoir accès à Artifactory lors du build de l'image
+    - cp ${CNES_CERTIFICATE} /kaniko/ssl/certs/additional-ca-cert-bundle.crt
+    #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
+    - mkdir -p /kaniko/run/secrets/
+    - echo http://${PROXY_USER}:${PROXY_PASS}@proxy-tech-web.cnes.fr:8060 > /kaniko/run/secrets/http_proxy
+    - echo http://${PROXY_USER}:${PROXY_PASS}@proxy-tech-web.cnes.fr:8060 > /kaniko/run/secrets/https_proxy
+    #- echo "${ARTI_URL_WITH_TOKEN}/api/conda/conda/" > /kaniko/run/secrets/arti_conda_repo.txt
+    #- echo "${ARTI_URL_WITH_TOKEN}/api/pypi/pypi/simple" > /kaniko/run/secrets/arti_pip_repo.txt
+    - export VERSION_GRS=$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
+    - if [ $CI_COMMIT_TAG ]; then export VERSION_GRS=$CI_COMMIT_TAG; fi
+    - echo $VERSION_GRS
+  script:
+    #transmission des credentials proxy à l'image en passant par le système de secrets
+    - mkdir -p certs
+    #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
+    - cp ${CNES_CERTIFICATE} certs/
+    - mkdir -p /kaniko/.docker
+    #donner les informations pour le push sur la registry (ici artifactory)
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/
+      --build-arg no_proxy=cnes.fr
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${VERSION_GRS}"
+      --destination "${CI_REGISTRY_IMAGE}:latest"
+    - echo "Deployed and delivered successfully"
+  artifacts:
+    untracked: true
+    expire_in: 1 day
