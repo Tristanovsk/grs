@@ -79,18 +79,18 @@ RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /ka
         --no-cache-dir \
         # requirements
 
-        cdsapi>=0.6.1  \
-        GRSdriver >= 1.0.3  \
+        "cdsapi >= 0.6.1"  \
+        "GRSdriver >= 1.0.3"  \
         xmltodict  \
         docopt  \
         rasterio  \
         netCDF4  \
         numba  \
         numpy  \
-        pandas>=2.0.3  \
+        "pandas >= 2.0.3"  \
         pyproj  \
-        "xarray==2023.8.0"  \
-        rioxarray>=0.15.0  \
+        "xarray == 2023.8.0"  \
+        "rioxarray >= 0.15.0"  \
 
     && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
