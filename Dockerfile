@@ -39,7 +39,7 @@ COPY ecmwf ./grs2/ecmwf
 COPY exe ./grs2/exe
 COPY grs ./grs2/grs
 COPY grsdata ./grs2/grsdata
-COPY setup.py ./grs2/
+COPY pyproject.toml ./grs2/
 WORKDIR /home/grs2
 
 
