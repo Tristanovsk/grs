@@ -1,5 +1,5 @@
 {
     "resolution": 20,
-    "allpixels": True,
+    "allpixels": False,
     "snap_compliant": False
 }
