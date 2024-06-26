@@ -83,7 +83,7 @@ kaniko_build:
     - echo http://${PROXY_USER}:${PROXY_PASS}@proxy-tech-web.cnes.fr:8060 > /kaniko/run/secrets/https_proxy
     #- echo "${ARTI_URL_WITH_TOKEN}/api/conda/conda/" > /kaniko/run/secrets/arti_conda_repo.txt
     #- echo "${ARTI_URL_WITH_TOKEN}/api/pypi/pypi/simple" > /kaniko/run/secrets/arti_pip_repo.txt
-    - export VERSION_GRS=$(cat setup.py | grep "version__ =" | cut -d "'" -f 2)
+    - export VERSION_GRS=$(cat pyproject.toml |grep version |cut -d '"' -f 2)
     - if [ $CI_COMMIT_TAG ]; then export VERSION_GRS=$CI_COMMIT_TAG; fi
     - echo $VERSION_GRS
   script:
