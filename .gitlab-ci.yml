@@ -122,7 +122,7 @@ sonarqube-check:
   before_script:
     - keytool -import -alias sonar -storepass changeit -noprompt -keystore ${JAVA_HOME}/lib/security/cacerts -file ${CNES_CERTIFICATE}
   script: 
-    - sonar-scanner
+    - sonar-scanner -X
   allow_failure: true
   only:
     - merge_requests
