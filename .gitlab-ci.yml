@@ -119,6 +119,8 @@ sonarqube-check:
     key: "${CI_JOB_NAME}"
     paths:
       - .sonar/cache
+  before_script:
+    - keytool -import -alias sonar -storepass changeit -noprompt -keystore ${JAVA_HOME}/lib/security/cacerts -file ${CNES_CERTIFICATE}
   script: 
     - sonar-scanner
   allow_failure: true
