@@ -110,7 +110,7 @@ kaniko_build:
 sonarqube-check:
   stage: quality
   image: 
-    name: sonarsource/sonar-scanner-cli:latest
+    name: artifactory.cnes.fr/docker/sonarsource/sonar-scanner-cli:latest
     entrypoint: [""]
   variables:
     SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
