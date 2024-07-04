@@ -120,9 +120,11 @@ sonarqube-check:
     paths:
       - .sonar/cache
   before_script:
-    - keytool -import -alias sonar -storepass changeit -noprompt -keystore ${JAVA_HOME}/lib/security/cacerts -file ${CNES_CERTIFICATE}
+    # Ajout un seul certificat du CNES dans java pour accéder à SonarQube en HTTPS. C'est lié à une limitation de Keytool.
+    # Nous sommes obligé de prendre un autre certificat car sonar-scanner ne se base pas sur l'intégralité de la chaine de certificat mais seulement du premier parent du serveur.
+    - keytool -importcert -alias sonarqube -file "/certs-cnes/AC_TECHNIQUE_SERVEURS_2028.crt" -keystore ${JAVA_HOME}/lib/security/cacerts -storepass changeit -noprompt
   script: 
-    - sonar-scanner -X
+    - sonar-scanner
   allow_failure: true
   only:
     - merge_requests
