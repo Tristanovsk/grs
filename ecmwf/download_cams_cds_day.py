@@ -27,8 +27,8 @@ def main(dic, i):
     print(str(odir))
     if not os.path.exists(odir):
         os.makedirs(odir)
-    date = str(yesterday)+"/"+str(today)
-    print(date)
+    date_str = str(yesterday)+"/"+str(yesterday)
+    print(date_str)
 
     c = cdsapi.Client()
     if dic['mode'] == 'reanalysis':
@@ -40,7 +40,7 @@ def main(dic, i):
                     {
                     'nocache': '456',
                     'format': 'netcdf',
-                    'date': date,  # '2003-09-01/2003-09-30',
+                    'date': date_str,  # '2003-09-01/2003-09-30',
                     'time': [
                         '00:00', '03:00', '06:00',
                         '09:00', '12:00', '15:00',
@@ -71,7 +71,7 @@ def main(dic, i):
                 data_type,
                 {
                     'nocache': '456',
-                    'date': date,
+                    'date': date_str,
                     'type': 'forecast',
                     'format': 'netcdf',
                     'variable': [
