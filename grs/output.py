@@ -174,7 +174,10 @@ class L2aProduct():
         # export full raster data
         # TODO check why or generalize the following approach:
         # fix for conflicts with attrs and encoding, needs to remove 'grid_mapping' from input attrs
-        self.l2_prod.sza.attrs = ''
+        for var in self.l2_prod.keys():
+            for param in ['grid_mapping','scale_factor','_FillValue','add_offset']:
+                if param in self.l2_prod[var].attrs:
+                    del self.l2_prod[var].attrs[param]
 
         self.l2_prod.to_netcdf(ofile + '.nc', encoding=encoding)
 
