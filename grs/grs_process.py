@@ -47,6 +47,7 @@ class Process:
         self.pressure_ref = 101500.
         self.flags_tokeep = [3]
         self.flags_tomask = [0,1,10,13,14,18]
+        self.successful = False
 
     def execute(self, l1c_prod,
                 ofile='',
@@ -162,6 +163,7 @@ class Process:
 
         self.ofile = ofile
         self.snap_compliant = snap_compliant
+        self.successful = False
 
         ##################################
         # Get image data
@@ -340,6 +342,11 @@ class Process:
             masked = prod.raster.bands.where(mask)
             prod.raster['bands'] = masked
             prod.raster['sza'] = prod.raster['sza'].where(mask)
+
+            # stop process if no valid (water) pixel available
+            if np.isnan(prod.raster['sza'].values).all():
+                logging.info('no water pixels, stop process')
+                return
 
         ######################################
         # LUT preparation
@@ -594,6 +601,7 @@ class Process:
         #self.l2_prod = l2_prod
         self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
         del prod, l2_prod, cams, gas_trans, dem
+        self.successful = True
         return
 
     def write_output(self):

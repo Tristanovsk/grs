@@ -36,6 +36,7 @@ processor consists of three main modules to correct for:
    examples/basics
    examples/auxdata
    examples/advanced
+   examples/visualization
 
 .. toctree::
    :maxdepth: 3
