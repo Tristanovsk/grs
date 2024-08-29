@@ -74,6 +74,7 @@ WORKDIR /home/grs2
 
 # Add additionnal dependencies + GRS
 RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi \
+    && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip \
     && pip3 install \
         --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
         --no-cache-dir \
