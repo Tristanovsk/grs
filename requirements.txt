@@ -1,4 +1,3 @@
-
 importlib_resources
 
 cdsapi>=0.6.1
@@ -6,9 +5,9 @@ GRSdriver >= 1.0.3
 xmltodict
 docopt
 rasterio
-netCDF4
+netCDF4<1.7
 numba
-numpy
+numpy<2.0
 pandas>=2.0.3
 pyproj
 xarray

@@ -40,6 +40,7 @@ COPY exe ./grs2/exe
 COPY grs ./grs2/grs
 COPY grsdata ./grs2/grsdata
 COPY pyproject.toml ./grs2/
+COPY requirements.txt ./grs2/
 WORKDIR /home/grs2
 
 
@@ -74,24 +75,18 @@ WORKDIR /home/grs2
 
 # Add additionnal dependencies + GRS
 RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi \
+    && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip \
     && pip3 install \
         --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
         --no-cache-dir \
-        # requirements
-
-        "cdsapi >= 0.6.1"  \
-        "GRSdriver >= 1.0.3"  \
-        xmltodict  \
-        docopt  \
-        rasterio  \
-        netCDF4  \
-        numba  \
-        numpy  \
-        "pandas >= 2.0.3"  \
-        pyproj  \
-        "xarray == 2023.8.0"  \
-        "rioxarray >= 0.15.0"  \
-
+        datashader \
+        eoreader \
+        geopandas \
+        holoviews \
+        matplotlib \
+        scipy \
+        pyyaml \
+        -r requirements.txt \
     && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
 RUN mkdir -p /datalake/watcal/GRS \
