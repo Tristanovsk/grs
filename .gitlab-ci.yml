@@ -25,13 +25,13 @@ variables:
   ARTIFACTORY_URL_WITH_TOKEN: "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@artifactory.cnes.fr/artifactory"
   # Version de Jfrog CLI et l'OS de la machine (sur Gitlab-CI ce sera toujours du amd64)
   JFROG_VERSION: "v2/2.14.0"
-  JFROG_CLI_MODULE: "jfrog-cli/2.12.1"
   JFROG_OS: "jfrog-cli-linux-amd64"
   # JFROG_CLI_HOME_DIR : [Default: ~/.jfrog]. Définit le chemin du fichier de configuration de Jfrog CLI. 
   JFROG_CLI_HOME_DIR: ".jfrog"
   # Permet de minimiser les logs inutiles ex : % d'avancement de l'upload ou download
   CI: "true"
   TAG_IMAGE_KANIKO:  "kaniko-project/executor:v1.9.1-debug"
+  TAG_IMAGE_REDHAT8:  "redhat/ubi8:8.10"
   # Docker build variables
   CI_REGISTRY_IMAGE: "${ARTIFACTORY_HOST}/obs2co-docker/grs"
   CI_REGISTRY: "https://${ARTIFACTORY_HOST}"
@@ -40,6 +40,9 @@ variables:
 
 pre_kaniko_build:
   stage: docker
+  image:
+    name: ${ARTIFACTORY_URL}/${TAG_IMAGE_REDHAT8}
+    entrypoint: [""]
   variables:
     GIT_LFS_SKIP_SMUDGE: "1"
   before_script:
