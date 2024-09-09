@@ -211,7 +211,6 @@ class Process:
                 raise GRS_IO_Exception(l1c_prod, exc)
 
         self.prod = prod
-        wl_true = prod.raster.wl_true
 
         ##################################
         # Set sensor specifications
@@ -283,6 +282,9 @@ class Process:
             prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest')
 
         prod.raster = prod.raster.sel(wl=prod.wl_process, method='nearest')
+
+        # get true central wavelength for the bands to process
+        wl_true = prod.raster.wl_true
 
         ##################################
         ## ADD ELEVATION AND PRESSURE BAND
