@@ -96,6 +96,8 @@ class Product():
         #                                         'units': 'mW cm-2 um-1'})
 
         self.auxdatabase = auxdatabase
+        self.auxdata = None
+        self.aero_lut= None
         self.output = output
 
         #########################
@@ -127,9 +129,10 @@ class Product():
 
         # pre-computed auxiliary data
         self.dirdata = config['path']['grsdata']
-        self.abs_gas_file = files('grs.data.lut.gases').joinpath('lut_abs_opt_thickness_normalized.nc')
+        self.abs_gas_file = files('grs.data.lut.gases')/'lut_abs_opt_thickness_normalized.nc'
         # self.lut_file = opj(self.dirdata, 'lut', 'opac_osoaa_lut_v2.nc')
-        self.water_vapor_transmittance_file = files('grs.data.lut.gases').joinpath('water_vapor_transmittance.nc')
+        self.water_vapor_transmittance_file = files('grs.data.lut.gases')/'water_vapor_transmittance.nc'
+        print(self.abs_gas_file)
         self.load_auxiliary_data()
 
         # set retrieved parameter unit (Rrs or Lwn); is passed to fortran module
@@ -187,12 +190,12 @@ class Product():
         '''
 
         # get LUT
-        self.gas_lut = xr.open_dataset(self.abs_gas_file)
+        self.gas_lut = xr.open_dataset(self.abs_gas_file,engine='h5netcdf')
         # self.aero_lut = xr.open_dataset(self.lut_file)
         # convert wavelength in nanometer
         # self.aero_lut['wl'] = self.aero_lut['wl'] * 1000
         # self.aero_lut['wl'].attrs['description'] = 'wavelength of simulation (nanometer)'
-        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file)
+        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file,engine='h5netcdf')
 
     def set_outfile(self, file):
         '''

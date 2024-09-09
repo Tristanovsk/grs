@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GRSprocessor"
-version = "2.1.6"
+version = "2.1.7"
 description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
 readme = "pypi_README.rst"
 authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
