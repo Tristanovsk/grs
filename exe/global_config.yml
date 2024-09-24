@@ -1,7 +1,7 @@
 {
-    "input_file": '/datalake/S2-L1C/31TFJ/2021/08/02/S2B_MSIL1C_20210802T102559_N0500_R108_T31TFJ_20230209T194433.SAFE',
+    "input_file": '/datalake/S2-L1C/31TFJ/2023/06/03/S2B_MSIL1C_20230603T102559_N0509_R108_T31TFJ_20230603T123209.SAFE',
     "cams_folder": '/datalake/watcal/ECMWF/CAMS/',
-    "surfwater_file": '/datalake/watcal/INPUT_TEST/SURFWATER_OPTICAL-SINGLE_T31TFJ_20210802T103855_20210802T103855_1-0-4_05.tif',  # "" if no surfwater_file
+    "surfwater_file": '/datalake/watcal/INPUT_TEST/SURFWATER_OPTICAL-SINGLE_T31TFJ_20230603T103858_20230603T103858_1-0-4_02.tif',  # "" if no surfwater_file
     "chain_version": 2.1.6,
     "level": "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
@@ -9,7 +9,7 @@
     "logfile": "/tmp/log.txt",
     "noclobber": True,
     "scale_aot": 1,
-    "opac_model": None,
-    "dem_file": None,
+    "opac_model": null,
+    "dem_file": null,
     "max_cloud_cover": 1
 }
