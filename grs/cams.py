@@ -144,10 +144,16 @@ class CamsProduct:
             self.cams_download()
 
         # lazy loading
-        cams = xr.open_dataset(self.filepath, decode_cf=True,
-                               chunks={'time': 25,
-                                       'x': 500,
-                                       'y': 500}).sel(time=self.date_day)
+        cams = xr.open_dataset(self.filepath,
+                               decode_cf=True,
+                               )
+
+        if ('forecast_period' in cams.dims) & ('forecast_reference_time' in cams.dims):
+            cams = cams.stack(time_buffer=['forecast_period', 'forecast_reference_time']).swap_dims(
+                {'time_buffer': 'valid_time'}).sortby('valid_time').rename(
+                {'valid_time': 'time'}).drop_vars(['time_buffer'])
+
+        cams = cams.sel(time=self.date_day)
 
         # -------------------------
         # geographical extraction

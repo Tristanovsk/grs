@@ -564,22 +564,21 @@ class Process:
             Ttot_du = Tdown * Tup * _Tg_abs
 
             Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
-            nRf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
+
             for iwl in prod.iwl_swir:
-                Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl])
+
                 if monoview:
-                    nRf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
+                    Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
                 else:
-                    nRf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl])
+                    Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
+                                (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
 
             Rf[Rf < 0] = 0.
-            Rf = np.mean(Rf, axis=0)
+            Rf = np.min(Rf, axis=0)
+            Rf_tmp[iy:yc, ix:xc] = Rf
 
-            nRf[nRf < 0] = 0.
-            nRf = np.mean(nRf, axis=0)
-            Rf_tmp[iy:yc, ix:xc] = nRf
-            Rf = _R_._multiplicate(_sunglint_eps, nRf, arr_tmp)
-            Rf = _Tg_abs * Tdir * Rf * _p_slope_
+            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
 
             # sunglint removal
             #Rrs_tmp_ =Rcorr / np.pi# Rrs_tmp[:, iy:yc, ix:xc]
