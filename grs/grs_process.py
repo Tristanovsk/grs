@@ -322,7 +322,10 @@ class Process:
         logging.info('compute gaseous transmittance from cams data')
         try:
             gas_trans = acutils.GaseousTransmittance(prod, cams)
-            Tg_raster = gas_trans.get_gaseous_transmittance()
+            gases = ['co2', 'o2', 'o4', 'ch4', 'no2', 'o3', 'h2o']
+            for gas in gases:
+                gas_trans.coef_abs_scat[gas] = 1
+            Tg_raster = gas_trans.get_gaseous_transmittance(gases=['o3', 'no2'])
         except Exception as exc:
             raise GRS_IO_Exception(cams_file, exc)
 
@@ -363,6 +366,13 @@ class Process:
             masked = prod.raster.bands.where(mask)
             prod.raster['bands'] = masked
             prod.raster['sza'] = prod.raster['sza'].where(mask)
+
+            # TODO @Thales check if it is in agreement with your policy (here stop if no water pixel and return empty object)
+            # stop process if no valid (water) pixel available
+            #if np.isnan(prod.raster['sza'].values).all():
+            #    logging.info('no water pixels, stop process')
+            #    return
+            # END TODO
 
         ######################################
         # LUT preparation
@@ -418,18 +428,24 @@ class Process:
         sza_slice = slice(np.min(sza_) - sza_lut_step, np.max(sza_) + sza_lut_step)
         vza_slice = slice(np.min(vza_) - vza_lut_step, np.max(vza_) + vza_lut_step)
 
-        tweak = 3
+        tweak = 4
         aot_ref_ = np.unique((aot_ref_raster / tweak).round(3)) * tweak
-        aot_ref_min = aot_ref_raster.min()
+        aot_ref_min = 0.  # aot_ref_raster.min()
         aot_ref_max = aot_ref_raster.max()
         aot_lut = aero_lut_.aot.interp(wl=wl_true, method='quadratic')
-        aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max, 1000))  # .plot(hue='wl')
+        aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))  # .plot(hue='wl')
+        aaot_lut = aero_lut_.aaot.interp(wl=wl_true, method='quadratic')
+        aaot_lut = aaot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))
 
-        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice, vza=vza_slice).interp(wl=wl_true, method='quadratic').interp(
-            azi=azi_)
+        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice,
+                                    vza=vza_slice
+                                    ).interp(wl=wl_true,
+                                             method='quadratic'
+                                             ).interp(azi=azi_)
         Rdiff_lut = Rdiff_lut.interp(sza=sza_, vza=vza_)
         Rray = Rdiff_lut.sel(aot_ref=0)
-        Rdiff_lut = Rdiff_lut.interp(aot_ref=aot_ref_, method='quadratic')
+        Rdiff_lut = Rdiff_lut.interp(aot_ref=[0, 0.02, 0.05, 0.07, *aot_ref_],
+                                     method='quadratic')  # .sortby("aot_ref")
 
         szas = Rdiff_lut.sza.values
         vzas = Rdiff_lut.vza.values
@@ -472,6 +488,24 @@ class Process:
             dem = None
             _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
 
+        # -------------------------------------------------------------
+        # SET GASEOUS TRANSMITTANCE FOR LOW ALTITUDE GASES
+        # -------------------------------------------------------------
+        gases = ['h2o', 'ch4']
+        gas_trans = acutils.GaseousTransmittance(prod, cams)
+        # set total transmittance values
+        gas_trans.coef_abs_scat['h2o'] = 0.5
+        gas_trans.coef_abs_scat['ch4'] = 0.5
+        Tg_diff_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y",
+                                                                                                      "x")
+        Tg_diff_raster = Tg_diff_raster.interp(x=prod.raster.x, y=prod.raster.y)
+
+        # set total transmittance values
+        for gas in gases:
+            gas_trans.coef_abs_scat[gas] = 1
+        Tg_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y", "x")
+        Tg_raster = Tg_raster.interp(x=prod.raster.x, y=prod.raster.y)
+
         ######################################
         # Run grs processing
         ######################################
@@ -512,6 +546,8 @@ class Process:
             _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
             _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
+            _Tg_abs = Tg_raster[:, iy:yc, ix:xc].values
+            _Tg_abs_diff = Tg_diff_raster[:, iy:yc, ix:xc].values
 
             # construct wl,y,x raster for Rayleigh optical thickness
             _rot_raster = _R_._multiplicate(_rot, _pressure_, arr_tmp)
@@ -528,7 +564,8 @@ class Process:
                                              azis, _azi.values,
                                              Nwl, Ny, Nx, Rray.values)
 
-            _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
+            # _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
+            _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
 
             _aot = _R_._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
 
@@ -542,27 +579,33 @@ class Process:
             Tdown = _R_._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
                                      Ttot_Ed_.values)
             Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
-            Ttot_du = Tdown * Tup
+            Ttot_du = Tdown * Tup * _Tg_abs
 
             Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
-            nRf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
+
             for iwl in prod.iwl_swir:
-                Rf[iwl] = Rcorr[iwl] / Tdir[iwl]
+
                 if monoview:
-                    nRf[iwl] = Rf[iwl] / (_sunglint_eps[iwl] * _p_slope_)
+                    Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
                 else:
-                    nRf[iwl] = Rf[iwl] / (_sunglint_eps[iwl] * _p_slope_[iwl])
+                    Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
+                               (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
 
             Rf[Rf < 0] = 0.
-            nRf[nRf < 0] = 0.
-            nRf = np.min(nRf, axis=0)
-            Rf_tmp[iy:yc, ix:xc] = np.min(Rf, axis=0)
+            Rf = np.min(Rf, axis=0)
+            Rf_tmp[iy:yc, ix:xc] = Rf
 
-            Rf = _R_._multiplicate(_sunglint_eps, nRf, arr_tmp)
+            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
 
-            Rf = Tdir * _p_slope_ * Rf
+            # sunglint removal
+            # Rrs_tmp_ =Rcorr / np.pi# Rrs_tmp[:, iy:yc, ix:xc]
+            Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
 
-            Rrs_tmp[:, iy:yc, ix:xc] = ((Rcorr - Rf) / np.pi) / Ttot_du
+            # Convert from TOA to BOA for positive values
+            Ttot_du[Rrs_tmp_ < 0] = 1.
+            Rrs_tmp_ = Rrs_tmp_ / Ttot_du
+            Rrs_tmp[:, iy:yc, ix:xc] = Rrs_tmp_
             return
 
         window_idxs = [(i, j) for i, j in

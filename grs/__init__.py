@@ -104,10 +104,15 @@ Version history
 
 2.1.6:
     - use GRSdriver instead s2driver
+
+2.1.7:
+    - accounts for absorption/scattering interaction for transmittance of absorbing gases
+    - fix bugs for true wavelength
+    - fix for new ADS CAMS format
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.6'
+__version__ = '2.1.7'
 
 
 from .acutils import Aerosol, Misc, Rasterization
