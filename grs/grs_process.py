@@ -434,8 +434,6 @@ class Process:
         aot_ref_max = aot_ref_raster.max()
         aot_lut = aero_lut_.aot.interp(wl=wl_true, method='quadratic')
         aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))  # .plot(hue='wl')
-        aaot_lut = aero_lut_.aaot.interp(wl=wl_true, method='quadratic')
-        aaot_lut = aaot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))
 
         Rdiff_lut = aero_lut_.I.sel(sza=sza_slice,
                                     vza=vza_slice
