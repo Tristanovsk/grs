@@ -1,15 +1,23 @@
 importlib_resources
 
-cdsapi>=0.6.1
-GRSdriver >= 1.0.3
-xmltodict
-docopt
-rasterio
-netCDF4<1.7
-numba
-numpy<2.0
-pandas>=2.0.3
-pyproj
-xarray
-rioxarray>=0.15.0
-#s2cloudless>=1.7.1
+cdsapi==0.6.1
+datashader==0.16.3
+docopt==0.6.2
+eoreader==0.21.4
+fiona==1.10.1
+geopandas==1.0.1
+GRSdriver==1.0.5
+holoviews==1.19.1
+matplotlib==3.8.0
+netCDF4==1.6.5
+numba==0.58.0
+numpy==1.25.2
+pandas==2.2.3
+pyproj==3.6.1
+PyYAML==6.0.1
+rasterio==1.4.1
+rioxarray==0.15.0
+scipy==1.14.1
+sertit==1.42.2
+xarray==2024.9.0
+xmltodict==0.13.0

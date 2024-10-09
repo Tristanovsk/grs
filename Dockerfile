@@ -79,13 +79,6 @@ RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /ka
     && pip3 install \
         --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
         --no-cache-dir \
-        datashader \
-        eoreader \
-        geopandas \
-        holoviews \
-        matplotlib \
-        scipy \
-        pyyaml \
         -r requirements.txt \
     && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
