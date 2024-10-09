@@ -133,5 +133,7 @@ sonarqube-check:
     - merge_requests
     - dockerisation_grs_v2.0
     - grs_cnes_2.1.6
+    - grs_cnes_2.1.7
+    - docker_fix
     - develop
 
