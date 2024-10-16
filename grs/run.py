@@ -1,7 +1,7 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
+  grs <input_file> [--cams_file file] [-o <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
    [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
   grs -h | --help
   grs -v | --version
@@ -14,8 +14,7 @@ Options:
 
   --cams_file file     Absolute path of the CAMS file to be used (mandatory)
 
-  -o ofile         Full (absolute or relative) path to output L2 image.
-  --odir odir      Ouput directory [default: ./]
+  -o odir         Full (absolute or relative) path to output L2 image.
   --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
@@ -81,11 +80,6 @@ def main():
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return
 
-    outfile = args['-o']
-    if outfile == None:
-        outfile = basename.replace('L1C', lev)
-        outfile = outfile.replace('.SAFE', '').rstrip('/')
-
     odir = args['--odir']
     if odir == './':
         odir = os.getcwd()
@@ -93,7 +87,7 @@ def main():
     if not os.path.exists(odir):
         os.makedirs(odir)
 
-    outfile = os.path.join(odir, outfile)
+    outfile = os.path.join(odir, os.path.basename(odir) + ".nc")
 
     class_logger.ServiceLogger(log_file=os.path.join(odir, 'log_file.log'), output_dir=odir, log_level='INFO', log_console=False)
 
@@ -102,14 +96,14 @@ def main():
         sys.exit()
 
     logging.info('call grs_process for the following paramater. File:' +
-                 file + ', output file:' + outfile +
+                 file + ', output directory:' + odir +
                  f', cams_file:{cams_file}' +
                  ', resolution:' + str(resolution))
 
     try:
         process_ = Process()
         process_.execute(file,
-                         ofile=outfile,
+                         odir=odir,
                          cams_file=cams_file,
                          resolution=resolution,
                          scale_aot=scale_aot,

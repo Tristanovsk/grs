@@ -106,7 +106,7 @@ def main():
         exit(-1)
 
     logging.info('call grs_process for the following parameters. File: ' +
-                 file + ', output file: ' + outfile +
+                 file + ', output idirectory: ' + outdir +
                  ', cams_file: ' + cams_file +
                  ', surfwater_file: ' + str(data["surfwater_file"]) +
                  ', resolution: ' + str(data["resolution"]) +
@@ -126,7 +126,7 @@ def main():
     try:
         process_ = Process()
         process_.execute(file,
-                         ofile=outfile,
+                         odir=outdir,
                          cams_file=cams_file,
                          resolution=data["resolution"],
                          scale_aot=data["scale_aot"],

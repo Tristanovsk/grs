@@ -50,7 +50,7 @@ class Process:
         self.flags_tomask = [0,1,10,13,14,18]
 
     def execute(self, l1c_prod,
-                ofile='',
+                odir='',
                 cams_file=None,
                 surfwater_file=None,
                 dem_file=None,
@@ -65,7 +65,7 @@ class Process:
         Main program calling all GRS steps
 
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
-        :param ofile: Absolute path of the output file
+        :param odir: Absolute path of the output directory
         :param cams_file: Absolute path for root directory of CAMS data
         :param surfwater_file: Absolute path the surfwater file (.tif)
         :param dem_file: Absolute path of the DEM geotiff file
@@ -154,14 +154,14 @@ class Process:
         You can either further play with the l2a xarray or save it into netcdf:
 
 
-        >>> process_.ofile='./name_of_your_output_l2a_netcdf'
+        >>> process_.odir='./name_of_your_output_l2a_netcdf_directory'
         >>> process_.write_output()
         INFO:root:export final product into netcdf
         INFO:root:export into encoded netcdf
 
         '''
 
-        self.ofile = ofile
+        self.odir = odir
         self.snap_compliant = snap_compliant
 
         ##################################
@@ -662,5 +662,5 @@ class Process:
 
     def write_output(self):
         logging.info('export final product into netcdf')
-        self.l2a.to_netcdf(self.ofile,
+        self.l2a.to_netcdf(self.odir,
                            snap_compliant=self.snap_compliant)
