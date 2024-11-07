@@ -1,13 +1,8 @@
-''' Executable to process L1C images from Sentinel-2 and Landsat mission series
+''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--grs_a] [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]\
-   [--longlat <longmax,longmin,latmax,latmin> ] \
-   [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet <afile>] \
-   [--aot550=aot] [--angstrom=ang] [--output param] [--resolution=res] \
-   [--maja <maja_xml_file>] [--waterdetect <waterdetect_file>] [--waterdetect_pixels] \
-   [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip] [--untar]\
-   [--allpixels]
+  grs <input_file> [--cams_file file] [-o <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
+   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -16,140 +11,110 @@ Options:
   -v --version     Show version.
 
   <input_file>     Input file to be processed
-  --grs_a          Apply the advanced (beta) version of GRS if set
-  --sensor sensor Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
-                    (by default sensor type is retrieved from input file name)
-  -o ofile         Full (absolute or relative) path to output L2 image.
-  --odir odir      Ouput directory [default: ./]
-  --levname lev    Level naming used for output product [default: L2grs]
+
+  --cams_file file     Absolute path of the CAMS file to be used (mandatory)
+
+  -o odir         Full (absolute or relative) path to output L2 image.
+  --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --shape shp      Process only data inside the given shape
-  --wkt wktfile    Process only data inside the given wkt file
-  --longlat <longmax,longmin,latmax,latmin>
-                   Restrict ROI to long max, long min, lat max, lat min in decimal degree
-                   [default: 180, -180, 90, -90]
-  --altitude=alt   altitude of the scene to be processed in meters
-                   [default: 0]
-  --dem            Use SRTM digital elevation model instead of --altitude (need internet connection)
-  --aerosol=DB     aerosol data base to use within the processing
-                   DB: cams_forecast, cams_reanalysis, aeronet, user_model
-                   [default: cams_forecast]
-  --aeronet=afile  if `--aerosol` set to 'aeronet', provide aeronet file to use
-  --aot550=aot     if `--aerosol` set to 'user_model', provide aot550 value to be used
-                   [default: 0.1]
-  --angstrom=ang     if `--aerosol` set to 'user_model', provide aot550 value to be used
-                   [default: 1]
-  --maja maja_xml_file   use of mask from MAJA L2A images, path to xml ID of the L2A image
-  --waterdetect waterdetect_file  use of water mask from waterdetect algorithm,
-                    path to the appropriate WaterDetect data file
-  --output param   set output unit: 'Rrs' or 'Lwn' [default: Rrs]
-  --resolution=res  spatial resolution of the scene pixels
-  --unzip          to process zipped images seamlessly
-  --untar          to process tar files seamlessly
-  --memory_safe    use generic resampler instead of S2resampler to save memory
-                   (induces loss in angle resolution per pixel for S2)
+  --resolution=res  spatial resolution of the scene pixels [default: 60]
+  --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
+                            in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
-  --waterdetect_pixels  if waterdetect file is provided, process only the pixels masked as "water"
+  --surfwater file  Absolute path of the surfwater geotiff file to be used
+  --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
+  --scale_aot factor  scaling factor applied to CAMS aod550 raster
+                      [default: 1]
+  --opac_model name  Force the aerosol model (OPAC) to be 'name'
+                     (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
+                     'MACL_rh70', 'URBA_rh70'])
+  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+
+  Example:
+      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/cams/world/cams_forecast_2022-07.nc --resolution 60
+  For CNES datalake:
+      grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
+
 '''
 
-import netCDF4 as nc # imported here to avoid conflicts on mistraou
-import numpy as np
-import geopandas as gpd
+import logging
+import os
+import sys
+
 from docopt import docopt
+from osgeo import gdal
 
-from .config import *
+from . import class_logger
+from . import __package__, __version__
+from .grs_process import Process
 
-
-def shp2wkt(shapefile):
-    print(shapefile)
-    tmp = gpd.GeoDataFrame.from_file(shapefile)
-    #tmp.to_crs(epsg=4326, inplace=True)
-    return tmp.geometry.to_wkt().values[0]
 
 def main():
-    args = docopt(__doc__, version=__package__ + ' ' + VERSION)
+    args = docopt(__doc__, version=__package__ + '_' + __version__)
     print(args)
 
     file = args['<input_file>']
-    grs_a = args['--grs_a']
+
     lev = args['--levname']
-    if grs_a and lev == "L2grs":
-        lev = "L2grsa"
-    sensor = args['--sensor']
-    shapefile = args['--shape']
-    if (args['--shape'] == None):
-        lonmax, lonmin, latmax, latmin = np.array(args['--longlat'].rsplit(','), np.float)
-
+    cams_file = args['--cams_file']
+    surfwater_file = args['--surfwater']
+    dem_file = args['--dem_file']
     noclobber = args['--no_clobber']
-    unzip = args['--unzip']
-    untar = args['--untar']
-    memory_safe = args['--memory_safe']
-    altitude = float(args['--altitude'])
-    dem = args['--dem']
     allpixels = args['--allpixels']
-    resolution = args['--resolution']
-    aerosol = args['--aerosol']
-    aot550 = float(args['--aot550'])
-    angstrom = float(args['--angstrom'])
-    aeronet_file = None
-    if aerosol == 'aeronet':
-        aeronet_file = args['--aeronet']
-    maja_xml = args['--maja']
-    waterdetect_file = args['--waterdetect']
-    waterdetect_only = args['--waterdetect_pixels']
-
-    output=args['--output']
+    resolution = int(args['--resolution'])
+    max_cc = float(args['--max_cloud_cover'])
+    scale_aot = float(args['--scale_aot'])
+    opac_model = args['--opac_model']
+    snap_compliant = args['--snap_compliant']
 
     ##################################
     # File naming convention
     ##################################
+    basename = os.path.basename(file)
+    # first check cloud cover (for S2, not implemented for Landsat)
+    if 'MSIL1C' in basename:
+        f_ = gdal.Open(os.path.join(file, 'MTD_MSIL1C.xml'))
+        metadata = f_.GetMetadata()
+        cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
+        if cc >= max_cc:
+            logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
+            return
 
-    outfile = args['-o']
-    if outfile == None:
-
-        basename=os.path.basename(file)
-        outfile = basename.replace('L1C', lev)
-        outfile = outfile.replace('.SAFE', '').rstrip('/')
-        outfile = outfile.replace('.zip', '').rstrip('/')
-        outfile = outfile.replace('L1TP', lev)
-        outfile = outfile.replace('.txt', '').rstrip('/')
-        # if 'S2' in sensor:
-        #     outfile = basename.replace('L1C', lev)
-        #     outfile = outfile.replace('.SAFE', '').rstrip('/')
-        #     outfile = outfile.replace('.zip', '').rstrip('/')
-        # elif 'LANDSAT' in sensor:
-        #     outfile = basename.replace('L1TP', lev)
-        #     outfile = outfile.replace('.txt', '').rstrip('/')
-        # else:
-        #     print('Not recognized sensor, please try again!')
-        #     sys.exit()
     odir = args['--odir']
     if odir == './':
         odir = os.getcwd()
-    outfile = os.path.join(odir, outfile)
 
-    if os.path.isfile(outfile + ".nc") & noclobber:
+    if not os.path.exists(odir):
+        os.makedirs(odir)
+
+    outfile = os.path.join(odir, os.path.basename(odir) + ".nc")
+
+    class_logger.ServiceLogger(log_file=os.path.join(odir, 'log_file.log'), output_dir=odir, log_level='INFO', log_console=False)
+
+    if os.path.exists(outfile) & noclobber:
         print('File ' + outfile + ' already processed; skip!')
         sys.exit()
 
-    print(file, sensor, outfile, shapefile, altitude, aerosol, noclobber, aeronet_file, resolution)
-    if shapefile != None:
-        wkt = shp2wkt(shapefile)
-    elif args['--wkt'] != None:
-        with open(args['--wkt'], 'r') as f:
-            wkt = f.read()
-    else:
-        wkt = "POLYGON((" + str(lonmax) + " " + str(latmax) + "," + str(lonmax) + " " \
-              + str(latmin) + "," + str(lonmin) + " " + str(latmin) + "," + str(lonmin) + " " \
-              + str(latmax) + "," + str(lonmax) + " " + str(latmax) + "))"
+    logging.info('call grs_process for the following paramater. File:' +
+                 file + ', output directory:' + odir +
+                 f', cams_file:{cams_file}' +
+                 ', resolution:' + str(resolution))
 
-    from .grs_process import process
-    # TODO add **kargs for optional arg like ancillary (should be connected to aerosol for cams choice of forecast or reannalysis
-    process().execute(file, outfile, wkt=wkt, grs_a= grs_a, sensor=sensor, altitude=altitude, aerosol=aerosol,
-                      dem=dem, aeronet_file=aeronet_file, resolution=resolution,
-                      maja_xml=maja_xml, waterdetect_file=waterdetect_file, waterdetect_only=waterdetect_only,
-                      aot550=aot550, angstrom=angstrom, output=output, allpixels=allpixels, memory_safe=memory_safe,
-                      unzip=unzip, untar=untar)
+    try:
+        process_ = Process()
+        process_.execute(file,
+                         odir=odir,
+                         cams_file=cams_file,
+                         resolution=resolution,
+                         scale_aot=scale_aot,
+                         opac_model=opac_model,
+                         dem_file=dem_file,
+                         allpixels=allpixels,
+                         surfwater_file=surfwater_file,
+                         snap_compliant=snap_compliant)
+        process_.write_output()
+    except Exception:
+        logging.error("Fatal error in grs_process", exc_info=True)
     return
 
 

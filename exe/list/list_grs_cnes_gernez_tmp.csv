@@ -1,0 +1,7 @@
+process (yes if 1),Site Name,start_date,end_date,satellite,tile,Latitude,Longitude,resolution (m)
+1,Chahabar,2017-10-24,2017-10-26,S2,41RKJ,25.25,60.55,20
+1,Chahabar,2017-11-18,2017-11-30,S2,41RKJ,25.25,60.55,20
+1,Chahabar,2017-12-23,2018-01-14,S2,41RKJ,25.25,60.55,20
+1,Chahabar,2018-03-28,2018-03-30,S2,41RKJ,25.25,60.55,20
+1,Chahabar,2018-12-03,2016-12-15,S2,41RKJ,25.25,60.55,20
+1,Chahabar,2021-03-27,2021-04-08,S2,41RKJ,25.25,60.55,20

@@ -1,58 +1,89 @@
 ARG IMAGE_SOURCE
+FROM ${IMAGE_SOURCE}ubuntu:22.04 AS systemdependencies
+# FROM ubuntu:kinetic AS systemdependencies
+LABEL maintainer: "robin.buratti@magellium.fr"
 
-FROM ${IMAGE_SOURCE}/snap
+ENV LANG C.UTF-8
+ENV LC_ C.UTF-8
 
-USER root
-LABEL maintainer="OBS2CO"
+RUN ulimit -s unlimited
 
-RUN mkdir /app
+# Proxy from secret volumes
+RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi && \
+    apt-get update -y && \
+    apt-get install -y ca-certificates
 
-
-# Montage du secret contenant un password pour se connecter au proxy du cnes
-## Il faut utiliser le secret dans le même run que le montage sinon cela ne fonctionnera pas. Car les secrets sont montes seulement dans une commande
-RUN --mount=type=secret,id=proxy_http_cnes \ 
-    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    apt-get -y update && \
-    apt-get -y install ca-certificates gfortran
-
-#Ajout des certificats
-COPY certs/* /usr/local/share/ca-certificates/
+# Ajout des certificats
+COPY cert[s]/* /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
-# UL : installation Conda apres la mise a jour des certificats pour atteindre Artifactory. 
-#RUN --mount=type=secret,id=arti_conda_repo \
-#    CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt conda install --override-channels -c $(cat /run/secrets/arti_conda_repo) gdal
+# Install libraries
+RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi \
+    && apt-get -qq update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
+        software-properties-common \
+        gcc \
+        python3.10 \
+        python3-dev \
+        build-essential \
+        gdal-bin \
+        libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
+  
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
 
-RUN chmod -R 777 /app
-COPY . /app/grs
-WORKDIR /app/grs 
+# GRS INSTALL
+WORKDIR /home/
+COPY ecmwf ./grs2/ecmwf
+COPY exe ./grs2/exe
+COPY grs ./grs2/grs
+COPY grsdata ./grs2/grsdata
+COPY pyproject.toml ./grs2/
+COPY requirements.txt ./grs2/
+WORKDIR /home/grs2
 
-RUN ln -s /srv/conda/envs/env_snap/snap/.snap/snap-python/snappy /srv/conda/envs/env_snap/lib/python3.9/site-packages/esasnappy
 
-RUN --mount=type=secret,id=arti_pip_repo \
-    PIP_CERT=/etc/ssl/certs/ca-certificates.crt pip install -i $(cat /run/secrets/arti_pip_repo) -r /app/grs/requirements.txt
 
-RUN make clean && make
+#########################
+FROM ${IMAGE_SOURCE}ubuntu:22.04
+LABEL maintainer: "robin.buratti@magellium.fr"
 
-RUN python setup.py build 
-RUN python setup.py install
+ENV LANG C.UTF-8
+ENV LC_ C.UTF-8
 
-RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' > /srv/conda/envs/env_snap/snap/.snap/etc/snap.properties
+RUN ulimit -s unlimited
 
-RUN sed -i 's#/srv/conda/envs/env_snap/snap//.snap/system#//tmp/grs/.snap/system/#g' /srv/conda/envs/env_snap/snap/etc/snap.conf
-RUN sed -i 's#/srv/conda/envs/env_snap/snap/.snap#//tmp/grs/.snap/#g' /srv/conda/envs/env_snap/snap//etc/snap.properties
-RUN echo 'snap.versionCheck.interval=NEVER\nsnap.jai.tileCacheSize=1024' >> /srv/conda/envs/env_snap/snap/etc/snap.properties
-RUN sed -i '11 a AuxDataPath = /tmp/grs/.snap/auxdata/' /srv/conda/envs/env_snap/snap//etc/snap.auxdata.properties
+RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi \
+    && apt-get -qq update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
+        python-is-python3 \
+        python3.10 \
+        python3-dev \
+        python3-pip \
+        python3-affine \
+        python3-gdal \
+        python3-lxml \
+        python3-xmltodict \
+        gdal-bin \
+    && rm -rf /var/lib/apt/lists/*
+  
+# get GRS from systemdependencies
+COPY --from=systemdependencies /home/grs2 /home/grs2
 
-RUN --mount=type=secret,id=proxy_http_cnes \ 
-    export http_proxy=$(cat /run/secrets/proxy_http_cnes) && export https_proxy=$(cat /run/secrets/proxy_http_cnes) && \
-    timeout 300 snap --nosplash --nogui --modules --update-all || true
+WORKDIR /home/grs2
 
-RUN snap --nosplash --nogui --modules --update org.esa.snap.snap.ndvi org.esa.snap.snap.envisat.reader
+# Add additionnal dependencies + GRS
+RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /kaniko/run/secrets/http_proxy); export https_proxy=$(cat /kaniko/run/secrets/https_proxy); fi \
+    && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --upgrade pip \
+    && pip3 install \
+        --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
+        --no-cache-dir \
+        -r requirements.txt \
+    && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
-#RUN cp /app/grs/snap.auxdata.properties /srv/conda/envs/env_snap/snap/etc/snap.auxdata.properties
+RUN mkdir -p /datalake/watcal/GRS \
+    && cp -r grsdata /datalake/watcal/GRS/
 
-RUN chmod -R 777 /app
-RUN mkdir /snap && chmod -R 777 /snap
-
-#ENTRYPOINT ['python', '/app/grs/exe/launcher.py', "/app/grs/exe/global_config.yml'] 
+WORKDIR /home/
+#ENTRYPOINT ["tail", "-f", "/dev/null"]

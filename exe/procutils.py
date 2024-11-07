@@ -1,11 +1,8 @@
 '''utils module dedicated to processing of massive dataset'''
 
-import os, sys
+import os
 import re
-import numpy as np
-import pandas as pd
-import glob
-import datetime
+import sys
 
 
 class misc:
@@ -90,7 +87,7 @@ class misc:
             # sys.exit(-1)
         return tile
 
-    def set_ofile(self, file, odir='', level_name='l2grs', suffix=''):
+    def set_ofile(self, file, odir='', level_name='L2GRS', suffix=''):
         ''' get satellite type andset output file name'''
         ##################################
         # File naming convention
@@ -99,6 +96,7 @@ class misc:
         lev = level_name
 
         outfile = file.replace('L1C', lev)
+        outfile = outfile.replace('L1GT', lev)
         outfile = outfile.replace('L1TP', lev)
         # remove extension
         outfile = os.path.splitext(outfile)[0]
@@ -143,7 +141,7 @@ class multi_process:
 
             try:
                 from grs import grs_process
-                grs_process.process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
+                grs_process.Process().execute(file_tbp, outfile, wkt, altitude=altitude, aerosol=aerosol, ancillary=ancillary,
                                               dem=True, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, memory_safe=mem_safe, unzip=unzip, untar=untar,
                                               startrow=startrow, allpixels=allpixels, angleonly=angleonly)
@@ -158,30 +156,24 @@ class multi_process:
         sys.exit()
         return
 
-    def grs_cnes(self,args):
+    def grs_cnes(self,arg):
 
-        for arg in args:
-            print('arg', arg)
-            file_tbp, outfile, aerosol, aeronet_file, ancillary, resolution, \
-            dem, maja_xml, waterdetect_file, \
-            aot550, angstrom, mem_safe, allpixels, angleonly = arg
-            print('start process of ',file_tbp)
-            #return
+        # for arg in args:
+        print('arg', arg)
+        file_tbp, outfile, aerosol, aeronet_file, ancillary, resolution, \
+        dem, maja_xml, waterdetect_file, \
+        aot550, angstrom, mem_safe, allpixels, angleonly = arg
+        print('start process of ',file_tbp)
 
-            #try:
-            from grs import grs_process
+        from grs import grs_process
 
-            grs_process.process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
-                                          dem=dem, aeronet_file=aeronet_file, resolution=resolution,
-                                          maja_xml=maja_xml, waterdetect_file=waterdetect_file,
-                                          aot550=aot550, angstrom=angstrom, memory_safe=mem_safe,
-                                           allpixels=allpixels, angleonly=angleonly)
-            # except:
+        grs_process.Process().execute(file_tbp, outfile, aerosol=aerosol, ancillary=ancillary,
+                                      dem=dem, aeronet_file=aeronet_file, resolution=resolution,
+                                      maja_xml=maja_xml, waterdetect_file=waterdetect_file,
+                                      aot550=aot550, angstrom=angstrom, memory_safe=mem_safe,
+                                      allpixels=allpixels, angleonly=angleonly)
 
-            #     print('error for file  ', file_tbp, ' skip')
-            #     print('-------------------------------')
-            #     continue
         # here sys.exit instead of "return" to terminate and close snappy and free memory
-        # sys.exit()
+        sys.exit()
         return
 

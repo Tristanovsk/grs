@@ -2,137 +2,168 @@
 Atmospheric Correction utilities to manage LUT and atmosphere parameters (aerosols, gases)
 '''
 
-import os, sys
 import numpy as np
 import xarray as xr
-import logging
-from matplotlib import pyplot as plt
-from netCDF4 import Dataset
-from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import curve_fit
 
-from . import config as cfg
+from numba import njit, prange
 
 
-class lut:
-    '''Load LUT FROM RT COMPUTATION (OSOAA_h)
+@njit()
+def _getnearpos(array, value):
+    '''
+    Get index of nearest neighbor in an array.
+
+    :param array: array to search in
+    :param value: value you want the nearest index
+    :return:
+    '''
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+
+class Rasterization:
+    '''
+    Class to numba compile python code with heavy loops.
     '''
 
-    def __init__(self, band):
-
-        self.smac_bands = []
-        self.N = len(band)
-        N = self.N
-        self.lut_genearator = "OSOAA_h"
-        self.wl = []
-        self.Cext = []
-        self.Cext550 = 0
-        self.Csca = []
-        self.Csca550 = 0
-        self.vza = []
-        self.sza = []
-        self.azi = []
-        self.aot = []
-        self.refl = []
-
-    def load_lut(self, lut_file, ind_wl, aot=[0.01, 0.05, 0.1, 0.3, 0.5, 0.8], vza_max=20, reflectance=True):
-        '''load lut calculated from OSOAA code
-
-            Arguments:
-                * ``lut_file`` -- netcdf file where lut data are stored for a given aerosol model
-                * ``ind_wl`` -- indices of the desired central wavelength in ``lut_file``
-                * ``aot`` -- aerosol optical thickness at 550 nm for which lut are loaded
-                * ``vza_max`` -- load all lut data for vza <= vza_max
-                * ``reflectance`` -- if true: return data in reflectance unit, return normalized radiane otherwise
-
-            Construct object with:
-                * ``aot`` -- aerosol optical thickness at 550 nm for which lut are loaded
-                * ``Cext`` -- aerosol extinction coefficient (spectral)
-                * ``Cext550`` -- aerosol extinction coefficient at 550 nm
-                * ``vza`` -- viewing zenith angle (in deg)
-                * ``sza`` -- solar zenith angle (in deg)
-                * ``azi`` -- relative azimuth between sun and sensor (in opposition when azi = 0)
-                * ``wl`` -- central wavelength of the sensor bands
-                * ``refl`` -- Top-of-atmosphere reflectance (or normalized radiance if reflectance == False);
-                                xarray of dims: [wl, sza, azi, vza]
-              '''
-
-        self.aot = aot
-
-        Naot = len(aot)
-        ok = 0
-        for iaot in range(Naot):
-
-            file = lut_file.replace('aot0.01', 'aot' + str(aot[iaot]))
-            lut = Dataset(file, mode='r')
-            self.Cext = lut.variables['Cext'][ind_wl]
-            self.Cext550 = lut.variables['Cext550'][0]
-            self.vza = lut.variables['vza'][:]
-            self.sza = lut.variables['sza'][:]
-            self.azi = lut.variables['azi'][:]
-            self.wl = lut.variables['wavelength'][ind_wl]
-            # shrink vza range (unused for S2)
-            ind_vza = self.vza <= vza_max
-            self.vza = self.vza[ind_vza]
-            # allocate lut array
-            if ok == 0:
-                ok = 1
-                nrad = np.zeros((Naot, len(self.wl), len(self.sza), len(self.azi), len(self.vza)))
-
-            # fill in lut array
-            nrad[iaot, :, :, :, :] = lut.variables['Istokes'][ind_wl, :, :, ind_vza]
-
-        if reflectance:
-            # convert into reflectance
-
-            for i in range(len(self.sza)):
-                nrad[:, :, i, :, :] = nrad[:, :, i, :, :] / np.cos(np.radians(self.sza[i]))
-        #print(nrad.shape)
-        self.refl = self._toxr(nrad)
-
-    def _toxr(self, arr):
-        #arr = np.array(arr)
-
-        return xr.DataArray(arr,
-                            dims=('aot', 'wl', 'sza', 'azi', 'vza'),
-                            coords={'aot': self.aot,
-                                    'wl': self.wl,
-                                    'sza': self.sza,
-                                    'azi': self.azi,
-                                    'vza': self.vza})
-
-    def interp_n_slice(self,sza_:np.array,vza_:np.array,azi_:np.array):
+    def __init__(self,
+                 monoview=False):
         '''
-        Linear Interpolation of the lut array on the given angles
+        Set compiled function for:
+            - monoview = True : same viewing angles for all the spectral bands
+            - monoview = False : viewing angles depend on spectral band (e.g. Sentinel-2 images)
+
+        :param monoview: True or False
         '''
+        self.monoview = monoview
+        if monoview:
+            self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh_mono
+            self.interp_Rlut = self._interp_Rlut_mono
+        else:
+            self.interp_Rlut_rayleigh = self._interp_Rlut_rayleigh
+            self.interp_Rlut = self._interp_Rlut
 
-        self.refl = self.refl.interp(azi=azi_).interp(vza=vza_).interp(sza=sza_)
+    @staticmethod
+    @njit()
+    def _interp_Rlut_rayleigh_mono(szas, _sza,
+                                   vzas, _vza,
+                                   azis, _azi,
+                                   Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iazi = _getnearpos(azis, _azi[_iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-    def interp_lut(self, points, values, x):
-        '''expected x dims: [[sza1, azi1, vza1],[sza2, azi2, vza2]...]'''
-        from scipy.interpolate import interpn
+    @staticmethod
+    @njit()
+    def _interp_Rlut_mono(szas, _sza,
+                          vzas, _vza,
+                          azis, _azi,
+                          aot_refs, _aot_ref,
+                          Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iazi = _getnearpos(azis, _azi[_iy, _ix])
+                ivza = _getnearpos(vzas, _vza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-        interp = np.ma.masked_invalid(interpn(points, values, x, bounds_error=False))
+    @staticmethod
+    @njit()
+    def _interp_Rlut_rayleigh(szas, _sza,
+                              vzas, _vza,
+                              azis, _azi,
+                              Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
 
-        return interp
+                for _iwl in range(Nwl):
+                    iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                    ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-    def plot_lut(self, vza, azi, values):
+    @staticmethod
+    @njit()
+    def _interp_Rlut(szas, _sza,
+                     vzas, _vza,
+                     azis, _azi,
+                     aot_refs, _aot_ref,
+                     Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        mus = np.cos(np.radians(_sza))
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
+                    ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+        return arr_lut
 
-        spl = RectBivariateSpline(azi, vza, values)
+    @staticmethod
+    @njit()
+    def _interp_Tlut(szas, _sza,
+                     aot_refs, _aot_ref,
+                     Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                if np.isnan(_sza[_iy, _ix]):
+                    continue
+                isza = _getnearpos(szas, _sza[_iy, _ix])
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza]
+        return arr_lut
 
-        azi_ = np.linspace(0, max(azi), 360)
-        vza_ = np.linspace(0, max(vza), 150)
-        values_ = spl(azi_, vza_, grid=True)
+    @staticmethod
+    @njit()
+    def _interp_aotlut(aot_refs, _aot_ref,
+                       Nwl, Ny, Nx, lut):
+        arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
 
-        r, theta = np.meshgrid(vza_, np.radians(azi_))
-        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-        # ax.contourf(theta,r, values)
-        quadmesh = ax.pcolormesh(theta, r, values_)
-        ax.grid(True)
-        fig.colorbar(quadmesh, ax=ax)
+        for _iy in range(Ny):
+            for _ix in range(Nx):
+                iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
+                for _iwl in range(Nwl):
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl]
+        return arr_lut
+
+    @staticmethod
+    @njit()
+    def _multiplicate(arrwl, raster, arresult):
+        Nwl, Ny, Nx = arresult.shape
+        for iwl in range(Nwl):
+            arresult[iwl] = arrwl[iwl] * raster
+        return arresult
 
 
-class aerosol:
+class Aerosol:
     '''
     aerosol parameters and parameterizations
     '''
@@ -186,147 +217,272 @@ class aerosol:
         return self.fcoef
 
 
-class smac:
-    ''' Gaseous absorption and transmission from pre-calculated 6S/SMAC data '''
+class CamsParams:
+    def __init__(self, name, resol):
+        self.name = name
+        self.resol = resol
 
-    def __init__(self, smac_bands, smac_dir):
 
-        self.smac_bands = smac_bands
-        self.N = len(smac_bands)
-        N = self.N
+class Gases():
+    '''
+     Intermediate class to set parameters for absorbing gases.
+    '''
 
-        ##################
-        # FROM SMAC CESBIO
-        self.smacdir = os.path.join(cfg.smac_root, smac_dir)
-        self.uh2o = 3  # Water vapour (g/cm2)
-        self.ah2o = [0] * N  # coef from SMAC computed from 6S th2o  = np.exp ( (ah2o) * ( (uh2o*m)  ** (nh2o) ) )
-        self.nh2o = [0] * N  # coef from SMAC computed from 6S
-        # O3
-        self.uo3 = 330 * 0.001  # in cm.atm (= DU/1000)
-        self.ao3 = [0] * N
-        self.no3 = [0] * N
-        # O2
-        self.ao2 = [0] * N
-        self.no2 = [0] * N
-        self.po2 = [0] * N
-        # CO2
-        self.aco2 = [0] * N
-        self.nco2 = [0] * N
-        self.pco2 = [0] * N
-        # NH4
-        self.ach4 = [0] * N
-        self.nch4 = [0] * N
-        self.pch4 = [0] * N
-        # NO2
-        self.ano2 = [0] * N
-        self.nno2 = [0] * N
-        self.pno2 = [0] * N
-        # CO
-        self.aco = [0] * N
-        self.nco = [0] * N
-        self.pco = [0] * N
-        ##################
+    def __init__(self):
+        # atmosphere auxiliary data
+        # TODO get them from CAMS
+        self.pressure = 1010
+        self.to3c = 6.5e-3
+        self.tno2c = 3e-6
+        self.tch4c = 1e-2
+        self.psl = 1013
+        self.coef_abs_scat = {'co2': 0.4,
+                              'o2': 0.3,
+                              'o4': 0.3,
+                              'ch4': 0.5,
+                              'no2': 1,
+                              'o3': 1,
+                              'h2o': 0.3}
 
-        self.tg = []  # gaseous transmittance (up and down)
 
-    def set_values(self, o3du=300, h2o=0, no2=0):
-        '''set atmospheric concentration values:
-        :param o3du: ozone in DU
-        :param h2o: water vapor in g/cm^2
-        :param no2: nitrous dioxide in ...'''
+class GaseousTransmittance(Gases):
+    '''
+    Class containing functions to compute rasters of the direct transmittance of the absorbing gases.
+    '''
 
-        self.uo3 = o3du / 1000  # conversion DU to cm.atm
-        self.uh2o = h2o
-        self.uno2 = no2
+    def __init__(self, prod, cams):
+
+        Gases.__init__(self)
+        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds(recalc=True)
+        self.prod = prod
+        self.cams = cams
+        self.gas_lut = prod.gas_lut
+        self.Twv_lut = prod.Twv_lut
+        self.SRF = self.prod.raster.SRF
+        self.air_mass_mean = self.prod.air_mass_mean
+        self.pressure = cams.raster.sp * 1e-2
+
+        self.Tg_tot_coarse = None
+        self.cams_gases = {'ch4': CamsParams('tc_ch4', 4),
+                           'no2': CamsParams('tcno2', 7),
+                           'o3': CamsParams('gtco3', 4),
+                           'h2o': CamsParams('tcwv', 1), }
+
+    def Tgas_background(self):
+        '''
+        Compute direct transmittance for background absorbing gases: :math:`CO,\ O_2,\ O_4`
+
+        :return:
+        '''
+        gl = self.gas_lut
+        pressure = self.pressure.round(1)
+        self.ot_air = (gl.co + self.coef_abs_scat['co2'] * gl.co2 +
+                       self.coef_abs_scat['o2'] * gl.o2 +
+                       self.coef_abs_scat['o4'] * gl.o4) / 1000
+
+        wl_ref = gl.wl
+        SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
+        vals = np.unique(pressure)
+        vals = vals[~np.isnan(vals)]
+        if len(vals) == 1:
+            vals = np.concatenate([vals, 1.2 * vals])
+        Tg_raster = []
+        for val in vals:
+            Tg = np.exp(- self.air_mass_mean * self.ot_air * val)
+            Tg = Tg.rename({'wl': 'wl_hr'})
+
+            Tg_int = []
+            for label, srf in SRF_hr.groupby('wl', squeeze=False):
+                srf = srf.dropna('wl_hr').squeeze()
+                Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+                wl_integr = Tg_.wl_hr.values
+
+                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_int.append(Tg_)
+            Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
+                                          ).assign_coords({'pressure': val}))
+        Tg_raster = xr.concat(Tg_raster, dim='pressure')
+        return Tg_raster.interp(pressure=pressure).drop_vars(['pressure'])
+
+    def Tgas(self,
+             gas_name,
+             coef_abs_scat=1):
+        '''
+        Compute hyperspectral transmittance for a given absorbing gas and
+        convolve it with the spectral response functions of the satellite sensor.
+
+        :param gas_name: name of the absorbing gas, choose between:
+            - 'h2o'
+            - 'o3'
+            - n2o'
+        :return: Gaseous transmittance for satellite bands
+        '''
+
+
+        cams_gas = self.cams_gases[gas_name].name
+        resol = self.cams_gases[gas_name].resol
+        lut_abs = self.gas_lut[gas_name]
+
+        # round number to speed up computation
+        # and scale the concentration following 6S approach due to vertical distribution
+        # with scattering layer above absorbing gases
+        rounded = coef_abs_scat * self.cams.raster[cams_gas].round(resol)
+
+        wl_ref = self.gas_lut.wl
+        SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
+        vals = np.unique(rounded)
+        vals = vals[~np.isnan(vals)]
+        if len(vals) == 1:
+            vals = np.concatenate([vals, 1.2 * vals])
+        Tg_raster = []
+        for val in vals:
+            Tg = np.exp(- self.air_mass_mean * lut_abs * val)
+            Tg = Tg.rename({'wl': 'wl_hr'})
+
+            Tg_int = []
+            for label, srf in SRF_hr.groupby('wl', squeeze=False):
+                srf = srf.dropna('wl_hr').squeeze()
+                Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+                wl_integr = Tg_.wl_hr.values
+
+                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_int.append(Tg_)
+            Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
+                                          ).assign_coords({'tc': val}))
+        Tg_raster = xr.concat(Tg_raster, dim='tc')
+        return Tg_raster.interp(tc=rounded)
+
+    def get_gaseous_optical_thickness(self):
+        '''
+        Get gaseous optival thickness from total column integrated concentration.
+        :return:
+        '''
+
+        gas_lut = self.gas_lut
+
+        ot_o3 = gas_lut.o3 * self.to3c
+        ot_ch4 = gas_lut.ch4 * self.tch4c
+        ot_no2 = gas_lut.no2 * self.tno2c
+        ot_air = (gas_lut.co + self.coef_abs_scat['co2'] * gas_lut.co2 +
+                  self.coef_abs_scat['o2'] * gas_lut.o2 +
+                  self.coef_abs_scat['o4'] * gas_lut.o4) * self.pressure / 1000
+        self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
+
+    def get_gaseous_transmittance(self,
+                                  gases=['ch4','no2','o3','h2o'],
+                                  background=True):
+        '''
+        Get the final total gaseous transmittance.
+        :return:
+        '''
+
+        first = True
+        for gas in gases:
+            if first:
+                Tg_tot = self.Tgas(gas, self.coef_abs_scat[gas])
+                first=False
+            else:
+                Tg_tot =Tg_tot *self.Tgas(gas,
+                                      self.coef_abs_scat[gas])
+
+        if background:
+            Tg_tot = Tg_tot * self.Tgas_background()
+        # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
+        # Nx = len(Tg_other.x)
+        # Ny = len(Tg_other.y)
+        # x = np.linspace(self.xmin, self.xmax, Nx)
+        # y = np.linspace(self.ymax, self.ymin, Ny)
+        # Tg_other['x'] = x
+        # Tg_other['y'] = y
+        self.Tg_tot_coarse = Tg_tot
+        # TODO remove interp for the whole object and proceed with loop on spectral bands to save memory
+        return Tg_tot  # .interp(x=self.prod.raster.x, y=self.prod.raster.y)
+
+    def correct_gaseous_transmittance(self):
+
         return
 
-    # TODO write a function to set standard values for all compounds
-    def set_standard_values(self, peq):
-        i = 0
-        # gaseous transmissions (downward and upward paths)
-        self.uo2 = (peq ** (self.po2[i]))
-        self.uco2 = (peq ** (self.pco2[i]))
-        self.uch4 = (peq ** (self.pch4[i]))
-        self.uno2 = (peq ** (self.pno2[i]))
-        self.uco = (peq ** (self.pco[i]))
+    def get_gaseous_transmittance_old(self):
+        '''
+        Obsolete function
+        :return:
+        '''
+        self.get_gaseous_optical_thickness()
+        wl_ref = self.gas_lut.wl  # .values
+        SRF_hr = self.SRF.interp(wl_hr=wl_ref.values)
+        Tg = np.exp(- self.air_mass_mean * self.abs_gas_opt_thick)
+        Tg = Tg.rename({'wl': 'wl_hr'})
 
-        return
+        Tg_int = []
+        for label, srf in SRF_hr.groupby('wl'):
+            srf = srf.dropna('wl_hr').squeeze()
+            Tg_ = Tg.sel(wl_hr=srf.wl_hr)
+            wl_integr = Tg_.wl_hr.values
 
-    def set_gas_param(self):
-        '''Load gaseous absorption parameters as computed for SMAC from 6S RT code'''
-        for i in range(self.N):
-            try:
-                f = open(self.smacdir + self.smac_bands[i] + '.dat', 'r')
-                lines = f.readlines()
-                f.close()
-                # H20
-                temp = lines[0].strip().split()
-                self.ah2o[i] = float(temp[0])
-                self.nh2o[i] = float(temp[1])
-                # O3
-                temp = lines[1].strip().split()
-                self.ao3[i] = float(temp[0])
-                self.no3[i] = float(temp[1])
-                # O2
-                temp = lines[2].strip().split()
-                self.ao2[i] = float(temp[0])
-                self.no2[i] = float(temp[1])
-                self.po2[i] = float(temp[2])
-                # CO2
-                temp = lines[3].strip().split()
-                self.aco2[i] = float(temp[0])
-                self.nco2[i] = float(temp[1])
-                self.pco2[i] = float(temp[2])
-                # NH4
-                temp = lines[4].strip().split()
-                self.ach4[i] = float(temp[0])
-                self.nch4[i] = float(temp[1])
-                self.pch4[i] = float(temp[2])
-                # NO2
-                temp = lines[5].strip().split()
-                self.ano2[i] = float(temp[0])
-                self.nno2[i] = float(temp[1])
-                self.pno2[i] = float(temp[2])
-                # CO
-                temp = lines[6].strip().split()
-                self.aco[i] = float(temp[0])
-                self.nco[i] = float(temp[1])
-                self.pco[i] = float(temp[2])
-            except:
-                logging.error('WARNING ! NO SMAC FILES FOUND FOR BAND ' + self.smac_bands[i] + ' in ' + self.smacdir + '!')
-                sys.exit(0)
+            Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+            Tg_int.append(Tg_)
 
-    def compute_gas_trans(self, iband, pressure, mu0, muv):
-        '''Compute gaseous transmittances (up and down) from SMAC parameters and ancillary data
-           pressure : actual pressure in hPA
-           mu0 : cosine of solar zenith angle
-           muv : cosine of viewing zenith angle'''
+        self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})
 
-        peq = pressure / 1013.25
+    def other_gas_correction(self, raster_name='masked_raster', variable='Rtoa_masked'):
+        '''
+        Correct for transmittance of high altitude gases
+        (i.e., no coupling with low atmosphere scattering)
 
-        # air mass
-        m = [1 / mu0 + 1 / muv]
+        :param raster_name:
+        :param variable:
+        :return:
+        '''
+        raster = self.__dict__[raster_name]
+        attrs = raster[variable].attrs
+        if attrs.__contains__('other_gas_correction'):
+            if attrs['other_gas_correction']:
+                print('raster ' + raster_name + '.' + variable + ' is already corrected for other gases transmittance')
+                print('set attribute other_gas_correction to False to proceed anyway')
+                return
+        if self.Tg_other is None:
+            self.get_gaseous_transmittance(self.air_mass_mean)
+        raster[variable] = raster[variable] / self.Tg_other
+        raster[variable].attrs['other_gas_correction'] = True
 
-        i = iband
-        # gaseous transmissions (downward and upward paths)
-        self.uo2 = (peq ** (self.po2[i]))
-        self.uco2 = (peq ** (self.pco2[i]))
-        self.uch4 = (peq ** (self.pch4[i]))
-        self.uno2 = (peq ** (self.pno2[i]))
-        self.uco = (peq ** (self.pco[i]))
+    def water_vapor_correction(self, raster_name='coarse_masked_raster', variable='Rtoa_masked'):
+        '''
+        Correct for water vapor transmittance.
 
-        to3 = np.array([np.exp((self.ao3[i]) * ((self.uo3 * x) ** (self.no3[i]))) for x in m])
-        th2o = np.array([np.exp((self.ah2o[i]) * ((self.uh2o * x) ** (self.nh2o[i]))) for x in m])
-        to2 = np.array([np.exp((self.ao2[i]) * ((self.uo2 * x) ** (self.no2[i]))) for x in m])
-        tco2 = np.array([np.exp((self.aco2[i]) * ((self.uco2 * x) ** (self.nco2[i]))) for x in m])
-        tch4 = np.array([np.exp((self.ach4[i]) * ((self.uch4 * x) ** (self.nch4[i]))) for x in m])
-        tno2 = np.array([np.exp((self.ano2[i]) * ((self.uno2 * x) ** (self.nno2[i]))) for x in m])
-        tco = np.array([np.exp((self.aco[i]) * ((self.uco * x) ** (self.nco[i]))) for x in m])
-        # print(th2o , to3 , to2 , tco2 , tch4 , tco , tno2)
-        return th2o * to3 * to2 * tco2 * tch4 * tco * tno2
+        :param raster_name:
+        :param variable:
+        :return:
+        '''
+        raster = self.__dict__[raster_name]
+        attrs = raster[variable].attrs
+        if attrs.__contains__('water_vapor_correction'):
+            if attrs['other_gas_correction']:
+                print('raster ' + raster_name + '.' + variable + ' is already corrected for water vapor transmittance')
+                print('set attribute other_gas_correction to False to proceed anyway')
+                return
+
+        if self.Twv_raster is None:
+            print('xarray of water vapor transmittance is not set, please run get_wv_transmittance_raster(tcwv_raster)')
+            return
+        raster[variable] = raster[variable] / self.Twv_raster
+        raster[variable].attrs['water_vapor_correction'] = True
+
+    def get_wv_transmittance_raster(self, tcwv_raster):
+        '''
+        Get transmittance raster for correction of the image.
+
+        :param tcwv_raster:
+        :return:
+        '''
+        tcwv_vals = tcwv_raster.tcwv.round(1)
+        tcwvs = np.unique(tcwv_vals)
+        tcwvs = tcwvs[~np.isnan(tcwvs)]
+        # TODO improve for air_mass raster
+        Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop('air_mass')
+        self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
 
 
-class misc:
+class Misc:
     '''
     Miscelaneous utilities
     '''
@@ -340,3 +496,11 @@ class misc:
 
         palt = psl * (1. - 0.0065 * np.nan_to_num(alt) / 288.15) ** 5.255
         return palt
+
+    @staticmethod
+    def transmittance_dir(aot, air_mass, rot=0):
+        return np.exp(-(rot + aot) * air_mass)
+
+    @staticmethod
+    def air_mass(sza, vza):
+        return 1 / np.cos(np.radians(vza)) + 1 / np.cos(np.radians(sza))

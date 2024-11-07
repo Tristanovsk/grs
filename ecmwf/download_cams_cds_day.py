@@ -4,18 +4,17 @@ This function download the cams data used in grs from CDS API
 The main program takes two argument : start  and end year
 """
 
-import os, sys
-
 import argparse
-from datetime import date
-import calendar
+import os
+from datetime import date, timedelta
+
 import cdsapi
+from pathlib import Path
 
 
-def main(dic):
+def main(dic, i):
     data_type = 'cams-global-reanalysis-eac4'  # dic['mode']
-    from datetime import date, timedelta
-    today = date.today() - timedelta(days=4)
+    today = date.today() - timedelta(days=i)
     print(today)
     yesterday=today - timedelta(days=1)
     print(yesterday)
@@ -23,24 +22,25 @@ def main(dic):
     
     # specify the period to catch data
     # try:
-    odir = "/datalake/watcal/ECMWF/CAMS/" + str(yesterday.strftime("%Y")) + "/" + str(yesterday.strftime("%m"))+"/"+ str(yesterday.strftime("%d")) + "/"
+    odir = Path(dic['outdir'], yesterday.strftime("%Y"), yesterday.strftime("%m"), yesterday.strftime("%d"))
    
     print(str(odir))
     if not os.path.exists(odir):
         os.makedirs(odir)
-    date = str(yesterday)+"/"+str(today)
-    print(date)
+    date_str = str(yesterday)+"/"+str(yesterday)
+    print(date_str)
 
     c = cdsapi.Client()
     if dic['mode'] == 'reanalysis':
             data_type = 'cams-global-reanalysis-eac4'
-            datafile =  odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc'
+            datafile =  odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc')
             print('processing ' + datafile + '...')
             c.retrieve(
                 data_type,
                     {
+                    'nocache': '456',
                     'format': 'netcdf',
-                    'date': date,  # '2003-09-01/2003-09-30',
+                    'date': date_str,  # '2003-09-01/2003-09-30',
                     'time': [
                         '00:00', '03:00', '06:00',
                         '09:00', '12:00', '15:00',
@@ -63,61 +63,41 @@ def main(dic):
                 datafile)
     else:
             data_type = 'cams-global-atmospheric-composition-forecasts'
-            datafile = odir + str(yesterday.strftime("%Y-%m-%d") + "-" + data_type + '.nc')
-            if os.path.exists(datafile):
-                print('!!' + datafile + 'already exists !!')
-            print('processing ' + datafile + '...')
+            datafile = Path(odir, f"{yesterday.strftime('%Y-%m-%d')}-{data_type}.nc").resolve()
+            if datafile.exists():
+                print(f'!! {datafile} already exists !!')
+            print(f'processing {datafile} ...')
             c.retrieve(
                 data_type,
                 {
-                    'date': date,
+                    'nocache': '456',
+                    'date': date_str,
                     'type': 'forecast',
                     'format': 'netcdf',
                     'variable': [
-                        '10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature',
+                        '10m_u_component_of_wind', '10m_v_component_of_wind',
+                        '2m_temperature',
                         'mean_sea_level_pressure', 'surface_pressure',
-                        'single_scattering_albedo_1020nm',
-                        'single_scattering_albedo_1240nm',
-                        'single_scattering_albedo_1640nm',
-                        'single_scattering_albedo_2130nm',
-                        'single_scattering_albedo_355nm',
-                        'single_scattering_albedo_380nm',
-                        'single_scattering_albedo_400nm',
-                        'single_scattering_albedo_440nm',
-                        'single_scattering_albedo_500nm',
-                        'single_scattering_albedo_550nm',
-                        'single_scattering_albedo_645nm',
-                        'single_scattering_albedo_670nm',
-                        'single_scattering_albedo_800nm',
-                        'single_scattering_albedo_865nm',
-                        'total_aerosol_optical_depth_1020nm',
-                        'total_aerosol_optical_depth_1064nm',
+                        'ammonium_aerosol_optical_depth_550nm', 'black_carbon_aerosol_optical_depth_550nm',
+                        'dust_aerosol_optical_depth_550nm',
+                        'nitrate_aerosol_optical_depth_550nm', 'organic_matter_aerosol_optical_depth_550nm',
+                        'sea_salt_aerosol_optical_depth_550nm',
+                        'secondary_organic_aerosol_optical_depth_550nm', 'sulphate_aerosol_optical_depth_550nm',
                         'total_aerosol_optical_depth_1240nm',
-                        'total_aerosol_optical_depth_1640nm',
-                        'total_aerosol_optical_depth_2130nm',
-                        'total_aerosol_optical_depth_355nm',
-                        'total_aerosol_optical_depth_380nm',
-                        'total_aerosol_optical_depth_400nm',
-                        'total_aerosol_optical_depth_440nm',
                         'total_aerosol_optical_depth_469nm',
-                        'total_aerosol_optical_depth_500nm',
                         'total_aerosol_optical_depth_550nm',
-                        'total_aerosol_optical_depth_645nm',
                         'total_aerosol_optical_depth_670nm',
-                        'total_aerosol_optical_depth_800nm',
                         'total_aerosol_optical_depth_865nm',
-                        'total_column_carbon_monoxide', 'total_column_formaldehyde',
-                        'total_column_hydroxyl_radical', 'total_column_methane', 'total_column_nitrogen_dioxide',
-                        'total_column_ozone', 'total_column_propane', 'total_column_water_vapour',
-                    ],
-                    'leadtime_hour': [
-                        '0', '12', '18',
-                        '21', '3', '6',
-                        '9',
-                    ],
-                    'time': '00:00',
+                        'total_column_carbon_monoxide',
+                        'total_column_methane',
+                        'total_column_nitrogen_dioxide',
+                        'total_column_ozone', 'total_column_water_vapour'],
+
+                    'time': ['00:00', '12:00'],
+                    'leadtime_hour': ['0', '3', '6', '9'],
+
                 },
-                datafile)
+                str(datafile))
 
 
 # except:
@@ -129,6 +109,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Download Cams datasets from CDS')
     parser.add_argument('mode',
                         help='choose `reanalysis` or `forecast` dataset')
+    parser.add_argument('outdir',
+                        help='output directory where the products will be downloaded',
+                        default="/datalake/watcal/ECMWF/CAMS/")
     args = parser.parse_args()
+    #for i in range(1, 100):
+    main(vars(args), 2)
 
-    main(vars(args))

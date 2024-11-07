@@ -1,6 +1,8 @@
 # GRS algorithm package
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
+Please check [grs documentation](https://grs.readthedocs.io/)
+
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
 handle and correct for the direct sunlight reflected by the water surface and potentially reaching the sensor (i.e.,
@@ -9,9 +11,8 @@ processor consists of three main modules to correct for (i) gaseous absorption, 
 reflection by the air-water interface and (iii) the sunglint signal in order to retrieve the water-leaving signal at the
 water surface level. 
 
-First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed with the SMAC
-software (Rahman & Dedieu, 1994) based on parameterizations of the gas transmittances from full radiative transfer
-computations using 6S (Kotchenova et al., 2006). Atmospheric pressure and gas concentrations are retrieved from bilinear
+First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed based on parameterizations of the gas transmittances from full radiative transfer
+computations using lidRadtran v2.0.4. Atmospheric pressure and gas concentrations are retrieved from bilinear
 interpolation within the grid of the Copernicus Atmosphere Monitoring Service dataset (CAMS). Then, spectral radiances
 are corrected for the diffuse sky light and its reflection on the air-water interface. For each pixel, the diffuse
 radiance component is reconstructed for the given viewing geometry (i.e., sensor and Sun viewing angles and relative
@@ -49,76 +50,163 @@ transmittances) calculated for the bimodal aerosol model from the LUT. The versi
 response of each band of Sentinel-2 A and B as well as Landsat-8 and it is based on the CAMS aerosol data for the
 spectral value of $`\tau _a`$.
 
-![flowchart](images/flowchart_sunglint_S2.png)
 
 ## Getting Started
 
+## Installation on TREX (CNES)
+
+1. First clone the repository (from https or ssh):
+```commandline
+git clone https://gitlab.cnes.fr/waterquality/grs2.git
+```
+or
+```commandline
+git clone git@gitlab.cnes.fr:waterquality/grs2.git
+```
+
+Choose your branch (example grs_cnes_v2.1.6)
+```commandline
+git checkout grs_cnes_v2.1.6
+```
+
+2. Make sure that the grsdata variable is set as follows in the config.yml file:
+```commandline
+grsdata: '/work/datalake//watcal/GRS/grsdata_v21'
+```
+
+3. To complete installation please activate your conda grs_cnes environment as follows:
+```commandline
+ml conda
+conda activate grs_cnes
+pip install .
+```
+
+You are done, please check [Testing](#testing)
+  
+
+## Installation on other machine
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### Prerequisites
+### Download the LUT files:
+click  on [grsdata](https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing)
+ to download and save in your desired path (your_GRSDATA_PATH) 
 
-[Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
-
-Download and install the [SNAP software](http://step.esa.int/main/download/). 
-Configure the [SNAP-python interface](https://senbox.atlassian.net/wiki/spaces/SNAP/pages/50855941/Configure+Python+to+use+the+SNAP-Python+snappy+interface) 
-and link the obtained `snappy` folder to your python site-packages as `esasnappy`. For example:
-
-```bash
-ln -s /FULL_PATH/.snap/snap-python/snappy /PATH_TO_LIB_PYTHON/lib/python3.6/site-packages/esasnappy
-```
-
-
-Compilers such gcc and gfortran are needed to install the package.
- 
-Bindings are made based on F2PY. Please update the version of F2PY accordingly to your python version 
-in [Makefile](Makefile); for instance:
-
+### please use conda environment
 ``` 
-export F2PY=f2py3.6
+conda activate "name of your conda env"
 ```
 
-Compile all C and fortran files into shared libraries:
-
+Python >= 3.9 is recommended, example:
+``` 
+conda create python=3.10 -n grs_v2
+conda activate grs_v2
 ```
-make
+Then, install python dependencies:
+``` 
+conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
 ```
-
-Generate the `config.py` file:
- * In the ./grs/grs folder, copy `config_local.py` to `config.py`. 
- 
- * Then, edit `config.py` according to your folders tree and path to your grs installation folder. 
-
-
-
-### Installing
-
-To install the package:
+Set the `config.yml` file:
 ```
-python setup.py install
-```
+path:
+  grsdata: your_GRSDATA_PATH
+``` 
 
-or 
-
-```
-python setup.py install --user
+Finally, install grs with:
+```commandline
+pip install .
 ```
 
-If the installation is successful, you should have:
+## Testing <a name="testing"></a>
+
+After installation, you can type:
+```commandline
+grs -h
 ```
 
-$ grs
+You should see something like:
+```commandline
+Executable to process Sentinel-2 L1C images for aquatic environment
+
 Usage:
-  grs <input_file> [--sensor <sensor>] [-o <ofile>] [--odir <odir>] [--shape <shp>] [--wkt <wktfile>]   [--longlat <longmax,longmin,latmax,latmin> ]    [--altitude=alt] [--dem] [--aerosol=DB] [--aeronet=<afile>]    [--aot550=aot] [--angstrom=ang] [--output param]   [--resolution=res] [--levname <lev>] [--no_clobber] [--memory_safe] [--unzip]
+  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--scale_aot factor]   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
   grs -h | --help
   grs -v | --version
+
+Options:
+  -h --help        Show this screen.
+  -v --version     Show version.
+
+  <input_file>     Input file to be processed
+
+  --cams_file file     Absolute path of the CAMS file to be used (mandatory)
+
+  -o ofile         Full (absolute or relative) path to output L2 image.
+  --odir odir      Ouput directory [default: ./]
+  --levname lev    Level naming used for output product [default: L2Agrs]
+  --no_clobber     Do not process <input_file> if <output_file> already exists.
+  --resolution=res  spatial resolution of the scene pixels
+  --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
+  --surfwater file  Absolute path of the surfwater geotiff file to be used
+  --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
+  --scale_aot factor scaling factor applied to CAMS aod550 raster
+                    [default: 1]
+  --opac_model name  Force the aerosol model (OPAC) to be 'name'
+                    (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
+                                'MACL_rh70', 'URBA_rh70'])
+  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+
+  Example:
+      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
+  For CNES datalake:
+      grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
 ```
+
+If you are on TREX CNES you can run the grs example using a SLURM interactive job:
+```commandline
+unset SLURM_JOB_ID
+srun -A cnes_level2 -N 1 -c 8 --time=02:00:00 --mem=64G --x11 --pty bash
+ml conda
+conda activate grs_cnes
+grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif 
+```
+
+### Script for installation on the HAL CNES HPC:
+```commandline
+# set your grs path here
+your_path_to_grs=/work/scratch/$USER/dev/grs
+
+cd $your_path_to_grs
+git clone git@gitlab.cnes.fr:waterquality/grs2.git
+ml conda/4.12.0
+mkdir /work/scratch/$USER/tmp
+export TMPDIR=/work/scratch/$USER/tmp
+conda create python=3.10 -n grs_v2
+conda activate grs_v2
+conda install gdal geopandas -c conda-forge-remote
+pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
+ml gcc
+make
+pip install .
+
+grs -h
+```
+
+
+### To download CAMS data
+[Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
+
+
+
+
+
+
 
 ### On the PBS cluster : installing from sources with conda on the cluster CNES
 
 Create the conda environment using the definition file available in the conda folder :
 ```
 conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
-````
+```
 The option -p set the directory where the conda environment will be installed
 
 To install the package grs in conda :
@@ -139,6 +227,7 @@ From terminal:
 ```
 grs test/data/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
 ```
+
 You should get something like:
 
 ![image_output](images/example_snap_grs_image.png)
@@ -147,9 +236,58 @@ Another examples of output images before (1st column) and after  (2nd column) su
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
 
+### Lauch with docker [deprecated]:
+```
+qsub -q qdev -I -l walltime=4:00:00
+
+/opt/bin/drunner run -it -v /datalake/watcal:/datalake/watcal artifactory.cnes.fr/obs2co-docker/grs:1.4.0 python /app/grs/exe/launcher.py /app/grs/exe//app/grs/exe/global_config.yml
+```
+
 ## Deployment
 
 See examples in [exe](exe).
+
+## Compile Docker image locally
+First and foremost, you must have the coresponding version of GRSdriver at the same level as grs2.
+You should also make sure that the grsdata folder is full (it is a LTS).
+Eventually, you must get Dockerfile out of grs2 folder to have a structure as diplayed below.
+
+head_folder  
+ ├grs2  
+ ├GRSdriver  
+ └Dockerfile
+
+Note that anything in this folder tree will be added to the Docker build context, so make it light.
+You might consider removing the notebooks and all useless files and directories from the grs2 & GRSdriver
+folders to make the resulting image as light as possible (.git, illustration, notebook...).
+
+Once all those requirements are met, you can compile the Docker image using the following command:
+```
+docker build -t grs2:<version_tag> *path_to_head_folder* -f *path_to_Dockerfile*
+```
+
+When the compilation has ended, you can access the image with the command:
+```
+docker images
+```
+
+To run the Docker image in a container on a S2 raster you can use the run_docker.sh script as follow:
+```
+./run_docker.sh <image_ID> <S2_raster_path> <CMAS_data_path> <desired_name_for_output> <desired_path_for_output> <desired_resolution> <surfwater_tif_path>
+```
+Example:
+```
+./run_docker.sh grs2:V2_CNES \
+/DATA/S2_raster/S2B_MSIL1C_20220228T102849_N0400_R108_T31TFJ_20220228T123819.SAFE \
+/DATA/CAMS/2022-02-28-cams-global-atmospheric-composition-forecasts.nc \
+S2B_L2Agrs_20220228T102849_N0400_R108_T31TFJ_20220228T123819 \
+/DATA/grs_outputs \
+60 \
+/DATA/Surfwater/SURFWATER_OPTICAL-SINGLE_T31TFJ_20220228T103850_20220228T103850_1-0-4_06/SURFWATER_OPTICAL-SINGLE_T31TFJ_20220228T103850_20220228T103850_1-0-4_06.tif
+```
+
+The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
+You can adapt the sh script to modify this behaviour.
 
 ## Contributing
 
@@ -171,3 +309,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 with the snappy API.
 * The authors are very grateful to Olivier Hagolle
 for providing open source codes to perform gaseous absorption correction and massive Sentinel-2 data download.
+

@@ -1,9 +1,9 @@
-import os, sys
-import logging
-
 import argparse
-from datetime import date
 import calendar
+import logging
+import os
+import sys
+
 from ecmwfapi import ECMWFDataServer
 
 """

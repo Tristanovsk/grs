@@ -1,7 +1,6 @@
-import os, sys
+import os
 import subprocess
-
-
+import sys
 
 dir = os.path.dirname(os.path.abspath(__file__))
 exe = os.path.join(dir, 'grs_proc_sites.py')

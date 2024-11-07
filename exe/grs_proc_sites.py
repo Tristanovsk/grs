@@ -1,9 +1,11 @@
 '''
 command to process images over the aeronet-oc sites
 '''
-import os, sys
-import pandas as pd
 import glob
+import os
+import sys
+
+import pandas as pd
 
 sys.path.extend([os.path.abspath(__file__)])
 #sys.path.extend(['/home/harmel/Dropbox/work/git/satellite_app/grs/exe'])
@@ -26,7 +28,7 @@ if full_tile:
 else:
     w, h = 1, 1
 
-lev = 'L2grs'
+lev = 'L2GRS'
 aerosol = 'cams_forecast'
 fjunk = os.path.join(odir, 'list_junk_files.txt')
 Nimage = 1
@@ -125,7 +127,7 @@ for idx, row in sites.iterrows():
                 pass
 
             try:
-                grs_process.process().execute(file, outfile, wkt, altitude=altitude, aerosol=aerosol,
+                grs_process.Process().execute(file, outfile, wkt, altitude=altitude, aerosol=aerosol,
                                               dem=None, aeronet_file=aeronet_file, resolution=resolution,
                                               aot550=aot550, angstrom=angstrom, unzip=unzip, startrow=startrow)
                 isuccess += 1

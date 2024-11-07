@@ -1,601 +1,666 @@
-'''
-Main program
-'''
+import os
 
-from pathlib import Path
-from esasnappy import ProductData, ProductIO
-import logging
-from logging.handlers import RotatingFileHandler
+import importlib_resources
+import yaml
 
-import os, shutil
-import zipfile
-import tarfile
-import glob
 import numpy as np
 import xarray as xr
 
-from . import config as cfg
-from . import acutils
-from . import auxdata
-from . import utils
-from .anglegen import *
-from .fortran.grs import main_algo as grs_solver
-from .fortran.grs_a import main_algo as grs_a_solver
+# keep attributes through operatyion on xarray objects
+xr.set_options(keep_attrs=True)
+import rioxarray as rio
+import logging
+import gc
+
+from multiprocessing import Pool  # Process pool
+from multiprocessing import sharedctypes
+import itertools
+
+import GRSdriver
+
+from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
+from .grs_exceptions import GRS_IO_Exception
+
+opj = os.path.join
+
+configfile = importlib_resources.files(__package__) / 'config.yml'
+with open(configfile, 'r') as file:
+    config = yaml.safe_load(file)
+
+GRSDATA = config['path']['grsdata']
+TOALUT = config['path']['toa_lut']
+TRANSLUT = config['path']['trans_lut']
+CAMS_PATH = config['path']['trans_lut']
+NCPU = config['processor']['ncpu']
 
 
-class process:
-    ''' '''
+class Process:
+    '''
+    Main GRS class.
+
+    '''
 
     def __init__(self):
-        pass
+        self.lut_file = opj(GRSDATA, TOALUT)
+        self.trans_lut_file = opj(GRSDATA, TRANSLUT)
+        self.cams_dir = CAMS_PATH
+        self.Nproc = NCPU
+        self.pressure_ref = 101500.
+        self.flags_tokeep = [3]
+        self.flags_tomask = [0,1,10,13,14,18]
 
-    def execute(self, file, outfile, wkt=None, sensor=None, aerosol='default', ancillary=None, altitude=0,
-                dem=True, aeronet_file=None, aot550=0.1, angstrom=1, resolution=None, unzip=False, untar=False,
-                startrow=0, allpixels=False, maja_xml=None, waterdetect_file=None, waterdetect_only=False,
-                memory_safe=False, angleonly=False, grs_a=False, output='Rrs', logfile="log.txt", log_level="INFO"):
+    def execute(self, l1c_prod,
+                odir='',
+                cams_file=None,
+                surfwater_file=None,
+                dem_file=None,
+                resolution=20,
+                scale_aot=1,
+                opac_model=None,
+                allpixels=False,
+                snap_compliant=False
+                ):
+
         '''
         Main program calling all GRS steps
 
-        :param file: Input file to be processed
-        :param outfile: Absolute path of the output file
-        :param wkt: Well-Known-Text format defining the area of interest for which the image is subset
-        :param sensor: Set the sensor type: S2A, S2B, LANDSAT_5, LANDSAT_7, LANDSAT_8
-                    (by default sensor type is retrieved from input file name)
-        :param aerosol: aerosol data base to use within the processing
-                   DB: cams_forecast, cams_reanalysis, cds_forecast, aeronet, user_model, default
-        :param ancillary: if None, value is set to that of aerosol
-        :param altitude: provide altitude if `dem` is set as `False`
-        :param dem: if True digital elevation model is applied for per-pixel pressure calculation (data from SNAP/SRTM)
-        :param aeronet_file: optional aeronet file to be used for aerosol calculations
-        :param maja_xml: optional use of mask from MAJA L2A images, path to xml ID of the L2A image
-        :param waterdetect_file: optional use of water mask from waterdetect algorithm,
-                    path to the appropriate WaterDetect data file
-        :param waterdetect_only: if True and waterdetect file is provided, process only the pixels masked as "water"
-        :param resolution: pixel resolution in meters (integer)
-        :param unzip: if True input file is unzipped before processing,
-                      NB: unzipped files are removed at the end of the process
-        :param startrow: row number of the resampled and subset image on which the process starts, recommended value 0
-                        NB: this option is used to in the context of operational processing of massive dataset
-        :param allpixels: force to process all pixels even they are flagged as "Vegetation" or "Non-water"
-        :param angleonly: if true, grs is used to compute angle parameters only (no atmo correction is applied)
-        :param output: set the unit of the retrievals:
-
-                 * 'Lwn', normalized water-leaving radiance (in  :math:`mW cm^{-2} sr^{-1} \mu m^{-1})`
-
-                 * 'Rrs', remote sensing reflectance (in  :math:`sr^{-1}`)
-
-                 {default: 'Rrs'}
-        :param grs_a: switch to grs-a algorithm (Lwn and aerosol) if True
-
+        :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
+        :param odir: Absolute path of the output directory
+        :param cams_file: Absolute path for root directory of CAMS data
+        :param surfwater_file: Absolute path the surfwater file (.tif)
+        :param dem_file: Absolute path of the DEM geotiff file
+        :param resolution: pixel resolution in meter
+        :param scale_aot: scaling factor applied to CAMS aod550 raster
+        :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
+        :param allpixels: if True process all pixels (no water pixel masking)
+        :param snap_compliant: Output format compliant with SNAP software for practical analysis
         :return:
+
+        Examples
+        --------
+
+        >>> import grs
+        >>> file ='$YOUR_PATH_TO_IMG/S2A_MSIL1C_20181019T102031_N0500_R065_T30PYT_20230815T043850.SAFE'
+        >>> tile = file.split('_')[-2][1:]
+        >>> dem_file = '$YOUR_PATH_TO_DEM/COP-DEM_GLO-30-DGED_'+tile+'.tif'
+        >>> cams_file = '$YOUR_PATH_TO_CAMS/cams_forecast_2018-10.nc'
+        >>> process_ = grs.Process()
+
+        In this example, you force the aerosol model to be 'DESE_rh70' for desert dust
+
+        >>> process_.execute(file_nc,
+        ...                 cams_file=cams_file,
+        ...                 surfwater_file=None,
+        ...                 dem_file=dem_file,
+        ...                 scale_aot=1,
+        ...                 opac_model='DESE_rh70')
+        INFO:root:pass netcdf image as grs product object
+        INFO:root:get CAMS auxilliary data
+        INFO:root:flagging from l1c data
+        INFO:root:cloud masking with s2cloudless
+        INFO:root:land masking
+        INFO:root:cirrus masking
+        INFO:root:high swir masking
+        INFO:root:loading look-up tables
+        INFO:root:compute gaseous transmittance from cams data
+        INFO:root:correct for gaseous absorption
+        INFO:root:compute spectral index (e.g., NDWI)
+        INFO:root:apply water masking
+        INFO:root:lut interpolation
+        INFO:root:selected aerosol model: DESE_rh70
+        INFO:root:scaling aot by: 1
+        INFO:root:set final parameters
+        INFO:root:compute surface pressure from dem
+        INFO:root:run grs process
+        INFO:root:success
+        INFO:root:construct final product
+        INFO:root:construct l2a
+
+        >>> process_.l2a.l2_prod
+        <xarray.Dataset>
+        Dimensions:      (wl: 11, y: 1818, x: 2523)
+        Coordinates:
+          * wl           (wl) int64 443 490 560 665 705 740 783 842 865 1610 2190
+            time         datetime64[ns] 2018-10-19T10:20:31.024000
+          * x            (x) float64 7.299e+05 7.299e+05 7.3e+05 ... 7.803e+05 7.804e+05
+          * y            (y) float64 1.3e+06 1.3e+06 1.3e+06 ... 1.264e+06 1.264e+06
+            band         int64 1
+            spatial_ref  int64 0
+        Data variables:
+            Rrs          (wl, y, x) float32 nan nan nan nan nan ... nan nan nan nan nan
+            BRDFg        (y, x) float32 nan nan nan nan nan nan ... nan nan nan nan nan
+            aot550       (y, x) float32 0.187 0.187 0.187 0.187 ... 0.1929 0.1929 0.1929
+            vza          (y, x) float32 6.489 6.489 6.483 6.483 ... 2.13 2.125 2.125
+            sza          (y, x) float32 nan nan nan nan nan nan ... nan nan nan nan nan
+            raa          (y, x) float32 332.5 332.5 332.5 332.5 ... 290.0 289.9 289.9
+            flags    (y, x) int64 184 56 184 184 184 184 ... 160 160 160 160 160 160
+            dem          (y, x) float32 282.9 282.7 282.5 282.3 ... 237.3 237.3 237.4
+            surfwater    (y, x) int8 1 1 1 1 1 1 1 1 1 1 1 1 ... 1 1 1 1 1 1 1 1 1 1 1 1
+        Attributes: (12/71)
+            long_name:                           CA BLUE GREEN RED VRE_1 VRE_2 VRE_3 ...
+            constellation:                       Sentinel-2
+            constellation_id:                    S2
+            product_path:                        /data/satellite/Sentinel-2/L1C/30PYT...
+            product_name:                        S2A_MSIL1C_20181019T102031_N0500_R06...
+            product_filename:                    S2A_MSIL1C_20181019T102031_N0500_R06...
+            ...                                  ...
+            ndwi_threshold:                      0.0
+            vis_swir_index_threshold:            0.0
+            hcld_threshold:                      0.003
+            dirdata:                             /data/grs/grsdata
+            abs_gas_file:                        /home/harmel/Dropbox/Dropbox/work/gi...
+            water_vapor_transmittance_file:      /home/harmel/Dropbox/Dropbox/work/gi...
+
+        You can either further play with the l2a xarray or save it into netcdf:
+
+
+        >>> process_.odir='./name_of_your_output_l2a_netcdf_directory'
+        >>> process_.write_output()
+        INFO:root:export final product into netcdf
+        INFO:root:export into encoded netcdf
+
         '''
 
+        self.odir = odir
+        self.snap_compliant = snap_compliant
 
         ##################################
-        # Get sensor auxiliary data
+        # Get image data
         ##################################
-
-        logging.info('Get sensor auxiliary data')
-        _utils = utils.utils()
-        if sensor == None:
-            sensor = _utils.get_sensor(file)
-        sensordata = auxdata.sensordata(sensor)
-        if resolution == None:
-            resolution = sensordata.resolution
-        indband = sensordata.indband
-
-        if ancillary == None:
-            ancillary = aerosol
-
-        ##################################
-        # Read L1C product
-        ##################################
-
-
-        file_orig = file
-        # unzip if needed
-        if unzip:
-            logging.info('unzipping...')
-            tmpzip = zipfile.ZipFile(file)
-            tmpzip.extractall(cfg.tmp_dir)
-            file = os.path.join(cfg.tmp_dir, tmpzip.namelist()[0])
-        tartmp = None
-        if untar:
-            basename = os.path.basename(file).replace('.tgz', '')
-            basename = os.path.basename(basename).replace('.tar.gz', '')
-            tmp_dir = os.path.join(cfg.tmp_dir, basename)
-            # open tar archive to extract files for data loading
-            tmpzip = tarfile.open(file)
-            tmpzip.extractall(tmp_dir)
-            file = glob.glob(os.path.join(tmp_dir, '*MTL.*'))[0]
-            # open tar archive to add potential file (e.g., angle files) - InvalidHeaderError
-            if not any(['solar' in f for f in glob.glob(os.path.join(tmp_dir, '*'))]):
-                tartmp = tarfile.open(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), 'w:gz')
-
-        logging.info("Reading...")
-        logging.info(file)
-        product = ProductIO.readProduct(file)
-
-        ##################################
-        # Generate l2h object
-        ##################################
-        l2h = utils.info(product, sensordata, aerosol, ancillary, output)
-        l2h.headerfile = file
-
-        ##################################
-        # GET METADATA
-        ##################################
-        logging.info('getting metadata...')
-        # TODO clean up this part and other metadata to be loaded
-        if 'S2' in sensor:
-            meta = l2h.product.getMetadataRoot().getElement('Level-1C_User_Product').getElement(
-                'General_Info').getElement(
-                'Product_Image_Characteristics').getElement('Reflectance_Conversion')
-            l2h.U = float(str(meta.getAttribute('U').getData()))
-            l2h.solar_irr = np.zeros(len(indband), dtype=np.float32)
-            for i, iband in zip(range(len(indband)), indband):
-                l2h.solar_irr[i] = float(str(meta.getElement('Solar_Irradiance_List').getAttributeAt(iband).getData()))
-
-        else:
-            meta = l2h.product.getMetadataRoot().getElement("L1_METADATA_FILE").getElement("IMAGE_ATTRIBUTES")
-            l2h.U = float(str(meta.getAttribute('EARTH_SUN_DISTANCE').getData())) ** 2
-            l2h.solar_irr = np.array(l2h.sensordata.solar_irr)[indband]
-
-        # convert into mW cm-2 um-1
-        l2h.solar_irr = l2h.solar_irr / 10
-
-        ##################################
-        # GENERATE BAND ANGLES (LANDSAT)
-        ##################################
-        anggen = False
-        if 'LANDSAT_8' in sensor:
-            anggen = angle_generator().landsat(l2h)
-        elif 'LANDSAT' in sensor:
-            anggen = angle_generator().landsat_tm(l2h)
-        #logging.info('anggen = {}'.format(anggen))
-        if anggen:
-            if tartmp:
-                logging.info('writing angles to input file: ' + file_orig)
-                # TODO finalize this part to add angle files to original tar.gz image (e.g., LC8*.tgz)
-                # copy tgz image and add angle files
-                shutil.move(file_orig, os.path.join(os.path.dirname(file_orig), 'saves', os.path.basename(file_orig)))
-                for filename in os.listdir(tmp_dir):
-                    tartmp.add(os.path.join(tmp_dir, filename), filename)
-                tartmp.close()
-                shutil.move(os.path.join(cfg.tmp_dir, os.path.basename(file_orig)), file_orig)
-
-        # stop process for landsat angle computation only
-        if angleonly:
-            return
-
-        ##################################
-        # RESAMPLE TO A UNIQUE RESOLUTION
-        ##################################
-        logging.info('resampling...')
-        if 'S2' in sensor:
-            if memory_safe:
-                l2h.product = _utils.generic_resampler(l2h.product, resolution=resolution)  # , method='Nearest')
+        if isinstance(l1c_prod, str):
+            # get extension
+            extension = l1c_prod.split('.')[-1]
+            basename = os.path.basename(l1c_prod)
+            if extension == 'nc':
+                logging.info('pass netcdf image as grs product object')
+                prod = Product(xr.open_dataset(l1c_prod))
+            elif 'SAFE' in extension:
+                logging.info('Open L1C Sentinel 2 image and compute angle parameters')
+                global l1c
+                try:
+                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
+                    l1c.load_product()
+                except Exception as exc:
+                    raise GRS_IO_Exception(l1c_prod, exc)
+                logging.info('pass raw image as grs product object')
+                prod = Product(l1c.prod)
+                # clear memory (TODO make it work!!)
+                del l1c
+                gc.collect()
+            elif ('LC09_L1' in basename) or ('LC08_L1' in basename):
+                logging.info('Open L1TP Landsat image')
+                try:
+                    l1c = GRSdriver.LandsatDriver(l1c_prod, resolution=resolution)
+                    l1c.load_mask()
+                    l1c.load_product()
+                except Exception as exc:
+                    raise GRS_IO_Exception(l1c_prod, exc)
+                logging.info('pass raw image as grs product object')
+                prod = Product(l1c.prod)
+                # clear memory (TODO make it work!!)
+                del l1c
+                gc.collect()
             else:
-                l2h.product = _utils.s2_resampler(l2h.product, resolution=resolution)
-        else:
-            l2h.product = _utils.resampler(l2h.product, resolution=resolution)  # , upmethod='Nearest')
-
-
-        ##################################
-        # SUBSET TO AREA OF INTEREST
-        ##################################
-        logging.info('subsetting...')
-        try:
-            if wkt is not None:
-                l2h.product = _utils.get_subset(l2h.product, wkt)
-        except:
-            if unzip:
-                # remove unzipped files (Sentinel files)
-                shutil.rmtree(file, ignore_errors=True)
-            if untar:
-                # remove untared files (Landsat files)
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise NameError('No data available for requested area')
-
-        l2h.get_product_info()
-        l2h.set_outfile(outfile)
-        l2h.wkt, lonmin, lonmax, latmin, latmax = _utils.get_extent(l2h.product)
-        l2h.crs = str(l2h.product.getBand(l2h.band_names[0]).getGeoCoding().getImageCRS())
-
-        ##################################
-        # Fetch optional mask products
-        # resample for common resolution
-        # subset to ROI
-        ##################################
-        logging.info('fetching flags...')
-        maja, waterdetect = None, None
-        if maja_xml:
+                logging.info('input file format not recognized, stop')
+                return
+        elif isinstance(l1c_prod, xr.Dataset):
             try:
-                maja = ProductIO.readProduct(maja_xml)
-                maja = _utils.resampler(maja, resolution=resolution)
-                maja = _utils.get_subset(maja, wkt)
+                prod = Product(l1c_prod)
+            except Exception as exc:
+                logging.info('input file format not recognized, stop')
+                raise GRS_IO_Exception(l1c_prod, exc)
 
-            except:
-                logging.info('!!! issues with ' + maja_xml + '; please check if file exists')
-                raise
-
-        if waterdetect_file:
-            try:
-                waterdetect = ProductIO.readProduct(waterdetect_file)
-                waterdetect = _utils.get_subset(waterdetect, wkt)
-                waterdetect = _utils.resampler(waterdetect, resolution=resolution)
-
-            except:
-                logging.info('!!! issues with ' + waterdetect_file + '; please check if file exists')
-                raise
+        self.prod = prod
 
         ##################################
-        ## ADD ELEVATION BAND
+        # Set sensor specifications
         ##################################
-        logging.info('adding elevation band...')
-        if dem:
-            logging.info('add elevation band')
-            high_latitude = (latmax >= 60) | (latmin <= -60)
-            l2h.get_elevation(high_latitude)
+        # TODO check evolution concerning viewing angles computation for Lansdat, now in monoview mode
 
+        if 'S2' in prod.sensor:
+            monoview = False
         else:
-            l2h.elevation = np.zeros([l2h.height, l2h.width])
-
-        ##################################
-        # GET IMAGE AND RASTER PROPERTIES
-        ##################################
-        logging.info('load raster data...')
-        l2h.get_bands(l2h.band_names)
-        l2h.print_info()
-
-        ##################################
-        # SET NEW BAND FOR MASKING
-        ##################################
-        logging.info('add ndwi mask')
-        l2h.product.addBand('ndwi', ProductData.TYPE_FLOAT32)
-        l2h.ndwi_band = l2h.product.getBand('ndwi')
-        l2h.ndwi_band.ensureRasterData()
-        l2h.ndwi_band.loadRasterData()
+            monoview = True
+        _R_ = Rasterization(monoview=monoview)
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
         ##################################
-        logging.info('getting CAMS data...')
-        l2h.aux = auxdata.cams()
-
-        if ancillary != 'default':
-            if l2h.aerosol == 'cds_forecast':
-                target = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                      '_month_cams-global-atmospheric-composition-forecasts.nc')
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt, param=['msl', 'gtco3', 'tcwv', 'tcno2', 't2m'])
-            else:
-                target = Path(os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
-                                           l2h.date.strftime('%Y-%m') + '_month_' + l2h.ancillary + '.nc'))
-                # do not load here since already implemented elsewhere in CNES HPC
-                # l2h.aux.load_cams_data(target, l2h.date, data_type=l2h.ancillary)
-                l2h.aux.get_cams_ancillary(target, l2h.date, l2h.wkt)
-
-        ## uncomment this part to use ecmwf files provided in the .SAFE format
-        # if 'S2' in sensor:
-        #     l2h.aux.get_tile_dir(file)
-        #     l2h.aux.get_aux_dir()
-        #     l2h.aux.get_ecmwf_data()
-
-        # get pressure at the scene altitude
-        l2h.pressure_msl = l2h.aux.msl  # acutils.misc.get_pressure(altitude, l2h.aux.msl)
-        if dem:
-            altitude = l2h.elevation
-            altitude[altitude < -200] = 0
-        l2h.pressure = acutils.misc.get_pressure(altitude, l2h.pressure_msl)  # l2h.aux.pressure = l2h.pressure
-
-        ######################################
-        #      Create output l2 product
-        #          'l2_product'
-        ######################################
-        logging.info('creating L2 output product')
-        l2h.create_product(maja=maja, waterdetect=waterdetect)
+        logging.info('get CAMS auxilliary data')
         try:
-            l2h.load_data()
-            logging.info('creating L2 output product')
-        except:
-            if unzip:
-                # remove unzipped files (Sentinel files)
-                shutil.rmtree(file, ignore_errors=True)
-            if untar:
-                # remove untared files (Landsat files)
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise NameError('No data available for requested area')
-        l2h.load_flags()
+            if cams_file:
+                cams = CamsProduct(prod.raster, cams_file=cams_file)
+            else:
+                tile = prod.raster.attrs['tile']
+                cams_dir = os.path.join(self.cams_dir, tile)
+                cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
+            cams.load()
+        except Exception as exc:
+            raise GRS_IO_Exception(cams_file, exc)
 
-        #---------
-        # delete Cache
-        # TODO need to find a way to delete the processed file only (keep the others)
-        #l2h.deleteCache()
+        # Cox-Munk isotropic mean square slope (sigma2)
+        wind = np.sqrt(cams.raster['v10'] ** 2 + cams.raster['u10'] ** 2)
+        sigma2 = (wind + 0.586) / 195.3
+
+        # get mean values to set LUT
+        _sigma2 = sigma2.mean().values
+        _wind = wind.mean().values
+
+        ##################################
+        # Pixel classification
+        # Generate the flags raster
+        ##################################
+        logging.info('flagging from l1c data')
+
+        if surfwater_file:
+            try:
+                logging.info('loading surfwater data file')
+                prod.raster['surfwater'] = rio.open_rasterio(surfwater_file
+                                                             ).astype(np.uint8
+                                                                      ).squeeze().interp(x=prod.x,
+                                                                                         y=prod.y,
+                                                                                         method='nearest')
+                prod.raster.surfwater.name = 'surfwater'
+                prod.raster.surfwater.attrs = {
+                    'description': 'surfwater file not provided as input, all pixels flagged as water (e.g., surfwater=1)'}
+            except Exception as exc:
+                raise GRS_IO_Exception(surfwater_file, exc)
+
+        masking_ = Masking(prod.raster)
+        prod.raster = masking_.process(output="prod")
+
+        # -- clean up
+        prod.raster = prod.raster.drop_vars(["surfwater"])
+
+        #####################################
+        # SUBSET RASTER TO KEEP REQUESTED BANDS
+        #####################################
+        # TODO check if we can remove cirrus and water vapor band from output object
+        if prod.bcirrus:
+            prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest')
+        if prod.bwv:
+            prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest')
+
+        prod.raster = prod.raster.sel(wl=prod.wl_process, method='nearest')
+
+        # get true central wavelength for the bands to process
+        wl_true = prod.raster.wl_true
+
+        ##################################
+        ## ADD ELEVATION AND PRESSURE BAND
+        ##################################
+        # TODO activate DEM loading to improve pressure computation
+        # prod.get_elevation()
 
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
-        logging.info('loading lut...'+ l2h.lutfine)
-        lutf = acutils.lut(l2h.band_names)
-        lutc = acutils.lut(l2h.band_names)
-        lutf.load_lut(l2h.lutfine, indband)
-        lutc.load_lut(l2h.lutcoarse, indband)
+        logging.info('loading look-up tables')
+        try:
+            Ttot_Ed = xr.open_dataset(self.trans_lut_file)
+        except Exception as exc:
+            raise GRS_IO_Exception(self.trans_lut_file, exc)
+        Ttot_Ed['wl'] = Ttot_Ed['wl'] * 1000
 
-        # reproject lut array on the angles of the image
-        # angles are rounded to reduce the dims of interpolated LUT
-        sza_ = _utils.remove_na(np.unique(l2h.sza.round(1)))
-        vza_ = _utils.remove_na(np.unique(l2h.vza.round(1)))
-        azi_ = _utils.remove_na(np.unique(l2h.razi.round(0)))
-        lutf.interp_n_slice(sza_,vza_,azi_)
-        lutc.interp_n_slice(sza_,vza_,azi_)
-        aotlut = np.array(lutf.aot, dtype=l2h.type)
+        try:
+            aero_lut = xr.open_dataset(self.lut_file)
+        except Exception as exc:
+            raise GRS_IO_Exception(self.lut_file, exc)
+        aero_lut['wl'] = aero_lut['wl'] * 1000
+        aero_lut['aot'] = aero_lut.aot.isel(wind=0).squeeze()
 
+        # remove URBAN aerosol model for this example
+        models = aero_lut.drop_sel(model='URBA_rh70').model.values
 
-        ##################################
-        # GET ANCILLARY DATA (AEROSOL)
-        ##################################
-        aero = acutils.aerosol()
-        aot550rast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
-        aotscarast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
-        # ssarast = np.zeros([l2h.N,l2h.width, l2h.height], dtype=l2h.type)
-        aotrast = np.zeros([l2h.N, l2h.height, l2h.width], dtype=l2h.type, order='F')
-        fcoefrast = np.zeros([l2h.height, l2h.width], dtype=l2h.type, order='F')
-        # set mean SSA value to adjust scattering AOT when info is not available
-        ssacoef = 0.99
-        if l2h.aerosol == 'cds_forecast':
-
-            cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') +
-                                     '_month_cams-global-atmospheric-composition-forecasts.nc')
-            l2h.aux.get_xr_cams_cds_aerosol(cams_file, l2h, lutf, lutc)
-            aot550rast = l2h.aux.aot_sca_550  # .T
-            fcoefrast = l2h.aux.fcoef
-            aotrast = l2h.aux.aot_grs
-            aotscarast = l2h.aux.aot_sca_grs
-            logging.info(f'aot550rast shape {aot550rast.shape}')
-
-        else:
-            # AERONET data
-            if (l2h.aerosol == 'aeronet'):
-                l2h.set_aeronetfile(aeronet_file)
-                try:
-                    l2h.aux.Aeronet.import_aeronet_data(aero, l2h.aeronetfile, l2h.date)
-                except:
-                    logging.info('Error: No aeronet data in the +/- 2day time window.')
-                    sys.exit()
-
-                l2h.aux.aot_wl = aero.wavelengths
-                l2h.aux.aot = aero.aot
-                aotscarast = ssacoef*l2h.aux.aot
-                l2h.aux.aot550 = aero.aot550
-                aot550rast.fill(l2h.aux.aot550)
-
-            # CAMS dataset
-            elif (l2h.aerosol == 'cams_forecast') | (l2h.aerosol == 'cams_reanalysis'):
-
-                # monthly file
-                # target = Path(
-                #     os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'), l2h.date.strftime('%Y-%m') + '_month_' +
-                #                  l2h.aerosol + '.nc'))
-                cams_file = os.path.join(l2h.cams_folder, l2h.date.strftime('%Y'),
-                                         l2h.date.strftime('%Y-%m') + '_month_' +
-                                         l2h.aerosol + '.nc')
-                l2h.aux.get_xr_cams_aerosol(cams_file, l2h.product)
-                aotscarast = ssacoef*l2h.aux.aot
-                aot550rast = l2h.aux.aot550rast  # .T
-                logging.info(f'aot550rast shape {aot550rast.shape}')
-            # CAMS new cds dataset (available from 26 June 2018 12UTC)
-
-            elif (l2h.aerosol == 'user_model'):
-                l2h.aux.aot550 = aot550
-                l2h.angstrom = angstrom
-                l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
-                aotscarast = ssacoef*l2h.aux.aot
-                l2h.aux.aot_wl = l2h.wl
-                aot550rast.fill(l2h.aux.aot550)
-
-            else:
-                l2h.aux.aot550 = 0.1
-                l2h.angstrom = 1
-                l2h.aux.aot = l2h.aux.aot550 * (np.array(l2h.wl) / 550) ** (-l2h.angstrom)
-                aotscarast = ssacoef*l2h.aux.aot
-                l2h.aux.aot_wl = l2h.wl
-                aot550rast.fill(l2h.aux.aot550)
-
-                logging.info("No aerosol data provided, set to default: aot550=01, angstrom=1")
-
-            # set spectral aot for satellite bands
-            aero.fit_spectral_aot(l2h.aux.aot_wl, l2h.aux.aot)
-            l2h.aot = aero.get_spectral_aot(np.array(l2h.wl))
-            l2h.aot550 = l2h.aux.aot550
-
-            # normalization of Cext to get spectral dependence of fine and coarse modes
-            nCext_f = lutf.Cext / lutf.Cext550
-            nCext_c = lutc.Cext / lutc.Cext550
-            logging.info(f'param aerosol {nCext_f}, {nCext_c}, {l2h.aot}')
-            aero.fit_aero(nCext_f, nCext_c, l2h.aot / l2h.aot550)
-            logging.info(f'{aero.fcoef} {aero.fcoef.astype(l2h.type)}')
-            l2h.fcoef = aero.fcoef.astype(l2h.type)
-            fcoefrast.fill(l2h.fcoef[0])
-            for i in range(l2h.N):
-                aotrast[i].fill(l2h.aot[i])
-
-        l2h.rot = l2h.sensordata.rot
+        _auxdata = AuxData(wl=wl_true)  # wl=masked.wl)
+        sunglint_eps = _auxdata.sunglint_eps  # ['mean'].interp(wl=wl_true)
+        rot = _auxdata.rot
 
         ####################################
-        #     Set SMAC parameters for
         #    absorbing gases correction
         ####################################
-        logging.info('loading SMAC algorithm...')
-        smac = acutils.smac(l2h.sensordata.smac_bands, l2h.sensordata.smac_dir)
-        smac.set_gas_param()
-        smac.set_values(o3du=l2h.aux.o3du, h2o=l2h.aux.h2o)
-        smac.set_standard_values(l2h.pressure_msl)
-        l2h.aux.no2 = smac.uno2
+        logging.info('compute gaseous transmittance from cams data')
+        try:
+            gas_trans = acutils.GaseousTransmittance(prod, cams)
+            gases = ['co2', 'o2', 'o4', 'ch4', 'no2', 'o3', 'h2o']
+            for gas in gases:
+                gas_trans.coef_abs_scat[gas] = 1
+            Tg_raster = gas_trans.get_gaseous_transmittance(gases=['o3', 'no2'])
+        except Exception as exc:
+            raise GRS_IO_Exception(cams_file, exc)
 
-
-        ######################################
-        # arrays allocation
-        # reshaping for fortran binding
-        ######################################
-
-        aot550guess = np.zeros(l2h.width, dtype=l2h.type)
-        rtoaf = np.zeros((lutf.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-        rtoac = np.zeros((lutc.aot.__len__(), l2h.N, l2h.width), dtype=l2h.type, order='F')
-        maskpixels_ = np.full(l2h.width, 1, dtype=l2h.type, order='F')
-
-        w, h = l2h.width, l2h.height
-
-        rcorr = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
-        rcorrg = np.zeros((l2h.N, h, w), dtype=l2h.type)#, order='F').T
-        aot550pix = np.zeros((w, h), dtype=l2h.type, order='F').T
-        betapix = np.zeros((w, h), dtype=l2h.type, order='F').T
-        brdfpix = np.zeros((w, h), dtype=l2h.type, order='F').T
-
-        l2h.l2_product.getBand('SZA').writePixels(0, 0, w, h, l2h.sza)
-        l2h.l2_product.getBand('VZA').writePixels(0, 0, w, h, np.array(l2h.vza[1]))
-        l2h.l2_product.getBand('AZI').writePixels(0, 0, w, h, np.array(l2h.razi[1]))
+        logging.info('correct for gaseous absorption')
+        for wl in prod.raster.wl.values:
+            prod.raster['bands'].loc[wl] = prod.raster.bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=prod.raster.x,
+                                                                                                      y=prod.raster.y)
+        prod.raster.bands.attrs['gas_absorption_correction'] = True
 
         ######################################
-        #      Add terrain attributes
+        # Water mask
         ######################################
-        if dem:
-            sza_mean, sazi_mean = np.nanmean(l2h.sza),np.nanmean(l2h.sazi)
-            l2h.slope, l2h.shade = _utils.get_dem_attributes(l2h.elevation, sza=sza_mean, sun_azi=sazi_mean)
-            # add elevation band
-            l2h.l2_product.getBand('elevation').writePixels(0, 0, w, h, l2h.elevation)
-            l2h.l2_product.getBand('slope').writePixels(0, 0, w, h, l2h.slope)
-            l2h.l2_product.getBand('shade').writePixels(0, 0, w, h, l2h.shade)
+        # TODO remove ndwi export / replace this part with flags masking instead
+        logging.info('compute spectral index (e.g., NDWI)')
+
+        vis = prod.raster.bands.sel(wl=prod.bvis, method='nearest')
+        nir = prod.raster.bands.sel(wl=prod.bnir, method='nearest')
+        swir = prod.raster.bands.sel(wl=prod.bswir, method='nearest')
+        swir2 = prod.raster.bands.sel(wl=prod.bswir2, method='nearest')
+
+        ndwi = (vis - nir) / (vis + nir)
+        ndwi_swir = (vis - swir) / (vis + swir)
+
+        prod.raster['ndwi'] = ndwi
+        prod.raster.ndwi.attrs = {
+            'description': 'Normalized difference spectral index between bands at ' + str(prod.bvis) + ' and ' + str(
+                prod.bnir) + ' nm', 'units': '-'}
+        prod.raster['ndwi_swir'] = ndwi_swir
+        prod.raster.ndwi_swir.attrs = {
+            'description': 'Normalized difference spectral index between bands at ' + str(prod.bvis) + ' and ' + str(
+                prod.bswir) + ' nm', 'units': '-'}
+
+        if allpixels:
+            pass  # masked_raster = prod.raster.bands
+        else:
+            logging.info('apply water masking')
+            mask = (ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)  # (ndwi > -0.0) &
+            masked = prod.raster.bands.where(mask)
+            prod.raster['bands'] = masked
+            prod.raster['sza'] = prod.raster['sza'].where(mask)
+
+            # TODO @Thales check if it is in agreement with your policy (here stop if no water pixel and return empty object)
+            # stop process if no valid (water) pixel available
+            #if np.isnan(prod.raster['sza'].values).all():
+            #    logging.info('no water pixels, stop process')
+            #    return
+            # END TODO
 
         ######################################
-        #      MAIN LOOP
+        # LUT preparation
         ######################################
-        logging.info('processing ' + file + '...')
+        logging.info('lut interpolation')
+
+        # select appropriate opac aerosol model from CAMS aod
+        # remove URBAN for the moment
+        models = aero_lut.drop_sel(model='URBA_rh70').model.values
+        # get mean aot and aot550 from CAMS
+        cams_aot_mean = cams.cams_aod.mean(['x', 'y'])
+        cams_aot_ref = cams.cams_aod.interp(wl=550, method='quadratic')
+        cams_aot_ref_mean = cams_aot_ref.mean(['x', 'y'])
+
+        # get the model that has the closest aot spectral shape
+        if opac_model is None:
+            lut_aod = aero_lut.aot.sel(model=models, aot_ref=1).interp(wl=cams.cams_aod.wl)
+            idx = np.abs((cams_aot_mean / cams_aot_ref_mean) - lut_aod).sum('wl').argmin()
+            opac_model = aero_lut.sel(model=models).model.values[idx]
+
+        logging.info('selected aerosol model: ' + opac_model)
+        # slice LUT
+        aero_lut_ = aero_lut.sel(wind=_wind, method='nearest').sel(model=opac_model)
+
+        # get AOT550 raster (TODO replace with optimal estimation)
+        logging.info('scaling aot by: ' + str(scale_aot))
+        aot_ref_raster = cams_aot_ref * scale_aot
+        aot_ref_raster = aot_ref_raster.astype(np.float32)
+
+        # get unique values for angles and further lut interpolation
+        ang_resol = {'sza': 0.1, 'vza': 0.1, 'raa_round': 0}
+        szamin, szamax = float(prod.raster['sza'].min()), float(prod.raster['sza'].max())
+        vzamin, vzamax = float(prod.raster.isel(wl=0)['vza'].min()), float(prod.raster.isel(wl=0)['vza'].max())
+
+        # check for out-of-range
+        def check_out_of_range(vmin, vmax, ceiling=88):
+            vmin = np.max([0, vmin])
+            vmax = np.min([ceiling, vmax])
+            return vmin, vmax
+
+        szamin, szamax = check_out_of_range(szamin, szamax)
+        vzamin, vzamax = check_out_of_range(vzamin, vzamax, ceiling=25)
+
+        sza_ = np.arange(szamin, szamax + ang_resol['sza'], ang_resol['sza'])
+        vza_ = np.arange(vzamin, vzamax + ang_resol['vza'], ang_resol['vza'])
+
+        azi_ = (180 - np.unique(prod.raster.isel(wl=0)['raa'].round(ang_resol['raa_round']))) % 360
+        azi_ = azi_[~np.isnan(azi_)]
+
+        sza_lut_step = 2
+        vza_lut_step = 2
+
+        sza_slice = slice(np.min(sza_) - sza_lut_step, np.max(sza_) + sza_lut_step)
+        vza_slice = slice(np.min(vza_) - vza_lut_step, np.max(vza_) + vza_lut_step)
+
+        tweak = 4
+        aot_ref_ = np.unique((aot_ref_raster / tweak).round(3)) * tweak
+        aot_ref_min = 0.  # aot_ref_raster.min()
+        aot_ref_max = aot_ref_raster.max()
+        aot_lut = aero_lut_.aot.interp(wl=wl_true, method='quadratic')
+        aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))  # .plot(hue='wl')
+
+        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice,
+                                    vza=vza_slice
+                                    ).interp(wl=wl_true,
+                                             method='quadratic'
+                                             ).interp(azi=azi_)
+        Rdiff_lut = Rdiff_lut.interp(sza=sza_, vza=vza_)
+        Rray = Rdiff_lut.sel(aot_ref=0)
+        Rdiff_lut = Rdiff_lut.interp(aot_ref=[0, 0.02, 0.05, 0.07, *aot_ref_],
+                                     method='quadratic')  # .sortby("aot_ref")
+
+        szas = Rdiff_lut.sza.values
+        vzas = Rdiff_lut.vza.values
+        azis = Rdiff_lut.azi.values
+        aot_refs = Rdiff_lut.aot_ref.values
+
+        Ttot_Ed_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=szas).interp(
+            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed
+        Ttot_Lu_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=vzas).interp(
+            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed ** 1.05
 
         ######################################
-        #      First step: AOT adjustment
+        # Set final parameters for grs processing
         ######################################
-        # TODO slice/reshape.. to use the two SWIR bands only
-        # xblock, yblock = 25, 25
-        # TODO aot estimation on water pixels, check better spatial resolution
+        logging.info('set final parameters')
+        width = prod.width
+        height = prod.height
+        Nwl = len(prod.raster.wl_to_process)
+
+        pressure_ref = self.pressure_ref
+
+        _sunglint_eps = sunglint_eps.values
+
+        # prepare aerosol parameters
+        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop('wl').astype(np.float32)
+        aot_ref_raster.name = 'aot550'
+        _rot = rot.values
+
+        # _aot = aot_lut.interp(aot_ref=_aot_ref)
+        if dem_file:
+            logging.info('compute surface pressure from dem')
+            dem = xr.open_dataset(dem_file).squeeze().interp(y=prod.raster.y, x=prod.raster.x, method='nearest')
+            dem = dem.rename_vars({'band_data': 'dem'})
+            dem.dem.attrs['long_name'] = 'digital elevation model'
+            dem.dem.attrs['units'] = 'm'
+            dem.dem.attrs['source'] = dem_file
+            presure_msl = cams.raster.msl.interp(y=prod.raster.y, x=prod.raster.x)
+            _pressure = (presure_msl * (1. - 0.0065 * dem.dem / 288.15) ** 5.255).values
+        else:
+            dem = None
+            _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
+
+        # -------------------------------------------------------------
+        # SET GASEOUS TRANSMITTANCE FOR LOW ALTITUDE GASES
+        # -------------------------------------------------------------
+        gases = ['h2o', 'ch4']
+        gas_trans = acutils.GaseousTransmittance(prod, cams)
+        # set total transmittance values
+        gas_trans.coef_abs_scat['h2o'] = 0.5
+        gas_trans.coef_abs_scat['ch4'] = 0.5
+        Tg_diff_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y",
+                                                                                                      "x")
+        Tg_diff_raster = Tg_diff_raster.interp(x=prod.raster.x, y=prod.raster.y)
+
+        # set total transmittance values
+        for gas in gases:
+            gas_trans.coef_abs_scat[gas] = 1
+        Tg_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y", "x")
+        Tg_raster = Tg_raster.interp(x=prod.raster.x, y=prod.raster.y)
 
         ######################################
-        #      Second step: Atmosphere and surface correction
+        # Run grs processing
         ######################################
-        # TODO put chunck size in config yaml file
-        xblock, yblock = 512, 512
-        for iy in range(0, w, yblock):
-            print('process row ' + str(iy) + ' / ' + str(h))
-            yc = iy + yblock
-            if yc > w:
-                yc = w
-            for ix in range(0, h, xblock):
-                #print('process col ' + str(ix) + ' / ' + str(w))
-                xc = ix + xblock
-                if xc > h:
-                    xc = h
-                sza = l2h.sza[ix:xc, iy:yc]
-                xshape, yshape = sza.shape
+        logging.info('run grs process')
+        global chunk_process
+        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, height, width), np.nan, dtype=prod._type))
+        Rf_result = np.ctypeslib.as_ctypes(np.full((height, width), np.nan, dtype=prod._type))
+        shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
+        shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
 
-                if (xshape == 0) or (yshape == 0):
-                    continue
+        def chunk_process(args):
+            iy, ix = args
+            yc = min(height, iy + prod.chunk)
+            xc = min(width, ix + prod.chunk)
+            Rrs_tmp = np.ctypeslib.as_array(shared_Rrs)
+            Rf_tmp = np.ctypeslib.as_array(shared_Rf)
 
-                razi = l2h.razi[:, ix:xc, iy:yc]
-                vza = l2h.vza[:, ix:xc, iy:yc]
-                muv = l2h.muv[:, ix:xc, iy:yc]
-                mu0 = l2h.mu0[ix:xc, iy:yc]
-                mask = l2h.mask[ix:xc, iy:yc]
-                flags = l2h.flags[ix:xc, iy:yc]
-                band_rad = l2h.band_rad[:, ix:xc, iy:yc]
+            _band_rad = prod.raster.bands[:, iy:yc, ix:xc]
 
-                maskpixels = maskpixels_
-                if allpixels:
-                    maskpixels = maskpixels * 0
-                elif waterdetect_only:
-                    #print('watermask', l2h.watermask[ix:xc, iy:yc].shape)
-                    maskpixels[l2h.watermask[ix:xc, iy:yc] == 1] = 0
+            Nwl, Ny, Nx = _band_rad.shape
+            if Ny == 0 or Nx == 0:
+                return
+            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=prod._type)
+
+            # subsetting
+            _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
+            if monoview:
+                _raa = prod.raster.raa[iy:yc, ix:xc]
+                _vza = prod.raster.vza[iy:yc, ix:xc]
+                _vza_mean = _vza.values
+            else:
+                _raa = prod.raster.raa[:, iy:yc, ix:xc]
+                _vza = prod.raster.vza[:, iy:yc, ix:xc]
+                _vza_mean = np.mean(_vza, axis=0).values
+
+            _azi = (180. - _raa) % 360
+            _air_mass_ = acutils.Misc.air_mass(_sza, _vza).values
+            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
+            _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
+            _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
+            _Tg_abs = Tg_raster[:, iy:yc, ix:xc].values
+            _Tg_abs_diff = Tg_diff_raster[:, iy:yc, ix:xc].values
+
+            # construct wl,y,x raster for Rayleigh optical thickness
+            _rot_raster = _R_._multiplicate(_rot, _pressure_, arr_tmp)
+
+            # get LUT values
+            _Rdiff = _R_.interp_Rlut(szas, _sza.values,
+                                     vzas, _vza.values,
+                                     azis, _azi.values,
+                                     aot_refs, _aot_ref,
+                                     Nwl, Ny, Nx, Rdiff_lut.values)
+
+            _Rray = _R_.interp_Rlut_rayleigh(szas, _sza.values,
+                                             vzas, _vza.values,
+                                             azis, _azi.values,
+                                             Nwl, Ny, Nx, Rray.values)
+
+            # _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
+            _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
+
+            _aot = _R_._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
+
+            #  correction for diffuse light
+            Rcorr = _band_rad.values - _Rdiff
+
+            # direct transmittance up/down
+            Tdir = acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
+
+            # vTotal transmittance (for Ed and Lu)
+            Tdown = _R_._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
+                                     Ttot_Ed_.values)
+            Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
+            Ttot_du = Tdown * Tup * _Tg_abs
+
+            Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
+
+            for iwl in prod.iwl_swir:
+
+                if monoview:
+                    Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
                 else:
-                    maskpixels = mask
+                    Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
+                               (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
 
-                if dem:
-                    elev = l2h.elevation[ix:xc, iy:yc]
-                    pressure = acutils.misc.get_pressure(elev, l2h.pressure_msl)
-                    pressure_corr = pressure / l2h.pressure_ref
-                else:
-                    pressure_corr = np.full((xshape, yshape),l2h.pressure / l2h.pressure_ref)
-                pressure_corr = np.array(pressure_corr, dtype=l2h.type, order='F')
+            Rf[Rf < 0] = 0.
+            Rf = np.min(Rf, axis=0)
+            Rf_tmp[iy:yc, ix:xc] = Rf
 
-                # ---------
-                # if maja L2A image provided, use AOT_MAJA product
-                # AOT_maja seems to be largely overestimated, before further analyses: force usage of CAMS instead
-                # if maja:
-                #     aot550guess = l2h.aot_maja[i]
-                #     # aot550guess[aot550guess < 0.01] = 0.01
-                # else:
-                #     aot550guess = aot550rast[i]
+            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
+            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
 
-                aot550guess = np.array(aot550rast[ix:xc, iy:yc], dtype=l2h.type, order='F')
-                fcoef = np.array(fcoefrast[ix:xc, iy:yc], dtype=l2h.type, order='F')
-                aot_tot = np.array(aotrast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
-                if l2h.aerosol == 'cds_forecast':
-                    aot_sca = np.array(aotscarast[:, ix:xc, iy:yc], dtype=l2h.type, order='F')
-                else:
-                    aot_sca = aot_tot
+            # sunglint removal
+            # Rrs_tmp_ =Rcorr / np.pi# Rrs_tmp[:, iy:yc, ix:xc]
+            Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
 
-                for iband in range(l2h.N):
-                    # correct for gaseous absorption
-                    tg = smac.compute_gas_trans(iband, l2h.pressure_msl, mu0.reshape(-1),
-                                                muv[iband].reshape(-1)).reshape(xshape, yshape)
-                    band_rad[iband] = band_rad[iband] / tg
+            # Convert from TOA to BOA for positive values
+            Ttot_du[Rrs_tmp_ < 0] = 1.
+            Rrs_tmp_ = Rrs_tmp_ / Ttot_du
+            Rrs_tmp[:, iy:yc, ix:xc] = Rrs_tmp_
+            return
 
+        window_idxs = [(i, j) for i, j in
+                       itertools.product(range(0, height, prod.chunk),
+                                         range(0, width, prod.chunk))]
 
+        global pool
+        pool = Pool(self.Nproc)
+        res = pool.map(chunk_process, window_idxs)
+        pool.terminate()
+        pool = None
+        logging.info('success')
 
-                p = grs_solver.grs.main_algo(xshape, yshape, *lutf.refl.shape,
-                                         aotlut, sza_, azi_, vza_,
-                                         lutf.refl, lutc.refl, lutf.Cext, lutc.Cext,
-                                         vza, sza, razi, band_rad, maskpixels,
-                                         l2h.wl, pressure_corr, l2h.sensordata.rg, l2h.solar_irr, l2h.rot,
-                                         aot_tot, aot_sca, aot550guess, fcoef,
-                                         l2h.nodata, l2h.rrs)
+        ######################################
+        # construct l2a object
+        ######################################
+        logging.info('construct final product')
+        self.aot_ref_raster = aot_ref_raster
+        l2_prod = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
+                                  BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
+                                  aot550=(["y", "x"], aot_ref_raster.values)),
+                             coords=dict(wl=prod.raster.wl,
+                                         x=prod.raster.x,
+                                         y=prod.raster.y),
+                             )
 
+        l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
+        l2_prod = l2_prod.set_coords('central_wavelength')
 
-                rcorr[:, ix:xc, iy:yc] = p[0]  # np.transpose(p[0],(0,2,1))
-                rcorrg[:, ix:xc, iy:yc] = p[1]  # np.transpose(p[1],(0,2,1))
-                aot550pix[ix:xc, iy:yc] = p[2]
-                brdfpix[ix:xc, iy:yc] = p[3]
+        ##############################################
+        # Update flags and create mask from recipe
+        ##############################################
+        # flags for negative blue/green Rrs
+        bitmask = 18
+        prod.raster['flags'] = prod.raster.flags + (((l2_prod.Rrs.sel(wl=490, method='nearest') < -0.0005) |
+                                                     (l2_prod.Rrs.sel(wl=565, method='nearest') < -0.0005)) << bitmask)
+        # add name and description
+        prod.raster.flags.attrs['flag_descriptions'][bitmask] = 'negative Rrs for blue or green bands'
+        prod.raster.flags.attrs['flag_names'][bitmask] = 'neg_rrs'
 
-                # TODO improve checksum scheme
-                l2h.checksum('row:col, ' + str(ix) + ':' + str(iy))
+        # mask from recipe
+        mask = masking_.create_mask(prod.raster.flags,
+                                    tomask=self.flags_tomask,
+                                    tokeep=self.flags_tokeep,
+                                    mask_name="mask")
+        l2_prod = xr.merge([l2_prod, mask])
 
-        rcorr[rcorr == l2h.nodata] = np.nan
-        rcorrg[rcorrg == l2h.nodata] = np.nan
+        ######################################
+        # Write final product
+        ######################################
+        logging.info('construct final product')
+        self.l2_prod = l2_prod
+        self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
 
-        ndwi_corr = np.array((rcorrg[l2h.sensordata.NDWI_vis] - rcorrg[l2h.sensordata.NDWI_nir]) / \
-                             (rcorrg[l2h.sensordata.NDWI_vis] + rcorrg[l2h.sensordata.NDWI_nir]))
-        # set flags
-        l2h.flags = l2h.flags + \
-                ((l2h.mask == 1) +
-                 (np.array((rcorr[1] < -0.01) | (rcorr[2] < -0.01)) << 1) +
-                 ((l2h.mask == 2) << 2) +
-                 (((ndwi_corr < l2h.sensordata.NDWI_threshold[0]) | (
-                         ndwi_corr > l2h.sensordata.NDWI_threshold[1])) << 3) +
-                 ((rcorrg[l2h.sensordata.high_nir[0]] > l2h.sensordata.high_nir[1]) << 4)
-                 )
-        print(w, h, l2h.flags.astype(np.uint32).shape,brdfpix.shape,aot550pix.shape,rcorr.shape)
-        l2h.l2_product.getBand('flags').writePixels(0, 0, w, h, np.array(l2h.flags.astype(np.uint32)))
-        l2h.l2_product.getBand('BRDFg').writePixels(0, 0, w, h, brdfpix)
-        l2h.l2_product.getBand("aot550").writePixels(0, 0, w, h, aot550pix)
-        for iband in range(l2h.N):
-            l2h.l2_product.getBand(l2h.output + '_' + l2h.band_names[iband]). \
-                writePixels(0, 0, w, h, rcorr[iband])
-            l2h.l2_product.getBand(l2h.output + '_g_' + l2h.band_names[iband]). \
-                writePixels(0, 0, w, h, rcorrg[iband])
+        return
 
-        l2h.finalize_product()
-
-        if unzip:
-            # remove unzipped files (Sentinel files)
-            shutil.rmtree(file, ignore_errors=True)
-
-        if untar:
-            # remove untared files (Landsat files)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+    def write_output(self):
+        logging.info('export final product into netcdf')
+        self.l2a.to_netcdf(self.odir,
+                           snap_compliant=self.snap_compliant)

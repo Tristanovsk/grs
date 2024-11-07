@@ -5,13 +5,14 @@ example:
 python3 exe/grs_from_list.py exe/List_images_grs_template.csv
 '''
 
-import os, sys
-import numpy as np
-import pandas as pd
 import glob
+import os
+import sys
 from datetime import datetime, timedelta
-from osgeo import gdal
 from multiprocessing import Pool
+
+import pandas as pd
+from osgeo import gdal
 
 # CNES lib for datalake managment
 # import lxml
@@ -34,7 +35,7 @@ sitefile = sys.argv[1]
 # number of processors to be used
 ncore =int(sys.argv[2])
 
-# sitefile = 'exe/list_grs_cnes_obs2mod.csv'
+#sitefile = 'exe/list/list_landsat_jegou.csv'
 sites = pd.read_csv(sitefile)
 
 lev = 'L2grs'
@@ -44,9 +45,9 @@ logdir = './tmp'
 dirsat = '/datalake/'
 
 l1cdir = {'s2': '/datalake/S2-L1C',
-          'landsat': '/datalake/L8-L1C/'}
+          'landsat': '/datalake/watcal/L8-L1-C2/'}
 odir_root = {'s2': '/datalake/watcal/S2-L2GRS/',
-             'landsat': '/datalake/watcal/L8-L2GRS/'}
+             'landsat': '/datalake/watcal/L8-L2GRS-C2/'}
 
 dem=True #True
 angleonly = False  # if true, grs is used to compute angle parameters only (no atmo correction is applied)
@@ -72,6 +73,8 @@ for idx, site in sites.iterrows():
     if start_date == end_date:
         end_date = (datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)).__str__()
     sat = sat.lower()
+    if sat == 'landsat':
+        tile ='{:06d}'.format(tile)
     resolution = int(resolution)
     allpixels = True
     if flag == 1:
@@ -91,7 +94,11 @@ for idx, site in sites.iterrows():
             continue
 
         # TODO modify for landsat images
+        if sat =='landsat':
+            l1c = glob.glob(opj(l1c_dir, 'L*.tar'))
+
         l1c = glob.glob(opj(l1c_dir, 'S2*.SAFE'))
+
         if not l1c:
             # print(l1c_dir + ' not loaded on /datalake')
             continue
@@ -182,11 +189,12 @@ for idx, site in sites.iterrows():
         args_list.append([l1c, outfile, aerosol, aeronet_file, ancillary, resolution, \
                           dem,l2a_maja, waterdetect, \
                           aot550, angstrom, memory_safe, allpixels, angleonly])
-command = []
-for args in misc.chunk(iter(args_list), 1):
-    command.append(args)
+# command = []
+# for args in misc.chunk(iter(args_list), 1):
+#     command.append(args)
+
 
 with Pool(processes=ncore) as pool:
-    print(pool.map(multi_process().grs_cnes, command, 1))
+    print(pool.map(multi_process().grs_cnes, args_list, 1))
     pool.close()
     pool.join()

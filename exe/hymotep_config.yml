@@ -1,13 +1,5 @@
 {
-    "altitude": 0,
-    "aeronet_file": "no", 
-    "resolution": 20, 
-    "aot550": 0.1, 
-    "angstrom": 0.5, 
-    "startrow": 0, 
-    "dem": True,
-    "memory_safe" : False, 
-    "angleonly": False,
-    "grs_a": False, 
-    "output": "Rrs",
+    "resolution": 20,
+    "allpixels": False,
+    "snap_compliant": False
 }

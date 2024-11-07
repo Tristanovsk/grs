@@ -4,11 +4,10 @@ This function download the cams data used in grs from CDS API
 The main program takes two argument : start  and end year
 """
 
-import os, sys
-
 import argparse
-from datetime import date
 import calendar
+import os
+
 import cdsapi
 
 
@@ -38,7 +37,7 @@ def main(dic):
                     2) + '_month_' + data_type + '.nc'
                 if os.path.exists(datafile):
                     continue
-                print('processing ' + datafile + '...')
+                print('processing ' + date + datafile + '...')
 
                 c.retrieve(
                     data_type,
@@ -74,11 +73,11 @@ def main(dic):
                 if os.path.exists(datafile):
                     print('!!' + datafile + 'already exists !!')
                     continue
-                print('processing ' + datafile + '...')
+                print('processing ' +date+ datafile + '...')
 
                 c.retrieve(
                     data_type,
-                    {
+                    {   'nocache': '123',
                         'date': date,
                         'type': 'forecast',
                         'format': 'netcdf',
