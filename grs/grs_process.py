@@ -18,7 +18,7 @@ import itertools
 
 import GRSdriver
 
-from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
+from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization, Kernel
 
 opj = os.path.join
 
@@ -175,7 +175,7 @@ class Process:
             basename = os.path.basename(l1c_prod)
             if extension == 'nc':
                 logging.info('pass netcdf image as grs product object')
-                prod = Product(xr.open_dataset(l1c_prod), engine=NETCDF_ENGINE)
+                prod = Product(xr.open_dataset(l1c_prod, engine=NETCDF_ENGINE))
             elif 'SAFE' in extension:
                 logging.info('Open L1C Sentinel 2 image and compute angle parameters')
                 global l1c
@@ -285,8 +285,8 @@ class Process:
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
         logging.info('loading look-up tables')
-        Ttot_Ed = xr.open_dataset(self.trans_lut_file, engine=NETCDF_ENGINE)
-        Ttot_Ed['wl'] = Ttot_Ed['wl'] * 1000
+        trans_lut = xr.open_dataset(self.trans_lut_file, engine=NETCDF_ENGINE)
+        trans_lut['wl'] = trans_lut['wl'] * 1000
 
         aero_lut = xr.open_dataset(self.lut_file, engine=NETCDF_ENGINE)
         aero_lut['wl'] = aero_lut['wl'] * 1000
@@ -358,6 +358,13 @@ class Process:
         # LUT preparation
         ######################################
         logging.info('lut interpolation')
+
+        kernel = Kernel(prod,
+                        aero_lut,
+                        trans_lut,
+                        cams)
+
+        return kernel
 
         # select appropriate opac aerosol model from CAMS aod
         # remove URBAN for the moment
@@ -432,9 +439,9 @@ class Process:
         azis = Rdiff_lut.azi.values
         aot_refs = Rdiff_lut.aot_ref.values
 
-        Ttot_Ed_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=szas).interp(
+        Ttot_Ed_ = trans_lut.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=szas).interp(
             aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed
-        Ttot_Lu_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=vzas).interp(
+        Ttot_Lu_ = trans_lut.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=vzas).interp(
             aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed ** 1.05
 
         ######################################
