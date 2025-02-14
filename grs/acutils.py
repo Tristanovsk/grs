@@ -219,7 +219,9 @@ class Aerosol:
 
 
 class CamsParams:
-    def __init__(self, name, resol):
+    def __init__(self,
+                 name,
+                 resol):
         self.name = name
         self.resol = resol
 
@@ -237,7 +239,13 @@ class Gases():
         self.tno2c = 3e-6
         self.tch4c = 1e-2
         self.psl = 1013
-        self.coef_abs_scat = 0.3
+        self.coef_abs_scat = {'co2':0.4,
+                              'o2':0.3,
+                              'o4':0.3,
+                              'ch4': 0.5,
+                              'no2': 1,
+                              'o3': 1,
+                              'h2o':0.3}
 
 
 class GaseousTransmittance(Gases):
@@ -256,7 +264,7 @@ class GaseousTransmittance(Gases):
         self.SRF = self.prod.raster.SRF
         self.air_mass_mean = self.prod.air_mass_mean
         self.pressure = cams.raster.sp * 1e-2
-        self.coef_abs_scat = 0.3
+        #self.coef_abs_scat = 0.3
         self.Tg_tot_coarse = None
         self.cams_gases = {'ch4': CamsParams('tc_ch4', 4),
                            'no2': CamsParams('tcno2', 7),
@@ -271,9 +279,9 @@ class GaseousTransmittance(Gases):
         '''
         gl = self.gas_lut
         pressure = self.pressure.round(1)
-        self.ot_air = (gl.co + self.coef_abs_scat * gl.co2 +
-                       self.coef_abs_scat * gl.o2 +
-                       self.coef_abs_scat * gl.o4) / 1000
+        self.ot_air = (gl.co + self.coef_abs_scat['co2'] * gl.co2 +
+                       self.coef_abs_scat['o2'] * gl.o2 +
+                       self.coef_abs_scat['o4'] * gl.o4) / 1000
 
         wl_ref = gl.wl
         SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
@@ -299,10 +307,12 @@ class GaseousTransmittance(Gases):
         Tg_raster = xr.concat(Tg_raster, dim='pressure')
         return Tg_raster.interp(pressure=pressure).drop_vars(['pressure'])
 
-    def Tgas(self, gas_name):
+    def Tgas(self,
+             gas_name,
+             coef_abs_scat=1):
         '''
         Compute hyperspectral transmittance for a given absorbing gas and
-        convolve it with the spectral respnse functions of the sattelite sensor.
+        convolve it with the spectral response functions of the satellite sensor.
 
         :param gas_name: name of the absorbing gas, choose between:
             - 'h2o'
@@ -310,15 +320,17 @@ class GaseousTransmittance(Gases):
             - n2o'
         :return: Gaseous transmittance for satellite bands
         '''
-        renorm = 1.
-        if gas_name == 'h2o':
-            renorm = 0.4
+
 
         cams_gas = self.cams_gases[gas_name].name
         resol = self.cams_gases[gas_name].resol
-
         lut_abs = self.gas_lut[gas_name]
-        rounded = renorm * self.cams.raster[cams_gas].round(resol)
+
+        # round number to speed up computation
+        # and scale the concentration following 6S approach due to vertical distribution
+        # with scattering layer above absorbing gases
+        rounded = coef_abs_scat * self.cams.raster[cams_gas].round(resol)
+
         wl_ref = self.gas_lut.wl
         SRF_hr = self.prod.raster.SRF.interp(wl_hr=wl_ref.values)
         vals = np.unique(rounded)
@@ -354,20 +366,30 @@ class GaseousTransmittance(Gases):
         ot_o3 = gas_lut.o3 * self.to3c
         ot_ch4 = gas_lut.ch4 * self.tch4c
         ot_no2 = gas_lut.no2 * self.tno2c
-        ot_air = (gas_lut.co + self.coef_abs_scat * gas_lut.co2 +
-                  self.coef_abs_scat * gas_lut.o2 +
-                  self.coef_abs_scat * gas_lut.o4) * self.pressure / 1000
+        ot_air = (gas_lut.co + self.coef_abs_scat['co2'] * gas_lut.co2 +
+                  self.coef_abs_scat['o2'] * gas_lut.o2 +
+                  self.coef_abs_scat['o4'] * gas_lut.o4) * self.pressure / 1000
         self.abs_gas_opt_thick = ot_ch4 + ot_no2 + ot_o3 + ot_air
 
     def get_gaseous_transmittance(self,
-                                  gases=['ch4','no2','o3','h2o']):
+                                  gases=['ch4','no2','o3','h2o'],
+                                  background=True):
         '''
         Get the final total gaseous transmittance.
         :return:
         '''
-        Tg_tot = self.Tgas_background()
+
+        first = True
         for gas in gases:
-            Tg_tot =Tg_tot *self.Tgas(gas)
+            if first:
+                Tg_tot = self.Tgas(gas, self.coef_abs_scat[gas])
+                first=False
+            else:
+                Tg_tot =Tg_tot *self.Tgas(gas,
+                                      self.coef_abs_scat[gas])
+
+        if background:
+            Tg_tot = Tg_tot * self.Tgas_background()
         # Tg_other = Tg_other.rename({'longitude': 'x', 'latitude': 'y'})
         # Nx = len(Tg_other.x)
         # Ny = len(Tg_other.y)

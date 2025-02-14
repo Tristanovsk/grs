@@ -2,7 +2,6 @@
 Module dedicated to handle CAMS data with link to Copernicus API.
 '''
 
-
 import os, sys
 
 import numpy as np
@@ -54,7 +53,7 @@ class CamsProduct:
                  ):
         '''
 
-        :param prod: l1c product from modeul product.prod
+        :param prod: l1c product from module product.prod
         :param cams_file:
         :param dir:
         :param type:
@@ -63,7 +62,8 @@ class CamsProduct:
 
         self.prod = prod
         self.date = prod.time
-        self.date_str = str(prod.time.dt.strftime('%Y-%m-%d').values)
+        self.date_day = prod.time.dt.strftime('%Y-%m-%d').values
+        self.date_str = str(self.date_day)
         self.type = type
         self.wls = [469, 550, 670, 865, 1240]
 
@@ -100,7 +100,7 @@ class CamsProduct:
             self.dir = dir
             if not os.path.exists(dir):
                 os.makedirs(dir)
-            self.file = self.date_str + '-' + type + suffix+'.nc'
+            self.file = self.date_str + '-' + type + suffix + '.nc'
             self.filepath = opj(self.dir, self.file)
 
     def cams_download(self):
@@ -128,7 +128,8 @@ class CamsProduct:
 
         return
 
-    def load(self):
+    def load(self,
+             daily_stats=False):
         '''
         Lazy loading and then resmapling of the CAMS data for the region and date of interest.
 
@@ -143,14 +144,26 @@ class CamsProduct:
             self.cams_download()
 
         # lazy loading
-        cams = xr.open_dataset(self.filepath, decode_cf=True,
-                               chunks={'time': -1, 'x': 500, 'y': 500})
+        cams = xr.open_dataset(self.filepath,
+                               decode_cf=True,
+                               )
+
+        if ('forecast_period' in cams.dims) & ('forecast_reference_time' in cams.dims):
+            cams = cams.stack(time_buffer=['forecast_period', 'forecast_reference_time']).swap_dims(
+                {'time_buffer': 'valid_time'}).sortby('valid_time').rename(
+                {'valid_time': 'time'}).drop_vars(['time_buffer'])
+
+        cams = cams.sel(time=self.date_day)
+
+        # -------------------------
+        # geographical extraction
+        # -------------------------
         cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         # check if image is on Greenwich meridian and adapt longitude convention
-        if cams.longitude.min()>=0:
+        if cams.longitude.min() >= 0:
             if lonmin <= 0 and lonmax >= 0:
 
-                    cams = cams.assign_coords({"longitude": (((cams.longitude + 180) % 360) - 180)}).sortby('longitude')
+                cams = cams.assign_coords({"longitude": (((cams.longitude + 180) % 360) - 180)}).sortby('longitude')
             else:
                 # set longitude between 0 and 360 deg
                 lonmin, lonmax, = lonmin % 360, lonmax % 360
@@ -158,20 +171,28 @@ class CamsProduct:
         # slicing
         cams = cams.sel(longitude=slice(lonmin - 1, lonmax + 1)).load()
 
-        # rename "time" variable to avoid conflicts
-        # cams = cams.rename({'time':'time_cams'})
         if cams.u10.shape[0] == 0 or cams.u10.shape[1] == 0:
             print('no cams data, enlarge subset')
 
-        # temporal interpolation
-        if (cams.time.values[0] < self.date.values) & (cams.time.values[-1] > self.date.values):
-            # if date within cams time range proceed to temporal interpolation
-            cams = cams.interp(time=self.date)
+        # -------------------------
+        # temporal extraction
+        # -------------------------
+        if daily_stats:
+            cams = cams.mean('time')
         else:
-            # otherwise get the nearest date
-            cams = cams.sel(time=self.date,method='nearest')
+            if (cams.time.values[0] < self.date.values) & (cams.time.values[-1] > self.date.values):
+                # if date within cams time range proceed to temporal interpolation
+                cams = cams.interp(time=self.date)
+            else:
+                # otherwise get the nearest date
+                cams = cams.sel(time=self.date, method='nearest')
 
+        # rename "time" variable to avoid conflicts
+        # cams = cams.rename({'time':'time_cams'})
+
+        # -------------------------
         # spatial interpolation
+        # -------------------------
         self.raster = cams.interp(longitude=np.linspace(lonmin, lonmax, 12),
                                   latitude=np.linspace(latmax, latmin, 12),
                                   kwargs={"fill_value": "extrapolate"})
@@ -219,7 +240,7 @@ class CamsProduct:
         return
 
     def plot_params(self, params=['amaod550', 'bcaod550', 'duaod550', 'niaod550',
-                                  'omaod550', 'ssaod550',  'suaod550',
+                                  'omaod550', 'ssaod550', 'suaod550',
                                   'aod550',
                                   't2m', 'msl', 'sp',
                                   'tcco', 'tc_ch4', 'tcno2', 'gtco3',

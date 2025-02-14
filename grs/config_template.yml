@@ -7,3 +7,4 @@ path:
 processor:
   ncpu: 8
   chunk: 512
+  netcdf_engine: 'h5netcdf'
