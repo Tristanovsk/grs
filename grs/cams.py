@@ -148,17 +148,18 @@ class CamsProduct:
                                decode_cf=True,
                                )
 
+        # -------------------------
+        # geographical extraction
+        # -------------------------
+        cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         if ('forecast_period' in cams.dims) & ('forecast_reference_time' in cams.dims):
+            cams = cams.sel(forecast_reference_time=self.date_day)
             cams = cams.stack(time_buffer=['forecast_period', 'forecast_reference_time']).swap_dims(
                 {'time_buffer': 'valid_time'}).sortby('valid_time').rename(
                 {'valid_time': 'time'}).drop_vars(['time_buffer'])
 
         cams = cams.sel(time=self.date_day)
 
-        # -------------------------
-        # geographical extraction
-        # -------------------------
-        cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         # check if image is on Greenwich meridian and adapt longitude convention
         if cams.longitude.min() >= 0:
             if lonmin <= 0 and lonmax >= 0:

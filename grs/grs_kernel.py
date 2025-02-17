@@ -13,6 +13,7 @@ import logging
 import gc
 
 from numba import njit
+from scipy import ndimage
 
 from multiprocessing import Pool  # Process pool
 from multiprocessing import sharedctypes
@@ -1019,3 +1020,66 @@ class Kernel():
                           )
 
         self.xres = xres
+
+    @staticmethod
+    @njit
+    def filter2d(image, weight, windows):
+        '''
+         Function to convolve parameter image with uncertainty image
+        :param image: parameter image
+        :param weight: uncertainty image
+        :param windows: size of the window for convolution
+        :return: convolved result with same shape as image
+
+        '''
+        M, N = np.shape(image)
+        Mf, Nf = windows
+        Mf2 = Mf // 2
+        Nf2 = Nf // 2
+        threshold = 0
+        result = image
+        for i in range(M):
+            for j in range(N):
+                num = 0.0
+                norm = 0.0
+                if weight[i, j] > threshold:
+                    for ii in range(Mf):
+                        ix = i - Mf2 + ii
+                        if ix < M:
+                            for jj in range(Nf):
+
+                                iy = j - Nf2 + jj
+                                if iy < N:
+                                    wgt = weight[ix, iy]
+                                    if wgt > 0.:
+                                        num += (wgt * image[ix, iy])
+                                        norm += wgt
+                    result[i, j] = num / norm
+        return result
+
+    @staticmethod
+    def conv_mapping(x):
+        """
+        Nan-mean convolution
+        """
+        # get index of central pixel
+        idx = len(x) // 2
+        if np.isnan(x[idx]) and not np.isnan(np.delete(x, idx)).all():
+            return np.nanmean(np.delete(x, idx))
+        elif np.isnan(np.delete(x, idx)).all():
+            return x[idx]
+        else:
+            return np.nanmean(x)
+
+
+    def smoothing(self,
+                  raster,
+                  varname='wind',
+                  windows=np.array([15, 15]),
+                  mask=np.ones((5, 5))):
+        weights = 1 + 0 * (1 / raster[varname] ** 2).values
+        param = raster[varname].values
+        raster_smoothed = self.filter2d(param, weights, windows)
+        res = ndimage.generic_filter(raster_smoothed, function=self.conv_mapping, footprint=mask, mode='nearest')
+
+        return xr.Dataset({varname: (["y", "x"], res)}, coords=dict(y=raster.y, x=raster.x))
