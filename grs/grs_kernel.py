@@ -75,6 +75,8 @@ class Kernel():
                         aot_refs=np.linspace(0.0, 0.8, 25),
                         weights=[0, 0.5, 1, 0., 0.]):
 
+        logging.info('LUT preparation')
+
         aero_lut = self.aero_lut.sel(wind=wind, method='nearest')
         trans_lut = self.trans_lut.sel(wind=wind, method='nearest')
         for param in ['sza', 'vza', 'raa']:
@@ -103,6 +105,9 @@ class Kernel():
         sza_ = sza_[~np.isnan(sza_)]
         vza_ = vza_[~np.isnan(vza_)]
         azi_ = azi_[~np.isnan(azi_)]
+
+        self.trans_aero_lut = self.trans_aero_lut.interp(sza=[*sza_, *vza_]).interp(aot_ref=aot_refs,
+                                                                                    method='quadratic')
 
         Rdiff_lut = aero_lut.I.interp(sza=sza_, vza=vza_).interp(azi=azi_).interp(aot_ref=aot_refs, method='quadratic')
         self.aot_lut = aero_lut.aot.interp(aot_ref=aot_refs, method='quadratic')
@@ -181,6 +186,7 @@ class Kernel():
         return xp_slope
 
     def set_gas_transmittance(self):
+        logging.info('set gaseous transmittance')
         # -------------------------------------------------------------
         # SET GASEOUS TRANSMITTANCE FOR LOW ALTITUDE GASES
         # -------------------------------------------------------------
@@ -471,14 +477,13 @@ class Kernel():
         if len(aot_ref_maxs) > 0:
             self.aot_ref_max = aot_ref_maxs.values[-1]
         else:
-            self.aot_ref_max = self.aot_ref_cams_max
+            self.aot_ref_max = aot_refs[-1]*0.8 #self.aot_ref_cams_max
 
         # for further lut interpolation:
-        self.aot_ref_max = np.max([0.05, self.aot_ref_max])
+        #self.aot_ref_max = np.max([0.01, self.aot_ref_max])
 
         if ~((self.aot_ref_max > 0) & (self.aot_ref_max < self.aot_ref_lim)):
             self.aot_ref_max = np.min([self.aot_ref_cams_max, self.aot_ref_lim])
-
 
     def aerosol_swir(self,
                      raster,
@@ -570,13 +575,14 @@ class Kernel():
 
         aot_ref_maxs = metric_pixnum.where(metric_pixnum < metric_pixnum_max, drop=True).aot_ref
         if len(aot_ref_maxs) > 0:
-            aot_ref_max = aot_ref_maxs.values[-1]
+            self.aot_ref_max = aot_ref_maxs.values[-1]
         else:
-            self.aot_ref_max = self.aot_ref_cams_max
+            self.aot_ref_max = aot_refs[-1] #self.aot_ref_cams_max
 
         # for further lut interpolation:
-        self.aot_ref_max = np.max([0.05, aot_ref_max])
+        # self.aot_ref_max = np.max([0.011, aot_ref_max])
 
+        # to stay within LUT aot range
         if ~((self.aot_ref_max > 0) & (self.aot_ref_max < self.aot_ref_lim)):
             self.aot_ref_max = np.min([self.aot_ref_cams_max, self.aot_ref_lim])
 
@@ -625,7 +631,6 @@ class Kernel():
 
         sunglint_eps = self.sunglint_eps.values
 
-
         aot_ref_bound = np.min([self.aot_ref_max * 1.2, self.aot_ref_lim])
         aot_refs = np.linspace(0, aot_ref_bound, 21)
 
@@ -666,7 +671,6 @@ class Kernel():
             Rf[Rf < -0.0004] = np.nan
             Rf[Rf < 0.] = 0.0
             Rf = np.min(Rf, axis=0)
-
 
             Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
             Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
@@ -890,26 +894,22 @@ class Kernel():
         _Nwl, _height, _width = raster.bands.shape
         sunglint_eps = self.sunglint_eps.values
 
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-
         sigma2 = (self.wind_img.wind + 0.586) / 195.3
         _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-        _Nwl, _height, _width = raster.bands.shape
 
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-        _Tg_raster = self.Tg_raster.interp(x=raster.x, y=raster.y)
-        _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-        aot_ref_raster_ = aot_ref_raster.interp(x=raster.x, y=raster.y)
+        pressure = self.cams.raster.sp
+        Tg_diff_raster = self.Tg_diff_raster
+        Tg_raster = self.Tg_raster
 
         Rrs_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
-        p_slope_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
+        # Ratm = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
+
+        # p_slope_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
         Rf_tmp = np.full((_height, _width), np.nan, dtype=self.prod._type)
         aot_tmp = np.full((_height, _width), np.nan, dtype=self.prod._type)
         aot_ref_bound = np.min([self.aot_ref_max * 1.2, self.aot_ref_lim])
-        aot_refs = np.linspace(0, aot_ref_bound, 21)
-        Ttot_Ed_lut = self.trans_aero_lut.Ttot_Ed.interp(aot_ref=aot_refs, method='quadratic')
+        #aot_refs = np.linspace(0, aot_ref_bound, 21)
+        Ttot_Ed_lut = self.trans_aero_lut.Ttot_Ed #.interp(aot_ref=aot_refs, method='quadratic')
 
         for iy in range(0, _height, chunk):
             yc = min(_height, iy + chunk)
@@ -918,6 +918,7 @@ class Kernel():
                 xc = min(_width, ix + chunk)
 
                 _band_rad = raster.bands[:, iy:yc, ix:xc]
+                x_subset, y_subset = _band_rad.x, _band_rad.y
 
                 Nwl, Ny, Nx = _band_rad.shape
                 if Ny == 0 or Nx == 0:
@@ -927,6 +928,11 @@ class Kernel():
                 # subsetting
                 _sigma2_ = _sigma2[iy:yc, ix:xc]
                 _sza = raster.sza[iy:yc, ix:xc]  # .values
+                _pressure = pressure.interp(x=x_subset, y=y_subset).values
+                _Tg_diff_raster = Tg_diff_raster.interp(x=x_subset, y=y_subset).values
+                _Tg_raster = Tg_raster.interp(x=x_subset, y=y_subset).values
+                _aot_ref_raster = aot_ref_raster.interp(x=x_subset, y=y_subset).values
+
                 if monoview:
                     _raa = raster.raa[iy:yc, ix:xc]
                     _vza = raster.vza[iy:yc, ix:xc]
@@ -937,15 +943,11 @@ class Kernel():
                     _vza_mean = np.mean(_vza, axis=0).values
 
                 _azi = (180. - _raa) % 360
-                _air_mass_ = Misc.air_mass(_sza,
-                                           _vza)  # air_mass[:, iy:yc,ix:xc] #air_mass(_sza,_vza).values #_p_slope = prod.raster.p_slope[:, iy:yc,ix:xc]
+                _air_mass_ = Misc.air_mass(_sza, _vza)
                 _p_slope_ = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2_,
-                                         monoview=monoview).values  # _p_slope[:, iy:yc,ix:xc]
-                _aot_ref = aot_ref_raster_.values[iy:yc, ix:xc]
+                                         monoview=monoview).values
 
-                _pressure_ = _pressure[iy:yc, ix:xc] / self.pressure_ref
-                _Tg_abs = _Tg_raster[:, iy:yc, ix:xc].values
-                _Tg_abs_diff = _Tg_diff_raster[:, iy:yc, ix:xc].values
+                _pressure_ = _pressure / self.pressure_ref
 
                 # construct wl,y,x raster for Rayleigh optical thickness
                 _rot_raster = _R_._multiplicate(self.rot.values, _pressure_, arr_tmp)
@@ -954,13 +956,13 @@ class Kernel():
                 _Rdiff = _R_.interp_Rlut(self.szas, _sza.values,
                                          self.vzas, _vza.values,
                                          self.azis, _azi.values,
-                                         self.aot_refs, _aot_ref,
+                                         self.aot_refs, _aot_ref_raster,
                                          Nwl, Ny, Nx, self.Rdiff_lut.values)
 
-                _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
+                _Rdiff = _Rdiff * _Tg_diff_raster * _pressure_
 
                 _aot = _R_._interp_aotlut(self.aot_lut.aot_ref.values,
-                                          _aot_ref, Nwl, Ny, Nx, self.aot_lut.values)
+                                          _aot_ref_raster, Nwl, Ny, Nx, self.aot_lut.values)
 
                 #  correction for diffuse light
                 Rcorr = _band_rad.values - _Rdiff
@@ -969,47 +971,50 @@ class Kernel():
                 Tdir = Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
 
                 # vTotal transmittance (for Ed and Lu)
-                Tdown = _R_._interp_Tlut(self.szas, _sza.values, Ttot_Ed_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
+                Tdown = _R_._interp_Tlut(self.szas, _sza.values, Ttot_Ed_lut.aot_ref.values,
+                                         _aot_ref_raster, Nwl, Ny, Nx,
                                          Ttot_Ed_lut.values)
-                Tup = _R_._interp_Tlut(self.vzas, _vza_mean, Ttot_Ed_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
-                                       Ttot_Ed_lut.values ** 1.05)
-                Ttot_du = Tdown * Tup * _Tg_abs
+                Tup = _R_._interp_Tlut(self.vzas, _vza_mean, Ttot_Ed_lut.aot_ref.values,
+                                       _aot_ref_raster, Nwl, Ny, Nx, Ttot_Ed_lut.values ** 1.05)
+                Ttot_du = Tdown * Tup * _Tg_raster
 
                 self._p_slope_ = _p_slope_
-                self._Tg_abs = _Tg_abs
+                self._Tg_raster = _Tg_raster
                 self._p_slope_ = _p_slope_
+
                 Rf = np.full((len(iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
                 for iwl in iwl_swir:
                     if monoview:
-                        Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * sunglint_eps[iwl] * _p_slope_)
+                        Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_raster[iwl] * sunglint_eps[iwl] * _p_slope_)
                     else:
                         Rf[iwl] = (sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl])
                         Rf[iwl] = Rf[iwl] / (
-                                _Tg_abs[iwl] * Tdir[iwl] * sunglint_eps[iwl] * _p_slope_[iwl])
+                                _Tg_raster[iwl] * Tdir[iwl] * sunglint_eps[iwl] * _p_slope_[iwl])
 
-                Rf[Rf < -0.0004] = np.nan
+                Rf[Rf < -0.001] = -0.00001  # np.nan
                 Rf[Rf < 0.] = 0.0
                 Rf = np.min(Rf, axis=0)
                 Rf_tmp[iy:yc, ix:xc] = Rf
 
                 Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
-                Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
+                Rf = _Tg_raster * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
 
                 # sunglint removal
                 # Rrs_tmp_ = Rrs_tmp[:, iy:yc, ix:xc]
                 Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
-                p_slope_tmp[:, iy:yc, ix:xc] = _p_slope_
+                # p_slope_tmp[:, iy:yc, ix:xc] = _p_slope_
 
                 # Convert from TOA to BOA for positive values
                 Ttot_du[Rrs_tmp_ < 0] = 1.
                 Rrs_tmp_ = Rrs_tmp_ / Ttot_du
                 Rrs_tmp[:, iy:yc, ix:xc] = Rrs_tmp_
-                aot_tmp[iy:yc, ix:xc] = _aot_ref
+                aot_tmp[iy:yc, ix:xc] = _aot_ref_raster
+
                 # no sunglint removal
                 # Rrs_tmp[:, iy:yc, ix:xc] = (Rcorr  / np.pi)/ Ttot_du
 
         xres = xr.Dataset(dict(Rrs=(['wl', "y", "x"], Rrs_tmp),
-                               p_slope=(['wl', "y", "x"], p_slope_tmp),
+                               # p_slope=(['wl', "y", "x"], p_slope_tmp),
                                BRDFg=(["y", "x"], Rf_tmp),
                                aot550=(["y", "x"], aot_tmp)
                                ),
@@ -1070,7 +1075,6 @@ class Kernel():
             return x[idx]
         else:
             return np.nanmean(x)
-
 
     def smoothing(self,
                   raster,

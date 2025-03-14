@@ -76,6 +76,9 @@ class Product():
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
+        # set to zero potential NaN pixels
+        self.raster['bands']=self.raster.bands.where(self.raster.bands > 0, 0)
+
         # surfwater object:
         surfwater = xr.ones_like(self.raster.bands.isel(wl=0, drop=True).squeeze().astype(np.uint8))
         surfwater.name = 'surfwater'
