@@ -2,7 +2,8 @@
 
 Usage:
   grs <input_file> [--cams_file file] [-o <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
-   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
+   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file]\
+   [--suffix suffix] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -15,7 +16,7 @@ Options:
   --cams_file file     Absolute path of the CAMS file to be used (mandatory)
 
   -o odir         Full (absolute or relative) path to output L2 image.
-  --levname lev    Level naming used for output product [default: L2Agrs]
+  --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
@@ -28,7 +29,9 @@ Options:
   --opac_model name  Force the aerosol model (OPAC) to be 'name'
                      (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
                      'MACL_rh70', 'URBA_rh70'])
+  --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
   --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+
 
   Example:
       grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/cams/world/cams_forecast_2022-07.nc --resolution 60
@@ -38,22 +41,24 @@ Options:
 '''
 
 import logging
-import os
-import sys
 
+from pathlib import Path
 from docopt import docopt
 from osgeo import gdal
 
 from . import class_logger
 from . import __package__, __version__
 from .grs_process import Process
+from exe.procutils import misc
+
+misc = misc()
 
 
 def main():
     args = docopt(__doc__, version=__package__ + '_' + __version__)
     print(args)
 
-    file = args['<input_file>']
+    file = Path(args['<input_file>'])
 
     lev = args['--levname']
     cams_file = args['--cams_file']
@@ -66,44 +71,51 @@ def main():
     scale_aot = float(args['--scale_aot'])
     opac_model = args['--opac_model']
     snap_compliant = args['--snap_compliant']
+    suffix = args['--suffix']
 
     ##################################
     # File naming convention
     ##################################
-    basename = os.path.basename(file)
+    basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
     if 'MSIL1C' in basename:
-        f_ = gdal.Open(os.path.join(file, 'MTD_MSIL1C.xml'))
+        f_ = gdal.Open(Path(file, 'MTD_MSIL1C.xml'))
         metadata = f_.GetMetadata()
         cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
         if cc >= max_cc:
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return
 
-    odir = args['--odir']
+    odir = args['-o']
     if odir == './':
-        odir = os.getcwd()
+        odir = Path.cwd()
 
-    if not os.path.exists(odir):
-        os.makedirs(odir)
+    if not suffix:
+        suffix = f'_V{__version__}'
 
-    outfile = os.path.join(odir, os.path.basename(odir) + ".nc")
+    outdir = misc.set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    class_logger.ServiceLogger(log_file=os.path.join(odir, 'log_file.log'), output_dir=odir, log_level='INFO', log_console=False)
+    class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
+                               log_console=False)
 
-    if os.path.exists(outfile) & noclobber:
-        print('File ' + outfile + ' already processed; skip!')
-        sys.exit()
+    outfile = Path(outdir, outdir.name + ".nc")
 
-    logging.info('call grs_process for the following paramater. File:' +
-                 file + ', output directory:' + odir +
-                 f', cams_file:{cams_file}' +
-                 ', resolution:' + str(resolution))
+    # skip if already processed
+    if outfile.is_file() & noclobber:
+        logging.info(f'File {outfile} already processed; skip!')
+        exit(-1)
+
+    logging.info(f'call grs_process for the following paramater. '
+                 f'File: {file}, '
+                 f'output directory: {odir}, '
+                 f'cams_file:{cams_file}, '
+                 f'resolution: {resolution}')
 
     try:
         process_ = Process()
         process_.execute(file,
-                         odir=odir,
+                         odir=outdir,
                          cams_file=cams_file,
                          resolution=resolution,
                          scale_aot=scale_aot,

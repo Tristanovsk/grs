@@ -112,7 +112,7 @@ Version history
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.7'
+__version__ = '2.1.8'
 
 
 from .acutils import Aerosol, Misc, Rasterization

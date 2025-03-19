@@ -2,7 +2,7 @@
     "input_file": '/datalake/S2-L1C/31TFJ/2023/06/03/S2B_MSIL1C_20230603T102559_N0509_R108_T31TFJ_20230603T123209.SAFE',
     "cams_folder": '/datalake/watcal/ECMWF/CAMS/',
     "surfwater_file": '/datalake/watcal/INPUT_TEST/SURFWATER_OPTICAL-SINGLE_T31TFJ_20230603T103858_20230603T103858_1-0-4_02.tif',  # "" if no surfwater_file
-    "chain_version": 2.1.6,
+    "suffix": null,  # default to theGRS version number
     "level": "INFO",                                  # niveau de log : info, debug, warning, error
     "output_dir": "/datalake/watcal/OUTPUT_TEST",    # répertoire où seront ecrits les produits générés
     "hymotep_config": "/home/grs2/exe/hymotep_config.yml",
