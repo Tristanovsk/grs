@@ -1,4 +1,6 @@
 import os
+from os import PathLike
+from pathlib import Path
 
 import importlib_resources
 import yaml
@@ -167,10 +169,10 @@ class Process:
         ##################################
         # Get image data
         ##################################
-        if isinstance(l1c_prod, str):
+        if isinstance(l1c_prod, str | PathLike):
             # get extension
-            extension = l1c_prod.split('.')[-1]
-            basename = os.path.basename(l1c_prod)
+            extension = Path(l1c_prod).suffix
+            basename = Path(l1c_prod).stem
             if extension == 'nc':
                 logging.info('pass netcdf image as grs product object')
                 prod = Product(xr.open_dataset(l1c_prod))

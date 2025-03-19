@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+from pathlib import Path
 
 
 class misc:
@@ -87,25 +88,24 @@ class misc:
             # sys.exit(-1)
         return tile
 
-    def set_ofile(self, file, odir='', level_name='L2GRS', suffix=''):
-        ''' get satellite type andset output file name'''
+    @staticmethod
+    def set_ofile(filename: str, odir='', level_name='L2GRS', suffix='') -> Path:
+        """ get satellite type and set output directory name"""
         ##################################
         # File naming convention
         ##################################
 
         lev = level_name
-
-        outfile = file.replace('L1C', lev)
+        outfile = filename.replace('L1C', lev)
         outfile = outfile.replace('L1GT', lev)
         outfile = outfile.replace('L1TP', lev)
         # remove extension
-        outfile = os.path.splitext(outfile)[0]
+        outfile = Path(outfile).stem
         # outfile = outfile.replace('.SAFE', '').rstrip('/')
         # outfile = outfile.replace('.zip', '').rstrip('/')
         # outfile = outfile.replace('.txt', '').rstrip('/')
-        #self.get_tile(file),
-        path = os.path.join(odir, outfile + suffix)
-        print(path)
+        # self.get_tile(file),
+        path = Path(odir, outfile + suffix)
         return path
 
     def chunk(self, it, n):
