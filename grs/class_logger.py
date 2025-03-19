@@ -15,18 +15,20 @@
 .. moduleauthor:: thales
 """
 
-import os
 import sys
 import logging
 import logging.handlers
 import resource
+from pathlib import Path
+from os import PathLike
 
 # pointer to the module object instance itself.
 THIS = sys.modules[__name__]
 
 THIS.klass = None
 
-logcounter = {'ERROR':0, 'WARNING':0, 'INFO':0, 'DEBUG':0}
+logcounter = {'ERROR': 0, 'WARNING': 0, 'INFO': 0, 'DEBUG': 0}
+
 
 # Used in unitary test
 def get_instance():
@@ -36,6 +38,7 @@ def get_instance():
     """
     return THIS.klass
 
+
 class ServiceLogger(logging.getLoggerClass()):
     """
         The class ServiceLogger defines all logging parameter.
@@ -43,7 +46,9 @@ class ServiceLogger(logging.getLoggerClass()):
         It's define as a singleton
     """
     instance = None
-    def __new__(cls, log_file: str, output_dir: str, log_level: str='INFO', log_console: bool=True):
+
+    def __new__(cls, log_file: str | PathLike[str], error_log: str | PathLike[str], log_level: str = 'INFO',
+                log_console: bool = True):
         """
             __new__ method for class ServiceLogger
         """
@@ -51,12 +56,13 @@ class ServiceLogger(logging.getLoggerClass()):
             cls.instance = object.__new__(cls)
         return cls.instance
 
-    def __init__(self, log_file: str, output_dir: str, log_level: str='INFO', log_console: bool=True):
+    def __init__(self, log_file: str | PathLike[str], error_log: str | PathLike[str], log_level: str = 'INFO',
+                 log_console: bool = True):
         """
             Init class ServiceLogger
         """
         THIS.klass = self
-        self.output_dir = output_dir
+        self.error_log = error_log
         self.log_file = log_file
         self.sys_time = 0
         self.user_time = 0
@@ -66,8 +72,9 @@ class ServiceLogger(logging.getLoggerClass()):
         # LEVEL : DEBUG, INFO, WARNING, ERROR
         # log format :
         # YYYY-MM-DDThh:mm:ss.mmm     LEVEL:ClassName:FunctionName: message
-        self.log_formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d     %(levelname)s | %(name)s::%(funcName)s | %(message)s',
-                                               datefmt='%Y-%m-%dT%H:%M:%S')
+        self.log_formatter = logging.Formatter(
+            fmt='%(asctime)s.%(msecs)03d     %(levelname)s | %(name)s::%(funcName)s | %(message)s',
+            datefmt='%Y-%m-%dT%H:%M:%S')
 
         # set the name of the class in log messages
         self.root_logger = logging.getLogger()
@@ -92,6 +99,7 @@ class ServiceLogger(logging.getLoggerClass()):
                 self._log(logging.ERROR, message, args, **kwargs)
                 global logcounter
                 logcounter['ERROR'] += 1
+
         logging.Logger.error = log_error
 
         def log_warning(self, message: str, *args, **kwargs):
@@ -109,6 +117,7 @@ class ServiceLogger(logging.getLoggerClass()):
                 self._log(logging.WARNING, message, args, **kwargs)
                 global logcounter
                 logcounter['WARNING'] += 1
+
         logging.Logger.warning = log_warning
 
         def log_info(self, message: str, *args, **kwargs):
@@ -126,6 +135,7 @@ class ServiceLogger(logging.getLoggerClass()):
                 self._log(logging.INFO, message, args, **kwargs)
                 global logcounter
                 logcounter['INFO'] += 1
+
         logging.Logger.info = log_info
 
         def log_debug(self, message: str, *args, **kwargs):
@@ -143,8 +153,8 @@ class ServiceLogger(logging.getLoggerClass()):
                 self._log(logging.DEBUG, message, args, **kwargs)
                 global logcounter
                 logcounter['DEBUG'] += 1
-        logging.Logger.debug = log_debug
 
+        logging.Logger.debug = log_debug
 
         # set the logging level from the argument
         self.root_logger.setLevel(log_level)
@@ -156,9 +166,7 @@ class ServiceLogger(logging.getLoggerClass()):
             self.file_handler.setFormatter(self.log_formatter)
             self.file_handler.setLevel(log_level)
             # create the error log file
-            log_error_filename = "error.log"
-            log_error_file = os.path.join(output_dir, log_error_filename)
-            self.file_handler_error = logging.FileHandler(log_error_file, mode='w')
+            self.file_handler_error = logging.FileHandler(error_log, mode='w')
             self.file_handler_error.setFormatter(self.log_formatter)
             self.file_handler_error.setLevel("ERROR")
 
@@ -174,8 +182,7 @@ class ServiceLogger(logging.getLoggerClass()):
             else:
                 self.console_handler = None
 
-
-    def set_stat(self, sys_time:float, user_time:float, total_mem:float):
+    def set_stat(self, sys_time: float, user_time: float, total_mem: float):
         """
            Local function debug log
 
@@ -190,7 +197,7 @@ class ServiceLogger(logging.getLoggerClass()):
         self.user_time = user_time
         self.total_mem = total_mem
 
-    def set_log_file(self, log_filename:str):
+    def set_log_file(self, log_filename: str):
         """
            This method is to set the log filename
 
@@ -199,8 +206,7 @@ class ServiceLogger(logging.getLoggerClass()):
         """
         self.log_file = log_filename
 
-
-    def set_output_dir(self, output_dir:str):
+    def set_output_dir(self, output_dir: str):
         """
            This method is to set the output directory
 
@@ -228,7 +234,8 @@ class ServiceLogger(logging.getLoggerClass()):
         self.instance = None
         THIS.klass = None
 
-def get_stat(in_sys_time:float, in_user_time:float, in_total_mem:float):
+
+def get_stat(in_sys_time: float, in_user_time: float, in_total_mem: float):
     """
         This method get and log stats
 
@@ -247,7 +254,7 @@ def get_stat(in_sys_time:float, in_user_time:float, in_total_mem:float):
     with open(stat_file, 'r') as stat_fp:
         for ligne in stat_fp:
             if "VmPeak:" in ligne:
-                logger.info(ligne.replace("VmPeak:", "peak_vm: ").replace('\t','').rstrip('\n'))
+                logger.info(ligne.replace("VmPeak:", "peak_vm: ").replace('\t', '').rstrip('\n'))
         stat_fp.close()
 
     # reading /proc/self/stat to get user and cpu time
@@ -257,10 +264,10 @@ def get_stat(in_sys_time:float, in_user_time:float, in_total_mem:float):
         ligne = content[0].split()
         stat_fp.close()
     # Calculation of user and sys time
-    user_time = float(ligne[13])/100.0
-    sys_time = float(ligne[14])/100.0
+    user_time = float(ligne[13]) / 100.0
+    sys_time = float(ligne[14]) / 100.0
     # Calculation of date start time
-    process_start_time = float(ligne[21])/100.0
+    process_start_time = float(ligne[21]) / 100.0
     # reading /proc/uptime to get system time
     stat_file = "/proc/uptime"
     with open(stat_file, 'r') as stat_fp:
@@ -281,7 +288,6 @@ def get_stat(in_sys_time:float, in_user_time:float, in_total_mem:float):
     logger.info("warning: " + str(logcounter['WARNING']))
     logger.info("info: " + str(logcounter['INFO']))
     logger.info("debug: " + str(logcounter['DEBUG']))
-
 
 ####################################################################
 ####################################################################
