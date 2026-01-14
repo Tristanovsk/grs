@@ -4,9 +4,16 @@ Module dedicated to handle CAMS data with link to Copernicus API.
 
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pandas
+from scipy.interpolate import interp1d
 import xarray as xr
+
+import matplotlib.pyplot as plt
+
+import logging
+import calendar, datetime
+import cdsapi
 
 opj = os.path.join
 
@@ -130,7 +137,7 @@ class CamsProduct:
         '''
 
         # set geographic extents
-        xmin, ymin, xmax, ymax = self.prod.rio.bounds(recalc=True)
+        xmin, ymin, xmax, ymax = self.prod.rio.bounds()
         lonmin, latmin, lonmax, latmax = self.lonmin, self.latmin, self.lonmax, self.latmax
 
         if not os.path.exists(self.filepath):
@@ -141,17 +148,18 @@ class CamsProduct:
                                decode_cf=True,
                                )
 
+        # -------------------------
+        # geographical extraction
+        # -------------------------
+        cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         if ('forecast_period' in cams.dims) & ('forecast_reference_time' in cams.dims):
+            cams = cams.sel(forecast_reference_time=self.date_day)
             cams = cams.stack(time_buffer=['forecast_period', 'forecast_reference_time']).swap_dims(
                 {'time_buffer': 'valid_time'}).sortby('valid_time').rename(
                 {'valid_time': 'time'}).drop_vars(['time_buffer'])
 
         cams = cams.sel(time=self.date_day)
 
-        # -------------------------
-        # geographical extraction
-        # -------------------------
-        cams = cams.sel(latitude=slice(latmax + 1, latmin - 1))
         # check if image is on Greenwich meridian and adapt longitude convention
         if cams.longitude.min() >= 0:
             if lonmin <= 0 and lonmax >= 0:
@@ -190,6 +198,13 @@ class CamsProduct:
                                   latitude=np.linspace(latmax, latmin, 12),
                                   kwargs={"fill_value": "extrapolate"})
         self.raster = self.raster.rename({'longitude': 'x', 'latitude': 'y'})
+
+        #---------------------------
+        # compute wind speed module
+        #---------------------------
+        self.raster['wind'] = np.sqrt(self.raster['u10']**2+self.raster['v10']**2)
+
+
         Nx = len(self.raster.x)
         Ny = len(self.raster.y)
         x = np.linspace(xmin, xmax, Nx)
@@ -233,7 +248,7 @@ class CamsProduct:
         return
 
     def plot_params(self, params=['amaod550', 'bcaod550', 'duaod550', 'niaod550',
-                                  'omaod550', 'ssaod550', 'soaod550', 'suaod550',
+                                  'omaod550', 'ssaod550', 'suaod550',
                                   'aod550',
                                   't2m', 'msl', 'sp',
                                   'tcco', 'tc_ch4', 'tcno2', 'gtco3',
@@ -241,6 +256,7 @@ class CamsProduct:
                     **kwargs):
         '''
         Function to plot the cams data extracted for date and region of interest.
+        Note that secondary organic aerosols optical thickness at 550 nm is not available for the whole timeserires (check parameter 'soaod550')
 
         :param params: parameters to plot
         :param kwargs: kwargs for matplotlib plotting

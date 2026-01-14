@@ -107,20 +107,26 @@ Version history
 
 2.1.7:
     - accounts for absorption/scattering interaction for transmittance of absorbing gases
-    - fix bugs for true wavelength
-    - fix for new ADS CAMS format
+
+2.2.0:
+    - major update for rugosity and aerosol retrievals
+
+2.2.1:
+    - refinement of the aerosol retrieval algorithm
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.8'
+__version__ = '2.2.1'
 
 
-from .acutils import Aerosol, Misc, Rasterization
+from .acutils import Aerosol, Misc, Rasterization, GaseousTransmittance
+
 from .cams import CamsProduct
 from .auxdata import SensorData, AuxData
 from .product import Product
 from .output import L2aProduct
 from .mask import Masking
+from .grs_kernel import Kernel
 from .grs_process import Process
 
 

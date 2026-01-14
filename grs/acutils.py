@@ -51,7 +51,7 @@ class Rasterization:
                                    azis, _azi,
                                    Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-        mus = np.cos(np.radians(_sza))
+        #mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
             for _ix in range(Nx):
                 if np.isnan(_sza[_iy, _ix]):
@@ -60,7 +60,7 @@ class Rasterization:
                 iazi = _getnearpos(azis, _azi[_iy, _ix])
                 ivza = _getnearpos(vzas, _vza[_iy, _ix])
                 for _iwl in range(Nwl):
-                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] #/ mus[_iy, _ix]
         return arr_lut
 
     @staticmethod
@@ -71,7 +71,7 @@ class Rasterization:
                           aot_refs, _aot_ref,
                           Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-        mus = np.cos(np.radians(_sza))
+        #mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
             for _ix in range(Nx):
                 if np.isnan(_sza[_iy, _ix]):
@@ -81,7 +81,7 @@ class Rasterization:
                 ivza = _getnearpos(vzas, _vza[_iy, _ix])
                 iaot_ref = _getnearpos(aot_refs, _aot_ref[_iy, _ix])
                 for _iwl in range(Nwl):
-                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] #/ mus[_iy, _ix]
         return arr_lut
 
     @staticmethod
@@ -91,7 +91,7 @@ class Rasterization:
                               azis, _azi,
                               Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-        mus = np.cos(np.radians(_sza))
+        #mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
             for _ix in range(Nx):
                 if np.isnan(_sza[_iy, _ix]):
@@ -101,7 +101,7 @@ class Rasterization:
                 for _iwl in range(Nwl):
                     iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
                     ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
-                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] / mus[_iy, _ix]
+                    arr_lut[_iwl, _iy, _ix] = lut[_iwl, isza, ivza, iazi] #/ mus[_iy, _ix]
         return arr_lut
 
     @staticmethod
@@ -112,7 +112,7 @@ class Rasterization:
                      aot_refs, _aot_ref,
                      Nwl, Ny, Nx, lut):
         arr_lut = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-        mus = np.cos(np.radians(_sza))
+        #mus = np.cos(np.radians(_sza))
         for _iy in range(Ny):
             for _ix in range(Nx):
                 if np.isnan(_sza[_iy, _ix]):
@@ -122,7 +122,7 @@ class Rasterization:
                 for _iwl in range(Nwl):
                     iazi = _getnearpos(azis, _azi[_iwl, _iy, _ix])
                     ivza = _getnearpos(vzas, _vza[_iwl, _iy, _ix])
-                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] / mus[_iy, _ix]
+                    arr_lut[_iwl, _iy, _ix] = lut[iaot_ref, _iwl, isza, ivza, iazi] #/ mus[_iy, _ix]
         return arr_lut
 
     @staticmethod
@@ -218,7 +218,9 @@ class Aerosol:
 
 
 class CamsParams:
-    def __init__(self, name, resol):
+    def __init__(self,
+                 name,
+                 resol):
         self.name = name
         self.resol = resol
 
@@ -236,13 +238,13 @@ class Gases():
         self.tno2c = 3e-6
         self.tch4c = 1e-2
         self.psl = 1013
-        self.coef_abs_scat = {'co2': 0.4,
-                              'o2': 0.3,
-                              'o4': 0.3,
+        self.coef_abs_scat = {'co2':0.4,
+                              'o2':0.3,
+                              'o4':0.3,
                               'ch4': 0.5,
                               'no2': 1,
                               'o3': 1,
-                              'h2o': 0.3}
+                              'h2o':0.3}
 
 
 class GaseousTransmittance(Gases):
@@ -253,7 +255,7 @@ class GaseousTransmittance(Gases):
     def __init__(self, prod, cams):
 
         Gases.__init__(self)
-        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds(recalc=True)
+        self.xmin, self.ymin, self.xmax, self.ymax = prod.raster.rio.bounds()
         self.prod = prod
         self.cams = cams
         self.gas_lut = prod.gas_lut
@@ -261,7 +263,7 @@ class GaseousTransmittance(Gases):
         self.SRF = self.prod.raster.SRF
         self.air_mass_mean = self.prod.air_mass_mean
         self.pressure = cams.raster.sp * 1e-2
-
+        #self.coef_abs_scat = 0.3
         self.Tg_tot_coarse = None
         self.cams_gases = {'ch4': CamsParams('tc_ch4', 4),
                            'no2': CamsParams('tcno2', 7),
