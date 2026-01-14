@@ -47,7 +47,7 @@ class AuxData():
     def __init__(self, wl=None):
         # load data from raw files
 
-        self.sunglint_eps = pd.read_csv(sunglint_eps_file, sep='\s+', index_col=0).to_xarray()
+        self.sunglint_eps = pd.read_csv(sunglint_eps_file, sep=r'\s+', index_col=0).to_xarray()
         self.rayleigh()
 
         # reproject onto desired wavelengths
