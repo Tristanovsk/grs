@@ -54,7 +54,7 @@ class Process:
         self.successful = False
 
     def execute(self, l1c_prod,
-                odir='',
+                ofile='',
                 cams_file=None,
                 surfwater_file=None,
                 dem_file=None,
