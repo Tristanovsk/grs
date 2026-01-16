@@ -272,7 +272,7 @@ class GaseousTransmittance(Gases):
 
     def Tgas_background(self):
         '''
-        Compute direct transmittance for background absorbing gases: :math:`CO,\ O_2,\ O_4`
+        Compute direct transmittance for background absorbing gases: :math:``CO,\ O_2,\ O_4``
 
         :return:
         '''
@@ -316,7 +316,7 @@ class GaseousTransmittance(Gases):
         :param gas_name: name of the absorbing gas, choose between:
             - 'h2o'
             - 'o3'
-            - n2o'
+            - 'n2o'
         :return: Gaseous transmittance for satellite bands
         '''
 
@@ -356,7 +356,7 @@ class GaseousTransmittance(Gases):
 
     def get_gaseous_optical_thickness(self):
         '''
-        Get gaseous optival thickness from total column integrated concentration.
+        Get gaseous optical thickness from total column integrated concentration.
         :return:
         '''
 

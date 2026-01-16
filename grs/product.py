@@ -19,6 +19,7 @@ configfile = files(__package__) / 'config.yml'
 with open(configfile, 'r') as file:
     config = yaml.safe_load(file)
 
+NETCDF_ENGINE = config['processor']['netcdf_engine']
 
 class Product():
     '''
@@ -192,12 +193,12 @@ class Product():
         '''
 
         # get LUT
-        self.gas_lut = xr.open_dataset(self.abs_gas_file,engine='h5netcdf')
+        self.gas_lut = xr.open_dataset(self.abs_gas_file,engine=NETCDF_ENGINE)
         # self.aero_lut = xr.open_dataset(self.lut_file)
         # convert wavelength in nanometer
         # self.aero_lut['wl'] = self.aero_lut['wl'] * 1000
         # self.aero_lut['wl'].attrs['description'] = 'wavelength of simulation (nanometer)'
-        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file,engine='h5netcdf')
+        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file,engine=NETCDF_ENGINE)
 
     def set_outfile(self, file):
         '''

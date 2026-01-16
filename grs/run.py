@@ -47,9 +47,9 @@ from pathlib import Path
 from docopt import docopt
 from osgeo import gdal
 
-from . import class_logger
-from . import __package__, __version__
-from .grs_process import Process
+from grs import class_logger
+from grs import __package__, __version__
+from grs.grs_process import Process
 from exe.procutils import misc
 
 misc = misc()

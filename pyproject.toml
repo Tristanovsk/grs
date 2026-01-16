@@ -32,7 +32,6 @@ where = ["."]
 [project.scripts]
 grs = "grs.run:main"
 
-#dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
