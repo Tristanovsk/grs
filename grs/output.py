@@ -90,12 +90,12 @@ class L2aProduct():
             dem.name = 'dem'
 
         # final merge
-        self.l2_prod = xr.merge([self.l2_prod, native_raster.flags, dem])
+        self.l2_prod = xr.merge([self.l2_prod, native_raster.flags, dem],compat='override')
         self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y', inplace=True)
         self.l2_prod.rio.write_coordinate_system(inplace=True)
         self.l2_prod.rio.write_crs(inplace=True)
 
-        self.ancillary = xr.merge([transmittance_raster, cams_raster])
+        self.ancillary = xr.merge([transmittance_raster, cams_raster],compat='override')
         self.ancillary.rio.set_spatial_dims(x_dim='xc', y_dim='yc', inplace=True)
         self.ancillary.rio.write_coordinate_system(inplace=True)
         self.ancillary.rio.write_crs(inplace=True)
@@ -155,7 +155,7 @@ class L2aProduct():
                                            "complevel": complevel, 'grid_mapping': 'spatial_ref'}
 
                     img_snap = img_snap.rename({band: band_name})
-                self.l2_prod = xr.merge([self.l2_prod.drop_vars(var), img_snap])
+                self.l2_prod = xr.merge([self.l2_prod.drop_vars(var), img_snap],compat='override')
             self.l2_prod.attrs['auto_grouping'] = 'Rrs:Rrs_g'
             self.l2_prod.attrs['metadata_profile'] = 'beam'
         else:

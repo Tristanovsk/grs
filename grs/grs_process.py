@@ -61,8 +61,8 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk = 512,
-                aot_megapix_size=2,
-                aot_chunk = 124,
+                aot_megapix_size=8,
+                aot_chunk = 256,
                 scale_aot=1,
                 opac_model=None,
                 allpixels=False,
@@ -556,7 +556,8 @@ class Process:
         # filter wind retrievals
         kernel.wind_img['wind'] = kernel.wind_img.wind.where(kernel.wind_img.wind < 12)
         l2_prod = xr.merge([kernel.xres,
-                  kernel.wind_img.interp(x=kernel.xres.x, y=kernel.xres.y)])
+                  kernel.wind_img.interp(x=kernel.xres.x, y=kernel.xres.y)],
+                           compat='override')
 
         ##############################################
         # Update flags and create mask from recipe
@@ -575,7 +576,7 @@ class Process:
                                     tomask=self.flags_tomask,
                                     tokeep=self.flags_tokeep,
                                     mask_name="mask")
-        l2_prod = xr.merge([l2_prod, mask])
+        l2_prod = xr.merge([l2_prod, mask],compat='override')
 
         l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
         l2_prod = l2_prod.set_coords('central_wavelength')
