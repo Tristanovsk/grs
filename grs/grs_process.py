@@ -543,7 +543,10 @@ class Process:
 
             _azi = (180. - _raa) % 360
             _air_mass_ = acutils.Misc.air_mass(_sza, _vza).values
-            _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
+            # fix for bug with azimuth
+            # _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
+            _p_slope_ = 1.
+
             _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
             _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
             _Tg_abs = Tg_raster[:, iy:yc, ix:xc].values
@@ -588,15 +591,20 @@ class Process:
                 if monoview:
                     Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
                 else:
-                    Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
-                               (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
+                    # fix for bug in azimuth
+                    # Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
+                    #           (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
+                    Rf[iwl] = (_sunglint_eps[-1] * Rcorr[iwl] /
+                               (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl]))
 
             Rf[Rf < 0] = 0.
             Rf = np.min(Rf, axis=0)
             Rf_tmp[iy:yc, ix:xc] = Rf
 
             Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
-            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
+            # fix for bug in azimuth
+            # Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
+            Rf = _Tg_abs * Tdir * Rf / (_sunglint_eps[-1])
 
             # sunglint removal
             # Rrs_tmp_ =Rcorr / np.pi# Rrs_tmp[:, iy:yc, ix:xc]
