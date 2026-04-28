@@ -173,7 +173,7 @@ class Process:
             # get extension
             extension = Path(l1c_prod).suffix
             basename = Path(l1c_prod).stem
-            if extension == 'nc':
+            if 'nc' in extension:
                 logging.info('pass netcdf image as grs product object')
                 prod = Product(xr.open_dataset(l1c_prod))
             elif 'SAFE' in extension:
