@@ -1,7 +1,7 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
+  grs <input_file> [--cams_file file] [-o <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
    [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file]\
    [--suffix suffix] [--snap_compliant]
   grs -h | --help
@@ -15,9 +15,9 @@ Options:
 
   --cams_file file     Absolute path of the CAMS file to be used (mandatory)
 
-  -o ofile         Basename of the output L2A image.
+  -o odir         Full (absolute or relative) path to output L2A image.
   --odir odir      Ouput directory [default: ./]
-  --levname lev    Level naming used for output product [default: L2A]
+  --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
@@ -79,7 +79,7 @@ def main():
     ##################################
     basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
-    if 'MSIL1C' in basename:
+    if ('MSIL1C' in basename) and ('SAFE' in basename):
         f_ = gdal.Open(Path(file, 'MTD_MSIL1C.xml'))
         metadata = f_.GetMetadata()
         cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
@@ -87,20 +87,14 @@ def main():
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return
 
-    odir = args['--odir']
-    outfile = args['-o']
-
+    odir = args['-o']
     if odir == './':
         odir = Path.cwd()
 
     if not suffix:
         suffix = f'_V{__version__}'
 
-    if outfile is None:
-        outdir = misc.set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
-    else:
-        outdir = misc.set_ofile(outfile, odir=odir, level_name='', suffix='')
-
+    outdir = misc.set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
     outdir.mkdir(parents=True, exist_ok=True)
 
     class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
@@ -122,7 +116,7 @@ def main():
     try:
         process_ = Process()
         process_.execute(file,
-                         ofile=outdir,
+                         odir=outdir,
                          cams_file=cams_file,
                          resolution=resolution,
                          scale_aot=scale_aot,

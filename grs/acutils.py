@@ -299,7 +299,7 @@ class GaseousTransmittance(Gases):
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
-                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
                 Tg_int.append(Tg_)
             Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
                                           ).assign_coords({'pressure': val}))
@@ -347,7 +347,7 @@ class GaseousTransmittance(Gases):
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
-                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
                 Tg_int.append(Tg_)
             Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
                                           ).assign_coords({'tc': val}))
@@ -421,7 +421,7 @@ class GaseousTransmittance(Gases):
             Tg_ = Tg.sel(wl_hr=srf.wl_hr)
             wl_integr = Tg_.wl_hr.values
 
-            Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+            Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
             Tg_int.append(Tg_)
 
         self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})

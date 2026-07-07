@@ -54,7 +54,7 @@ class Process:
         self.successful = False
 
     def execute(self, l1c_prod,
-                ofile='',
+                odir='',
                 cams_file=None,
                 surfwater_file=None,
                 dem_file=None,
@@ -74,7 +74,7 @@ class Process:
         Main program calling all GRS steps
 
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
-        :param ofile: Absolute path of the output file
+        :param odir: Absolute path of the output file
         :param cams_file: Absolute path for root directory of CAMS data
         :param surfwater_file: Absolute path the surfwater file (.tif)
         :param dem_file: Absolute path of the DEM geotiff file
@@ -163,14 +163,14 @@ class Process:
         You can either further play with the l2a xarray or save it into netcdf:
 
 
-        >>> process_.ofile='./name_of_your_output_l2a_netcdf'
+        >>> process_.odir='./name_of_your_output_l2a_netcdf'
         >>> process_.write_output()
         INFO:root:export final product into netcdf
         INFO:root:export into encoded netcdf
 
         '''
 
-        self.ofile = ofile
+        self.odir = odir
         self.snap_compliant = snap_compliant
         self.successful = False
 
@@ -181,7 +181,7 @@ class Process:
             # get extension
             extension = Path(l1c_prod).suffix
             basename = Path(l1c_prod).stem
-            if extension == 'nc':
+            if 'nc' in extension:
                 logging.info('pass netcdf image as grs product object')
                 prod = Product(xr.open_dataset(l1c_prod, engine=NETCDF_ENGINE))
             elif 'SAFE' in extension:
@@ -595,5 +595,5 @@ class Process:
 
     def write_output(self):
         logging.info('export final product into netcdf')
-        self.l2a.export_to_netcdf(self.ofile,
+        self.l2a.export_to_netcdf(self.odir,
                                   snap_compliant=self.snap_compliant)
