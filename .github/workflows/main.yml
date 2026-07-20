@@ -14,20 +14,16 @@ jobs:
    container:
       image: python:3.11.14-bookworm
    steps:
+     - uses: actions/checkout@v4
      - run: |
-        pip install virtualenv
-        virtualenv python_env
-        . python_env/bin/activate
-        echo "pip install"
-        pwd
-        ls
-        pip install -r requirements.txt --no-cache-dir --force-reinstall grs
-        echo "deactivate"
-        deactivate
+         python -m venv python_env
+         . python_env/bin/activate
+         python -m pip install --upgrade pip
+         python -m pip install -r requirements.txt
      - name: Upload artifact
        uses: actions/upload-artifact@v4
        with:
-         name: rep-python
+         name: python-env
          path: python_env/ 
          retention-days: 1
 
