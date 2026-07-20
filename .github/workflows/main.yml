@@ -38,8 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          echo "${TARGET_REPO}"
-          echo "$SUFFIX_DOCKER_IMAGE"
           export DOCKER_IMAGE_NAME="${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}"
           export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
@@ -53,7 +51,10 @@ jobs:
             --file Dockerfile \
             --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
             --tag "${DOCKER_IMAGE_NAME}:latest"
-            
+
+          export IMAGE_TAG="${CI_COMMIT_TAG}"
+          podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+
 
   
    
