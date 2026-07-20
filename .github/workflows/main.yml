@@ -1,6 +1,4 @@
 name: Pipeline CI
-env:
-  PUBLIC_REMOTE_REGISTRY_DOCKER: "${ARTIFACTORY_HOST}/publicremotes-docker"
 
 on:
   push:
@@ -20,9 +18,13 @@ jobs:
        run: python --version
      - run: |
         pip install virtualenv
+        echo "Exec virtualenv python_env"
         virtualenv python_env
+        echo "activate"
         source python_env/bin/activate
+        echo "pip install"
         pip install -r requirements.txt --no-cache-dir --force-reinstall --module grs
+        echo "deactivate"
         deactivate
      - name: Upload artifact
        uses: actions/upload-artifact@v4
