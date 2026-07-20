@@ -17,10 +17,9 @@ jobs:
      - run: |
         pip install virtualenv
         virtualenv python_env
-        echo "activate"
         . python_env/bin/activate
         echo "pip install"
-        pip install -r requirements.txt --no-cache-dir --force-reinstall --module grs
+        pip install -r requirements.txt --no-cache-dir --force-reinstall grs
         echo "deactivate"
         deactivate
      - name: Upload artifact
