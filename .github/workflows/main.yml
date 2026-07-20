@@ -1,0 +1,37 @@
+name: Pipeline CI
+env:
+  PUBLIC_REMOTE_REGISTRY_DOCKER: "${ARTIFACTORY_HOST}/publicremotes-docker"
+  IMAGE_PYTHON: "python:3.11.14-bookworm"
+
+on:
+  push:
+    branches:
+      - feature/dev-ci
+  pull_request:
+    branches:
+      - feature/dev-ci
+
+jobs:
+  init:
+   runs-on: ubuntu-latest
+   container:
+      image: $IMAGE_PYTHON
+   steps:
+     - name: Vérifier la version de Python
+       run: python --version
+     - run: |
+        pip install virtualenv
+        virtualenv python_env
+        source python_env/bin/activate
+        pip install -r requirements.txt --no-cache-dir --force-reinstall --module grs
+        deactivate
+     - name: Upload artifact
+       uses: actions/upload-artifact@v4
+       with:
+         name: rep-python
+         path: python_env/ 
+         retention-days: 1
+
+      
+   
+  
