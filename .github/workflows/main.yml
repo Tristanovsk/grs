@@ -27,6 +27,18 @@ jobs:
          path: python_env/ 
          retention-days: 1
 
-      
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ubi9/podman:9.5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-env
+          path: .
+      - run: |
+          ls
+          mkdir -p certs
+  
    
   
