@@ -1,7 +1,6 @@
 name: Pipeline CI
 env:
   PUBLIC_REMOTE_REGISTRY_DOCKER: "${ARTIFACTORY_HOST}/publicremotes-docker"
-  IMAGE_PYTHON: "python:3.11.14-bookworm"
 
 on:
   push:
@@ -15,7 +14,7 @@ jobs:
   init:
    runs-on: ubuntu-latest
    container:
-      image: $IMAGE_PYTHON
+      image: python:3.11.14-bookworm
    steps:
      - name: Vérifier la version de Python
        run: python --version
