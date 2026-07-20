@@ -28,6 +28,7 @@ jobs:
          retention-days: 1
 
   build:
+    needs: init
     runs-on: ubuntu-latest
     container:
       image: ubi9/podman:9.5
