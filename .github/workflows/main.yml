@@ -30,14 +30,14 @@ jobs:
   build:
     needs: init
     runs-on: ubuntu-latest
-    container:
-      image: ubi9/podman:9.5
+
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: python-env
           path: .
       - run: |
+          podman -v
           ls
           mkdir -p certs
   
