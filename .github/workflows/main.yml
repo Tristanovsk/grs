@@ -14,14 +14,11 @@ jobs:
    container:
       image: python:3.11.14-bookworm
    steps:
-     - name: Vérifier la version de Python
-       run: python --version
      - run: |
         pip install virtualenv
-        echo "Exec virtualenv python_env"
         virtualenv python_env
         echo "activate"
-        source python_env/bin/activate
+        . python_env/bin/activate
         echo "pip install"
         pip install -r requirements.txt --no-cache-dir --force-reinstall --module grs
         echo "deactivate"
