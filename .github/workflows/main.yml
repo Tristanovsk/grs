@@ -8,6 +8,12 @@ on:
     branches:
       - feature/dev-ci
 
+env:
+  TARGET_REPO: "obs2co-docker"
+  SUFFIX_DOCKER_IMAGE: "grs"
+  DOCKER_IMAGE_NAME: "${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
+
+
 jobs:
   init:
    runs-on: ubuntu-latest
@@ -30,16 +36,21 @@ jobs:
   build:
     needs: init
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: python-env
-          path: .
       - run: |
-          podman -v
-          ls
-          mkdir -p certs
+          echo "DOCKER_IMAGE_NAME=$DOCKER_IMAGE_NAME"
+          export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
+          if [ -n "${CI_COMMIT_TAG}" ]; then export VERSION_GRS=${CI_COMMIT_TAG}; fi
+          echo "Version GRS -> ${VERSION_GRS}"
+          podman build \
+            --network=host \
+            --build-arg IMAGE_SOURCE="" \
+            --build-arg no_proxy=cnes.fr \
+            --file Dockerfile \
+            --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
+            --tag "${DOCKER_IMAGE_NAME}:latest"
+            
+
   
    
   
