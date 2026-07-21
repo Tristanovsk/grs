@@ -55,10 +55,8 @@ jobs:
       - name: pytest
         run: |
           tar xzf python_env.tar.gz
-          pwd
-          ls
           python_env/bin/python -m pip install pytest pytest-cov
-          echo "Execution de 
+          echo "Execution de pytest"
           python_env/bin/python -m pytest --cov=grs --cov-report=xml:.coverage-reports/coverage.xml --cov-report=term --junitxml=reports/unit_tests-report.xml
       - name: Upload artifact
         uses: actions/upload-artifact@v4
