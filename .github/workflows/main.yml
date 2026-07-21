@@ -15,7 +15,7 @@ env:
   SUFFIX_DOCKER_IMAGE: "grs"
 
 jobs:
-  init:
+  python-init:
    runs-on: ubuntu-latest
    container:
       image: python:3.11.14-bookworm
@@ -34,8 +34,17 @@ jobs:
          path: python_env/ 
          retention-days: 1
 
-  build:
-    needs: init
+  python-tests:
+   needs: python-init
+   runs-on: ubuntu-latest
+   steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: |
+          echo "TODO"
+
+  podman-build:
+    needs: python-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +53,7 @@ jobs:
           export DOCKER_IMAGE_NAME="${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}"
           export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+          if [ -n "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "Tag : $GITHUB_REF_NAME"
             export VERSION_GRS=${GITHUB_REF_NAME};
           fi
@@ -58,10 +67,13 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
             --tag "${DOCKER_IMAGE_NAME}:latest"
 
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+          if [ -n "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "Tag : $GITHUB_REF_NAME"
             echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
             podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
+            
+            echo "Publication"
+            echo "TODO"
           fi
          
 
