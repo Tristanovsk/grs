@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - feature/dev-ci
+    tags:
+      - '*'
   pull_request:
     branches:
       - feature/dev-ci
