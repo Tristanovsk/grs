@@ -15,6 +15,9 @@ env:
   SUFFIX_DOCKER_IMAGE: "grs"
 
 jobs:
+# =============================================================================
+# init
+# =============================================================================
   python-init:
    runs-on: ubuntu-latest
    container:
@@ -34,6 +37,32 @@ jobs:
          path: python_env/ 
          retention-days: 1
 
+# =============================================================================
+# quality
+# =============================================================================
+  pytest:
+    needs: python-init   
+    runs-on: ubuntu-latest
+    container:
+       image: python:3.11.14-bookworm
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifacts@v4
+      - name: pytest
+        run: |
+          source python_env/bin/activate
+          PYTHONPATH=. python -m pytest --cov=grs --cov-report=xml:.coverage-reports/coverage.xml --cov-report=term --junitxml=reports/unit_tests-report.xml
+          deactivate
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: reports/
+          retention-days: 1
+
+# =============================================================================
+# test
+# =============================================================================
   python-tests:
    needs: python-init
    runs-on: ubuntu-latest
@@ -43,6 +72,9 @@ jobs:
         run: |
           echo "TODO"
 
+# =============================================================================
+# package — Build & Push
+# =============================================================================
   podman-build:
     needs: python-tests
     runs-on: ubuntu-latest
