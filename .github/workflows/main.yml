@@ -12,7 +12,6 @@ env:
   TARGET_REPO: "obs2co-docker"
   SUFFIX_DOCKER_IMAGE: "grs"
 
-
 jobs:
   init:
    runs-on: ubuntu-latest
@@ -53,6 +52,8 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:latest"
 
           export IMAGE_TAG="${CI_COMMIT_TAG}"
+          echo "IMAGE_TAG=${IMAGE_TAG}"
+          echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${IMAGE_TAG}
           podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
 
 
