@@ -68,16 +68,18 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:latest"
 
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            echo "Tag : $GITHUB_REF_NAME"
-            echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
-            podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
+
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | podman login docker.io \
+                -u "${{ secrets.DOCKERHUB_USERNAME }}" \
+                --password-stdin
+                
+            echo "Tag de l'image pour docker.io"
+            echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+             
+            podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
+            podman tag ${DOCKER_IMAGE_NAME}:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${DOCKER_IMAGE_NAME}:latest
             
-            echo "Publication"
-            echo "TODO"
+            echo "Publication vers docker.io"
+            podman push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}
           fi
-         
-
-
-  
-   
   
