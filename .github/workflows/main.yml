@@ -44,7 +44,10 @@ jobs:
           export DOCKER_IMAGE_NAME="${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}"
           export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
-          if [ -n "${CI_COMMIT_TAG}" ]; then export VERSION_GRS=${CI_COMMIT_TAG}; fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "Tag : $GITHUB_REF_NAME"
+            export VERSION_GRS=${GITHUB_REF_NAME};
+          fi
           echo "Version GRS -> ${VERSION_GRS}"
           
           podman build \
@@ -55,14 +58,12 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
             --tag "${DOCKER_IMAGE_NAME}:latest"
 
-      - name: Tag
-        if: github.ref_type == 'tag'  
-        run: |
-          echo "Tag : $GITHUB_REF_NAME"
-          export IMAGE_TAG="${GITHUB_REF_NAME}"
-          echo "IMAGE_TAG=${GITHUB_REF_NAME}"
-          echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
-          podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "Tag : $GITHUB_REF_NAME"
+            echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
+            podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
+          fi
+         
 
 
   
