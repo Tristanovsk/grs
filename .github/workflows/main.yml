@@ -47,7 +47,9 @@ jobs:
        image: python:3.11.14-bookworm
     steps:
       - name: Download artifacts
-        uses: actions/download-artifacts@v4
+        uses: actions/download-artifact@v4
+        with:
+          name: python-env
       - name: pytest
         run: |
           source python_env/bin/activate
