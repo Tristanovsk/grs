@@ -53,7 +53,7 @@ jobs:
           name: python-env
       - name: pytest
         run: |
-          tar xzf mon_rep.tar.gz
+          tar xzf python_env.tar.gz
           pwd
           ls
           . python_env/bin/activate
