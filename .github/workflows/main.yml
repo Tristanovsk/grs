@@ -30,11 +30,12 @@ jobs:
          . python_env/bin/activate
          python -m pip install --upgrade pip
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
+         tar czf python_env.tar.gz python_env
      - name: Upload artifact
        uses: actions/upload-artifact@v4
        with:
          name: python-env
-         path: python_env
+         path: python_env.tar.gz
          retention-days: 1
 
 # =============================================================================
@@ -52,6 +53,7 @@ jobs:
           name: python-env
       - name: pytest
         run: |
+          tar xzf mon_rep.tar.gz
           pwd
           ls
           . python_env/bin/activate
