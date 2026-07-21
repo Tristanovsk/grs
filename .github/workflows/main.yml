@@ -21,7 +21,8 @@ jobs:
       image: python:3.11.14-bookworm
    steps:
      - uses: actions/checkout@v4
-     - run: |
+     - name : Init
+       run: |
          python -m venv python_env
          . python_env/bin/activate
          python -m pip install --upgrade pip
@@ -60,7 +61,7 @@ jobs:
           echo "Tag : $GITHUB_REF_NAME"
           export IMAGE_TAG="${GITHUB_REF_NAME}"
           echo "IMAGE_TAG=${GITHUB_REF_NAME}"
-          echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}
+          echo "podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} ${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
           podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}"
 
 
