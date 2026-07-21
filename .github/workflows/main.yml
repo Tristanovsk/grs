@@ -34,7 +34,7 @@ jobs:
        uses: actions/upload-artifact@v4
        with:
          name: python-env
-         path: python_env/ 
+         path: python_env
          retention-days: 1
 
 # =============================================================================
@@ -70,6 +70,8 @@ jobs:
   python-tests:
    needs: python-init
    runs-on: ubuntu-latest
+   container:
+     image: openeuler/slurm:25.11.6.1-oe2403sp3
    steps:
       - uses: actions/checkout@v4
       - name: Tests
