@@ -52,7 +52,9 @@ jobs:
           name: python-env
       - name: pytest
         run: |
-          source python_env/bin/activate
+          pwd
+          ls
+          . python_env/bin/activate
           PYTHONPATH=. python -m pytest --cov=grs --cov-report=xml:.coverage-reports/coverage.xml --cov-report=term --junitxml=reports/unit_tests-report.xml
           deactivate
       - name: Upload artifact
