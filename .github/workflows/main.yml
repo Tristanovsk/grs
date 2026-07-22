@@ -23,6 +23,8 @@ jobs:
 # =============================================================================
   python-tests:
    runs-on: ubuntu-latest
+   container:
+      image: python:3.11.14-bookworm
    steps:
       - uses: actions/checkout@v4
       - name: Tests
