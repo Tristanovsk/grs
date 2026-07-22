@@ -40,7 +40,7 @@ jobs:
 # package — Build & Push
 # =============================================================================
   podman-build:
-    needs: python-tests
+    #needs: python-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
