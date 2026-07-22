@@ -36,6 +36,8 @@ jobs:
          LOCAL_INIT="grs2/grs/tests/ci/ci-init_env.slurm"
          LOCAL_TEST="grs2/grs/tests/ci/ci-func-run.slurm"
          LOCAL_CLEAN="grs2/grs/tests/ci/ci-cleanup_env.slurm"
+         pwd
+         ls
          ls $LOCAL_INIT
          ls $LOCAL_TEST
          ls $LOCAL_CLEAN
