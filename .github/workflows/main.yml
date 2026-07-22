@@ -89,22 +89,26 @@ jobs:
      image: sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
     steps:
       - uses: actions/checkout@v4
-      - name: Scan SonarCloud
+      - name: debug
         run: |
           echo "host.url=${{ vars.SONAR_HOST_URL }}"
           echo "host.url=${{ vars.SONAR_ORGANIZATION }}"
           echo "host.url=${{ vars.SONAR_PROJECT_KEY }}"
           echo "host.url=${{ vars.SONAR_PROJECT_NAME }}"
           echo "host.url=${{ secrets.SONAR_TOKEN }}"
+      - name: Scan SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectName="${{ vars.SONAR_PROJECT_NAME }}"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
             
-          sonar-scanner -Dsonar.qualitygate.wait=true \
-            -Dsonar.scanner.truststorePath=/tmp/writable_keystore \
-            -Dsonar.scanner.truststorePassword=changeit \
-            -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
-            -Dsonar.projectName="${{ vars.SONAR_PROJECT_NAME }}" \
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+
     
 
       
