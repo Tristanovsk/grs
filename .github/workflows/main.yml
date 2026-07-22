@@ -62,14 +62,15 @@ jobs:
             --file Dockerfile \
             --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
             --tag "${DOCKER_IMAGE_NAME}:latest"
-          echo "BUild terminé"
+          echo "Build terminé"
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | podman login docker.io \
                 -u "${{ secrets.DOCKERHUB_LOGIN }}" \
                 --password-stdin
-          
+          echo "call podman tag"
           podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
+          echo "call podman push"
           podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}
-
+          echo "PUSHED ! " 
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
 
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | podman login docker.io \
