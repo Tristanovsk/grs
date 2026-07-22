@@ -22,7 +22,6 @@ jobs:
 # test
 # =============================================================================
   python-tests:
-   needs: python-init
    runs-on: ubuntu-latest
    container:
      image: openeuler/slurm:25.11.6.1-oe2403sp3
