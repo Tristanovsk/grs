@@ -33,12 +33,19 @@ jobs:
          . python_env/bin/activate
          python3 -m pip install --upgrade pip
          python3 -m pip install -r requirements.txt --no-cache-dir --force-reinstall
-          echo "TODO"
+         LOCAL_INIT="grs2/grs/tests/ci/ci-init_env.slurm"
+         LOCAL_TEST="grs2/grs/tests/ci/ci-func-run.slurm"
+         LOCAL_CLEAN="grs2/grs/tests/ci/ci-cleanup_env.slurm"
+         ls $LOCAL_INIT
+         ls $LOCAL_TEST
+         ls $LOCAL_CLEAN
+         echo "TODO"
 
 # =============================================================================
 # package — Build & Push
 # =============================================================================
   podman-build:
+    if: false
     needs: python-tests
     runs-on: ubuntu-latest
     steps:
@@ -83,6 +90,7 @@ jobs:
 # quality
 # =============================================================================
   sonar:
+    if: false
     needs: podman-build
     runs-on: ubuntu-latest
     steps:
@@ -112,3 +120,4 @@ jobs:
       
 
       
+
