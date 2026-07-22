@@ -38,10 +38,7 @@ jobs:
          path: python_env.tar.gz
          retention-days: 1
 
-# =============================================================================
-# quality
-# =============================================================================
- 
+
 
 # =============================================================================
 # test
@@ -99,4 +96,36 @@ jobs:
             echo "Publication vers docker.io"
             podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${GITHUB_REF_NAME}
           fi
-  
+
+
+# =============================================================================
+# quality
+# =============================================================================
+  sonar:
+    needs: podman-build
+    runs-on: ubuntu-latest
+    container:
+     image: sonar-scanner-cli:11.3.1.1910_7.1.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan SonarCloud
+        run: |
+          echo "host.url=${{ vars.SONAR_HOST_URL }}"
+          echo "host.url=${{ vars.SONAR_ORGANIZATION }}"
+          echo "host.url=${{ vars.SONAR_PROJECT_KEY }}"
+          echo "host.url=${{ vars.SONAR_PROJECT_NAME }}"
+          echo "host.url=${{ secrets.SONAR_TOKEN }}"
+            
+          sonar-scanner -Dsonar.qualitygate.wait=true \
+            -Dsonar.scanner.truststorePath=/tmp/writable_keystore \
+            -Dsonar.scanner.truststorePassword=changeit \
+            -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+            -Dsonar.projectName="${{ vars.SONAR_PROJECT_NAME }}" \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+    
+
+      
+
+      
