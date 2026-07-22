@@ -36,11 +36,13 @@ jobs:
          LOCAL_INIT="grs/tests/ci/ci-init_env.slurm"
          LOCAL_TEST="grs/tests/ci/ci-func-run.slurm"
          LOCAL_CLEAN="grs/tests/ci/ci-cleanup_env.slurm"
-         pwd
+         export MY_JOB_WORKDIR=.
+         mkdir -p ${MY_JOB_WORKDIR}/LOGS
          ls
-         ls $LOCAL_INIT
-         ls $LOCAL_TEST
-         ls $LOCAL_CLEAN
+         sub_str=$(sbatch --export=MY_JOB_WORKDIR=${MY_JOB_WORKDIR} -o ${MY_JOB_WORKDIR}/LOGS/grs-init_env.out "${LOCAL_INIT}")
+         echo ${sub_str}
+         id_init=${sub_str##* }
+         echo ${id_init}
          echo "TODO"
 
 # =============================================================================
