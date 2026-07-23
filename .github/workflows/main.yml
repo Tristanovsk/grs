@@ -32,7 +32,7 @@ jobs:
          python -m pip install pytest
          ls grs/tests/integration_tests           
          set -e # pour sortir dès qu'un test échoue
-         for file in tests/test_integ/*.py; do
+         for file in grs/tests/integration_tests/*.py; do
            echo "Exécution du fichier $file"
            python -m pytest "$file"
          done
