@@ -11,13 +11,11 @@ on:
       - feature/dev-ci
 
 env:
-  TARGET_REPO: "obs2co-docker"
-  SUFFIX_DOCKER_IMAGE: "grs"
+  DOCKER_IMAGE_NAME : "grs"
+  #TARGET_REPO: "obs2co-docker"
+  #SUFFIX_DOCKER_IMAGE: "grs"
 
 jobs:
-
-
-
 # =============================================================================
 # test
 # =============================================================================
@@ -46,7 +44,7 @@ jobs:
       - name: Build image
         run: |
           echo "export"
-          export DOCKER_IMAGE_NAME="${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
+          # export DOCKER_IMAGE_NAME="${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}"
           export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -69,9 +67,12 @@ jobs:
 
           echo "call podman tag"
           podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
-          echo "call podman push --remove-signatures docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
           
-          podman push --remove-signatures docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
+          echo "podman images"
+          podman images
+          
+          echo "call podman push  docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+          podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
           echo "PUSHED ! " 
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
 
