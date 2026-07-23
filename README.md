@@ -1,6 +1,9 @@
 # GRS algorithm package
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
-![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)
+[![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
+![Docker Pulls](https://img.shields.io/docker/pulls/guillaumeeb/grs)
+
 
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
