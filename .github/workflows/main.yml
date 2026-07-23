@@ -67,12 +67,11 @@ jobs:
                 -u "${{ secrets.DOCKERHUB_LOGIN }}" \
                 --password-stdin
 
-          podman login --get-login docker.io
           echo "call podman tag"
           podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
-          echo "call podman push  docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+          echo "call podman push --remove-signatures docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
           
-          podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
+          podman push --remove-signatures docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
           echo "PUSHED ! " 
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
 
