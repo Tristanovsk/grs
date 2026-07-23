@@ -27,8 +27,8 @@ jobs:
         run: |
           apt-get update
           apt-get install -y gdal-bin libgdal-dev
-          GDAL_VERSION=$(gdal-config --version)
-          echo "GDAL system version: $GDAL_VERSION"
+
+          
       - name: Tests
         run: |
          python -m venv python_env
@@ -36,10 +36,10 @@ jobs:
          python -m pip install --upgrade pip
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
          python -m pip install pytest
-         echo "Affichage des infos sur la librairie GDAL dans APT"
-         apt-cache policy libgdal-dev
+         GDAL_VERSION=$(gdal-config --version)
+         echo "GDAL system version: $GDAL_VERSION"
+         python -m pip install GDAL==$GDAL_VERSION
          
-         python -m pip install GDAL==3.8.4
          
          ls grs/tests/integration_tests           
          set -e # pour sortir dès qu'un test échoue
