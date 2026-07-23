@@ -58,7 +58,7 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:latest"
           echo "Build terminé"
 
-      - name: Tag
+      - name: Publication des images sur docker Hub
         if: github.ref_type == 'tag'
         run: |
           echo "On se loggue à docker.io"
@@ -72,8 +72,8 @@ jobs:
           podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
           podman tag ${DOCKER_IMAGE_NAME}:latest docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:latest
           
-          echo "Publication vers docker.io de ${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
-          podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
+          #echo "Publication vers docker.io de ${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+          #podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
           echo "Publication vers docker.io de ${DOCKER_IMAGE_NAME}:latest"
           podman push docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:latest
           echo "Images publiées"
