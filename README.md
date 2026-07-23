@@ -1,4 +1,7 @@
 # GRS algorithm package
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
+![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)
+
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
 Please check [grs documentation](https://grs.readthedocs.io/)
