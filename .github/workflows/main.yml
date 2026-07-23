@@ -30,8 +30,12 @@ jobs:
          python -m pip install --upgrade pip
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
          python -m pip install pytest
-         ls grs/tests/integration_tests   
-         echo "TODO"
+         ls grs/tests/integration_tests           
+         set -e # pour sortir dès qu'un test échoue
+         for file in tests/test_integ/*.py; do
+           echo "Exécution du fichier $file"
+           python -m pytest "$file"
+         done
 
 # =============================================================================
 # package — Build & Push
