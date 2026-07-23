@@ -23,7 +23,7 @@ where = ["."]
 
 [tool.setuptools.package-data]
 "grs"= ['*.yml']
-"*"= ['data/lut/gases/*.nc', 'data/aux/*.txt']
+"*"= ['data/lut/gases/*.nc', 'data/auxiliary/*.txt']
 
 [tool.setuptools.exclude-package-data]
 "*" = [".gitattributes"]
