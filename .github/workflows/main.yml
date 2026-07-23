@@ -66,6 +66,8 @@ jobs:
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | podman login docker.io \
                 -u "${{ secrets.DOCKERHUB_LOGIN }}" \
                 --password-stdin
+
+          podman login --get-login docker.io
           echo "call podman tag"
           podman tag ${DOCKER_IMAGE_NAME}:${VERSION_GRS} docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}
           echo "call podman push  docker.io/${{ secrets.DOCKERHUB_LOGIN }}/${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
