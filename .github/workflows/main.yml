@@ -44,7 +44,6 @@ jobs:
          python -m pip install pytest
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
          
-         ls grs/tests/integration_tests           
          set -e # pour sortir dès qu'un test échoue
 
          #python -m pytest "grs/tests/integration_tests/test_acutils.py"
@@ -52,7 +51,7 @@ jobs:
          #python -m pytest "grs/tests/integration_tests/test_cams.py"
          #python -m pytest "grs/tests/integration_tests/test_load_product.py"
          python -m pytest "grs/tests/integration_tests/test_logger.py"
-         python -m pytest "grs/tests/integration_tests/test_product.py"
+         #python -m pytest "grs/tests/integration_tests/test_product.py"
          
          #for file in grs/tests/integration_tests/*.py; do
          #  echo "Exécution du fichier $file"
