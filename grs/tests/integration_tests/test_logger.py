@@ -15,6 +15,7 @@ import os
 import os.path
 import unittest
 import logging
+from pathlib import Path
 from grs import class_logger
 
 
@@ -30,8 +31,9 @@ class TestLogger(unittest.TestCase):
     def setUpClass(cls) -> None:
         test_path = os.path.dirname(os.path.abspath(__file__))
         cls.LOG_FILE = test_path + '/../output/log_file.log'
+        Path(cls.LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
         odir = test_path + '/../output/'
-        class_logger.ServiceLogger(log_file=cls.LOG_FILE, output_dir=odir, log_level='DEBUG', log_console=True)
+        class_logger.ServiceLogger(log_file=cls.LOG_FILE, error_log=Path(odir, "error.log"), log_level='DEBUG', log_console=True)
         cls.ERROR_LOG = test_path + '/../output/error.log'
 
     @classmethod

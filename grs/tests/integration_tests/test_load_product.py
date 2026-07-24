@@ -15,6 +15,7 @@ import os
 import os.path
 import unittest
 import numpy
+from pathlib import Path
 from grs import class_logger
 import GRSdriver
 
@@ -29,8 +30,9 @@ class TestDriverS2Safe(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.test_path = os.path.dirname(os.path.abspath(__file__))
         log_file = cls.test_path + '/../output/log_file.log'
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         odir = cls.test_path + '/../output/'
-        class_logger.ServiceLogger(log_file=log_file, output_dir=odir, log_level='INFO', log_console=True)
+        class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
     @classmethod
     def tearDownClass(cls) -> None:
