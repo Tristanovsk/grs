@@ -61,11 +61,12 @@ class TestLogger(unittest.TestCase):
 
         # Test if log file is created
         self.assertTrue(os.path.isfile(TestLogger.LOG_FILE))
-
+        print("Fichier de log : ", TestLogger.LOG_FILE)
         # Test log_file
         with open(TestLogger.LOG_FILE, "r") as fichierLog:
             # Verify content of log file
             lines = fichierLog.readlines()
+            print(lines)
             # Test message format in log file
             self.assertTrue(("INFO | TestLogger::test_logger | START of test_logger" in lines[0]))
             self.assertTrue(("DEBUG | TestLogger::test_logger | This is DEBUG log" in lines[1]))
