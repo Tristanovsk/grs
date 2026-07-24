@@ -42,6 +42,7 @@ jobs:
          python -m pip install GDAL==$GDAL_VERSION
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
          python -m pip install pytest
+         python -m pip show datashader
          echo "Test get version gdal  par code : "
          python -c "from osgeo import gdal; print(gdal.VersionInfo())"
          echo "pip freeze"
