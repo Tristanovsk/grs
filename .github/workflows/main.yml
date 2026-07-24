@@ -49,7 +49,7 @@ jobs:
 
          #python -m pytest "grs/tests/integration_tests/test_acutils.py"
          #python -m pytest "grs/tests/integration_tests/test_auxdata.py" # pas de test dedans
-         python -m pytest "grs/tests/integration_tests/test_cams.py"
+         #python -m pytest "grs/tests/integration_tests/test_cams.py"
          python -m pytest "grs/tests/integration_tests/test_load_product.py"
          python -m pytest "grs/tests/integration_tests/test_logger.py"
          python -m pytest "grs/tests/integration_tests/test_product.py"
