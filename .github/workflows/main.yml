@@ -27,9 +27,9 @@ jobs:
 
       - name: Install GDAL system dependencies
         run: |
-          apt-get update
-          apt-get install -y gdal-bin libgdal-dev
-           gdalinfo --version
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev
+          gdalinfo --version
 
           
       - name: Tests
