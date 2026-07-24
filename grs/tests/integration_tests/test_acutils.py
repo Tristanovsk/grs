@@ -36,7 +36,7 @@ class TestAcutils(unittest.TestCase):
         cls.test_path = os.path.dirname(os.path.abspath(__file__))
         log_file = cls.test_path + '/../output/log_file.log'
         odir = cls.test_path + '/../output/'
-        class_logger.ServiceLogger(log_file=log_file, output_dir=odir, log_level='INFO', log_console=True)
+        class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
         cls.init_prod_data()
         cls.init_cams_data()
