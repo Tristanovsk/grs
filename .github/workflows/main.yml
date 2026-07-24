@@ -44,6 +44,8 @@ jobs:
          python -m pip install pytest
          echo "Test get version gdal  par code : "
          python -c "from osgeo import gdal; print(gdal.VersionInfo())"
+         echo "pip freeze"
+         python -m pip freeze | grep -E "datashader|dask|distributed"
          echo "ls"
          ls grs/tests/integration_tests           
          set -e # pour sortir dès qu'un test échoue
