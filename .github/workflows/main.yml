@@ -55,6 +55,7 @@ jobs:
         with:
           name: pytest-results
           path: test-results.xml
+          retention-days: 1
 
 # =============================================================================
 # package — Build & Push
