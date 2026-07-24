@@ -50,8 +50,10 @@ jobs:
          #python -m pytest "grs/tests/integration_tests/test_auxdata.py" # pas de test dedans
          #python -m pytest "grs/tests/integration_tests/test_cams.py"
          #python -m pytest "grs/tests/integration_tests/test_load_product.py"
-         python -m pytest "grs/tests/integration_tests/test_logger.py"
+         #python -m pytest "grs/tests/integration_tests/test_logger.py" 
          #python -m pytest "grs/tests/integration_tests/test_product.py"
+
+          python -m pytest grs/tests/integration_tests/ --junitxml=test-results.xml
          
          #for file in grs/tests/integration_tests/*.py; do
          #  echo "Exécution du fichier $file"
