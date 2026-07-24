@@ -39,26 +39,22 @@ jobs:
          python -m pip install --upgrade pip
          GDAL_VERSION=$(gdal-config --version)
          echo "GDAL system version: $GDAL_VERSION"
+
+         echo "Installation des dépendances"
          python -m pip install GDAL==$GDAL_VERSION
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
          python -m pip install pytest
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
-         
-         set -e # pour sortir dès qu'un test échoue
 
-         #python -m pytest "grs/tests/integration_tests/test_acutils.py"
-         #python -m pytest "grs/tests/integration_tests/test_auxdata.py" # pas de test dedans
-         #python -m pytest "grs/tests/integration_tests/test_cams.py"
-         #python -m pytest "grs/tests/integration_tests/test_load_product.py"
-         #python -m pytest "grs/tests/integration_tests/test_logger.py" 
-         #python -m pytest "grs/tests/integration_tests/test_product.py"
+         echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
+         python -m pytest grs/tests/integration_tests/ --junitxml=test-results.xml
 
-          python -m pytest grs/tests/integration_tests/ --junitxml=test-results.xml
-         
-         #for file in grs/tests/integration_tests/*.py; do
-         #  echo "Exécution du fichier $file"
-         #  python -m pytest "$file"
-         #done
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()   # Upload même si les tests échouent
+        with:
+          name: pytest-results
+          path: test-results.xml
 
 # =============================================================================
 # package — Build & Push
