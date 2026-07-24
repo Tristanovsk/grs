@@ -15,6 +15,7 @@ import os
 import os.path
 import unittest
 import numpy
+from pathlib import Path
 from grs import acutils
 from grs import class_logger
 from grs.product import Product
