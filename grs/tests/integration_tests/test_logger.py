@@ -61,22 +61,22 @@ class TestLogger(unittest.TestCase):
 
         # Test if log file is created
         self.assertTrue(os.path.isfile(TestLogger.LOG_FILE))
-        print("Fichier de log : ", TestLogger.LOG_FILE)
+
         # Test log_file
         with open(TestLogger.LOG_FILE, "r") as fichierLog:
             # Verify content of log file
             lines = fichierLog.readlines()
-            print(lines)
+
             # Test message format in log file
-            self.assertTrue(("INFO | TestLogger::test_logger | START of test_logger" in lines[0]))
-            self.assertTrue(("DEBUG | TestLogger::test_logger | This is DEBUG log" in lines[1]))
-            self.assertTrue(("INFO | TestLogger::test_logger | This is INFO log" in lines[2]))
-            self.assertTrue(("WARNING | TestLogger::test_logger | This is WARNING log" in lines[3]))
-            self.assertTrue(("ERROR | TestLogger::test_logger | This is ERROR log" in lines[4]))
-            self.assertTrue(("INFO | TestLogger::test_logger | END of test_logger" in lines[5]))
+            self.assertTrue(("INFO | TestLogger::log_info | START of test_logger" in lines[0]))
+            self.assertTrue(("DEBUG | TestLogger::log_debug | This is DEBUG log" in lines[1]))
+            self.assertTrue(("INFO | TestLogger::log_info | This is INFO log" in lines[2]))
+            self.assertTrue(("WARNING | TestLogger::log_warning | This is WARNING log" in lines[3]))
+            self.assertTrue(("ERROR | TestLogger::log_error | This is ERROR log" in lines[4]))
+            self.assertTrue(("INFO | TestLogger::log_info | END of test_logger" in lines[5]))
 
         # Test error.log
         with open(TestLogger.ERROR_LOG, "r") as fichierLog:
             # Verify content of log file
             lines = fichierLog.readlines()
-            self.assertTrue(("ERROR | TestLogger::test_logger | This is ERROR log" in lines[0]))
+            self.assertTrue(("ERROR | TestLogger::log_error | This is ERROR log" in lines[0]))
