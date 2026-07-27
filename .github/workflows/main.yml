@@ -125,7 +125,7 @@ jobs:
 
 
       - name: Scan Sonar
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v5
         with:
           args: >
             -X
