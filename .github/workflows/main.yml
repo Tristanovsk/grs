@@ -124,6 +124,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
+            -X
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.projectName="${{ vars.SONAR_PROJECT_NAME }}"
