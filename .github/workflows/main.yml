@@ -120,7 +120,7 @@ jobs:
           echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
           echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
-          curl -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/server/version"
+          curl -u "$SONAR_TOKEN:" "${{ secrets.SONAR_HOST_URL }}/api/server/version"
 
       - name: Scan SonarCloud
         uses: SonarSource/sonarqube-scan-action@v6
