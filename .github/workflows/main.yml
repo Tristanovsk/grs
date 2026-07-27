@@ -107,7 +107,6 @@ jobs:
 # quality
 # =============================================================================
   sonar:
-    if: false
     needs: podman-build
     runs-on: ubuntu-latest
     steps:
