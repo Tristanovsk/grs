@@ -108,27 +108,8 @@ jobs:
 # =============================================================================
 # quality
 # =============================================================================
-  sonar2:
-    runs-on: ubuntu-latest
-    container:
-      image: sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
-    steps:
-    - uses: actions/checkout@v4
-    - name: Sonar scan minimal
-      run: |
-        sonar-scanner -X \
-          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
-          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
-          -Dsonar.projectName=${{ vars.SONAR_PROJECT_NAME }} \
-          -Dsonar.branch.name=${{ github.ref_name }}
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-
-
   sonar:
-    needs: sonar2
+    #needs: podman-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
