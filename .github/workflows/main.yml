@@ -121,11 +121,13 @@ jobs:
           echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
    
-          curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+          #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+          curl -v -u "${{ secrets.SONAR_TOKEN }}:" -X POST  "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+
 
 
       - name: Scan Sonar
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
             -X
