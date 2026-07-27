@@ -120,14 +120,10 @@ jobs:
           echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
           echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
-   
+          env | grep -i proxy
+          
           #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
           #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -X POST  "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
-          env | grep -i proxy
-
-
-
-
 
       - name: Scan Sonar
         uses: SonarSource/sonarqube-scan-action@v6
