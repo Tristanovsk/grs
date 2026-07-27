@@ -60,7 +60,8 @@ jobs:
 # package — Build & Push
 # =============================================================================
   podman-build:
-#    needs: python-tests
+    if: false
+    needs: python-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,17 +109,17 @@ jobs:
 # quality
 # =============================================================================
   sonar:
-    needs: podman-build
+    #needs: podman-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: debug
         run: |
-          echo "host.url=${{ vars.SONAR_HOST_URL }}"
-          echo "host.url=${{ vars.SONAR_ORGANIZATION }}"
-          echo "host.url=${{ vars.SONAR_PROJECT_KEY }}"
-          echo "host.url=${{ vars.SONAR_PROJECT_NAME }}"
-          echo "host.url=${{ secrets.SONAR_TOKEN }}"
+          echo "SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}"
+          echo "SONAR_ORGANIZATION=${{ vars.SONAR_ORGANIZATION }}"
+          echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
+          echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
+          echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
       - name: Scan SonarCloud
         uses: SonarSource/sonarqube-scan-action@v6
         with:
@@ -128,7 +129,7 @@ jobs:
             -Dsonar.projectName="${{ vars.SONAR_PROJECT_NAME }}"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
             
 
