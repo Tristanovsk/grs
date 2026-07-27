@@ -120,7 +120,11 @@ jobs:
           echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
           echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
-          env | grep -i proxy
+          echo "env => "
+          env | grep -i proxy || true
+          echo "HTTP_PROXY=$HTTP_PROXY"
+          echo "HTTPS_PROXY=$HTTPS_PROXY"
+          echo "NO_PROXY=$NO_PROXY"
           
           #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
           #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -X POST  "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
