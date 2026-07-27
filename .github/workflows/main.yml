@@ -109,8 +109,11 @@ jobs:
 # quality
 # =============================================================================
   sonar2:
-    runs-on: sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
+    runs-on: ubuntu-latest
+    container:
+      image: sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
     steps:
+    - uses: actions/checkout@v4
     - name: Sonar scan minimal
       run: |
         sonar-scanner -X \
