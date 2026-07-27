@@ -127,8 +127,8 @@ jobs:
       - name : Scan docker
         run:
           |
-          export SONAR_TOKEN= ${{ secrets.SONAR_TOKEN }}
-          export SONAR_HOST_URL==${{ secrets.SONAR_HOST_URL }}
+          export SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+          export SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}
           docker pull sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
 
           docker run --rm \
