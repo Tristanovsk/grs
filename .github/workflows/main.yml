@@ -122,25 +122,11 @@ jobs:
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
    
           #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
-          curl -v -u "${{ secrets.SONAR_TOKEN }}:" -X POST  "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+          #curl -v -u "${{ secrets.SONAR_TOKEN }}:" -X POST  "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+          env | grep -i proxy
 
-      - name : Scan docker
-        run:
-          |
-          export SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
-          export SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}
-          docker pull sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0
 
-          docker run --rm \
-            -e SONAR_HOST_URL \
-            -e SONAR_TOKEN \
-            -v "$PWD:/usr/src" \
-            sonarsource/sonar-scanner-cli:11.3.1.1910_7.1.0 \
-            -X \
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
-            -Dsonar.projectName=${{ vars.SONAR_PROJECT_NAME }} \
-            -Dsonar.branch.name=${{ github.ref_name }}
+
 
 
       - name: Scan Sonar
