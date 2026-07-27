@@ -125,7 +125,7 @@ jobs:
 
 
   sonar:
-    #needs: podman-build
+    needs: sonar2
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
