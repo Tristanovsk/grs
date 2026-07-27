@@ -120,11 +120,8 @@ jobs:
           echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
           echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
           echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
-          curl -u "$SONAR_TOKEN:" "${{ secrets.SONAR_HOST_URL }}/api/server/version"
-          #curl -i -u "$SONAR_TOKEN:"  "${{ secrets.SONAR_HOST_URL }}/api/server/version"
-          #curl -i -u "$SONAR_TOKEN:"  "${{ secrets.SONAR_HOST_URL }}/api/system/status"
-          echo "Test API submit"
-          curl -v -u "$SONAR_TOKEN:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
+   
+          curl -v -u "${{ secrets.SONAR_TOKEN }}:" -H "Accept: application/x-protobuf"   "${{ secrets.SONAR_HOST_URL }}/api/ce/submit"
 
 
       - name: Scan Sonar
