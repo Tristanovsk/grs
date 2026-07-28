@@ -60,6 +60,7 @@ jobs:
 # package — Pypi
 # =============================================================================
   pypi:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions: 
       id-token: write
