@@ -23,7 +23,7 @@ jobs:
 # test
 # =============================================================================
   python-tests:
-   #if: false
+   if: false
    runs-on: ubuntu-latest
    steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev
           
-      - name: Tests
+      - name: Tests and coverage
         run: |
          python -m venv python_env
          . python_env/bin/activate
@@ -85,13 +85,13 @@ jobs:
           pip install build
           python -m build
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publication sur Pypi
+        uses: pypa/gh-action-pypi-publish@release/v1
 
 # =============================================================================
 # package — Build & Push
 # =============================================================================
   podman-build:
-    if: false
     needs: python-tests
     runs-on: ubuntu-latest
     steps:
@@ -115,7 +115,7 @@ jobs:
             --tag "${DOCKER_IMAGE_NAME}:latest"
           echo "Build terminé"
 
-      - name: Publication des images sur docker Hub
+      - name: Publication des images sur Docker Hub
         if: github.ref_type == 'tag'
         run: |
           echo "On se loggue à docker.io"
