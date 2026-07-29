@@ -165,7 +165,7 @@ jobs:
           retention-days: 1
 
   sonar:
-     if: false
+    if: false
     #needs: podman-build
     runs-on: ubuntu-latest
     steps:
