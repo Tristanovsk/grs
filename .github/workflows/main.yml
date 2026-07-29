@@ -207,23 +207,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-  delete-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Authenticate to Docker Hub
-        id: auth
-        run: |
-          JWT=$(curl -fsSL -H "Content-Type: application/json"  -X POST https://hub.docker.com/v2/users/login/  -d '{"username":"${{ secrets.DOCKERHUB_USERNAME }}","password":"${{ secrets.DOCKERHUB_TOKEN }}"}' | jq -r '.token')
-          echo "JWT=$JWT" >> $GITHUB_ENV
-
-      - name: Delete tag
-        run: |
-          curl -fsSL -X DELETE  -H "Authorization: Bearer $JWT"  "https://hub.docker.com/v2/repositories/guillaumeeb/l2bgen/tags/Test/"
-
-    
-
-      
-
       
 
 
