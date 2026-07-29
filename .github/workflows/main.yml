@@ -150,6 +150,13 @@ jobs:
         continue-on-error: true
         run: ruff check . --output-format=json > ruff-report.json
 
+      - name: Show Ruff report
+        run: |
+          ruff --version
+          cat ruff-report.json || true
+
+      - run: pip install -r requirements.txt
+
       - name: Run mypy
         continue-on-error: true
         run: mypy . --junit-xml mypy-report.xml
