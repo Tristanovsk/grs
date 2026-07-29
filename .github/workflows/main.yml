@@ -9,6 +9,11 @@ on:
   pull_request:
     branches:
       - feature/dev-ci
+  workflow_dispatch:
+    inputs:
+      with-quality:
+        type: boolean
+        default: false
 
 env:
   DOCKER_IMAGE_NAME : "grs"
@@ -134,7 +139,8 @@ jobs:
 # =============================================================================
 
   lint:
-    #needs: podman-build
+    if: github.event_name == 'workflow_dispatch' && inputs.with-quality
+    needs: podman-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -172,8 +178,8 @@ jobs:
           retention-days: 1
 
   sonar:
-    if: false
-    #needs: podman-build
+    if: github.event_name == 'workflow_dispatch' && inputs.with-quality
+    needs: podman-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
