@@ -30,10 +30,6 @@ jobs:
           lfs: true
           fetch-depth: 1
 
-      - name: Vérifier les fichiers LFS
-        run: |
-          git lfs ls-files
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -58,7 +54,7 @@ jobs:
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
 
          echo "Lancement du test test_acutils.py"
-         python -m pytest grs/tests/integration_tests/test_acutils.py
+         python -m pytest grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          
          #echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
          #python -m pytest grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
@@ -70,7 +66,7 @@ jobs:
           name: test-reports
           path : | 
             test-results.xml
-            cov_html/
+            #cov_html/
           retention-days: 1
 
 # =============================================================================
