@@ -25,6 +25,8 @@ import GRSdriver
 import signal
 import traceback
 import sys
+import psutil
+import os
 
 class TestAcutils(unittest.TestCase):
     """
@@ -37,7 +39,11 @@ class TestAcutils(unittest.TestCase):
 
     @classmethod
     def sigterm_handler(signum, frame):
-        print("=== SIGTERM reçu ===", flush=True)
+     #   print("=== SIGTERM reçu ===", flush=True)
+        print(
+        f"RECU: {signal.Signals(signum).name}",
+        flush=True,
+    )
         traceback.print_stack(frame, file=sys.stdout)
 
     @classmethod
@@ -49,7 +55,15 @@ class TestAcutils(unittest.TestCase):
         odir = cls.test_path + '/../output/'
         class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
-        signal.signal(signal.SIGTERM, cls.sigterm_handler)
+        #signal.signal(signal.SIGTERM, cls.sigterm_handler)
+        for sig in [
+        signal.SIGTERM,
+        signal.SIGINT,
+        signal.SIGHUP,
+        signal.SIGQUIT,
+        ]:
+            signal.signal(sig, cls.sigterm_handler)
+
         cls.init_prod_data()
         cls.init_cams_data()
 
@@ -69,6 +83,8 @@ class TestAcutils(unittest.TestCase):
         print("init_prod_data >> CALL  GRSdriver.Sentinel2Driver data_file=", data_file, flush=True)
         l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
         print("init_prod_data >> CALL load_product")
+        process = psutil.Process(os.getpid())
+        print(process.memory_info().rss / 1024**3, "GB", flush=True)
         l1c.load_product()
         cls.PROD = Product(l1c.prod)
 
