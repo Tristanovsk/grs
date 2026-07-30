@@ -61,7 +61,7 @@ jobs:
 
          echo "Lancement du test test_acutils.py"
          date
-         python -m pytest -u -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
+         python -u -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          date
          
          #echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
