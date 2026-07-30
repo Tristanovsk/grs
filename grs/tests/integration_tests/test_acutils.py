@@ -27,8 +27,6 @@ import traceback
 import sys
 import psutil
 import os
-import threading
-import time
 
 class TestAcutils(unittest.TestCase):
     """
@@ -48,29 +46,7 @@ class TestAcutils(unittest.TestCase):
     )
         traceback.print_stack(frame, file=sys.stdout)
 
-    @classmethod
-    def monitor_resources(interval=10):
-        process = psutil.Process(os.getpid())
-        while True:
-            mem = process.memory_info().rss / 1024**3
-            vm = psutil.virtual_memory()
-            print(
-                f"[MONITOR] RAM process: {mem:.2f} GB",
-                f"[MONITOR] RAM used={vm.percent}% "
-                f"available={vm.available / 1024**3:.2f} GB",
-                f"[MONITOR] threads={process.num_threads()}",
-                flush=True
-            )
-            
-            time.sleep(interval)
 
-    @classmethod
-    def start_monitor(cls):
-        t = threading.Thread(
-            target=cls.monitor_resources,
-            daemon=True,
-        )
-        t.start()
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -89,8 +65,6 @@ class TestAcutils(unittest.TestCase):
         signal.SIGQUIT,
         ]:
             signal.signal(sig, cls.sigterm_handler)
-
-        cls.start_monitor()
         cls.init_prod_data()
         cls.init_cams_data()
 
