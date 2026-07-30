@@ -40,6 +40,9 @@ jobs:
           sudo apt-get install -y gdal-bin libgdal-dev
           
       - name: Tests and coverage
+        env:
+          GDAL_NUM_THREADS: "1"
+          GDAL_CACHEMAX: "512"
         run: |
          python -m venv python_env
          . python_env/bin/activate
@@ -53,6 +56,8 @@ jobs:
          python -m pip install pytest pytest-cov
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
 
+         echo "df -h : "
+         df -h
          echo "Lancement du test test_acutils.py"
          python -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          
