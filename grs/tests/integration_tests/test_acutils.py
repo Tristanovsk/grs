@@ -55,7 +55,7 @@ class TestAcutils(unittest.TestCase):
         data_file = cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.SAFE'
         resolution = 20
         print("init fault handler", flush=True)
-        faulthandler.dump_traceback_later(60)
+        faulthandler.dump_traceback_later(60, repeat=True)
         
         print("init_prod_data >> CALL  GRSdriver.Sentinel2Driver data_file=", data_file, flush=True)
         l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
