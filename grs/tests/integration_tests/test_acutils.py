@@ -34,6 +34,7 @@ class TestAcutils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        print("setUpClass", flush=True)
         cls.test_path = os.path.dirname(os.path.abspath(__file__))
         log_file = cls.test_path + '/../output/log_file.log'
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
@@ -49,17 +50,23 @@ class TestAcutils(unittest.TestCase):
 
     @classmethod
     def init_prod_data(cls):
+        print("init_prod_data", flush=True)
         # Load data to instanciate class
         data_file = cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.SAFE'
         resolution = 20
+        print("init_prod_data >> CALL  GRSdriver.Sentinel2Driver data_file=", data_file, flush=True)
         l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
+        print("init_prod_data >> CALL load_product")
         l1c.load_product()
         cls.PROD = Product(l1c.prod)
 
     @classmethod
     def init_cams_data(cls):
+        print("init_cams_data", flush=True)
         cams_file = cls.test_path + '/../inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc'
+        print("init_cams_data >> CALL  CamsProduct cams_file=", cams_file, flush=True)
         cls.CAMS = CamsProduct(cls.PROD.raster, cams_file=cams_file)
+        print("init_cams_data >> CALL load")
         cls.CAMS.load()
 
 #    def test_lut(self):
