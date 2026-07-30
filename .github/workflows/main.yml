@@ -56,8 +56,13 @@ jobs:
          python -m pip install pytest pytest-cov
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
 
+         echo "free -h : "
+         free -h
          echo "df -h : "
          df -h
+         echo "ulimit -a : "
+         ulimit -a
+
          echo "Lancement du test test_acutils.py"
          python -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          
