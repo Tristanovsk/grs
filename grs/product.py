@@ -10,6 +10,7 @@ import datetime
 
 import logging
 from importlib.resources import files
+from time import perf_counter
 import yaml
 from . import AuxData, __version__, __package__
 
@@ -75,7 +76,9 @@ class Product():
         print("type(self.raster.vza.data)=", type(self.raster.vza.data), flush=True)
         print("self.raster.vza.shape=", self.raster.vza.shape, flush=True)
         print("self.raster.vza.dtype=",self.raster.vza.dtype, flush=True)
+        t0 = perf_counter()
         self.vza_mean = self.raster.vza.mean()
+        print(f"mean en {perf_counter() - t0:.2f} s", flush=True)
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
