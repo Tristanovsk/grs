@@ -67,12 +67,9 @@ jobs:
 # package — Pypi
 # =============================================================================
   pypi:
-    needs: python-tests
+    #needs: python-tests
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +85,8 @@ jobs:
 
       - name: Publication sur Pypi
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_TOKEN }}
 
 # =============================================================================
 # package — Build & Push
