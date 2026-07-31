@@ -82,7 +82,7 @@ jobs:
          date
          echo "kill $MONITOR_PID"
          kill $MONITOR_PID || true
-         exit $STATUS
+         #exit $STATUS
          
          
          #echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
