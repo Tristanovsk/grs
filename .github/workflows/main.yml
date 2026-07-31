@@ -42,15 +42,6 @@ jobs:
       - name: Install psutil (for debug)
         run: python -m pip install psutil
       
-      - name: Start monitor (debug)
-        run: |
-          while true; do
-            date
-            ps -o pid,%cpu,%mem,rss,cmd -C python
-            free -h
-            sleep 10
-          done &
-
       - name: Tests and coverage
         env:
           GDAL_NUM_THREADS: "1"
@@ -71,10 +62,18 @@ jobs:
          echo "df -h : "
          df -h
 
+         while true; do
+          date
+          free -m
+          ps -eo pid,rss,cmd --sort=-rss | head
+          sleep 10
+         done &
+         MONITOR_PID=$!
          echo "Lancement du test test_acutils.py"
          date -u
          python -u -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          date
+         kill $MONITOR_PID
          
          #echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
          #python -m pytest grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
