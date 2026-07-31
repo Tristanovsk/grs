@@ -23,6 +23,7 @@ from grs import CamsProduct
 import GRSdriver
 import psutil
 import os
+import xarray as xr
 
 class TestAcutils(unittest.TestCase):
     """
@@ -44,7 +45,7 @@ class TestAcutils(unittest.TestCase):
         odir = cls.test_path + '/../output/'
         class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
-        cls.init_prod_data()
+        cls.init_prod_data_nc()
         cls.init_cams_data()
 
     @classmethod
@@ -65,6 +66,14 @@ class TestAcutils(unittest.TestCase):
         l1c.load_product()
         print(process.memory_info().rss / 1024**3, "GB", flush=True)
         cls.PROD = Product(l1c.prod)
+
+    @classmethod
+    def init_prod_data_nc(cls):
+        print('init_prod_data_nc', flush=True)
+        nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
+        print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
+        cls.PROD = Product(xr.open_dataset(nc_file))
+        
 
     @classmethod
     def init_cams_data(cls):
