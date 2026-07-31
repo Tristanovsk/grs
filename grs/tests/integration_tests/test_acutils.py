@@ -128,6 +128,7 @@ class TestAcutils(unittest.TestCase):
         """
             unitary test for gaseous_transmittance class
         """
+        print("test_gaseous_transmittance", flush=True)
         # Instanciate gaseous_transmittance
         gaseous_transmittance_instance = acutils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
         print("After construction de acutils.GaseousTransmittance", flush=True)
@@ -178,6 +179,7 @@ class TestAcutils(unittest.TestCase):
         # test get_pressure function
         atl = 1000.0
         psl = 998.0
+        print("test_misc", flush=True)
         palt = acutils.Misc.get_pressure(atl, psl)
-
+        print("After acutils.Misc.get_pressure", flush=True)
         self.assertAlmostEqual(palt, 885.236756238, places=8)
