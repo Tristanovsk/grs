@@ -73,7 +73,7 @@ class TestAcutils(unittest.TestCase):
         print('init_prod_data_nc', flush=True)
         nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
         print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
-        cls.PROD = Product(xr.open_dataset(nc_file), flush=True)
+        cls.PROD = Product(xr.open_dataset(nc_file))
         
 
     @classmethod
