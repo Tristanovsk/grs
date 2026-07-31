@@ -59,9 +59,6 @@ jobs:
          python -m pip install pytest pytest-cov
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
          
-         echo "Install memray"
-         python -m pip install memray
-
          echo "df -h : "
          df -h
 
@@ -75,24 +72,18 @@ jobs:
          trap 'echo "Received SIGTERM"' TERM
          echo "Lancement du test test_acutils.py"
          date
-         python -m memray run --output memray.bin -m pytest  grs/tests/integration_tests/test_acutils.py -vv -s
-         #python -u -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
+         
+         python -u -m pytest -vv -s --full-trace grs/tests/integration_tests/test_acutils.py --junitxml=test-results.xml
          STATUS=$?
          echo "STATUS=$STATUS"
          date
          echo "kill $MONITOR_PID"
          kill $MONITOR_PID || true
-         #exit $STATUS
-         
-         
+         exit $STATUS
+                
          #echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
          #python -m pytest grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
 
-      - name: Generate report
-        if: always()
-        run: |
-            python -m memray summary memray.bin
-            python -m memray flamegraph memray.bin -o memray.html
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -100,8 +91,6 @@ jobs:
         with:
           name: test-reports
           path : | 
-            memray.html
-            memray.bin
             test-results.xml
             #cov_html/
           retention-days: 1
