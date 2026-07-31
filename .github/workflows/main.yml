@@ -41,9 +41,6 @@ jobs:
       
       - name: Install psutil (for debug)
         run: python -m pip install psutil
-      
-      - name: Install memray (for debug)
-        run: pip install memray
 
       - name: Tests and coverage
         env:
@@ -61,6 +58,9 @@ jobs:
          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
          python -m pip install pytest pytest-cov
          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
+         
+         echo "Install memray"
+         python -m pip install memray
 
          echo "df -h : "
          df -h
