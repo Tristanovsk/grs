@@ -47,6 +47,7 @@ class TestAcutils(unittest.TestCase):
 
         cls.init_prod_data_nc()
         cls.init_cams_data()
+        print("END setUpClass", flush=True)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -72,7 +73,7 @@ class TestAcutils(unittest.TestCase):
         print('init_prod_data_nc', flush=True)
         nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
         print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
-        cls.PROD = Product(xr.open_dataset(nc_file))
+        cls.PROD = Product(xr.open_dataset(nc_file), flush=True)
         
 
     @classmethod
@@ -80,6 +81,7 @@ class TestAcutils(unittest.TestCase):
         print("init_cams_data", flush=True)
         cams_file = cls.test_path + '/../inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc'
         cls.CAMS = CamsProduct(cls.PROD.raster, cams_file=cams_file)
+        print("init_cams_data >> call CamsProduct.load()", flush=True)
         cls.CAMS.load()
 
 #    def test_lut(self):
@@ -128,7 +130,7 @@ class TestAcutils(unittest.TestCase):
         """
         # Instanciate gaseous_transmittance
         gaseous_transmittance_instance = acutils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
-
+        print("After construction de acutils.GaseousTransmittance", flush=True)
         print(gaseous_transmittance_instance.SRF)
         ref_srf = numpy.array([0.01448181, 0.03422251, 0.07346335, 0.15444843, 0.31661424, 0.55322278,
                                0.74859405, 0.84890306, 0.89772218, 0.9215368,  0.92572844, 0.91122687,
