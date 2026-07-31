@@ -21,10 +21,6 @@ from grs import class_logger
 from grs.product import Product
 from grs import CamsProduct
 import GRSdriver
-#import faulthandler
-import signal
-import traceback
-import sys
 import psutil
 import os
 
@@ -37,15 +33,6 @@ class TestAcutils(unittest.TestCase):
     CAMS = None
     test_path = ""
 
-    @classmethod
-    def sigterm_handler(signum, frame):
-     #   print("=== SIGTERM reçu ===", flush=True)
-        print(
-        f"RECU: {signal.Signals(signum).name}",
-        flush=True,
-    )
-        traceback.print_stack(frame, file=sys.stdout)
-
 
 
     @classmethod
@@ -57,14 +44,6 @@ class TestAcutils(unittest.TestCase):
         odir = cls.test_path + '/../output/'
         class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
-        #signal.signal(signal.SIGTERM, cls.sigterm_handler)
-        for sig in [
-        signal.SIGTERM,
-        signal.SIGINT,
-        signal.SIGHUP,
-        signal.SIGQUIT,
-        ]:
-            signal.signal(sig, cls.sigterm_handler)
         cls.init_prod_data()
         cls.init_cams_data()
 
@@ -77,25 +56,21 @@ class TestAcutils(unittest.TestCase):
         print("init_prod_data", flush=True)
         # Load data to instanciate class
         data_file = cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.SAFE'
-        resolution = 20
-        #print("init fault handler", flush=True)
-        #faulthandler.dump_traceback_later(60, repeat=True)
-        
+        resolution = 20     
         print("init_prod_data >> CALL  GRSdriver.Sentinel2Driver data_file=", data_file, flush=True)
         l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
-        print("init_prod_data >> CALL load_product")
         process = psutil.Process(os.getpid())
         print(process.memory_info().rss / 1024**3, "GB", flush=True)
+        print("init_prod_data >> CALL load_product")
         l1c.load_product()
+        print(process.memory_info().rss / 1024**3, "GB", flush=True)
         cls.PROD = Product(l1c.prod)
 
     @classmethod
     def init_cams_data(cls):
         print("init_cams_data", flush=True)
         cams_file = cls.test_path + '/../inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc'
-        print("init_cams_data >> CALL  CamsProduct cams_file=", cams_file, flush=True)
         cls.CAMS = CamsProduct(cls.PROD.raster, cams_file=cams_file)
-        print("init_cams_data >> CALL load")
         cls.CAMS.load()
 
 #    def test_lut(self):
