@@ -10,7 +10,6 @@ import datetime
 
 import logging
 from importlib.resources import files
-from time import perf_counter
 import yaml
 from . import AuxData, __version__, __package__
 
@@ -73,7 +72,6 @@ class Product():
 
         # correct for bug with VZA == Inf
         self.raster['vza'] = self.raster.vza.where(self.raster.vza < 88)
-        t0 = perf_counter()
         self.vza_mean = self.raster.vza.mean()
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
