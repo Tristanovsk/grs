@@ -65,7 +65,7 @@ jobs:
          while true; do
           date
           free -m
-          ps -eo pid,rss,cmd --sort=-rss | head
+          ps -eo pid,rss,%mem,cmd --sort=-rss | head
           sleep 10
          done &
          MONITOR_PID=$!
