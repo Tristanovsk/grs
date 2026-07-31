@@ -20,8 +20,6 @@ from grs import acutils
 from grs import class_logger
 from grs.product import Product
 from grs import CamsProduct
-import GRSdriver
-import psutil
 import os
 import xarray as xr
 
@@ -33,7 +31,6 @@ class TestAcutils(unittest.TestCase):
     PROD = None
     CAMS = None
     test_path = ""
-
 
 
     @classmethod
@@ -52,21 +49,6 @@ class TestAcutils(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         class_logger.get_instance().close()
-
-    @classmethod
-    def init_prod_data(cls):
-        print("init_prod_data", flush=True)
-        # Load data to instanciate class
-        data_file = cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.SAFE'
-        resolution = 20     
-        print("init_prod_data >> CALL  GRSdriver.Sentinel2Driver data_file=", data_file, flush=True)
-        l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
-        process = psutil.Process(os.getpid())
-        print(process.memory_info().rss / 1024**3, "GB", flush=True)
-        print("init_prod_data >> CALL load_product")
-        l1c.load_product()
-        print(process.memory_info().rss / 1024**3, "GB", flush=True)
-        cls.PROD = Product(l1c.prod)
 
     @classmethod
     def init_prod_data_nc(cls):
