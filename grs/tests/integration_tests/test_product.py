@@ -36,13 +36,11 @@ class TestProduct(unittest.TestCase):
         log_file = cls.test_path + '/../output/log_file.log'
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         odir = cls.test_path + '/../output/'
-        logger = class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
-        print(logger)
-        print(class_logger.get_instance())
+        cls.logger  = class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
 
     @classmethod
     def tearDownClass(cls) -> None:
-        class_logger.get_instance().close()
+        cls.logger.close()
 
     def test_product(self):
         """
@@ -67,7 +65,6 @@ class TestProduct(unittest.TestCase):
         self.assertAlmostEqual(prod.ymin, 4802560.0, 1)
         self.assertAlmostEqual(prod.ymax, 4827140.0, 1)
 #        self.assertAlmostEqual(float(prod.U), 1.0022856395562, 16)
-        class_logger.get_instance().close()
 
         #load_auxiliary_data used in init, set class attributes
         # Other method not tested
