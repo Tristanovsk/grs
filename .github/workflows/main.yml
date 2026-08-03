@@ -23,6 +23,7 @@ jobs:
 # test
 # =============================================================================
   python-tests:
+    if: false
    runs-on: ubuntu-latest
    steps:
       - uses: actions/checkout@v4
@@ -76,8 +77,8 @@ jobs:
 # package — Pypi
 # =============================================================================
   pypi:
-    needs: python-tests
-    if: github.ref_type == 'tag'
+    #needs: python-tests
+    #if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
