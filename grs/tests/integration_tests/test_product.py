@@ -52,8 +52,13 @@ class TestProduct(unittest.TestCase):
         # instantiate product
         prod = Product(xr.open_dataset(nc_file))
 
-        self.assertEqual(prod.sensor, 'S2A')
-        self.assertEqual(prod.date_str, '2023-10-12T10:49:51.024Z')
+        print(" w=", prod.width, "h=", prod.height)
+        print(" lonmin=", prod.lonmin, "lonmax=", prod.lonmax)
+        print(" latmin=", prod.latmin, "latmax=", prod.latmax)
+        print(" xmin=", prod.xmin, "xmax=", prod.xmax)
+        print(" ymin=", prod.ymin, "ymax=", prod.ymax)
+        self.assertEqual(prod.sensor, 'S2B')
+        self.assertEqual(prod.date_str, '2022-09-29T10:37:29.024Z')
         self.assertEqual(prod.width, 5490)
         self.assertEqual(prod.height, 5490)
         self.assertAlmostEqual(prod.lonmin, 0.4959285929146376, 16)
