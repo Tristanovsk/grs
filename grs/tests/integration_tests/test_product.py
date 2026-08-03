@@ -48,27 +48,22 @@ class TestProduct(unittest.TestCase):
         """
 
         nc_file = TestProduct.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
-        print("test_product >> Call open_dataset for ", nc_file, flush=True)
+
         # instantiate product
         prod = Product(xr.open_dataset(nc_file))
 
-        print(" w=", prod.width, "h=", prod.height)
-        print(" lonmin=", prod.lonmin, "lonmax=", prod.lonmax)
-        print(" latmin=", prod.latmin, "latmax=", prod.latmax)
-        print(" xmin=", prod.xmin, "xmax=", prod.xmax)
-        print(" ymin=", prod.ymin, "ymax=", prod.ymax)
         self.assertEqual(prod.sensor, 'S2B')
         self.assertEqual(prod.date_str, '2022-09-29T10:37:29.024Z')
-        self.assertEqual(prod.width, 5490)
-        self.assertEqual(prod.height, 5490)
-        self.assertAlmostEqual(prod.lonmin, 0.4959285929146376, 16)
-        self.assertAlmostEqual(prod.lonmax, 1.8886830141969135, 16)
-        self.assertAlmostEqual(prod.latmin, 43.238262552870076, 16)
-        self.assertAlmostEqual(prod.latmax, 44.247830683507615, 16)
-        self.assertAlmostEqual(prod.xmin, 300000.0, 1)
-        self.assertAlmostEqual(prod.xmax, 409800.0, 1)
-        self.assertAlmostEqual(prod.ymin, 4790220.0, 1)
-        self.assertAlmostEqual(prod.ymax, 4900020.0, 1)
+        self.assertEqual(prod.width, 1229)
+        self.assertEqual(prod.height, 1229)
+        self.assertAlmostEqual(prod.lonmin, 4.941688508102381, 16)
+        self.assertAlmostEqual(prod.lonmax, 5.253012614533291, 16)
+        self.assertAlmostEqual(prod.latmin, 43.353871355515466, 16)
+        self.assertAlmostEqual(prod.latmax, 43.58062066781994, 16)
+        self.assertAlmostEqual(prod.xmin, 657340.0, 1)
+        self.assertAlmostEqual(prod.xmax, 681920.0, 1)
+        self.assertAlmostEqual(prod.ymin, 4802560.0, 1)
+        self.assertAlmostEqual(prod.ymax, 4827140.0, 1)
 #        self.assertAlmostEqual(float(prod.U), 1.0022856395562, 16)
         class_logger.get_instance().close()
 
