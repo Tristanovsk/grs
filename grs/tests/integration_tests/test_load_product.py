@@ -17,8 +17,8 @@ import unittest
 import numpy
 from pathlib import Path
 from grs import class_logger
-import GRSdriver
-
+from grs.product import Product
+import xarray as xr
 
 class TestDriverS2Safe(unittest.TestCase):
     """
@@ -42,13 +42,10 @@ class TestDriverS2Safe(unittest.TestCase):
         """
             unitary test for load_product method
         """
+        nc_file =  TestDriverS2Safe.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
+        print("test_load_product >> Call open_dataset for ", nc_file, flush=True)
+        prod = xr.open_dataset(nc_file)
 
-        # Load data to instanciate class
-        data_file = TestDriverS2Safe.test_path + '/../inputs/S2A_MSIL1C_20231012T104951_N0509_R051_T31TCJ_20231012T143114.SAFE'
-        resolution = 20
-        # __init__
-        l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
-        l1c.load_product()
         ref_srf = numpy.array([0.01448181, 0.03422251, 0.07346335, 0.15444843, 0.31661424, 0.55322278,
                                0.74859405, 0.84890306, 0.89772218, 0.9215368,  0.92572844, 0.91122687,
                                0.88818926, 0.86523753, 0.84718186, 0.83875722, 0.84459078, 0.86219651,
@@ -57,13 +54,13 @@ class TestDriverS2Safe(unittest.TestCase):
                                0.76460654, 0.74963742, 0.7505511,  0.76137888, 0.78244478, 0.79890084,
                                0.81016958, 0.81408888, 0.77358598, 0.62881064, 0.40397555, 0.21542098,
                                0.10715281, 0.04792877, 0.01848693, 0.00108588])
-        numpy.testing.assert_almost_equal(l1c.prod.SRF.values[2][138:184], ref_srf, 8)
+        numpy.testing.assert_almost_equal(prod.SRF.values[2][138:184], ref_srf, 8)
         # Test on x and y vector
-        self.assertEqual(l1c.prod.x.__len__(), 5490)
-        self.assertEqual(l1c.prod.y.__len__(), 5490)
+        self.assertEqual(prod.x.__len__(), 5490)
+        self.assertEqual(prod.y.__len__(), 5490)
         # Test on lat/lon values
-        lonmin, latmin, lonmax, latmax = l1c.prod.rio.transform_bounds(4326, recalc=True)
-        xmin, ymin, xmax, ymax = l1c.prod.rio.bounds(recalc=True)
+        lonmin, latmin, lonmax, latmax = prod.rio.transform_bounds(4326, recalc=True)
+        xmin, ymin, xmax, ymax = prod.rio.bounds(recalc=True)
         print("lonmin:" + str(lonmin))
         print("latmin:" + str(latmin))
         print("lonmax:" + str(lonmax))

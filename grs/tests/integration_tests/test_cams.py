@@ -18,7 +18,7 @@ from pathlib import Path
 from grs import class_logger
 from grs.product import Product
 from grs import CamsProduct
-import GRSdriver
+import xarray as xr
 
 
 class TestCams(unittest.TestCase):
@@ -46,18 +46,17 @@ class TestCams(unittest.TestCase):
     @classmethod
     def init_prod_data(cls):
         # Load data to instanciate class
-        data_file = cls.test_path + '/../inputs/S2A_MSIL1C_20231012T104951_N0509_R051_T31TCJ_20231012T143114.SAFE'
-        resolution = 20
-        l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
-        l1c.load_product()
-        cls.PROD = Product(l1c.prod)
+        nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
+        print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
+        cls.PROD = Product(xr.open_dataset(nc_file))
 
     def test_cams_products(self):
         """
             unitary test for lut class
         """
         # instantiate cams
-        cams_file = '/work/datalake/watcal/ECMWF/CAMS/2023/10/12/2023-10-12-cams-global-atmospheric-composition-forecasts.nc'
+        cams_file = TestCams.test_path + '/../inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc'
+        print("test_cams_products >> call CamsProduct.load()", flush=True)
         cams = CamsProduct(TestCams.PROD.raster, cams_file=cams_file)
         cams.load()
 

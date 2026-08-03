@@ -20,7 +20,7 @@ from pathlib import Path
 from grs import acutils
 from grs import class_logger
 from grs.product import Product
-import GRSdriver
+import xarray as xr
 
 
 class TestProduct(unittest.TestCase):
@@ -47,13 +47,10 @@ class TestProduct(unittest.TestCase):
             unitary test for product class
         """
 
-        data_file = TestProduct.test_path + '/../inputs/S2A_MSIL1C_20231012T104951_N0509_R051_T31TCJ_20231012T143114.SAFE'
-        resolution = 20
-        self.l1c = GRSdriver.Sentinel2Driver(data_file, resolution=resolution)
-        self.l1c.load_product()
-
+        nc_file = TestProduct.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
+        print("test_product >> Call open_dataset for ", nc_file, flush=True)
         # instantiate product
-        prod = Product(self.l1c.prod)
+        prod = Product(xr.open_dataset(nc_file))
 
         self.assertEqual(prod.sensor, 'S2A')
         self.assertEqual(prod.date_str, '2023-10-12T10:49:51.024Z')
