@@ -36,7 +36,9 @@ class TestProduct(unittest.TestCase):
         log_file = cls.test_path + '/../output/log_file.log'
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         odir = cls.test_path + '/../output/'
-        class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
+        logger = class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
+        print(logger)
+        print(class_logger.get_instance())
 
     @classmethod
     def tearDownClass(cls) -> None:
