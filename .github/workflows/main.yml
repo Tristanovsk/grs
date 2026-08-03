@@ -65,6 +65,7 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
+        if: false
         #if: always()   # Upload même si les tests échouent
         with:
           name: test-reports
