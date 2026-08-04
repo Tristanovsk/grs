@@ -116,24 +116,11 @@ class TestAcutils(unittest.TestCase):
                                 0.8554947, 0.80839056, 0.6765088, 0.45584205, 0.24737576, 0.12765466,
                                 0.0589016, 0.02564742, 0.00515905, numpy.nan], dtype=numpy.float32)
 
-        print("repr :")
-        print(repr(ref_srf))
-        print(repr(gaseous_transmittance_instance.SRF.values[2][138:184]))
 
         numpy.testing.assert_almost_equal(gaseous_transmittance_instance.SRF.values[2][138:184], ref_srf, 8)
 
         print(gaseous_transmittance_instance.Tg_tot_coarse) 
 
-        print("gas_lut.wl.values[10]=",gaseous_transmittance_instance.gas_lut.wl.values[10])
-        print("gas_lut.wl.ch4.values[20000]=",gaseous_transmittance_instance.gas_lut.ch4.values[20000])
-        print("Twv_lut.Twv.values[10][10][10]=",gaseous_transmittance_instance.Twv_lut.Twv.values[10][10][10])
-        print("air_mass_mean.values=",gaseous_transmittance_instance.air_mass_mean.values)
-        print("pressure.values[5][5]=",gaseous_transmittance_instance.pressure.values[5][5])
-        print("pressure.coef_abs_scat['h2o']=",gaseous_transmittance_instance.coef_abs_scat['h2o'])
-
-        print("")
-        print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
-        print("tgas_background.values[10][10][10]=", tgas_background.values[10][10][10])
         self.assertAlmostEqual(gaseous_transmittance_instance.xmin, 657340.0, places=1)
         self.assertAlmostEqual(gaseous_transmittance_instance.ymin, 4802560.0, places=1)
         self.assertAlmostEqual(gaseous_transmittance_instance.xmax, 681920.0, places=1)
@@ -147,10 +134,14 @@ class TestAcutils(unittest.TestCase):
 
         # get_gaseous_transmittance
         tg_raster = gaseous_transmittance_instance.get_gaseous_transmittance()
+        print("")
+        print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
+        
         self.assertAlmostEqual(tg_raster.values[10][10][10], 0.002012189315168797, places=16)
 
         # Tgas_background
         tgas_background = gaseous_transmittance_instance.Tgas_background()
+        print("tgas_background.values[10][10][10]=", tgas_background.values[10][10][10])
         self.assertAlmostEqual(tgas_background.values[10][10][10], 0.9999832067551963, places=16)
 
         # Other method not tested
