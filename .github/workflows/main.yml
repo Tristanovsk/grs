@@ -34,30 +34,28 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Installation du paquet gdal
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev
 
-      - name: Tests and coverage
-        #env:
-        #  GDAL_NUM_THREADS: "1"
-        #  GDAL_CACHEMAX: "512"
+      - name: Installation dépendances et lancement des tests
         run: |
-         python -m venv python_env
-         . python_env/bin/activate
-         python -m pip install --upgrade pip
-         GDAL_VERSION=$(gdal-config --version)
-         echo "GDAL system version: $GDAL_VERSION"
+          echo "Création de l'environnement python"
+          python -m venv python_env
+          . python_env/bin/activate
+          python -m pip install --upgrade pip
+          GDAL_VERSION=$(gdal-config --version)
+          echo "GDAL system version: $GDAL_VERSION"
 
-         echo "Installation des dépendances"
-         python -m pip install GDAL==$GDAL_VERSION
-         python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
-         python -m pip install pytest pytest-cov
-         python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
-                               
-         echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
-         python -m pytest grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
+          echo "Installation des dépendances via pip"
+          python -m pip install GDAL==$GDAL_VERSION
+          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
+          python -m pip install pytest pytest-cov
+          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
+                           
+          echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
+          python -m pytest grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
 
 
       - name: Upload test results
