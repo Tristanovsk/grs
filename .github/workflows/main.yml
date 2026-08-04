@@ -57,7 +57,6 @@ jobs:
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --junitxml=test-results.xml
 
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: false
@@ -98,7 +97,6 @@ jobs:
 # package — Build & Push
 # =============================================================================
   podman-build:
-    if: false
     needs: python-tests
     runs-on: ubuntu-latest
     steps:
