@@ -138,7 +138,6 @@ class TestAcutils(unittest.TestCase):
 
         # Tgas_background
         tgas_background = gaseous_transmittance_instance.Tgas_background()
-        print("tgas_background.values[10][10][10]=", tgas_background.values[10][10][10])
         self.assertAlmostEqual(tgas_background.values[10][10][10], 0.9999845520807469, places=16)
 
         # Other method not tested
