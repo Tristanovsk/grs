@@ -120,8 +120,8 @@ class TestAcutils(unittest.TestCase):
                                 0.8554947, 0.80839056, 0.6765088, 0.45584205, 0.24737576, 0.12765466,
                                 0.0589016, 0.02564742, 0.00515905, numpy.nan])
 
-        print(ref_srf)
-        print(gaseous_transmittance_instance.SRF.values[2][138:184])
+        repr(ref_srf)
+        repr(gaseous_transmittance_instance.SRF.values[2][138:184])
 
         diff = numpy.abs(gaseous_transmittance_instance.SRF.values[2][138:184] - ref_srf)
         print("Différence max :", numpy.nanmax(diff))
