@@ -119,7 +119,7 @@ class TestAcutils(unittest.TestCase):
 
         numpy.testing.assert_almost_equal(gaseous_transmittance_instance.SRF.values[2][138:184], ref_srf, 8)
 
-        print(gaseous_transmittance_instance.Tg_tot_coarse) 
+        print("Tg_tot_coarse=", gaseous_transmittance_instance.Tg_tot_coarse) 
 
         self.assertAlmostEqual(gaseous_transmittance_instance.xmin, 657340.0, places=1)
         self.assertAlmostEqual(gaseous_transmittance_instance.ymin, 4802560.0, places=1)

@@ -58,21 +58,21 @@ class TestCams(unittest.TestCase):
         cams = CamsProduct(TestCams.PROD.raster, cams_file=cams_file)
         cams.load()
 
-        print(cams.raster.x.values[0])
-        print(cams.raster.x.values[-1])
-        print(cams.raster.y.values[0])
-        print(cams.raster.y.values[-1])
+        print("x.values[0]=", cams.raster.x.values[0])
+        print("x.values[-1]=", cams.raster.x.values[-1])
+        print("y.values[0]=", cams.raster.y.values[0])
+        print("y.values[-1]=", cams.raster.y.values[-1])
         self.assertAlmostEqual(cams.raster.x.values[0], 657340.0, 1) # xmin
         self.assertAlmostEqual(cams.raster.x.values[-1], 681920.0, 1) # xmax
         self.assertAlmostEqual(cams.raster.y.values[0], 4827140.0, 1) # ymin
         self.assertAlmostEqual(cams.raster.y.values[-1], 4802560.0, 1) # ymax
         
         self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'amaod550', 'bcaod550', 'duaod550', 'niaod550', 'omaod550', 'ssaod550', 'suaod550', 'aod1240', 'aod469', 'aod550', 'aod670', 'aod865', 'tcco', 'tc_ch4', 'tcno2', 'gtco3', 'tcwv', 'u10'])
-        print(cams.raster.u10.values[6][6])
-        print(cams.raster.v10.values[6][6])
-        print(cams.raster.t2m.values[6][6])
-        print(cams.raster.gtco3.values[6][6])
-        print(cams.raster.tcno2.values[6][6])
+        print("u10.values[6][6]=", cams.raster.u10.values[6][6])
+        print("v10.values[6][6]=", cams.raster.v10.values[6][6])
+        print("t2m.values[6][6]=", cams.raster.t2m.values[6][6])
+        print("gtco3.values[6][6]=", cams.raster.gtco3.values[6][6])
+        print("tcno2.values[6][6]=", cams.raster.tcno2.values[6][6])
 
         self.assertAlmostEqual(cams.cams_aod.values[4][10][10], 0.013252163430922682, 7)
         self.assertAlmostEqual(cams.raster.u10.values[6][6], 5.255191621809645, 7)
