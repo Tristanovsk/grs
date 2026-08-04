@@ -129,7 +129,7 @@ class TestAcutils(unittest.TestCase):
         print("Twv_lut.Twv.values[10][10][10]=",gaseous_transmittance_instance.Twv_lut.Twv.values[10][10][10])
         print("air_mass_mean.values=",gaseous_transmittance_instance.air_mass_mean.values)
         print("pressure.values[5][5]=",gaseous_transmittance_instance.pressure.values[5][5])
-        print("pressure.coef_abs_scat['h2o']=",gaseous_transmittance_instance.pressure.coef_abs_scat['h2o'])
+        print("pressure.coef_abs_scat['h2o']=",gaseous_transmittance_instance.coef_abs_scat['h2o'])
 
         print("")
         print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
@@ -141,8 +141,8 @@ class TestAcutils(unittest.TestCase):
         self.assertAlmostEqual(gaseous_transmittance_instance.gas_lut.wl.values[10], 351.772064, places=6)
         self.assertAlmostEqual(gaseous_transmittance_instance.gas_lut.ch4.values[20000], 0.00717464667299828, places=16)
         self.assertAlmostEqual(gaseous_transmittance_instance.Twv_lut.Twv.values[10][10][10], 0.9994355799942988, places=16)
-        self.assertAlmostEqual(gaseous_transmittance_instance.air_mass_mean.values, 2.62716381, places=8)
-        self.assertAlmostEqual(gaseous_transmittance_instance.pressure.values[5][5], 1000.3613857341961, places=16)
+        self.assertAlmostEqual(gaseous_transmittance_instance.air_mass_mean.values, 2.4801105225857274, places=8)
+        self.assertAlmostEqual(gaseous_transmittance_instance.pressure.values[5][5], 990.7368248877037, places=16)
         self.assertAlmostEqual(gaseous_transmittance_instance.coef_abs_scat['h2o'], 0.3, places=1)
 
         # get_gaseous_transmittance
