@@ -35,7 +35,6 @@ class TestAcutils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        print("setUpClass", flush=True)
         cls.test_path = os.path.dirname(os.path.abspath(__file__))
         log_file = cls.test_path + '/../output/log_file.log'
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
@@ -44,7 +43,6 @@ class TestAcutils(unittest.TestCase):
 
         cls.init_prod_data_nc()
         cls.init_cams_data()
-        print("END setUpClass", flush=True)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -109,8 +107,6 @@ class TestAcutils(unittest.TestCase):
         print("test_gaseous_transmittance", flush=True)
         # Instanciate gaseous_transmittance
         gaseous_transmittance_instance = acutils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
-        print("After construction de acutils.GaseousTransmittance", flush=True)
-        print(gaseous_transmittance_instance.SRF)
         ref_srf = numpy.array([0.03660414, 0.08100583, 0.16917887, 0.33278275, 0.58622795, 0.8091641,
                                 0.913051, 0.94472283, 0.94898814, 0.9436913, 0.9284567, 0.9125694,
                                 0.9007804, 0.89958596, 0.9054714, 0.92045355, 0.94065666, 0.9619968,
@@ -118,21 +114,11 @@ class TestAcutils(unittest.TestCase):
                                 0.9266333, 0.8935913, 0.8694179, 0.84827, 0.839083, 0.83206207,
                                 0.8291787, 0.8330584, 0.84630936, 0.86396307, 0.8726808, 0.8681834,
                                 0.8554947, 0.80839056, 0.6765088, 0.45584205, 0.24737576, 0.12765466,
-                                0.0589016, 0.02564742, 0.00515905, numpy.nan])
+                                0.0589016, 0.02564742, 0.00515905, numpy.nan], dtype=numpy.float32)
 
         print("repr :")
         print(repr(ref_srf))
         print(repr(gaseous_transmittance_instance.SRF.values[2][138:184]))
-
-        diff = numpy.abs(gaseous_transmittance_instance.SRF.values[2][138:184] - ref_srf)
-        print("Différence max :", numpy.nanmax(diff))
-
-        idx = numpy.where(diff > 0)[0]
-        print("Indices différents :", idx)
-
-        for i in idx:
-            print(i, repr(gaseous_transmittance_instance.SRF.values[2][138:184][i]), repr(ref_srf[i]), 
-                  repr(gaseous_transmittance_instance.SRF.values[2][138:184][i] - ref_srf[i]))
 
         numpy.testing.assert_almost_equal(gaseous_transmittance_instance.SRF.values[2][138:184], ref_srf, 8)
 
