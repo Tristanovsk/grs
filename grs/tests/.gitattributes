@@ -2,3 +2,4 @@ inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc filter=lf
 inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc filter=lfs diff=lfs merge=lfs -text
 inputs/COP-DEM_GLO-30-DGED_31TFJ.tif filter=lfs diff=lfs merge=lfs -text
 inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.SAFE/** filter=lfs diff=lfs merge=lfs -text
+inputs/cams_forecast_2022-09-29.nc filter=lfs diff=lfs merge=lfs -text
