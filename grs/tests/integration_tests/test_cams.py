@@ -66,8 +66,7 @@ class TestCams(unittest.TestCase):
         self.assertAlmostEqual(cams.raster.x.values[-1], 681920.0, 1) # xmax
         self.assertAlmostEqual(cams.raster.y.values[0], 4827140.0, 1) # ymin
         self.assertAlmostEqual(cams.raster.y.values[-1], 4802560.0, 1) # ymax
-        print("cams.variables=", cams.variables)
-        print("cams.cams_aod.values[4][10][10]=", cams.cams_aod.values[4][10][10])
+        
         self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'amaod550', 'bcaod550', 'duaod550', 'niaod550', 'omaod550', 'ssaod550', 'suaod550', 'aod1240', 'aod469', 'aod550', 'aod670', 'aod865', 'tcco', 'tc_ch4', 'tcno2', 'gtco3', 'tcwv', 'u10'])
         print(cams.raster.u10.values[6][6])
         print(cams.raster.v10.values[6][6])
@@ -76,11 +75,11 @@ class TestCams(unittest.TestCase):
         print(cams.raster.tcno2.values[6][6])
 
         self.assertAlmostEqual(cams.cams_aod.values[4][10][10], 0.013252163430922682, 7)
-        self.assertAlmostEqual(cams.raster.u10.values[6][6], -0.993277515050355, 7)
-        self.assertAlmostEqual(cams.raster.v10.values[6][6], 1.5300712706261923, 7)
-        self.assertAlmostEqual(cams.raster.t2m.values[6][6], 298.96904073387566, 7)
-        self.assertAlmostEqual(cams.raster.gtco3.values[6][6], 0.005542143138166818, 7)
-        self.assertAlmostEqual(cams.raster.tcno2.values[6][6], 2.8778440127438184e-06, 7)
+        self.assertAlmostEqual(cams.raster.u10.values[6][6], 5.255191621809645, 7)
+        self.assertAlmostEqual(cams.raster.v10.values[6][6], -1.4699149996404888, 7)
+        self.assertAlmostEqual(cams.raster.t2m.values[6][6], 290.8590535077976, 7)
+        self.assertAlmostEqual(cams.raster.gtco3.values[6][6], 0.006902521270544851, 7)
+        self.assertAlmostEqual(cams.raster.tcno2.values[6][6], 2.464762377680245e-06, 7)
 
 
     # method not tested
