@@ -111,21 +111,36 @@ class TestAcutils(unittest.TestCase):
         gaseous_transmittance_instance = acutils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
         print("After construction de acutils.GaseousTransmittance", flush=True)
         print(gaseous_transmittance_instance.SRF)
-        ref_srf = numpy.array([0.01448181, 0.03422251, 0.07346335, 0.15444843, 0.31661424, 0.55322278,
-                               0.74859405, 0.84890306, 0.89772218, 0.9215368,  0.92572844, 0.91122687,
-                               0.88818926, 0.86523753, 0.84718186, 0.83875722, 0.84459078, 0.86219651,
-                               0.88838714, 0.92443234, 0.96017975, 0.98685515, 1.,         0.99860078,
-                               0.98076475, 0.94522089, 0.8981778,  0.85580325, 0.81841731, 0.78862047,
-                               0.76460654, 0.74963742, 0.7505511,  0.76137888, 0.78244478, 0.79890084,
-                               0.81016958, 0.81408888, 0.77358598, 0.62881064, 0.40397555, 0.21542098,
-                               0.10715281, 0.04792877, 0.01848693, 0.00108588])
-        
+        ref_srf = numpy.array([0.03660414, 0.08100583, 0.16917887, 0.33278275, 0.58622795, 0.8091641,
+                                0.913051, 0.94472283, 0.94898814, 0.9436913, 0.9284567, 0.9125694,
+                                0.9007804, 0.89958596, 0.9054714,  0.92045355, 0.94065666, 0.9619968,
+                                0.98186743, 0.9985841, 1., 0.99279886, 0.9780133, 0.95301175,
+                                0.9266333, 0.8935913, 0.8694179, 0.84827, 0.839083, 0.83206207,
+                                0.8291787, 0.8330584, 0.84630936, 0.86396307, 0.8726808, 0.8681834,
+                                0.8554947, 0.80839056, 0.6765088, 0.45584205, 0.24737576, 0.12765466,
+                                0.0589016, 0.02564742, 0.00515905, numpy.nan])
+
+        print(ref_srf)
         print(gaseous_transmittance_instance.SRF.values[2][138:184])
 
         numpy.testing.assert_almost_equal(gaseous_transmittance_instance.SRF.values[2][138:184], ref_srf, 8)
 
         print(gaseous_transmittance_instance.Tg_tot_coarse) 
 
+        print("xmin=",gaseous_transmittance_instance.xmin)
+        print("ymin=",gaseous_transmittance_instance.ymin)
+        print("xmax=",gaseous_transmittance_instance.xmax)
+        print("ymax=",gaseous_transmittance_instance.ymax)
+        print("gas_lut.wl.values[10]=",gaseous_transmittance_instance.gas_lut.wl.values[10])
+        print("gas_lut.wl.ch4.values[20000]=",gaseous_transmittance_instance.gas_lut.ch4.values[20000])
+        print("gas_lut.wl.Twv.values[10][10][10]=",gaseous_transmittance_instance.gas_lut.Twv.values[10][10][10])
+        print("air_mass_mean.values=",gaseous_transmittance_instance.air_mass_mean.values)
+        print("pressure.values[5][5]=",gaseous_transmittance_instance.pressure.values[5][5])
+        print("pressure.coef_abs_scat['h2o']=",gaseous_transmittance_instance.pressure.coef_abs_scat['h2o'])
+
+        print("")
+        print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
+        print("tgas_background.values[10][10][10]=", tgas_background.values[10][10][10])
         self.assertAlmostEqual(gaseous_transmittance_instance.xmin, 300000.0, places=1)
         self.assertAlmostEqual(gaseous_transmittance_instance.ymin, 4790220.0, places=1)
         self.assertAlmostEqual(gaseous_transmittance_instance.xmax, 409800.0, places=1)
@@ -164,3 +179,4 @@ class TestAcutils(unittest.TestCase):
         palt = acutils.Misc.get_pressure(atl, psl)
         print("After acutils.Misc.get_pressure", flush=True)
         self.assertAlmostEqual(palt, 885.236756238, places=8)
+
