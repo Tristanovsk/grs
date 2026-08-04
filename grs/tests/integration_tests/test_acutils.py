@@ -61,7 +61,7 @@ class TestAcutils(unittest.TestCase):
     @classmethod
     def init_cams_data(cls):
         print("init_cams_data", flush=True)
-        cams_file = cls.test_path + '/../inputs/2024-07-26-cams-global-atmospheric-composition-forecasts.nc'
+        cams_file = cls.test_path + '/../inputs/cams_forecast_2022-09-29.nc'
         cls.CAMS = CamsProduct(cls.PROD.raster, cams_file=cams_file)
         print("init_cams_data >> call CamsProduct.load()", flush=True)
         cls.CAMS.load()
