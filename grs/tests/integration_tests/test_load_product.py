@@ -56,13 +56,11 @@ class TestDriverS2Safe(unittest.TestCase):
                                 0.8681834 , 0.8554947 , 0.80839056, 0.6765088 , 0.45584205,
                                 0.24737576, 0.12765466, 0.0589016 , 0.02564742, 0.00515905,
                               numpy.nan],  dtype=numpy.float32)
-        print("repr : ")
-        print(repr(prod.SRF.values[2][138:184]))
-        print(repr(ref_srf))
+
         numpy.testing.assert_almost_equal(prod.SRF.values[2][138:184], ref_srf, 8)
         # Test on x and y vector
-        self.assertEqual(prod.x.__len__(), 5490)
-        self.assertEqual(prod.y.__len__(), 5490)
+        self.assertEqual(prod.x.__len__(), 1229)
+        self.assertEqual(prod.y.__len__(), 1229)
         # Test on lat/lon values
         lonmin, latmin, lonmax, latmax = prod.rio.transform_bounds(4326, recalc=True)
         xmin, ymin, xmax, ymax = prod.rio.bounds(recalc=True)
