@@ -52,18 +52,14 @@ class TestAcutils(unittest.TestCase):
 
     @classmethod
     def init_prod_data_nc(cls):
-        print('init_prod_data_nc', flush=True)
         nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
-        print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
         cls.PROD = Product(xr.open_dataset(nc_file))
         
 
     @classmethod
     def init_cams_data(cls):
-        print("init_cams_data", flush=True)
         cams_file = cls.test_path + '/../inputs/cams_forecast_2022-09-29.nc'
         cls.CAMS = CamsProduct(cls.PROD.raster, cams_file=cams_file)
-        print("init_cams_data >> call CamsProduct.load()", flush=True)
         cls.CAMS.load()
 
 #    def test_lut(self):
@@ -123,6 +119,9 @@ class TestAcutils(unittest.TestCase):
                                0.76460654, 0.74963742, 0.7505511,  0.76137888, 0.78244478, 0.79890084,
                                0.81016958, 0.81408888, 0.77358598, 0.62881064, 0.40397555, 0.21542098,
                                0.10715281, 0.04792877, 0.01848693, 0.00108588])
+        
+        print(gaseous_transmittance_instance.SRF.values[2][138:184])
+
         numpy.testing.assert_almost_equal(gaseous_transmittance_instance.SRF.values[2][138:184], ref_srf, 8)
 
         print(gaseous_transmittance_instance.Tg_tot_coarse) 
