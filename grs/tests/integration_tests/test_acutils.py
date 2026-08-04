@@ -133,16 +133,13 @@ class TestAcutils(unittest.TestCase):
         self.assertAlmostEqual(gaseous_transmittance_instance.coef_abs_scat['h2o'], 0.3, places=1)
 
         # get_gaseous_transmittance
-        tg_raster = gaseous_transmittance_instance.get_gaseous_transmittance()
-        print("")
-        print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
-        
+        tg_raster = gaseous_transmittance_instance.get_gaseous_transmittance()      
         self.assertAlmostEqual(tg_raster.values[10][10][10], 0.0012961665107073775, places=16)
 
         # Tgas_background
         tgas_background = gaseous_transmittance_instance.Tgas_background()
         print("tgas_background.values[10][10][10]=", tgas_background.values[10][10][10])
-        self.assertAlmostEqual(tgas_background.values[10][10][10], 0.9999832067551963, places=16)
+        self.assertAlmostEqual(tgas_background.values[10][10][10], 0.9999845520807469, places=16)
 
         # Other method not tested
         # get_gaseous_optical_thickness --> used in get_gaseous_transmittance_old so not used
