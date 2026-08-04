@@ -34,15 +34,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install GDAL system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y gdal-bin libgdal-dev
 
       - name: Tests and coverage
-        env:
-          GDAL_NUM_THREADS: "1"
-          GDAL_CACHEMAX: "512"
+        #env:
+        #  GDAL_NUM_THREADS: "1"
+        #  GDAL_CACHEMAX: "512"
         run: |
          python -m venv python_env
          . python_env/bin/activate
