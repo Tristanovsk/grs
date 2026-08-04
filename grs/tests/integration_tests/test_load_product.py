@@ -54,6 +54,9 @@ class TestDriverS2Safe(unittest.TestCase):
                                0.76460654, 0.74963742, 0.7505511,  0.76137888, 0.78244478, 0.79890084,
                                0.81016958, 0.81408888, 0.77358598, 0.62881064, 0.40397555, 0.21542098,
                                0.10715281, 0.04792877, 0.01848693, 0.00108588])
+        print("repr : ")
+        print(repr(prod.SRF.values[2][138:184]))
+        print(repr(ref_srf))
         numpy.testing.assert_almost_equal(prod.SRF.values[2][138:184], ref_srf, 8)
         # Test on x and y vector
         self.assertEqual(prod.x.__len__(), 5490)
