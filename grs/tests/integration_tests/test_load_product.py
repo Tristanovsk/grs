@@ -43,7 +43,6 @@ class TestDriverS2Safe(unittest.TestCase):
             unitary test for load_product method
         """
         nc_file =  TestDriverS2Safe.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
-        print("test_load_product >> Call open_dataset for ", nc_file, flush=True)
         prod = xr.open_dataset(nc_file)
 
         ref_srf = numpy.array([0.03660414, 0.08100583, 0.16917887, 0.33278275, 0.58622795,
