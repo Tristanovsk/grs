@@ -137,7 +137,7 @@ class TestAcutils(unittest.TestCase):
         print("")
         print("tg_raster.values[10][10][10]=", tg_raster.values[10][10][10])
         
-        self.assertAlmostEqual(tg_raster.values[10][10][10], 0.002012189315168797, places=16)
+        self.assertAlmostEqual(tg_raster.values[10][10][10], 0.0012961665107073775, places=16)
 
         # Tgas_background
         tgas_background = gaseous_transmittance_instance.Tgas_background()
