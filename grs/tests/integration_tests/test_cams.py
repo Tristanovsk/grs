@@ -68,15 +68,14 @@ class TestCams(unittest.TestCase):
         self.assertAlmostEqual(cams.raster.y.values[-1], 4802560.0, 1) # ymax
         print("cams.variables=", cams.variables)
         print("cams.cams_aod.values[4][10][10]=", cams.cams_aod.values[4][10][10])
-        print("cams.cams_ssa.values[10][10][10]=", cams.cams_ssa.values[10][10][10])
-        self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'ssa1020', 'ssa1240', 'ssa1640', 'ssa2130', 'ssa355', 'ssa380', 'ssa400', 'ssa440', 'ssa500', 'ssa550', 'ssa645', 'ssa670', 'ssa800', 'ssa865', 'aod1020', 'aod1064', 'aod1240', 'aod1640', 'aod2130', 'aod355', 'aod380', 'aod400', 'aod440', 'aod469', 'aod500', 'aod550', 'aod645', 'aod670', 'aod800', 'aod865', 'tcco', 'tchcho', 'tc_oh', 'tc_ch4', 'tcno2', 'gtco3', 'tc_c3h8', 'tcwv', 'u10'])
+        self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'amaod550', 'bcaod550', 'duaod550', 'niaod550', 'omaod550', 'ssaod550', 'suaod550', 'aod1240', 'aod469', 'aod550', 'aod670', 'aod865', 'tcco', 'tc_ch4', 'tcno2', 'gtco3', 'tcwv', 'u10'])
         print(cams.raster.u10.values[6][6])
         print(cams.raster.v10.values[6][6])
         print(cams.raster.t2m.values[6][6])
         print(cams.raster.gtco3.values[6][6])
         print(cams.raster.tcno2.values[6][6])
-        #self.assertAlmostEqual(cams.cams_ssa.values[10][10][10], 0.9677208736679962, 7)
-        self.assertAlmostEqual(cams.cams_aod.values[4][10][10], 0.017030397059077572, 7)
+
+        self.assertAlmostEqual(cams.cams_aod.values[4][10][10], 0.013252163430922682, 7)
         self.assertAlmostEqual(cams.raster.u10.values[6][6], -0.993277515050355, 7)
         self.assertAlmostEqual(cams.raster.v10.values[6][6], 1.5300712706261923, 7)
         self.assertAlmostEqual(cams.raster.t2m.values[6][6], 298.96904073387566, 7)
