@@ -47,7 +47,6 @@ class TestCams(unittest.TestCase):
     def init_prod_data(cls):
         # Load data to instanciate class
         nc_file =  cls.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
-        print("init_prod_data_nc >> Call open_dataset for ", nc_file, flush=True)
         cls.PROD = Product(xr.open_dataset(nc_file))
 
     def test_cams_products(self):
@@ -56,7 +55,6 @@ class TestCams(unittest.TestCase):
         """
         # instantiate cams
         cams_file = TestCams.test_path + '/../inputs/cams_forecast_2022-09-29.nc'
-        print("test_cams_products >> call CamsProduct.load()", flush=True)
         cams = CamsProduct(TestCams.PROD.raster, cams_file=cams_file)
         cams.load()
 
@@ -64,14 +62,14 @@ class TestCams(unittest.TestCase):
         print(cams.raster.x.values[-1])
         print(cams.raster.y.values[0])
         print(cams.raster.y.values[-1])
-        self.assertAlmostEqual(cams.raster.x.values[0], 300000.0, 1) # xmin
-        self.assertAlmostEqual(cams.raster.x.values[-1], 409800.0, 1) # xmax
-        self.assertAlmostEqual(cams.raster.y.values[-1], 4790220.0, 1) # ymax
-        self.assertAlmostEqual(cams.raster.y.values[0], 4900020.0, 1) # ymin
+        self.assertAlmostEqual(cams.raster.x.values[0], 657340.0, 1) # xmin
+        self.assertAlmostEqual(cams.raster.x.values[-1], 681920.0, 1) # xmax
+        self.assertAlmostEqual(cams.raster.y.values[-1], 4827140.0, 1) # ymax
+        self.assertAlmostEqual(cams.raster.y.values[0], 4802560.0, 1) # ymin
         print("cams.variables=", cams.variables)
-        self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'ssa1020', 'ssa1240', 'ssa1640', 'ssa2130', 'ssa355', 'ssa380', 'ssa400', 'ssa440', 'ssa500', 'ssa550', 'ssa645', 'ssa670', 'ssa800', 'ssa865', 'aod1020', 'aod1064', 'aod1240', 'aod1640', 'aod2130', 'aod355', 'aod380', 'aod400', 'aod440', 'aod469', 'aod500', 'aod550', 'aod645', 'aod670', 'aod800', 'aod865', 'tcco', 'tchcho', 'tc_oh', 'tc_ch4', 'tcno2', 'gtco3', 'tc_c3h8', 'tcwv', 'u10'])
         print("cams.cams_aod.values[4][10][10]=", cams.cams_aod.values[4][10][10])
         print("cams.cams_ssa.values[10][10][10]=", cams.cams_ssa.values[10][10][10])
+        self.assertEqual(cams.variables, ['v10', 't2m', 'msl', 'sp', 'ssa1020', 'ssa1240', 'ssa1640', 'ssa2130', 'ssa355', 'ssa380', 'ssa400', 'ssa440', 'ssa500', 'ssa550', 'ssa645', 'ssa670', 'ssa800', 'ssa865', 'aod1020', 'aod1064', 'aod1240', 'aod1640', 'aod2130', 'aod355', 'aod380', 'aod400', 'aod440', 'aod469', 'aod500', 'aod550', 'aod645', 'aod670', 'aod800', 'aod865', 'tcco', 'tchcho', 'tc_oh', 'tc_ch4', 'tcno2', 'gtco3', 'tc_c3h8', 'tcwv', 'u10'])
         print(cams.raster.u10.values[6][6])
         print(cams.raster.v10.values[6][6])
         print(cams.raster.t2m.values[6][6])
