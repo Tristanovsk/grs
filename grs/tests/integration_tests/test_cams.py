@@ -64,8 +64,8 @@ class TestCams(unittest.TestCase):
         print(cams.raster.y.values[-1])
         self.assertAlmostEqual(cams.raster.x.values[0], 657340.0, 1) # xmin
         self.assertAlmostEqual(cams.raster.x.values[-1], 681920.0, 1) # xmax
-        self.assertAlmostEqual(cams.raster.y.values[-1], 4827140.0, 1) # ymax
-        self.assertAlmostEqual(cams.raster.y.values[0], 4802560.0, 1) # ymin
+        self.assertAlmostEqual(cams.raster.y.values[0], 4827140.0, 1) # ymin
+        self.assertAlmostEqual(cams.raster.y.values[-1], 4802560.0, 1) # ymax
         print("cams.variables=", cams.variables)
         print("cams.cams_aod.values[4][10][10]=", cams.cams_aod.values[4][10][10])
         print("cams.cams_ssa.values[10][10][10]=", cams.cams_ssa.values[10][10][10])
