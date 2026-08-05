@@ -73,7 +73,7 @@ jobs:
 # =============================================================================
   pypi:
     needs: python-tests
-    #if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
