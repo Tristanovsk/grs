@@ -240,13 +240,13 @@ jobs:
         run: |
           cd docs
           make html
-          ls
+          ls build/
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
           name: doc
           path: |
-            build/
+            docs/build/
           retention-days: 1
 
