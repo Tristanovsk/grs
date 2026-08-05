@@ -23,7 +23,6 @@ jobs:
 # test
 # =============================================================================
   python-tests:
-   if: false
    runs-on: ubuntu-latest
    steps:
       - uses: actions/checkout@v4
@@ -218,6 +217,7 @@ jobs:
 # =============================================================================
 
   doc:
+    needs: podman-build
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code source
@@ -240,13 +240,13 @@ jobs:
         run: |
           cd docs
           make html
-          ls build/
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
+        if: github.ref_type == 'tag'
         with:
-          name: doc
+          name: documentation
           path: |
-            docs/build/
+            docs/build/html/
           retention-days: 1
 
