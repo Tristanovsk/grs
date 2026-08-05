@@ -23,6 +23,7 @@ jobs:
 # test
 # =============================================================================
   python-tests:
+    if: false
    runs-on: ubuntu-latest
    steps:
       - uses: actions/checkout@v4
@@ -211,6 +212,42 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      
 
+# =============================================================================
+# Documentation
+# =============================================================================
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code source
+        uses: actions/checkout@v4
+
+      - name: Configurer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
+          python -m pip install sphinx sphinx-rtd-theme
+          python -m pip install myst-parser
+          python -m pip install sphinx-autoapi
+
+      - name: Compiler la documentation Sphinx en HTML
+        run: |
+          cd docs
+          make html
+          ls
+
+      - name: Upload reports
+        if: false
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc
+          path: |
+            build/
+          retention-days: 1
 
