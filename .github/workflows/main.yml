@@ -56,12 +56,12 @@ jobs:
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml --junitxml=test-results.xml
           
-          echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             echo "Génération du badge coverage"
             python -m pip install coverage-badge
             mkdir -p badges
             coverage-badge -o badges/coverage.svg
+
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
