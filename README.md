@@ -297,11 +297,11 @@ You can adapt the sh script to modify this behaviour.
 
 ## Contributing
 
-Please contact [authors](tristan.harmel@ntymail.com) for details on our code of conduct, and the process for submitting pull requests to us.
+Please contact [authors](mailto:tristan.harmel@ntymail.com) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Authors
 
-* **Tristan Harmel** - *Initial work* - [contact](tristan.harmel@ntymail.com)
+* **Tristan Harmel** - *Initial work* - [contact](mailto:tristan.harmel@ntymail.com)
 
 See also the list of [contributors](...) who participated in this project.
 
