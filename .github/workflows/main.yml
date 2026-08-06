@@ -3,17 +3,16 @@ name: Pipeline CI
 on:
   push:
     branches:
-      - feature/dev-ci
+      - 'feature/*'
+      - main
+      - develop
     tags:
       - '*'
   pull_request:
     branches:
-      - feature/dev-ci
-  workflow_dispatch:
-    inputs:
-      with-quality:
-        type: boolean
-        default: false
+      - main
+      - develop
+
 
 env:
   DOCKER_IMAGE_NAME : "grs"
@@ -69,7 +68,7 @@ jobs:
           retention-days: 1
 
 # =============================================================================
-# package — Pypi
+# package — Publication sur Pypi
 # =============================================================================
   pypi:
     needs: python-tests
@@ -94,7 +93,7 @@ jobs:
           password: ${{ secrets.PYPI_TOKEN }}
 
 # =============================================================================
-# package — Build & Push
+# package — Build & Publication sur Docker Hub
 # =============================================================================
   podman-build:
     needs: python-tests
@@ -146,7 +145,7 @@ jobs:
 # =============================================================================
 
   lint:
-    if: github.event_name == 'workflow_dispatch' && inputs.with-quality
+    if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: podman-build
     runs-on: ubuntu-latest
     steps:
@@ -163,11 +162,6 @@ jobs:
         continue-on-error: true
         run: ruff check . --output-format=json > ruff-report.json
 
-      - name: Show Ruff report
-        run: |
-          ruff --version
-          cat ruff-report.json || true
-
       - run: pip install -r requirements.txt
 
       - name: Run mypy
@@ -175,7 +169,6 @@ jobs:
         run: mypy . --junit-xml mypy-report.xml
       
       - name: Upload reports
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-reports
@@ -184,69 +177,4 @@ jobs:
             mypy-report.xml
           retention-days: 1
 
-  sonar:
-    if: github.event_name == 'workflow_dispatch' && inputs.with-quality
-    needs: podman-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: debug
-        run: |
-          echo "SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}"
-          echo "SONAR_ORGANIZATION=${{ vars.SONAR_ORGANIZATION }}"
-          echo "SONAR_PROJECT_KEY=${{ vars.SONAR_PROJECT_KEY }}"
-          echo "SONAR_PROJECT_NAME=${{ vars.SONAR_PROJECT_NAME }}"
-          echo "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}"
-
-      - name: Scan Sonar
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -X
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
-            -Dsonar.projectName=${{ vars.SONAR_PROJECT_NAME }}
-            -Dsonar.branch.name=${{ github.ref_name }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-
-# =============================================================================
-# Documentation
-# =============================================================================
-
-  doc:
-    needs: podman-build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Récupérer le code source
-        uses: actions/checkout@v4
-
-      - name: Configurer Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Installer les dépendances
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
-          python -m pip install sphinx sphinx-rtd-theme
-          python -m pip install myst-parser
-          python -m pip install sphinx-autoapi
-
-      - name: Compiler la documentation Sphinx en HTML
-        run: |
-          cd docs
-          make html
-
-      - name: Upload reports
-        uses: actions/upload-artifact@v4
-        if: github.ref_type == 'tag'
-        with:
-          name: documentation
-          path: |
-            docs/build/html/
-          retention-days: 1
 
