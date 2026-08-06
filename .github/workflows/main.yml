@@ -52,22 +52,25 @@ jobs:
           python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
           python -m pip install pytest pytest-cov
           python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
+          python -m pip install coverage-badge
                            
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml --junitxml=test-results.xml
-
-      - name: Envoi de la couverture à Codecov
-        uses: codecov/codecov-action@v5
+          echo "Test generation badge coverage"
+          coverage-badge -o coverage.svg
+          ls
+        
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: false
-        #if: always()   # Upload même si les tests échouent
+        #if: false
+        if: always()   # Upload même si les tests échouent
         with:
           name: test-reports
           path : | 
             test-results.xml
             cov_html/
+            coverage.svg
           retention-days: 1
 
 # =============================================================================
