@@ -56,21 +56,29 @@ jobs:
                            
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml --junitxml=test-results.xml
-          echo "Test generation badge coverage"
-          coverage-badge -o coverage.svg
-          ls
-        
+          
+          echo "Génération du badge coverage"
+          mkdir -p badges
+          coverage-badge -o badges/coverage.svg
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add badges/coverage.svg
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Update coverage badge [skip ci]"
+            git push
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        #if: false
-        if: always()   # Upload même si les tests échouent
+        if: false
+        #if: always()   # Upload même si les tests échouent
         with:
           name: test-reports
           path : | 
             test-results.xml
             cov_html/
-            coverage.svg
           retention-days: 1
 
 # =============================================================================
