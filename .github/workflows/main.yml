@@ -56,7 +56,7 @@ jobs:
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
           
-          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             echo "Génération du badge coverage"
             python -m pip install genbadge[coverage]
             mkdir -p badges
