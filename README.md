@@ -151,7 +151,7 @@ Options:
   --odir odir      Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --resolution=res  spatial resolution of the scene pixels
+  --resolution res  spatial resolution of the scene pixels
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
   --surfwater file  Absolute path of the surfwater geotiff file to be used
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
