@@ -21,6 +21,9 @@ jobs:
       - name: Install Git LFS
         run: git lfs install
 
+      - name: Fetch all Git LFS objects
+        run: git lfs fetch --all
+        
       - name: Configure GitLab remote
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
