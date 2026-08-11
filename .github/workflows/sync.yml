@@ -12,18 +12,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          lfs: false
 
       - name: Utilisation du Dockerfile de Gitlab
         run: |
           mv Dockerfile-gitlab Dockerfile
 
-      - name: Install Git LFS
-        run: git lfs install
-
-      - name: Fetch all Git LFS objects
-        run: git lfs fetch --all
-        
       - name: Configure GitLab remote
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
@@ -34,12 +28,10 @@ jobs:
         if: github.ref_type == 'branch'
         run: |
           echo "Synchronisation de la branche ${GITHUB_REF_NAME}"
-          git push gitlab "HEAD:refs/heads/${GITHUB_REF_NAME}"
-          git lfs push gitlab "refs/heads/${GITHUB_REF_NAME}"
+          git push --force-with-lease  gitlab "HEAD:refs/heads/${GITHUB_REF_NAME}"
 
       - name: Push du tag
         if: github.ref_type == 'tag'
         run: |
           echo "Synchronisation du tag ${GITHUB_REF_NAME}"
           git push gitlab "HEAD:refs/tags/${GITHUB_REF_NAME}"
-          git lfs push gitlab "refs/tags/${GITHUB_REF_NAME}"
