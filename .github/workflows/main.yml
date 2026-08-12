@@ -208,9 +208,44 @@ jobs:
           fetch-depth: 0
           lfs: false
 
-      - name: Utilisation du Dockerfile de Gitlab
+
+      - name: Install git-filter-repo
         run: |
-          mv Dockerfile-gitlab Dockerfile
+          python3 -m pip install git-filter-repo
+
+      - name: Find LFS files
+        run: |
+          echo "Recherche des fichiers suivis par Git LFS..."
+
+          git lfs ls-files --all --name-only | sort -u > /tmp/lfs-files.txt
+
+          echo "Fichiers LFS détectés :"
+          cat /tmp/lfs-files.txt || true
+
+      - name: Remove LFS files from history
+        run: |
+          if [ -s /tmp/lfs-files.txt ]; then
+            echo "Suppression des fichiers LFS de l'historique Git..."
+
+            git filter-repo \
+              --invert-paths \
+              --paths-from-file /tmp/lfs-files.txt \
+              --force
+          else
+            echo "Aucun fichier LFS détecté."
+          fi
+
+      - name: Check result
+        run: |
+          echo "Vérification : les fichiers LFS ne doivent plus être présents."
+
+          if git lfs ls-files --all --name-only | grep -q .; then
+            echo "ERREUR : des fichiers LFS sont encore présents."
+            git lfs ls-files --all --name-only
+            exit 1
+          fi
+
+          echo "OK : aucun fichier LFS dans l'historique GitLab."
 
       - name: Configure GitLab remote
         env:
@@ -220,23 +255,17 @@ jobs:
 
       - name: Push de la branche
         if: github.ref_type == 'branch'
-        env:
-          GIT_LFS_SKIP_PUSH: 1
-          GIT_TRACE: "1"
-          GIT_TRACE_PERFORMANCE: "1"
-          GIT_TRANSFER_TRACE: "1"
-          GIT_LFS_SKIP_SMUDGE: 1
         run: |
-          git lfs --version
-          git lfs ls-files
-          echo "GIT_LFS_SKIP_PUSH=$GIT_LFS_SKIP_PUSH"
           echo "Synchronisation de la branche ${GITHUB_REF_NAME}"
-          git push --force-with-lease  gitlab "HEAD:refs/heads/${GITHUB_REF_NAME}"
+
+          git push --force gitlab \
+            "HEAD:refs/heads/${GITHUB_REF_NAME}"
 
       - name: Push du tag
         if: github.ref_type == 'tag'
-        env:
-          GIT_LFS_SKIP_PUSH: 1
         run: |
           echo "Synchronisation du tag ${GITHUB_REF_NAME}"
-          git push gitlab "HEAD:refs/tags/${GITHUB_REF_NAME}"
+
+          git push --force gitlab \
+            "HEAD:refs/tags/${GITHUB_REF_NAME}"
+
