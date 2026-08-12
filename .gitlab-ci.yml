@@ -81,6 +81,8 @@ variables:
   SUFFIX_DOCKER_IMAGE: "grs"
   DOCKER_IMAGE_NAME: "${UL_ARTIFACTORY_HOST}/${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
 
+   GIT_LFS_SKIP_SMUDGE: "1" # ne pas checkout les objets LFS
+
 
 # =============================================================================
 # STAGE : init
