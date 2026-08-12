@@ -225,6 +225,7 @@ jobs:
           GIT_TRACE: "1"
           GIT_TRACE_PERFORMANCE: "1"
           GIT_TRANSFER_TRACE: "1"
+          GIT_LFS_SKIP_SMUDGE: 1
         run: |
           git lfs --version
           git lfs ls-files
