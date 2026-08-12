@@ -222,7 +222,13 @@ jobs:
         if: github.ref_type == 'branch'
         env:
           GIT_LFS_SKIP_PUSH: 1
+          GIT_TRACE: "1"
+          GIT_TRACE_PERFORMANCE: "1"
+          GIT_TRANSFER_TRACE: "1"
         run: |
+          git lfs --version
+          git lfs ls-files
+          echo "GIT_LFS_SKIP_PUSH=$GIT_LFS_SKIP_PUSH"
           echo "Synchronisation de la branche ${GITHUB_REF_NAME}"
           git push --force-with-lease  gitlab "HEAD:refs/heads/${GITHUB_REF_NAME}"
 
