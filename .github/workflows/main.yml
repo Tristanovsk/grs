@@ -207,5 +207,6 @@ jobs:
           gitlab_url: "https://gitlab.cnes.fr/waterquality/grs2.git"
           username: "github-sync"
           gitlab_pat: ${{ secrets.GITLAB_TOKEN }}
+          git_lfs: true
     
     
