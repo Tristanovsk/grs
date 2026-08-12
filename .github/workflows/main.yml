@@ -204,8 +204,8 @@ jobs:
       - name: Sync to GitLab
         uses: kujov/gitlab-sync@main
         with:
-          gitlab_url: https://gitlab.cnes.fr/waterquality/grs2.git"
-          username: github-sync
+          gitlab_url: "https://gitlab.cnes.fr/waterquality/grs2.git"
+          username: "github-sync"
           gitlab_pat: ${{ secrets.GITLAB_TOKEN }}
     
     
