@@ -218,12 +218,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Reference: $GITHUB_REF"
-          echo "Commit:    $GITHUB_SHA"
+          echo "Reference : ${GITHUB_REF}"
+          echo "Commit    : ${GITHUB_SHA}"
 
           git lfs ls-files --deleted HEAD -n | sort -u > /tmp/lfs-files.txt
 
-          echo "=== LFS files to remove ==="
+          echo
+          echo "=== LFS files ==="
 
           if [ -s /tmp/lfs-files.txt ]; then
             cat /tmp/lfs-files.txt
@@ -247,47 +248,65 @@ jobs:
             done < /tmp/lfs-files.txt
           fi
 
-          git filter-repo --invert-paths "${FILTER_ARGS[@]}" --refs "$GITHUB_REF" --force
+          echo "=== Paths removed from history ==="
+          printf '%s\n' "${FILTER_ARGS[@]}"
 
-      - name: Verify result
+          git filter-repo --invert-paths "${FILTER_ARGS[@]}" --refs "${GITHUB_REF}" --force
+
+      - name: Verify no LFS remains
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "=== Verify .gitattributes ==="
+          echo "=== Checking .gitattributes ==="
 
-          if git ls-tree -r HEAD --name-only | \
-            grep -qx 'grs/tests/.gitattributes'; then
+          if git ls-tree -r HEAD --name-only | grep -Fxq 'grs/tests/.gitattributes'; then
             echo "ERROR: grs/tests/.gitattributes still exists"
             exit 1
           fi
 
-          echo "OK: grs/tests/.gitattributes removed"
+          echo "OK: .gitattributes removed"
 
           echo
-          echo "=== Verify LFS files ==="
+          echo "=== Checking LFS pointers ==="
 
-          if [ -s /tmp/lfs-files.txt ]; then
-            while IFS= read -r file; do
-              [ -z "$file" ] && continue
+          FOUND=0
 
-              if git ls-tree -r HEAD --name-only | grep -Fxq "$file"; then
-                echo "ERROR: LFS file still exists: $file"
-                exit 1
+          while read -r commit; do
+            while read -r mode type object path; do
+              [ "$type" = "blob" ] || continue
+
+              if git cat-file blob "$object" 2>/dev/null |
+                 head -n 1 |
+                 grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+
+                echo "ERROR: LFS pointer found"
+                echo "  commit: $commit"
+                echo "  path:   $path"
+
+                FOUND=1
               fi
-            done < /tmp/lfs-files.txt
+            done < <(git ls-tree -r "$commit")
+          done < <(git rev-list HEAD)
+
+          if [ "$FOUND" -ne 0 ]; then
+            echo
+            echo "ERROR: LFS pointers are still present."
+            echo "Nothing will be pushed to GitLab."
+            exit 1
           fi
 
-          echo "OK: LFS files removed"
+          echo "OK: no LFS pointers found."
 
       - name: Push to GitLab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_REPOSITORY: ${{ secrets.GITLAB_REPOSITORY }}
+          GIT_LFS_SKIP_PUSH: "1"
         shell: bash
         run: |
           set -euo pipefail
 
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.cnes.fr/waterquality/grs2.git"
-
-          git push gitlab "HEAD:${GITHUB_REF}" --force
+          git push  gitlab  "HEAD:${GITHUB_REF}" --force
 
