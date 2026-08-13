@@ -142,6 +142,7 @@ python-init:
 # =============================================================================
 python-tests:
   stage: test
+  image: obs2co/python-with-git-lfs:1.0
   allow_failure: true
   tags:
     - tpa

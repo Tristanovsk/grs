@@ -1,0 +1,7 @@
+FROM python:3.11.14-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git-lfs \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git lfs install
