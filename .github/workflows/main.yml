@@ -254,24 +254,31 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Current tree ==="
+          echo "=== Verify .gitattributes ==="
 
-          if git ls-tree -r HEAD --name-only | grep -qx 'grs/tests/.gitattributes'; then
-            echo "ERROR: .gitattributes still exists"
+          if git ls-tree -r HEAD --name-only | \
+            grep -qx 'grs/tests/.gitattributes'; then
+            echo "ERROR: grs/tests/.gitattributes still exists"
             exit 1
           fi
 
-          echo "grs/tests/.gitattributes: OK (removed)"
+          echo "OK: grs/tests/.gitattributes removed"
 
           echo
-          echo "=== Checking for LFS pointers ==="
+          echo "=== Verify LFS files ==="
 
-          if git grep -I -n 'version https://git-lfs.github.com/spec/v1' HEAD -- .; then
-            echo "ERROR: LFS pointer(s) still present"
-            exit 1
+          if [ -s /tmp/lfs-files.txt ]; then
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+
+              if git ls-tree -r HEAD --name-only | grep -Fxq "$file"; then
+                echo "ERROR: LFS file still exists: $file"
+                exit 1
+              fi
+            done < /tmp/lfs-files.txt
           fi
 
-          echo "No LFS pointers found."
+          echo "OK: LFS files removed"
 
       - name: Push to GitLab
         env:
