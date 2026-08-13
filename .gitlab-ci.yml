@@ -147,6 +147,8 @@ python-tests:
     - tpa
   needs:
     - python-init
+  variables:
+    GIT_STRATEGY: clone
   before_script:
     - export CONDA_SSL_VERIFY=/etc/pki/tls/certs/ca-bundle.crt
     - export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
