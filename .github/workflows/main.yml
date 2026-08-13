@@ -198,6 +198,7 @@ jobs:
           retention-days: 1
 
 
+
   sync:
     runs-on: ubuntu-latest
 
@@ -208,24 +209,78 @@ jobs:
           fetch-depth: 0
           lfs: false
 
-      - name: Configure GitLab remote
+      - name: Install git-filter-repo
+        run: |
+          pip install git-filter-repo
+
+      - name: Find LFS files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Reference: $GITHUB_REF"
+          echo "Commit:    $GITHUB_SHA"
+
+          git lfs ls-files --deleted HEAD -n | sort -u > /tmp/lfs-files.txt
+
+          echo "=== LFS files to remove ==="
+
+          if [ -s /tmp/lfs-files.txt ]; then
+            cat /tmp/lfs-files.txt
+          else
+            echo "No LFS files found."
+          fi
+
+      - name: Remove LFS files and .gitattributes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILTER_ARGS=(
+            --path .gitattributes
+          )
+
+          if [ -s /tmp/lfs-files.txt ]; then
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+              FILTER_ARGS+=(--path "$file")
+            done < /tmp/lfs-files.txt
+          fi
+
+          git filter-repo --invert-paths "${FILTER_ARGS[@]}" --refs "$GITHUB_REF" --force
+
+      - name: Verify result
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "=== Current tree ==="
+
+          if git ls-tree -r HEAD --name-only | grep -qx '.gitattributes'; then
+            echo "ERROR: .gitattributes still exists"
+            exit 1
+          fi
+
+          echo ".gitattributes: OK (removed)"
+
+          echo
+          echo "=== Checking for LFS pointers ==="
+
+          if git grep -I -n 'version https://git-lfs.github.com/spec/v1' HEAD -- .; then
+            echo "ERROR: LFS pointer(s) still present"
+            exit 1
+          fi
+
+          echo "No LFS pointers found."
+
+      - name: Push to GitLab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        shell: bash
         run: |
+          set -euo pipefail
+
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.cnes.fr/waterquality/grs2.git"
 
-      - name: Push de la branche
-        if: github.ref_type == 'branch'
-        env:
-          GIT_LFS_SKIP_PUSH: "1"
-        run: |
-          echo "Synchronisation de la branche ${GITHUB_REF_NAME}"
-          git push --force-with-lease  gitlab "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          git push gitlab "HEAD:${GITHUB_REF}" --force
 
-      - name: Push du tag
-        if: github.ref_type == 'tag'
-        env:
-          GIT_LFS_SKIP_PUSH: "1"
-        run: |
-          echo "Synchronisation du tag ${GITHUB_REF_NAME}"
-          git push gitlab "HEAD:refs/tags/${GITHUB_REF_NAME}"
