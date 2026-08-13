@@ -237,7 +237,7 @@ jobs:
           set -euo pipefail
 
           FILTER_ARGS=(
-            --path .gitattributes
+            --path grs/tests/.gitattributes
           )
 
           if [ -s /tmp/lfs-files.txt ]; then
@@ -256,12 +256,12 @@ jobs:
 
           echo "=== Current tree ==="
 
-          if git ls-tree -r HEAD --name-only | grep -qx '.gitattributes'; then
+          if git ls-tree -r HEAD --name-only | grep -qx 'grs/tests/.gitattributes'; then
             echo "ERROR: .gitattributes still exists"
             exit 1
           fi
 
-          echo ".gitattributes: OK (removed)"
+          echo "grs/tests/.gitattributes: OK (removed)"
 
           echo
           echo "=== Checking for LFS pointers ==="
