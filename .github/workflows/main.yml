@@ -22,7 +22,6 @@ jobs:
 # test
 # =============================================================================
   python-tests:
-   if: false
    runs-on: ubuntu-latest
    steps:
       - uses: actions/checkout@v4
@@ -134,7 +133,7 @@ jobs:
             --network=host \
             --build-arg IMAGE_SOURCE="" \
             --build-arg no_proxy=cnes.fr \
-            --file Dockerfile \
+            --file Dockerfile-github \
             --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" \
             --tag "${DOCKER_IMAGE_NAME}:latest"
           echo "Build terminé"
@@ -199,6 +198,7 @@ jobs:
 
 
   sync:
+    if: false
     runs-on: ubuntu-latest
 
     steps:
@@ -207,10 +207,6 @@ jobs:
         with:
           fetch-depth: 0
           lfs: false
-
-      - name: Utilisation du Dockerfile de Gitlab
-        run: |
-          mv Dockerfile-gitlab Dockerfile
 
       - name: Configure GitLab remote
         env:
