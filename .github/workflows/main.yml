@@ -237,22 +237,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          FILTER_ARGS=(
-            --path grs/tests/.gitattributes
-          )
+          cat > /tmp/remove-paths.txt <<'EOF'
+          grs/tests/.gitattributes
+          EOF
 
           if [ -s /tmp/lfs-files.txt ]; then
-            while IFS= read -r file; do
-              [ -z "$file" ] && continue
-              FILTER_ARGS+=(--path "$file")
-            done < /tmp/lfs-files.txt
+            cat /tmp/lfs-files.txt >> /tmp/remove-paths.txt
           fi
 
-          echo "=== Paths removed from history ==="
-          printf '%s\n' "${FILTER_ARGS[@]}"
+          echo "=== Paths to remove ==="
+          cat /tmp/remove-paths.txt
 
-          git filter-repo --invert-paths "${FILTER_ARGS[@]}" --refs "${GITHUB_REF}" --force
-
+          git filter-repo \
+            --invert-paths \
+            --paths-from-file /tmp/remove-paths.txt \
+            --force
+          
       - name: Verify no LFS remains
         shell: bash
         run: |
