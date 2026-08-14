@@ -213,7 +213,7 @@ jobs:
         run: |
           pip install git-filter-repo
 
-      - name: Find LFS files
+      - name: Find LFS files in history
         shell: bash
         run: |
           set -euo pipefail
@@ -221,16 +221,36 @@ jobs:
           echo "Reference : ${GITHUB_REF}"
           echo "Commit    : ${GITHUB_SHA}"
 
-          git lfs ls-files --deleted HEAD -n | sort -u > /tmp/lfs-files.txt
+          : > /tmp/lfs-files.txt
+
+          echo
+          echo "=== Searching LFS pointers in history ==="
+
+          while read -r commit; do
+            git ls-tree -r "$commit"
+          done < <(git rev-list HEAD) |
+          while read -r mode type object path; do
+            [ "$type" = "blob" ] || continue
+
+            if git cat-file blob "$object" 2>/dev/null |
+              head -n 1 |
+              grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+              printf '%s\n' "$path"
+            fi
+          done |
+          sort -u > /tmp/lfs-files.txt
 
           echo
           echo "=== LFS files ==="
 
           if [ -s /tmp/lfs-files.txt ]; then
             cat /tmp/lfs-files.txt
+            echo
+            echo "Count: $(wc -l < /tmp/lfs-files.txt)"
           else
             echo "No LFS files found."
           fi
+     
 
       - name: Remove LFS files and .gitattributes
         shell: bash
