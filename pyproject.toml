@@ -39,5 +39,5 @@ dependencies = { file = ["requirements.txt"] }
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/Tristanovsk/grs"
-Documentation = "https://grs.readthedocs.io"
+Homepage = "https://github.com/CNES/GRSprocessor"
+Documentation = "https://cnes.github.io/GRSprocessor"

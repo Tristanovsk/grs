@@ -8,7 +8,7 @@
 
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
-Please check [grs documentation](https://grs.readthedocs.io/)
+Please check [grs documentation](https://cnes.github.io/GRSprocessor/)
 
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
