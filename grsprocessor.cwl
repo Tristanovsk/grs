@@ -17,14 +17,14 @@ $graph:
     cams_file:
       type: ["null", string]
       doc: File to process
-    resolution
-      type: ["null", integer]
+    resolution:
+      type: ["null", int]
       doc: spatial resolution of the scene pixels
-    no_clobber
+    no_clobber:
       type: boolean
       doc: Do not process <input_file> if <output_file> already exists.
       default: True
-    dem_file
+    dem_file:
       type: ["null", string]
       doc: Absolute path of the DEM geotiff file (already subset for the S2 tile)   
   steps:
@@ -64,17 +64,17 @@ $graph:
       inputBinding:
         prefix: "--cams_file"
         position: 2
-    resolution
-      type: ["null", integer]
+    resolution:
+      type: ["null", int]
       inputBinding:
         prefix: "--resolution"
         position: 3
-    no_clobber
+    no_clobber:
       type: boolean
       inputBinding:
         prefix: "--no_clobber"
         position: 4
-    dem_file
+    dem_file:
       type: ["null", string]
       inputBinding:
         prefix: "--dem_file"
