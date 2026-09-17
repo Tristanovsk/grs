@@ -2,7 +2,7 @@
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
 [![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
-![Coverage](badges/coverage.svg)
+[![Coverage](badges/coverage.svg)]()
 [![Docker Image Version](https://img.shields.io/docker/v/guillaumeeb/grs/2.1.9)](https://hub.docker.com/r/guillaumeeb/grs)
 [![PyPI](https://img.shields.io/pypi/v/GRSProcessor)](https://pypi.org/project/GRSprocessor/)
 
@@ -210,6 +210,13 @@ grs -h
 
 ### On the PBS cluster : installing from sources with conda on the cluster CNES
 
+> **Note:** this PBS workflow is kept for reference but is superseded by SLURM on the
+> current CNES cluster. See the SLURM scripts under
+> [grs/tests/ci](grs/tests/ci) and [ecmwf](ecmwf) (e.g. `ci-func-run.slurm`,
+> `download_cams.slurm`) for up-to-date job submission examples, and the
+> ["Scheduling and Triggers"](https://cnes.github.io/GRSprocessor/processing_chain.html#scheduling-and-triggers)
+> section of the documentation.
+
 Create the conda environment using the definition file available in the conda folder :
 ```
 conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
@@ -298,17 +305,18 @@ You can adapt the sh script to modify this behaviour.
 
 ## Contributing
 
-Please contact [authors](mailto:tristan.harmel@ntymail.com) for details on our code of conduct, and the process for submitting pull requests to us.
+See [CONTRIBUTING.md](https://github.com/CNES/GRSprocessor/blob/main/CONTRIBUTING.md) for details on how to report issues, set up a
+development environment, and submit pull requests.
 
 ## Authors
 
 * **Tristan Harmel** - *Initial work* - [contact](mailto:tristan.harmel@ntymail.com)
 
-See also the list of [contributors](...) who participated in this project.
+See also the list of [contributors](https://github.com/CNES/GRSprocessor/graphs/contributors) who participated in this project.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/CNES/GRSprocessor/blob/main/LICENSE) file for details
 
 ## Acknowledgments
 

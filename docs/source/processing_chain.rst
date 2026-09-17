@@ -40,16 +40,35 @@ GRSProcessor has no built-in scheduler; it is triggered externally, granule by g
 
 - **Interactively / single granule**: manual call to ``grs <input_file> ...`` (see
   :doc:`index` "Testing" section for CLI examples).
-- **Batch, on an HPC cluster (PBS)**: submitted as a job via ``qsub``, see
-  `grs_launcher.pbs <https://github.com/CNES/GRSprocessor/blob/main/grs_launcher.pbs>`_
-  (single tile) and
-  `grs_mpi_launcher.pbs <https://github.com/CNES/GRSprocessor/blob/main/grs_mpi_launcher.pbs>`_
-  (list of tiles/dates processed in parallel, driven by a CSV list file).
+- **Batch, on an HPC cluster (SLURM)**: submitted as a job via ``sbatch``, see
+  `ci-func-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-func-run.slurm>`_
+  (runs ``grs`` / ``exe/launcher.py`` directly on one or more tiles) and
+  `ci-docker-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-docker-run.slurm>`_
+  (same, inside the Singularity/Docker container).
+  The CI/validation pipeline (see ``.gitlab-ci.yml``) chains jobs with
+  ``sbatch --depend=afterany:<jobid>``:
+  `ci-init_env.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-init_env.slurm>`_
+  (environment setup) →
+  `ci-func-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-func-run.slurm>`_ →
+  `ci-cleanup_env.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-cleanup_env.slurm>`_.
+  Auxiliary CAMS retrieval also runs on SLURM
+  (`download_cams.slurm <https://github.com/CNES/GRSprocessor/blob/main/ecmwf/download_cams.slurm>`_,
+  `slurm_cds.slurm <https://github.com/CNES/GRSprocessor/blob/main/ecmwf/slurm_cds.slurm>`_).
   There is no periodicity of its own; scheduling (e.g. reprocessing on new L1C acquisitions)
   is delegated to the job scheduler / calling scripts.
+
+  .. note::
+     Legacy PBS launchers (``grs_launcher.pbs``, ``grs_mpi_launcher.pbs``,
+     ``launch_grs_exemple.pbs``) are still present at the repository root but are
+     superseded by SLURM on the current CNES cluster.
 - **Containerized**: via the Docker image built from
   `Dockerfile <https://github.com/CNES/GRSprocessor/blob/main/Dockerfile>`_
   (see :doc:`index` "Compile Docker image locally").
+
+Dataflow
+--------
+
+.. mermaid:: _diagrams/dataflow.mmd
 
 Inputs
 ------
@@ -149,7 +168,7 @@ Required Resources
 -------------------
 
 Actual needs depend on product resolution (10/20/60 m) and tile size. Indicative values from
-the HPC job templates shipped in the repository:
+the SLURM job scripts shipped in the repository:
 
 .. list-table::
    :header-rows: 1
@@ -159,16 +178,18 @@ the HPC job templates shipped in the repository:
      - Quantity
      - Source / notes
    * - CPU
-     - 16 cores (single tile) — up to 40 cores / 8 MPI processes (batch list of tiles)
-     - `grs_launcher.pbs <https://github.com/CNES/GRSprocessor/blob/main/grs_launcher.pbs>`_,
-       `grs_mpi_launcher.pbs <https://github.com/CNES/GRSprocessor/blob/main/grs_mpi_launcher.pbs>`_
+     - 8 tasks (``-n 8``, single node) for a direct/native run — 4 tasks for the
+       containerized (Singularity) run
+     - `ci-func-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-func-run.slurm>`_,
+       `ci-docker-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-docker-run.slurm>`_
    * - RAM
-     - 32 GB (single tile) — up to 180 GB (batch)
-     - same PBS templates
+     - 4 GB/task (32 GB total) for the direct run — 32 GB/task (128 GB total) for the
+       containerized run
+     - same SLURM scripts (``--mem-per-cpu``)
    * - Execution time
-     - walltime budget: 24 h (single tile) — 48 h (batch)
-     - same PBS templates; actual runtime per granule is much shorter and logged as
-       ``total_run_time`` (see `Log Format`_)
+     - walltime budget: 30 min (direct run) — 2 h (containerized run)
+     - same SLURM scripts (``--time``); actual runtime per granule is much shorter and
+       logged as ``total_run_time`` (see `Log Format`_)
    * - Disk — input
      - size of one L1C/L1 product (SAFE or tar) plus the CAMS netCDF file
      - depends on sensor/resolution

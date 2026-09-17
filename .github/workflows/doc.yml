@@ -35,9 +35,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
-          python -m pip install sphinx sphinx-rtd-theme
+          python -m pip install sphinx furo
           python -m pip install myst-parser
           python -m pip install sphinx-autoapi
+          python -m pip install sphinxcontrib-mermaid
 
       - name: Compiler la documentation Sphinx en HTML
         run: |
