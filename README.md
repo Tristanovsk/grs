@@ -303,10 +303,79 @@ S2B_L2Agrs_20220228T102849_N0400_R108_T31TFJ_20220228T123819 \
 The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
 You can adapt the sh script to modify this behaviour.
 
-## Contributing
+## How the CI/CD Pipeline Works
 
-See [CONTRIBUTING.md](https://github.com/CNES/GRSprocessor/blob/main/CONTRIBUTING.md) for details on how to report issues, set up a
-development environment, and submit pull requests.
+GRSprocessor is developed on GitHub and mirrors part of its pipeline to an internal CNES
+GitLab instance for HPC-based validation. Two independent pipelines run on every push.
+
+### GitHub Actions (public, [`.github/workflows/`](.github/workflows))
+
+**[`main.yml`](.github/workflows/main.yml) — Pipeline CI** (push to `feature/*`, `main`,
+`develop`, tags; and pull requests to `main`/`develop`):
+
+1. `python-tests` — installs GDAL and the Python dependencies, then runs the integration
+   test suite (`grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
+   and commits the coverage badge.
+2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to
+   PyPI.
+3. `podman-build` (needs `python-tests`) — builds the Docker image (`Dockerfile-github`);
+   on a tag, it also pushes `guillaumeeb/grs:<tag>` and `:latest` to Docker Hub.
+4. `lint` (pull requests and tags, needs `podman-build`) — runs `ruff` and `mypy` and
+   uploads their reports as artifacts (non-blocking).
+5. `sync` (needs `podman-build`) — strips Git-LFS pointer files from the whole history with
+   `git-filter-repo`, then force-pushes the cleaned repository to the internal GitLab
+   mirror (`gitlab.cnes.fr/waterquality/grs2.git`). This is what triggers the GitLab
+   pipeline described below.
+
+**[`doc.yml`](.github/workflows/doc.yml) — Pipeline documentation** (same push triggers):
+builds the Sphinx documentation ([`docs/`](docs), furo theme, autoapi, mermaid diagrams);
+on a tag it uploads the HTML as an artifact, and on `main` it publishes it to
+[GitHub Pages](https://cnes.github.io/GRSprocessor/).
+
+### GitLab CI (internal CNES, [`.gitlab-ci.yml`](.gitlab-ci.yml))
+
+Runs on the mirrored repository at CNES, on the `Usine_Logicielle` runners:
+
+1. `init` — `python-init` installs `grs` through the internal Artifactory/JFrog pip
+   mirror.
+2. `test` — `python-tests` submits SLURM jobs on the `trex.sis.cnes.fr` HPC cluster
+   (`ci-init_env.slurm` → `ci-func-run.slurm` → `ci-cleanup_env.slurm`) to run functional
+   tests against reference outputs (non-blocking, `allow_failure: true`).
+3. `package` — `podman-build` (tags only) builds and pushes the image to the CNES
+   Artifactory registry (`obs2co-docker/grs`); `docker-test` (tags only) pulls it back via
+   Singularity on the HPC and re-runs the functional tests inside the container;
+   `podman-test` is a manual, build-only sanity check.
+4. `sonarqube` / `security` — static analysis (SonarQube), SAST, and ClamAV antivirus
+   scanning, via shared CNES "Usine Logicielle" pipeline components.
+
+In short: **GitHub Actions runs the public-facing pipeline** (tests, lint, PyPI, Docker
+Hub, docs), while **the GitLab mirror runs CNES-internal validation** (HPC functional
+tests against reference data, code quality/security gates) that cannot run outside the
+CNES network.
+
+## How to Contribute
+
+Contributions are welcome! Quick start:
+
+```bash
+git clone https://github.com/CNES/GRSprocessor.git
+cd GRSprocessor
+conda create -n grs_dev python=3.11
+conda activate grs_dev
+pip install -r requirements.txt
+pip install -e .[dev]
+pytest grs/tests/integration_tests/
+```
+
+1. Create a branch off `develop` named `feature/<short-description>`.
+2. Make your changes, with tests where relevant, and make sure they pass locally.
+3. Open a pull request targeting `develop` — the `python-tests` job runs automatically on
+   the PR (see [above](#how-the-cicd-pipeline-works)).
+4. A maintainer will review your PR.
+
+See [CONTRIBUTING.md](https://github.com/CNES/GRSprocessor/blob/main/CONTRIBUTING.md) for
+the full guide: reporting issues, code style (`black`/`isort`, `ruff`/`mypy` in CI),
+building the documentation, and the code of conduct.
 
 ## Authors
 
