@@ -79,7 +79,7 @@ def main():
     basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
     if ('MSIL1C' in basename) and ('SAFE' in basename):
-        f_ = gdal.Open(Path(file, 'MTD_MSIL1C.xml'))
+        f_ = gdal.Open(str(Path(file, 'MTD_MSIL1C.xml')))
         metadata = f_.GetMetadata()
         cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
         if cc >= max_cc:
