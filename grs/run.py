@@ -1,7 +1,7 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [-o <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
+  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
    [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file]\
    [--suffix suffix] [--snap_compliant]
   grs -h | --help
@@ -15,7 +15,7 @@ Options:
 
   --cams_file file     Absolute path of the CAMS file to be used (mandatory)
 
-  -o odir         Full (absolute or relative) path to output L2 image.
+  -o <odir>, --odir <odir>  Full (absolute or relative) path to output L2 image.
   --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
@@ -79,14 +79,14 @@ def main():
     basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
     if ('MSIL1C' in basename) and ('SAFE' in basename):
-        f_ = gdal.Open(Path(file, 'MTD_MSIL1C.xml'))
+        f_ = gdal.Open(str(Path(file, 'MTD_MSIL1C.xml')))
         metadata = f_.GetMetadata()
         cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
         if cc >= max_cc:
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return
 
-    odir = args['-o']
+    odir = args['--odir']
     if odir == './':
         odir = Path.cwd()
 

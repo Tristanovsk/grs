@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# ======================================================
+#
+# Project : OBS2CO
+#
+# ======================================================
+# HISTORIQUE
+# FIN-HISTORIQUE
+# ======================================================
+
+
+import os
+import os.path
+import unittest
+import numpy
+from pathlib import Path
+from grs import class_logger
+from grs.product import Product
+import xarray as xr
+
+class TestDriverS2Safe(unittest.TestCase):
+    """
+        class for unitary test of driver_S2_SAFE module
+    """
+
+    test_path = ""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.test_path = os.path.dirname(os.path.abspath(__file__))
+        log_file = cls.test_path + '/../output/log_file.log'
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        odir = cls.test_path + '/../output/'
+        class_logger.ServiceLogger(log_file=log_file, error_log=Path(odir, "error.log"), log_level='INFO', log_console=True)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        class_logger.get_instance().close()
+
+    def test_load_product(self):
+        """
+            unitary test for load_product method
+        """
+        nc_file =  TestDriverS2Safe.test_path + '/../inputs/S2B_MSIL1C_20220929T103729_N0510_R008_T31TFJ_20240726T034550.nc'
+        prod = xr.open_dataset(nc_file)
+
+        ref_srf = numpy.array([0.03660414, 0.08100583, 0.16917887, 0.33278275, 0.58622795,
+                                0.8091641 , 0.913051  , 0.94472283, 0.94898814, 0.9436913 ,
+                                0.9284567 , 0.9125694 , 0.9007804 , 0.89958596, 0.9054714 ,
+                                0.92045355, 0.94065666, 0.9619968 , 0.98186743, 0.9985841 ,
+                                1.        , 0.99279886, 0.9780133 , 0.95301175, 0.9266333 ,
+                                0.8935913 , 0.8694179 , 0.84827   , 0.839083  , 0.83206207,
+                                0.8291787 , 0.8330584 , 0.84630936, 0.86396307, 0.8726808 ,
+                                0.8681834 , 0.8554947 , 0.80839056, 0.6765088 , 0.45584205,
+                                0.24737576, 0.12765466, 0.0589016 , 0.02564742, 0.00515905,
+                              numpy.nan],  dtype=numpy.float32)
+
+        numpy.testing.assert_almost_equal(prod.SRF.values[2][138:184], ref_srf, 8)
+        # Test on x and y vector
+        self.assertEqual(prod.x.__len__(), 1229)
+        self.assertEqual(prod.y.__len__(), 1229)
+        # Test on lat/lon values
+        lonmin, latmin, lonmax, latmax = prod.rio.transform_bounds(4326, recalc=True)
+        xmin, ymin, xmax, ymax = prod.rio.bounds(recalc=True)
+        print("lonmin:" + str(lonmin))
+        print("lonmax:" + str(lonmax))
+        print("latmin:" + str(latmin))
+        print("latmax:" + str(latmax))
+        print("xmin:" + str(xmin))
+        print("xmax:" + str(xmax))
+        print("ymin:" + str(ymin))
+        print("ymax:" + str(ymax))
+        self.assertAlmostEqual(lonmin, 4.941688508102381, 16)
+        self.assertAlmostEqual(lonmax, 5.253012614533291, 16)
+        self.assertAlmostEqual(latmin, 43.353871355515466, 16)
+        self.assertAlmostEqual(latmax, 43.58062066781994, 16)
+        self.assertAlmostEqual(xmin, 657340.0, 1)
+        self.assertAlmostEqual(xmax, 681920.0, 1)
+        self.assertAlmostEqual(ymin, 4802560.0, 1)
+        self.assertAlmostEqual(ymax, 4827140.0, 1)

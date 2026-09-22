@@ -1,53 +1,80 @@
-# Contribute
+# Contributing to GRSProcessor
 
-## Report issues
+Thanks for your interest in contributing! This document explains how to report issues, set up
+a development environment, and submit changes.
 
-Issue tracker: https://gitlab.cnes.com/GRS/issues
+## Reporting issues
 
-Please check that a similar issue does not already exist and include the following information in your post:
+Please use [GitHub Issues](https://github.com/CNES/GRSprocessor/issues) to report bugs or
+request features. Include:
 
-- Describe what you expected to happen.
-- If possible, include a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example)
-  to help us identify the issue. This also helps check that the issue is not with your own code.
-- Describe what actually happened. Include the full traceback if there was an exception.
-- List your Python and GRS versions.
-  If possible, check if this issue is already fixed in the latest releases or the latest code in the repository.
+- the `grs` version (`grs -v`) and how you installed it (pip, conda, Docker),
+- the exact command line used,
+- the relevant excerpt of `log_file.log` / `error.log` (see the
+  [processing chain documentation](https://cnes.github.io/GRSprocessor/processing_chain.html#log-format)
+  for the log format),
+- if possible, a minimal way to reproduce (input product type/sensor, resolution...).
 
-## Submit patches
+## Development setup
 
-If you intend to contribute to **GRS** source code:
-
-```
-conda env create -f environment.yml
-conda activate -n grs_env
-pre-commit install
-```
-
-or
-
-```
+```bash
+git clone https://github.com/CNES/GRSprocessor.git
+cd GRSprocessor
+conda create -n grs_dev python=3.11
+conda activate grs_dev
 pip install -r requirements.txt
-pre-commit install
+pip install -e .[dev]
 ```
 
-Note that to run the documentation, you have to add this step:
+The `dev` extra (see `pyproject.toml`) installs `black`, `isort`, `bumpver`, `pip-tools` and
+`pytest`.
 
+See the [README](README.md) for details on the LUT data (`grsdata`) and the `config.yml` file
+required to actually run `grs` on data.
+
+## Code style
+
+- Format code with `black` and `isort` before committing.
+- CI also runs `ruff` and `mypy` on pull requests (see
+  [`.github/workflows/main.yml`](.github/workflows/main.yml), job `lint`); please fix warnings
+  they raise on the lines you touch.
+
+## Running tests
+
+```bash
+pytest grs/tests/integration_tests/
 ```
-pip install -r requirements-doc.txt
+
+This is the same test suite executed by CI (job `python-tests` in
+[`.github/workflows/main.yml`](.github/workflows/main.yml)), which also requires GDAL to be
+installed.
+
+## Submitting changes
+
+1. Create a branch off `develop` named `feature/<short-description>`.
+2. Make your changes, with tests where relevant.
+3. Open a pull request targeting `develop` (CI runs automatically on PRs to `main` and
+   `develop`). Make sure the `python-tests` job passes.
+4. One of the maintainers will review your PR.
+
+## Documentation
+
+The documentation lives under [`docs/`](docs/) (Sphinx) and is published to
+[cnes.github.io/GRSprocessor](https://cnes.github.io/GRSprocessor/) on every push to `main`.
+See `docs/source/index.rst` for the entry point. You can build it locally with:
+
+```bash
+pip install sphinx sphinx-rtd-theme myst-parser sphinx-autoapi
+cd docs
+sphinx-build -b html source build/html
 ```
 
+## Code of conduct
 
-We use `pre-commit` to run a suite of linters, formatters and pre-commit hooks (`black`, `isort`, `flake8`) to
-ensure the code base is homogeneously formatted and easier to read. It's important that you install it, since we run the
-exact same hooks in the Continuous Integration.
+Please be respectful and constructive in issues, pull requests, and discussions. For anything
+sensitive, contact the maintainers directly (see [Authors](README.md#authors) in the README).
 
-For now, you won't be able to run the test suite as we cannot provide an example of each product (some are licensed). We
-will take care of that for you. Please be sure that your code is running on Python 3.9+.
+## License
 
-## Release GRS
-
-Releases are made by tagging a commit on the master branch. To make a new release,
-
-* Ensure you correctly updated `README.md` and `CHANGES.md`
-* Check that the version string in `eoreader/__meta__.py` (the variable `__version__`) is correctly updated
-* Push your local master branch to remote.
+By contributing, you agree that your contributions will be licensed under the
+[Apache License 2.0](LICENSE), the license of this project.

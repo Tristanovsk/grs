@@ -32,8 +32,8 @@ NDWI_swir_threshold = [0.12, 2.]
 # ******************************************************************************************************
 dir, filename = os.path.split(__file__)
 
-sunglint_eps_file = files('grs.data.aux').joinpath('mean_rglint_small_angles_vza_le_12_sza_le_60.txt')
-rayleigh_file = files('grs.data.aux').joinpath('rayleigh_bodhaine.txt')
+sunglint_eps_file = files('grs.data.auxiliary').joinpath('mean_rglint_small_angles_vza_le_12_sza_le_60.txt')
+rayleigh_file = files('grs.data.auxiliary').joinpath('rayleigh_bodhaine.txt')
 
 
 class AuxData():
