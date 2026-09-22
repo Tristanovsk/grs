@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GRSprocessor"
-version = "2.1.9"
+version = "2.2.0.dev1"
 description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
 readme = "pypi_README.rst"
 authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
@@ -23,7 +23,7 @@ where = ["."]
 
 [tool.setuptools.package-data]
 "grs"= ['*.yml']
-"*"= ['data/lut/gases/*.nc', 'data/aux/*.txt']
+"*"= ['data/lut/gases/*.nc', 'data/auxiliary/*.txt']
 
 [tool.setuptools.exclude-package-data]
 "*" = [".gitattributes"]
@@ -39,5 +39,5 @@ dependencies = { file = ["requirements.txt"] }
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/Tristanovsk/grs"
-Documentation = "https://grs.readthedocs.io"
+Homepage = "https://github.com/CNES/GRSprocessor"
+Documentation = "https://cnes.github.io/GRSprocessor"

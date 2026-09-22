@@ -1,139 +1,356 @@
 workflow:
   rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
     - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
+
+include:
+  # Analyse de sécurité statique du code
+  - template: Jobs/SAST.latest.gitlab-ci.yml
+
+  # Composants de l'Usine Logicielle
+  - component: $CI_SERVER_FQDN/usinelogicielle/public/gitlab-ci-components/sonarqube-component/sonarqube@$COMPONENT_UL_SONARQUBE_VERSION
+    inputs:
+      stage: sonarqube
+      sq_users_admin: $SONAR_MEMBERS
+      sonar_project_key: $SONAR_PROJECT_KEY
+      sonar_project_name: $SONAR_PROJECT_NAME
+      tag_image_scripts: $COMPONENT_UL_SONARQUBE_VERSION
+
+  - component: ${CI_SERVER_FQDN}/usinelogicielle/public/gitlab-ci-components/antivirus-clamav/analyse-clamav@$COMPONENT_UL_ANTIVIRUS_VERSION
+    inputs:
+      list_to_scan:
+        - ${CI_PROJECT_DIR}
 
 stages:
-  - quality
-  - docker
+  - init
+  # quality
+  - test
+  - package
+  - sonarqube
+  - security
 
-# Default configuration for all jobs
+# Configuration par défaut
 default:
   tags:
     - Usine_Logicielle
+  image: ${PUBLIC_REMOTE_REGISTRY_DOCKER}/${IMAGE_PYTHON}
+  timeout: 30 minutes
+  before_script:
+    - export REQUESTS_CA_BUNDLE=${CNES_CERTIFICATE}
+    - export SSL_CERT_FILE=${CNES_CERTIFICATE}
 
-# Definition des variables globales pour tous les jobs
+# Remplacement de l'ancre YAML par une fonction réutilisable via !reference
+.jfrog_helpers:
+  restore_config:
+    - chmod 755 jfrog
+    - export UUID=$(cat uuid.txt)
+
 variables:
-  # Variable pour afficher des logs supplémentaires.
-  # Cette façon permet pour lancer les pipelines manuelles d'avoir les variables pré-définies : https://docs.gitlab.com/ee/ci/pipelines/index.html#prefill-variables-in-manual-pipelines
-  DEBUG:
-    value: "false"
-    description: "Afficher des logs supplémentaires"
-  # predetermined variables
-  ARTIFACTORY_HOST: "artifactory.cnes.fr"
-  ARTIFACTORY_URL: "${ARTIFACTORY_HOST}/publicremotes-docker"
-  ARTIFACTORY_URL_WITH_TOKEN: "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@artifactory.cnes.fr/artifactory"
-  # Version de Jfrog CLI et l'OS de la machine (sur Gitlab-CI ce sera toujours du amd64)
-  JFROG_VERSION: "v2/2.14.0"
-  JFROG_OS: "jfrog-cli-linux-amd64"
-  # JFROG_CLI_HOME_DIR : [Default: ~/.jfrog]. Définit le chemin du fichier de configuration de Jfrog CLI. 
-  JFROG_CLI_HOME_DIR: ".jfrog"
-  # Permet de minimiser les logs inutiles ex : % d'avancement de l'upload ou download
+  DEBUG: "false"
+  PUBLIC_REMOTE_REGISTRY_DOCKER: "${ARTIFACTORY_HOST}/publicremotes-docker"
+  IMAGE_PYTHON: "python:3.11.14-bookworm"
+  IMAGE_PODMAN: "ubi9/podman:9.5"
+  IMAGE_SONAR: "sonarsource/sonar-scanner-cli:4.5"
+
+  # JFrog CLI
+  JFROG_CLI_VERSION: "${ULVAR_JFROG_CLI_VERSION}"
   CI: "true"
-  TAG_IMAGE_KANIKO:  "kaniko-project/executor:v1.9.1-debug"
-  TAG_IMAGE_REDHAT8:  "redhat/ubi8:8.10"
-  # Docker build variables
-  CI_REGISTRY_IMAGE: "${ARTIFACTORY_HOST}/obs2co-docker/grs"
-  CI_REGISTRY: "https://${ARTIFACTORY_HOST}"
+  JFROG_CLI_HOME_DIR: ".jfrog"
+  JFROG_CLI_TEMP_DIR: ".jfrog_tmp"
+  JFROG_OS: "jfrog-cli-linux-amd64"
+  JFROG_CLI_BUILD_NAME: "${CI_PROJECT_PATH}_${CI_COMMIT_REF_SLUG}_gitlab-ci"
+  JFROG_CLI_BUILD_NUMBER: "${CI_PIPELINE_ID}"
+
+  # Registres & Dépôts
+  CI_REGISTRY: "https://${UL_ARTIFACTORY_HOST}"
   CI_REGISTRY_USER: "${ARTIFACTORY_USER}"
   CI_REGISTRY_PASSWORD: "${ARTIFACTORY_TOKEN}"
+  CI_TEMPLATE_REGISTRY_HOST: "${UL_ARTIFACTORY_HOST}/publicremotes-docker"
 
-pre_kaniko_build:
-  stage: docker
-  image:
-    name: ${ARTIFACTORY_URL}/${TAG_IMAGE_REDHAT8}
-    entrypoint: [""]
-  variables:
-    GIT_LFS_SKIP_SMUDGE: "1"
+  # Python / Pip
+  PIP_INDEX_URL: "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@${UL_ARTIFACTORY_HOST}/artifactory/api/pypi/pypi/simple"
+  PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.pip-cache/"
+  CONDA_ENVS_DIRS: ".conda/envs"
+
+  # Docker Image Details
+  TARGET_REPO: "obs2co-docker"
+  SUFFIX_DOCKER_IMAGE: "grs"
+  DOCKER_IMAGE_NAME: "${UL_ARTIFACTORY_HOST}/${TARGET_REPO}/${SUFFIX_DOCKER_IMAGE}"
+
+  GIT_LFS_SKIP_SMUDGE: "1" # ne pas checkout les objets LFS
+
+
+# =============================================================================
+# STAGE : init
+# =============================================================================
+python-init:
+  stage: init
+  image: ${PUBLIC_REMOTE_REGISTRY_DOCKER}/${IMAGE_PYTHON}
   before_script:
-    #Cette partie est nécessaire pour un build kaniko, il s'agit d'installer jfrgo cli
-    # Installation de Jfrog CLI 2.14.0 (18 mars 2022)
-    - curl -sS --cacert ${CNES_CERTIFICATE} -u "${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}" -O "https://${ARTIFACTORY_HOST}/artifactory/jfrog-cli-go-remote/${JFROG_VERSION}/${JFROG_OS}/jfrog"
-    # On donne les permissions pour utiliser la commande jfrog
+    - !reference [default, before_script]
+    - curl -f -L -u ${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN} "https://${UL_ARTIFACTORY_HOST}/artifactory/jfrog-cli-go-remote/v2/2.96.0/jfrog-cli-linux-amd64/jfrog" -o jfrog
     - chmod 755 jfrog
-    # Définition d'un UUID unique
     - export UUID=$(cat /proc/sys/kernel/random/uuid)
-    # Export de UUID pour le faire passer entre les jobs
-    - touch uuid.txt
+    - echo "JF_UUID=${UUID}" >> build.env
     - echo ${UUID} > uuid.txt
-    # Ajout des certificats du CNES dans jfrog CLI pour accéder à Artifactory en HTTPS
-    - mkdir -p "${JFROG_CLI_HOME_DIR}/security/certs/"
-    - cp ${CNES_CERTIFICATE} "${JFROG_CLI_HOME_DIR}/security/certs/"
   script:
-    # Configuration de jfrog CLI
-    - ./jfrog config add ${UUID} --artifactory-url=https://${ARTIFACTORY_HOST}/artifactory  --access-token=${ARTIFACTORY_TOKEN} --user=${ARTIFACTORY_USER} --enc-password --interactive=false
-    - ./jfrog rt build-add-git --server-id ${UUID}
+    - pip install virtualenv
+    - virtualenv python_env
+    - source python_env/bin/activate
+    - ./jfrog config add ${UUID} --url=https://${UL_ARTIFACTORY_HOST}/ --access-token=${ARTIFACTORY_TOKEN} --interactive=false
+    - ./jfrog pip-config --server-id-resolve=${UUID} --repo-resolve=pypi
+    - ./jfrog pip install -r requirements.txt --no-cache-dir --force-reinstall --module grs
+    - deactivate
+  timeout: 15 minutes
+  artifacts:
+    paths:
+      - jfrog
+      - uuid.txt
+      - python_env/
+    reports:
+      dotenv: build.env
+    expire_in: 1 day
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
+
+# =============================================================================
+# STAGE : quality
+# =============================================================================
+# pytest:
+#   stage: quality
+#   image: ${PUBLIC_REMOTE_REGISTRY_DOCKER}/${IMAGE_PYTHON}
+#   needs:
+#     - python-init
+#   script:
+#     - source python_env/bin/activate
+#     - PYTHONPATH=. pytest --cov=grs --cov-report=xml:.coverage-reports/coverage.xml --cov-report=term --junitxml=reports/unit_tests-report.xml
+#     - deactivate
+#   artifacts:
+#     paths:
+#       - .coverage-reports/coverage.xml
+#       - reports/unit_tests-report.xml
+#     expire_in: 1 day
+#     reports:
+#       junit: reports/unit_tests-report.xml
+
+# =============================================================================
+# STAGE : test
+# =============================================================================
+python-tests:
+  stage: test
+  allow_failure: true
+  tags:
+    - tpa
+  needs:
+    - python-init
+  before_script:
+    - export CONDA_SSL_VERIFY=/etc/pki/tls/certs/ca-bundle.crt
+    - export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
+    - export JOB_UUID=$(cat /proc/sys/kernel/random/uuid)
+    - !reference [.jfrog_helpers, restore_config]
+    - mkdir -p "${JFROG_CLI_HOME_DIR}/security/certs/"
+    - cp ${REQUESTS_CA_BUNDLE} "${JFROG_CLI_HOME_DIR}/security/certs/"
+    - ./jfrog config add ${JOB_UUID} --artifactory-url=https://${UL_ARTIFACTORY_HOST}/artifactory --access-token=${ARTIFACTORY_TOKEN} --user=${ARTIFACTORY_USER} --enc-password --interactive=false
+    - ./jfrog pip-config --server-id-resolve=${JOB_UUID} --repo-resolve=pypi
+    - export MY_JOB_WORKDIR="/work/scratch/data/${USER}/${JOB_UUID}"
+    - export REF_DIR=/work/scratch/data/${USER}/OBS2CO/CI/REFS/
+    - mkdir -p ${MY_JOB_WORKDIR}/LOGS ${MY_JOB_WORKDIR}/grs2
+    - rsync -av --exclude='.git' --exclude='.jfrog' --exclude='python_env' ./ ${MY_JOB_WORKDIR}/grs2/
+    - ssh trex.sis.cnes.fr "mkdir -p ${MY_JOB_WORKDIR}/grs2 ${MY_JOB_WORKDIR}/LOGS"
+    - rsync -av --exclude='.git' --exclude='.jfrog' --exclude='python_env' ./ trex.sis.cnes.fr:${MY_JOB_WORKDIR}/grs2/
+  script:
+    - |
+      ssh trex.sis.cnes.fr "MY_JOB_WORKDIR='${MY_JOB_WORKDIR}' USER='${USER}' REF_DIR='${REF_DIR}' ARTIFACTORY_TOKEN='${ARTIFACTORY_TOKEN}' ARTIFACTORY_USER='${ARTIFACTORY_USER}' bash -s" << 'EOF'
+        set -e
+        REMOTE_INIT="${MY_JOB_WORKDIR}/grs2/grs/tests/ci/ci-init_env.slurm"
+        REMOTE_TEST="${MY_JOB_WORKDIR}/grs2/grs/tests/ci/ci-func-run.slurm"
+        REMOTE_CLEAN="${MY_JOB_WORKDIR}/grs2/grs/tests/ci/ci-cleanup_env.slurm"
+        sub_str=$(sbatch --export=MY_JOB_WORKDIR=${MY_JOB_WORKDIR},ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN},ARTIFACTORY_USER=${ARTIFACTORY_USER} -o ${MY_JOB_WORKDIR}/LOGS/grs-init_env.out "${REMOTE_INIT}")
+        id_init=${sub_str##* }
+        echo "Job init -> ${id_init}"
+        sub_str=$(sbatch --depend=afterany:${id_init} --export=MY_JOB_WORKDIR=${MY_JOB_WORKDIR},REF_DIR=${REF_DIR} -o ${MY_JOB_WORKDIR}/LOGS/grs-func-tests.out "${REMOTE_TEST}")
+        id_job=${sub_str##* }
+        echo "Job tests -> ${id_job}"
+        sbatch --wait --depend=afterany:${id_job} --export=MY_JOB_WORKDIR=${MY_JOB_WORKDIR} -o ${MY_JOB_WORKDIR}/LOGS/grs-cleanup.out "${REMOTE_CLEAN}"
+        # sbatch --wait returns the cleanup job's exit code, masking test failures.
+        # Check the actual test job state via sacct.
+        set +e
+        test_state=$(sacct -j ${id_job} --format=State --noheader --parsable2 | head -1)
+        init_state=$(sacct -j ${id_init} --format=State --noheader --parsable2 | head -1)
+        set -e
+        echo "Init job ${id_init} final state: ${init_state}"
+        echo "Test job ${id_job} final state: ${test_state}"
+        echo "TEST_STATE=${test_state}" > ${MY_JOB_WORKDIR}/test_result.txt
+        exit 0
+      EOF
+    - mkdir -p reports
+    - scp -r trex.sis.cnes.fr:${MY_JOB_WORKDIR}/reports/* reports/ || echo "Pas de dossier reports"
+    - scp trex.sis.cnes.fr:${MY_JOB_WORKDIR}/LOGS/* reports/ || echo "Pas de logs"
+    - scp trex.sis.cnes.fr:${MY_JOB_WORKDIR}/test_result.txt . 2>/dev/null || true
+    - cat reports/grs-init_env.out 2>/dev/null || true
+    - cat reports/grs-func-tests.out 2>/dev/null || true
+    - cat reports/functionnal_tests-report.xml 2>/dev/null || true
+    - cat reports/ref_diff* 2>/dev/null || true
+    - |
+      if [ -f test_result.txt ] && ! grep -q COMPLETED test_result.txt; then
+        echo "=== Functional tests FAILED — check logs above ==="
+        exit 1
+      fi
+      echo "=== Functional tests PASSED ==="
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_TAG || $CI_COMMIT_BRANCH'
+  timeout: 60 minutes
   artifacts:
     untracked: true
     expire_in: 1 day
+    reports:
+      junit: reports/functionnal_tests-report.xml
+  cache:
+    key: "coverage-reports"
     paths:
-      - uuid.txt
+      - reports/cov_report.xml
+    policy: push
 
-kaniko_build:
-  stage: docker
+podman-test:
+  stage: package
   image:
-    name: ${ARTIFACTORY_URL}/${TAG_IMAGE_KANIKO}
+    name: ${PUBLIC_REMOTE_REGISTRY_DOCKER}/${IMAGE_PODMAN}
+    entrypoint: [""]
+  needs: []
+  before_script:
+    - mkdir -p certs
+    - cp ${CNES_CERTIFICATE} certs/ca-bundle.crt
+    - cat ${CNES_CERTIFICATE} >> certs/ca-certificates.crt
+    - echo "$HTTP_PROXY" > /tmp/proxy_http
+    - echo "$HTTPS_PROXY" > /tmp/proxy_https
+    - export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
+    - if [ -n "${CI_COMMIT_TAG}" ]; then export VERSION_GRS=${CI_COMMIT_TAG}; fi
+    - echo "Version GRS -> ${VERSION_GRS}"
+  script:
+    - echo "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@artifactory.cnes.fr/artifactory/api/pypi/pypi/simple" > /tmp/artifactory_url
+    - >
+      podman build
+      --network=host
+      --build-arg IMAGE_SOURCE=${PUBLIC_REMOTE_REGISTRY_DOCKER}/
+      --build-arg no_proxy=cnes.fr
+      --file Dockerfile
+      --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+      --tag "${DOCKER_IMAGE_NAME}:latest"
+      --secret id=http_proxy,src=/tmp/proxy_http
+      --secret id=https_proxy,src=/tmp/proxy_https
+      --secret id=artifactory_url,src=/tmp/artifactory_url
+      --creds="${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}"
+      .
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
+      when: manual
+      allow_failure: true
+  artifacts:
+    untracked: true
+    expire_in: 1 day
+
+# =============================================================================
+# STAGE : package — Build & Push
+# =============================================================================
+podman-build:
+  stage: package
+  image:
+    name: ${PUBLIC_REMOTE_REGISTRY_DOCKER}/${IMAGE_PODMAN}
     entrypoint: [""]
   needs:
-    - pre_kaniko_build
-  variables:
-    GIT_LFS_SKIP_SMUDGE: "1"
+    - python-tests
   before_script:
-    # Il faut renseigner les certificats dans /kaniko/ssl/certs/additional-ca-cert-bundle.crt afin de pouvoir accès à Artifactory lors du build de l'image
-    - cp ${CNES_CERTIFICATE} /kaniko/ssl/certs/additional-ca-cert-bundle.crt
-    #enregistrement des credentials proxy dans un fichier texte qui sera transmis à l'image docker
-    - mkdir -p /kaniko/run/secrets/
-    - echo http://${PROXY_USER}:${PROXY_PASS}@proxy-tech-web.cnes.fr:8060 > /kaniko/run/secrets/http_proxy
-    - echo http://${PROXY_USER}:${PROXY_PASS}@proxy-tech-web.cnes.fr:8060 > /kaniko/run/secrets/https_proxy
-    #- echo "${ARTI_URL_WITH_TOKEN}/api/conda/conda/" > /kaniko/run/secrets/arti_conda_repo.txt
-    #- echo "${ARTI_URL_WITH_TOKEN}/api/pypi/pypi/simple" > /kaniko/run/secrets/arti_pip_repo.txt
-    - export VERSION_GRS=$(cat pyproject.toml |grep version |cut -d '"' -f 2)
-    - if [ $CI_COMMIT_TAG ]; then export VERSION_GRS=$CI_COMMIT_TAG; fi
-    - echo $VERSION_GRS
-  script:
-    #transmission des credentials proxy à l'image en passant par le système de secrets
     - mkdir -p certs
-    #copie des certificats de l'agent docker dans le dossier certs/ pour ensuite les intégrer dans l'image Docker
-    - cp ${CNES_CERTIFICATE} certs/
-    - mkdir -p /kaniko/.docker
-    #donner les informations pour le push sur la registry (ici artifactory)
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --build-arg IMAGE_SOURCE=artifactory.cnes.fr/obs2co-docker/
+    - cp ${CNES_CERTIFICATE} certs/ca-bundle.crt
+    - cat ${CNES_CERTIFICATE} >> certs/ca-certificates.crt
+    - echo "$HTTP_PROXY" > /tmp/proxy_http
+    - echo "$HTTPS_PROXY" > /tmp/proxy_https
+    - export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
+    - if [ -n "${CI_COMMIT_TAG}" ]; then export VERSION_GRS=${CI_COMMIT_TAG}; fi
+    - echo "Version GRS -> ${VERSION_GRS}"
+  script:
+    - echo "https://${ARTIFACTORY_USER}:${ARTIFACTORY_TOKEN}@artifactory.cnes.fr/artifactory/api/pypi/pypi/simple" > /tmp/artifactory_url
+    - >
+      podman build
+      --network=host
+      --build-arg IMAGE_SOURCE=${PUBLIC_REMOTE_REGISTRY_DOCKER}/
       --build-arg no_proxy=cnes.fr
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "Dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:${VERSION_GRS}"
-      --destination "${CI_REGISTRY_IMAGE}:latest"
-    - echo "Deployed and delivered successfully"
+      --file Dockerfile
+      --tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}"
+      --tag "${DOCKER_IMAGE_NAME}:latest"
+      --secret id=http_proxy,src=/tmp/proxy_http
+      --secret id=https_proxy,src=/tmp/proxy_https
+      --secret id=artifactory_url,src=/tmp/artifactory_url
+      --creds="${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}"
+      .
+    # Push a unique tag (Artifactory blocks overwriting existing tags).
+    # docker-test pulls this tag via the build.env dotenv artifact.
+    - export IMAGE_TAG="${CI_COMMIT_TAG}"
+    - podman tag "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" "${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+    - echo "DOCKER_TEST_TAG=${IMAGE_TAG}" > build.env
+    - podman push --creds="${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" "${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+    - >
+      podman push --digestfile image-file-details --creds="${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" "${DOCKER_IMAGE_NAME}:${VERSION_GRS}" || echo "WARN: push of :${VERSION_GRS} failed (continuing)"
+    - >
+      podman push --creds="${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" "${DOCKER_IMAGE_NAME}:latest" || echo "WARN: push of :latest failed (continuing)"
+  rules:
+    - if: '$CI_COMMIT_TAG'
   artifacts:
     untracked: true
     expire_in: 1 day
+    reports:
+      dotenv: build.env
 
-sonarqube-check:
-  stage: quality
-  image: 
-    name: artifactory.cnes.fr/docker/sonarsource/sonar-scanner-cli:latest
-    entrypoint: [""]
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  before_script:
-    # Ajout un seul certificat du CNES dans java pour accéder à SonarQube en HTTPS. C'est lié à une limitation de Keytool.
-    # Nous sommes obligé de prendre un autre certificat car sonar-scanner ne se base pas sur l'intégralité de la chaine de certificat mais seulement du premier parent du serveur.
-    - keytool -importcert -alias sonarqube -file "${CI_PROJECT_DIR}/GEANT_OV_RSA_CA_4.pem" -keystore ${JAVA_HOME}/lib/security/cacerts -storepass changeit -noprompt
-  script: 
-    - sonar-scanner
+# =============================================================================
+# STAGE : package — Validation
+# =============================================================================
+docker-test:
+  stage: package
   allow_failure: true
-  only:
-    - merge_requests
-    - dockerisation_grs_v2.0
-    - grs_cnes_2.1.6
-    - grs_cnes_2.1.7
-    - docker_fix
-    - develop
-
+  variables:
+    SINGULARITY_CACHEDIR: "/local/${USER}/.singularity"
+    SINGULARITY_TMPDIR:   "/local/${USER}/tmp"
+  needs:
+    - podman-build
+  tags:
+    - tpa
+  before_script:
+    - module load singularity/3.10.2
+    - export SINGULARITY_CACHEDIR="${CI_PROJECT_DIR}/.singularity/cache"
+    - export SINGULARITY_TMPDIR="${CI_PROJECT_DIR}/.singularity/tmp"
+    - export JOB_UUID=$(cat /proc/sys/kernel/random/uuid)
+    - export REF_DIR="/work/scratch/data/${USER}/OBS2CO/CI/REFS/"
+    - mkdir -p "${SINGULARITY_CACHEDIR}" "${SINGULARITY_TMPDIR}"
+    - singularity remote login --username "${ARTIFACTORY_USER}" --password "${ARTIFACTORY_TOKEN}" docker://artifactory.cnes.fr
+    - singularity pull grs.sif docker://${DOCKER_IMAGE_NAME}:${DOCKER_TEST_TAG}
+    - export MY_JOB_WORKDIR="/work/scratch/data/${USER}/${JOB_UUID}"
+    - mkdir -p ${MY_JOB_WORKDIR}/LOGS ${MY_JOB_WORKDIR}/grs2
+    - rsync -av --exclude='.git' --exclude='.jfrog' --exclude='python_env' ./ ${MY_JOB_WORKDIR}/grs2/
+    - ssh trex.sis.cnes.fr "mkdir -p ${MY_JOB_WORKDIR}/grs2 ${MY_JOB_WORKDIR}/LOGS"
+    - rsync -av --exclude='.git' --exclude='.jfrog' --exclude='python_env' ./ trex.sis.cnes.fr:${MY_JOB_WORKDIR}/grs2/
+  script:
+    - |
+      ssh trex.sis.cnes.fr "MY_JOB_WORKDIR='${MY_JOB_WORKDIR}' REF_DIR='${REF_DIR}' bash -s" << 'EOF'
+        sbatch --wait \
+          --export=MY_JOB_WORKDIR=${MY_JOB_WORKDIR},REF_DIR=${REF_DIR} \
+          -o ${MY_JOB_WORKDIR}/LOGS/grs-docker_test.out \
+          ${MY_JOB_WORKDIR}/grs2/grs/tests/ci/ci-docker-run.slurm
+      EOF
+      SSH_EXIT=$?
+    - mkdir -p reports
+    - scp -r trex.sis.cnes.fr:${MY_JOB_WORKDIR}/reports/* reports/ || echo "Pas de dossier reports"
+    - scp trex.sis.cnes.fr:${MY_JOB_WORKDIR}/LOGS/* reports/ || echo "Pas de logs"
+    - cat reports/docker-report.xml 2>/dev/null || echo "(no docker-report.xml)"
+    - cat reports/ref_diff_docker_*.log 2>/dev/null || true
+    - exit ${SSH_EXIT}
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      allow_failure: true
+  artifacts:
+    paths:
+      - reports/
+    expire_in: 1 day

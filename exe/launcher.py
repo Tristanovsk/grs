@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 import sys
 import logging
+import os
 from datetime import datetime
 from osgeo import gdal
 
@@ -31,7 +32,8 @@ def main():
                                log_console=True)
 
     # get all config
-    with open(data['hymotep_config'], 'r') as config_file:
+    config_path = os.path.expandvars(data['hymotep_config'])
+    with open(config_path, 'r') as config_file:
         data.update(yaml.load(config_file, Loader=yaml.FullLoader))
 
     for key, value in data.items():
@@ -39,7 +41,7 @@ def main():
             data[key] = value
         else:
             data[key] = None
-    file = Path(data["input_file"])
+    file = Path(os.path.expandvars(data['input_file']))
 
     if not file.exists():
         logging.error("Missing input file. Process stopped")

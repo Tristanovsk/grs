@@ -1,7 +1,14 @@
 # GRS algorithm package
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
+[![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
+[![Coverage](badges/coverage.svg)]()
+[![Docker Image Version](https://img.shields.io/docker/v/guillaumeeb/grs/2.1.9)](https://hub.docker.com/r/guillaumeeb/grs)
+[![PyPI](https://img.shields.io/pypi/v/GRSProcessor)](https://pypi.org/project/GRSprocessor/)
+
 ## GRS (Glint Removal for Sentinel-2-like sensors)
 
-Please check [grs documentation](https://grs.readthedocs.io/)
+Please check [grs documentation](https://cnes.github.io/GRSprocessor/)
 
 The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
 was specifically developed to
@@ -144,7 +151,7 @@ Options:
   --odir odir      Ouput directory [default: ./]
   --levname lev    Level naming used for output product [default: L2Agrs]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --resolution=res  spatial resolution of the scene pixels
+  --resolution res  spatial resolution of the scene pixels
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
   --surfwater file  Absolute path of the surfwater geotiff file to be used
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
@@ -202,6 +209,13 @@ grs -h
 
 
 ### On the PBS cluster : installing from sources with conda on the cluster CNES
+
+> **Note:** this PBS workflow is kept for reference but is superseded by SLURM on the
+> current CNES cluster. See the SLURM scripts under
+> [grs/tests/ci](grs/tests/ci) and [ecmwf](ecmwf) (e.g. `ci-func-run.slurm`,
+> `download_cams.slurm`) for up-to-date job submission examples, and the
+> ["Scheduling and Triggers"](https://cnes.github.io/GRSprocessor/processing_chain.html#scheduling-and-triggers)
+> section of the documentation.
 
 Create the conda environment using the definition file available in the conda folder :
 ```
@@ -289,19 +303,89 @@ S2B_L2Agrs_20220228T102849_N0400_R108_T31TFJ_20220228T123819 \
 The docker containers will be called grs2, which mean that you cannot currently launch multiple ones simultaneously.
 You can adapt the sh script to modify this behaviour.
 
-## Contributing
+## How the CI/CD Pipeline Works
 
-Please contact [authors](tristan.harmel@ntymail.com) for details on our code of conduct, and the process for submitting pull requests to us.
+GRSprocessor is developed on GitHub and mirrors part of its pipeline to an internal CNES
+GitLab instance for HPC-based validation. Two independent pipelines run on every push.
+
+### GitHub Actions (public, [`.github/workflows/`](.github/workflows))
+
+**[`main.yml`](.github/workflows/main.yml) — Pipeline CI** (push to `feature/*`, `main`,
+`develop`, tags; and pull requests to `main`/`develop`):
+
+1. `python-tests` — installs GDAL and the Python dependencies, then runs the integration
+   test suite (`grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
+   and commits the coverage badge.
+2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to
+   PyPI.
+3. `podman-build` (needs `python-tests`) — builds the Docker image (`Dockerfile-github`);
+   on a tag, it also pushes `guillaumeeb/grs:<tag>` and `:latest` to Docker Hub.
+4. `lint` (pull requests and tags, needs `podman-build`) — runs `ruff` and `mypy` and
+   uploads their reports as artifacts (non-blocking).
+5. `sync` (needs `podman-build`) — strips Git-LFS pointer files from the whole history with
+   `git-filter-repo`, then force-pushes the cleaned repository to the internal GitLab
+   mirror (`gitlab.cnes.fr/waterquality/grs2.git`). This is what triggers the GitLab
+   pipeline described below.
+
+**[`doc.yml`](.github/workflows/doc.yml) — Pipeline documentation** (same push triggers):
+builds the Sphinx documentation ([`docs/`](docs), furo theme, autoapi, mermaid diagrams);
+on a tag it uploads the HTML as an artifact, and on `main` it publishes it to
+[GitHub Pages](https://cnes.github.io/GRSprocessor/).
+
+### GitLab CI (internal CNES, [`.gitlab-ci.yml`](.gitlab-ci.yml))
+
+Runs on the mirrored repository at CNES, on the `Usine_Logicielle` runners:
+
+1. `init` — `python-init` installs `grs` through the internal Artifactory/JFrog pip
+   mirror.
+2. `test` — `python-tests` submits SLURM jobs on the `trex.sis.cnes.fr` HPC cluster
+   (`ci-init_env.slurm` → `ci-func-run.slurm` → `ci-cleanup_env.slurm`) to run functional
+   tests against reference outputs (non-blocking, `allow_failure: true`).
+3. `package` — `podman-build` (tags only) builds and pushes the image to the CNES
+   Artifactory registry (`obs2co-docker/grs`); `docker-test` (tags only) pulls it back via
+   Singularity on the HPC and re-runs the functional tests inside the container;
+   `podman-test` is a manual, build-only sanity check.
+4. `sonarqube` / `security` — static analysis (SonarQube), SAST, and ClamAV antivirus
+   scanning, via shared CNES "Usine Logicielle" pipeline components.
+
+In short: **GitHub Actions runs the public-facing pipeline** (tests, lint, PyPI, Docker
+Hub, docs), while **the GitLab mirror runs CNES-internal validation** (HPC functional
+tests against reference data, code quality/security gates) that cannot run outside the
+CNES network.
+
+## How to Contribute
+
+Contributions are welcome! Quick start:
+
+```bash
+git clone https://github.com/CNES/GRSprocessor.git
+cd GRSprocessor
+conda create -n grs_dev python=3.11
+conda activate grs_dev
+pip install -r requirements.txt
+pip install -e .[dev]
+pytest grs/tests/integration_tests/
+```
+
+1. Create a branch off `develop` named `feature/<short-description>`.
+2. Make your changes, with tests where relevant, and make sure they pass locally.
+3. Open a pull request targeting `develop` — the `python-tests` job runs automatically on
+   the PR (see [above](#how-the-cicd-pipeline-works)).
+4. A maintainer will review your PR.
+
+See [CONTRIBUTING.md](https://github.com/CNES/GRSprocessor/blob/main/CONTRIBUTING.md) for
+the full guide: reporting issues, code style (`black`/`isort`, `ruff`/`mypy` in CI),
+building the documentation, and the code of conduct.
 
 ## Authors
 
-* **Tristan Harmel** - *Initial work* - [contact](tristan.harmel@ntymail.com)
+* **Tristan Harmel** - *Initial work* - [contact](mailto:tristan.harmel@ntymail.com)
 
-See also the list of [contributors](...) who participated in this project.
+See also the list of [contributors](https://github.com/CNES/GRSprocessor/graphs/contributors) who participated in this project.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/CNES/GRSprocessor/blob/main/LICENSE) file for details
 
 ## Acknowledgments
 

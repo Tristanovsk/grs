@@ -1,0 +1,15 @@
+{
+    "input_file": '/work/scratch/data/$USER/OBS2CO/CI/test_1/S2A_MSIL1C_20231012T104951_N0509_R051_T31TCJ_20231012T143114.SAFE',
+    "cams_folder": '/work/datalake/static_aux/CAMS/OBS2CO_GRS_v1/',
+    "surfwater_file": '',  # "" if no surfwater_file
+    "suffix": "_nominal",
+    "level": "INFO",                                  # niveau de log : info, debug, warning, error
+    "output_dir": "$MY_JOB_WORKDIR/CI/OUT",    # répertoire où seront ecrits les produits générés
+    "hymotep_config": "$MY_JOB_WORKDIR/grs2/exe/hymotep_config.yml",
+    "logfile": "$MY_JOB_WORKDIR/CI/OUT/log.txt",
+    "noclobber": True,
+    "scale_aot": 1,
+    "opac_model": null,
+    "dem_file": null,
+    "max_cloud_cover": 1
+}

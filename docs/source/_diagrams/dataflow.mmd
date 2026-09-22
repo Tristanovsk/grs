@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph main["Input Main data"]
+        IN1["Level-1 product<br/>Sentinel-2: SAFE (JP2)<br/>Landsat-8/9: GeoTIFF<br/>Disk/POSIX"]
+    end
+
+    subgraph aux["Input auxiliary data"]
+        IN2["CAMS file<br/>NetCDF<br/>Disk/POSIX"]
+        IN3["DEM file (optional)<br/>GeoTIFF<br/>Disk/POSIX"]
+        IN4["Surfwater mask (optional)<br/>GeoTIFF<br/>Disk/POSIX"]
+    end
+
+    PROC["GRS Processing Chain<br/>grs CLI / grs.grs_process.Process"]
+
+    subgraph out["Output Data"]
+        OUT1["Level-2 GRS product<br/>NetCDF<br/>Disk/POSIX"]
+        OUT2["Run log + error log<br/>Text<br/>Disk/POSIX"]
+    end
+
+    IN1 --> PROC
+    IN2 --> PROC
+    IN3 --> PROC
+    IN4 --> PROC
+    PROC --> OUT1
+    PROC --> OUT2
+
+    classDef mainStyle fill:#3d85c6,stroke:#1c4587,stroke-width:2px,color:#ffffff
+    classDef auxStyle fill:#8e7cc3,stroke:#4a2d84,stroke-width:2px,color:#ffffff
+    classDef procStyle fill:#e69138,stroke:#a35a00,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef outStyle fill:#6aa84f,stroke:#274e13,stroke-width:2px,color:#ffffff
+    classDef groupStyle fill:#f3f3f3,stroke:#999999,stroke-dasharray: 4 3,color:#333333
+
+    class IN1 mainStyle
+    class IN2,IN3,IN4 auxStyle
+    class PROC procStyle
+    class OUT1,OUT2 outStyle
+    class main,aux,out groupStyle
