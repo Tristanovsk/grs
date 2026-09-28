@@ -8,7 +8,7 @@ import pandas as pd
 
 import logging
 
-#from s2cloudless import S2PixelCloudDetector
+from s2cloudless import S2PixelCloudDetector
 
 FLAG_NAME = 'flags'
 
@@ -93,6 +93,57 @@ class Masking(Settings):
         self.flag_descriptions[bitmask] = description
         self.flag_names[bitmask] = name
 
+    def cloud_mask(self,
+                   bitmasks=[1, 2],
+                   names=['cloud_p06', 'cloud_p08'],
+                   descriptions=['low confidence cloud mask from s2cloudless with settings proba.',
+                                 'high confidence cloud mask from s2cloudless with settings proba.']
+                   ):
+        '''
+        Apply s2cloudless masking with two levels of confidence
+
+        :param bitmasks: bit number on which the flag is coded
+        :param names: name of the flag
+        :param descriptions: description of the flag
+        :return:
+        '''
+
+        logging.info('cloud masking with s2cloudless')
+
+        # apply cloud mask
+        bands = np.array([self.prod.bands.values.transpose((1, 2, 0))])
+        # ---------------------
+        # first low confidence
+        # ---------------------
+        bitmask = bitmasks[0]
+
+        cloud_detector = S2PixelCloudDetector(threshold=self.low_confid_cloud_proba_thresh, average_over=1,
+                                              dilation_size=self.low_confid_cloud_dilation, all_bands=True)
+        probability_maps = cloud_detector.get_cloud_probability_maps(bands)
+        cloud_mask = cloud_detector.get_mask_from_prob(probability_maps)[0]
+        self.flags = self.flags + ((cloud_mask == 1) << bitmask)
+
+        # add name and description
+        self.flag_descriptions[bitmask] = descriptions[0] + ' threshold={:.2f}, dilation_size={:d}'.format(
+            self.low_confid_cloud_proba_thresh, self.low_confid_cloud_dilation)
+        self.flag_names[bitmask] = names[0]
+
+        # ---------------------
+        # second high confidence
+        # ---------------------
+        bitmask = bitmasks[1]
+
+        cloud_detector = S2PixelCloudDetector(threshold=self.high_confid_cloud_proba_thresh, average_over=1,
+                                              dilation_size=self.high_confid_cloud_dilation, all_bands=True)
+        cloud_mask = cloud_detector.get_mask_from_prob(probability_maps)[0]
+        self.flags = self.flags + ((cloud_mask == 1) << bitmask)
+
+        # add name and description
+        self.flag_descriptions[bitmask] = descriptions[1] + ' threshold={:.2f}, dilation_size={:d}'.format(
+            self.high_confid_cloud_proba_thresh, self.high_confid_cloud_dilation)
+        self.flag_names[bitmask] = names[1]
+
+        del cloud_detector, cloud_mask, probability_maps
 
     def water_mask(self,
                    bitmasks=[3, 4],
@@ -151,7 +202,7 @@ class Masking(Settings):
         '''
 
         logging.info('cirrus masking')
-        cirrus = self.prod.bands.sel(wl=self.bcirrus,method='nearest')
+        cirrus = self.prod.bands.sel(wl=self.bcirrus, method='nearest')
         thresholds = [self.thin_cirrus_threshold, self.opac_cirrus_threshold]
         for ii in range(2):
             self.flags = self.flags + ((cirrus.values > thresholds[ii]) << bitmasks[ii])
@@ -217,7 +268,7 @@ class Masking(Settings):
 
     def duplicate_landsat_flags(self,
                                 bitmasks=[11, 12, 13, 14, 15, 16, 17],
-                                landsat_bitmasks=[1,2,3,4,5,6,7],
+                                landsat_bitmasks=[1, 2, 3, 4, 5, 6, 7],
                                 names=['l1_dilated_cloud', 'l1_cirrus', 'l1_cloud',
                                        'l1_cloud_shadow', 'l1_snow', 'l1_clear', 'l1_water'],
                                 descriptions=['landsat dilated cloud mask',
@@ -301,7 +352,7 @@ class Masking(Settings):
         # apply the masking processors
         self.nodata_mask()
         if self.sentinel2:
-            pass
+            self.cloud_mask()
         else:
             self.duplicate_landsat_flags()
         self.water_mask()
