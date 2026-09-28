@@ -113,10 +113,13 @@ Version history
 
 2.2.1:
     - refinement of the aerosol retrieval algorithm
+
+3.0.0:
+    - merge new version (2.2.1) with CI from v2.1.9
 '''
 
 __package__ = 'grs'
-__version__ = '2.2.1'
+__version__ = '3.0.0'
 
 
 from .acutils import Aerosol, Misc, Rasterization, GaseousTransmittance
