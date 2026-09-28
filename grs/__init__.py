@@ -116,6 +116,16 @@ Version history
 
 3.0.0:
     - merge new version (2.2.1) with CI from v2.1.9
+    - fix bugs for true wavelength
+    - fix for new ADS CAMS format
+
+2.1.8:
+    - improve log and CI
+
+2.1.9:
+    - fix for bug in azimuth handling in glint correction
+    - enables L1C netcdf as intput in CLI
+
 '''
 
 __package__ = 'grs'

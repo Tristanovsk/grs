@@ -24,7 +24,7 @@ where = ["."]
 
 [tool.setuptools.package-data]
 "grs"= ['*.yml']
-"*"= ['data/lut/gases/*.nc', 'data/aux/*.txt']
+"*"= ['data/lut/gases/*.nc', 'data/auxiliary/*.txt']
 
 [tool.setuptools.exclude-package-data]
 "*" = [".gitattributes"]
@@ -32,6 +32,7 @@ where = ["."]
 [project.scripts]
 grs = "grs.run:main"
 
+#dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
@@ -39,5 +40,5 @@ dependencies = { file = ["requirements.txt"] }
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/Tristanovsk/grs"
-Documentation = "https://grs.readthedocs.io"
+Homepage = "https://github.com/CNES/GRSprocessor"
+Documentation = "https://cnes.github.io/GRSprocessor"

@@ -202,7 +202,7 @@ class Masking(Settings):
         '''
 
         logging.info('cirrus masking')
-        cirrus = self.prod.bands.sel(wl=self.bcirrus,method='nearest')
+        cirrus = self.prod.bands.sel(wl=self.bcirrus, method='nearest')
         thresholds = [self.thin_cirrus_threshold, self.opac_cirrus_threshold]
         for ii in range(2):
             self.flags = self.flags + ((cirrus.values > thresholds[ii]) << bitmasks[ii])
@@ -268,7 +268,7 @@ class Masking(Settings):
 
     def duplicate_landsat_flags(self,
                                 bitmasks=[11, 12, 13, 14, 15, 16, 17],
-                                landsat_bitmasks=[1,2,3,4,5,6,7],
+                                landsat_bitmasks=[1, 2, 3, 4, 5, 6, 7],
                                 names=['l1_dilated_cloud', 'l1_cirrus', 'l1_cloud',
                                        'l1_cloud_shadow', 'l1_snow', 'l1_clear', 'l1_water'],
                                 descriptions=['landsat dilated cloud mask',
