@@ -163,7 +163,7 @@ class Process:
         You can either further play with the l2a xarray or save it into netcdf:
 
 
-        >>> process_.odir='./name_of_your_output_l2a_netcdf'
+        >>> process_.odir='./name_of_your_output_l2a_netcdf_directory'
         >>> process_.write_output()
         INFO:root:export final product into netcdf
         INFO:root:export into encoded netcdf
