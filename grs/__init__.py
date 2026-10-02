@@ -117,10 +117,13 @@ Version history
     - fix for bug in azimuth handling in glint correction
     - enables L1C netcdf as intput in CLI
 
+2.2.0:
+    - version with CI for CNES operation
+
 '''
 
 __package__ = 'grs'
-__version__ = '2.1.9'
+__version__ = '2.2.0'
 
 
 from .acutils import Aerosol, Misc, Rasterization
