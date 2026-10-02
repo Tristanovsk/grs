@@ -1,0 +1,164 @@
+:root {
+    --pst-color-inline-code: 0, 0, 0 !important;
+}
+
+
+table {
+    display: block;
+    overflow-x: auto;
+    word-break: keep-all;
+    border-spacing: 0;
+}
+
+th {
+    background-color: #c4d5e780;
+}
+
+td, th {
+    margin: 0 !important;
+    border: 1px solid #dee2e6 !important;
+    padding: 0.2rem !important;
+    vertical-align: middle !important;
+}
+
+td {
+    white-space: nowrap;
+}
+
+td:empty {
+    background-color: #ececec !important;
+}
+
+th:first-child, td:first-child {
+    background-color: #c4d5e7;
+    position: sticky;
+    left: 0;
+}
+
+/* 1 row and one or two columns */
+tr:first-child:nth-last-child(1) th:first-child:nth-last-child(2),
+tr:first-child:nth-last-child(1) th:first-child:nth-last-child(2) ~ th,
+tr:first-child:nth-last-child(1) th:first-child:nth-last-child(1)
+{
+    background-color: #c4d5e780 !important;
+}
+
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2),
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2) ~ td,
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(1){
+    background-color: white !important;
+    position: inherit;
+    left: inherit;
+}
+
+td p {
+    margin-bottom: 0 !important;
+    vertical-align: middle !important;
+    padding: 0 !important;
+}
+
+/*.bd-sidebar {*/
+/*    max-width: 400px !important;*/
+/*}*/
+
+/*@media (min-width: 1200px) {*/
+/*    .container,*/
+/*    .container-lg,*/
+/*    .container-md,*/
+/*    .container-sm,*/
+/*    .container-xl {*/
+/*        max-width: 1700px !important;*/
+/*    }*/
+/*}*/
+
+/* Newlines (\a) and spaces (\20) before each parameter */
+.sig-param::before {
+    content: "\a\20\20\20\20";
+    white-space: pre;
+}
+
+/* Newline after the last parameter (so the closing bracket is on a new line) */
+dt em.sig-param:last-of-type::after {
+    content: "\a";
+    white-space: pre;
+}
+
+
+/* To have blue background of width of the block (instead of width of content) */
+dl.class > dt:first-of-type {
+    display: block !important;
+}
+
+.bd-sidebar .nav ul {
+    padding: 0 0 0 0.5rem;
+}
+
+code {
+    background: #f2f2f1;
+    font-size: 100%;
+}
+
+td:first-child code,
+td:first-child code ~ td,
+th:first-child code,
+th:first-child code ~ th {
+    background: none;
+}
+
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2) code,
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2) code ~ td,
+tr:first-child:nth-last-child(1) td:first-child:nth-last-child(1) code {
+    background: #f2f2f1;
+}
+
+dl.class dt,
+dl.exception dt,
+dl.data dt,
+dl.function dt {
+    margin: 6px 0;
+    font-size: 90%;
+    line-height: normal;
+    background: #e7f2fa;
+    color: #2980B9;
+    border-top: solid 3px #6ab0de;
+    padding: 6px;
+    position: relative;
+}
+
+dl.class dl dt,
+dl.exception dl dt,
+dl.data dl dt,
+dl.function dl dt,
+dl.py.method dd dl dt{
+    margin-bottom: 6px;
+    border: none;
+    border-left: solid 3px #ccc;
+    background: #f0f0f0;
+    color: #555;
+}
+
+dl.py.method dt{
+    margin-bottom: 6px;
+    border: none;
+    border-left: solid 3px rgba(27, 93, 163, 0.5);
+    background: #f0f0f0;
+    color: #555;
+}
+
+dl.class .viewcode-link,
+dl.exception .viewcode-link,
+dl.data .viewcode-link,
+dl.function .viewcode-link {
+    color: #27AE60;
+    font-size: 80%;
+}
+
+
+dl.py.attribute dt,
+dl.py.property dt{
+    margin-bottom: 6px;
+    border: none;
+    border-left: solid 3px #c4d5e7;
+    background: #f0f0f0;
+    color: #555;
+}
