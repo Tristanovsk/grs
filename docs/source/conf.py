@@ -37,7 +37,9 @@ sys.path.insert(0, os.path.abspath('../..'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "autoapi.extension",
     'sphinx.ext.autodoc',
+    'sphinx.ext.apidoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
@@ -63,6 +65,19 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
+autoapi_type = "python"
+autoapi_dirs = ["../../grs"]  # Points to your source code directory
+
+# Optional configuration choices (default is usually sufficient)
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "private-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+    "imported-members",
+]
 
 
 # -- Options for HTML output -------------------------------------------------

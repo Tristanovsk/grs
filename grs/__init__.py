@@ -129,7 +129,7 @@ Version history
 '''
 
 __package__ = 'grs'
-__version__ = '3.0.0'
+__version__ = '3.0.0dev'
 
 
 from .acutils import Aerosol, Misc, Rasterization, GaseousTransmittance
