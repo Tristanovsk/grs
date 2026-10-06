@@ -17,6 +17,7 @@ pyproj==3.6.1
 PyYAML==6.0.1
 rasterio==1.4.1
 rioxarray==0.15.0
+s2cloudless==1.7.3
 scipy==1.14.1
 sertit==1.42.2
 xarray==2024.9.0
