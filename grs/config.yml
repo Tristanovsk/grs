@@ -1,5 +1,5 @@
 path:
-  grsdata: '/work/datalake/watcal/GRS/grsdata_v21'
+  grsdata: '/data/grs/grsdata' #/work/datalake/watcal/GRS/grsdata_v21'
   toa_lut: 'toa_lut_opac_wind_v3.nc'
   trans_lut: 'transmittance_lut_opac_wind_v3.nc'
   cams: '/work/datalake/watcal/cams'

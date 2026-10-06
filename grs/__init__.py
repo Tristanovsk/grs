@@ -132,7 +132,7 @@ __package__ = 'grs'
 __version__ = '3.0.0dev'
 
 
-from .acutils import Aerosol, Misc, Rasterization, GaseousTransmittance
+from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
 
 from .cams import CamsProduct
 from .auxdata import SensorData, AuxData

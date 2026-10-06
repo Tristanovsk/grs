@@ -16,7 +16,7 @@ import os.path
 import unittest
 import numpy
 from pathlib import Path
-from grs import acutils
+from grs import utils
 from grs import class_logger
 from grs.product import Product
 from grs import CamsProduct
@@ -106,7 +106,7 @@ class TestAcutils(unittest.TestCase):
         """
         print("test_gaseous_transmittance", flush=True)
         # Instanciate gaseous_transmittance
-        gaseous_transmittance_instance = acutils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
+        gaseous_transmittance_instance = utils.GaseousTransmittance(TestAcutils.PROD, TestAcutils.CAMS)
         ref_srf = numpy.array([0.03660414, 0.08100583, 0.16917887, 0.33278275, 0.58622795, 0.8091641,
                                 0.913051, 0.94472283, 0.94898814, 0.9436913, 0.9284567, 0.9125694,
                                 0.9007804, 0.89958596, 0.9054714, 0.92045355, 0.94065666, 0.9619968,
@@ -156,7 +156,7 @@ class TestAcutils(unittest.TestCase):
         atl = 1000.0
         psl = 998.0
         print("test_misc", flush=True)
-        palt = acutils.Misc.get_pressure(atl, psl)
+        palt = utils.Misc.get_pressure(atl, psl)
         print("After acutils.Misc.get_pressure", flush=True)
         self.assertAlmostEqual(palt, 885.236756238, places=8)
 
