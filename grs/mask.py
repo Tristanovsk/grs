@@ -379,6 +379,7 @@ class Masking(Settings):
 
         return _Step(fn, None, halo, ())
 
+    # TODO process downscaled image to save time (e.g. resolution 60 m)
     def _get_omnicloudmask(self,
                       bitmasks=(11, 12, 13),
                       names=('OCM_Thick_Cloud', 'OCM_Thin_Cloud', 'OCM_Cloud_Shadow'),

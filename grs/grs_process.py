@@ -594,7 +594,7 @@ class Process:
         return kernel
 
     def write_output(self):
-        logging.info('export final product into netcdf')
+        logging.info('export final product')
         self.l2a.export(self.odir,
-                        fmt='netcdf',
+                        fmt='zarr',
                         snap_compliant=self.snap_compliant)
