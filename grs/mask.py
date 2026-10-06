@@ -637,17 +637,21 @@ class Masking(Settings):
         xarray.Dataset or xarray.DataArray or None
             See `output`.
         '''
-        self.flags = None
+
         self.flag_names[:] = None
         self.flag_descriptions[:] = None
         self.flag_stats = {}
 
+        # Other masks based on dask and tile approach
         steps = [self._nodata_step()]
+
         steps.append(self._s2cloudless_step() if self.sentinel2 else self._landsat_step())
         steps.append(self._water_step())
+
         if self.bcirrus:
             steps.append(self._cirrus_step())
         steps.append(self._high_swir_step())
+
         steps.append(self._surfwater_step())
 
         flags_lazy = self._flags_lazy(steps)
@@ -658,6 +662,10 @@ class Masking(Settings):
         flags, *counts = dask.compute(flags_lazy, *counts_lazy)
 
         self.flags = flags
+
+        # OmniCloudMask on full raster
+        self._get_omnicloudmask()
+
         self._store_stats(bits, counts, flags.size)
 
         # no copy: the dataset variable wraps the same uint32 array

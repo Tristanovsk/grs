@@ -20,7 +20,7 @@ import itertools
 
 import GRSdriver
 
-from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization, Kernel
+from . import Product, utils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization, Kernel
 from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
@@ -318,7 +318,7 @@ class Process:
         ####################################
         logging.info('compute gaseous transmittance from cams data')
         try:
-            gas_trans = acutils.GaseousTransmittance(prod, cams)
+            gas_trans = utils.GaseousTransmittance(prod, cams)
             gases = ['co2', 'o2', 'o4', 'ch4', 'no2', 'o3', 'h2o']
             for gas in gases:
                 gas_trans.coef_abs_scat[gas] = 1
