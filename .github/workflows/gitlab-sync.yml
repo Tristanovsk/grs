@@ -1,10 +1,17 @@
 name: Sync GitLab CNES
 
 # Mirrors the project to gitlab.cnes.fr/waterquality/grs2:
-#   - GitHub PR (into main/develop)       -> matching branch created/updated on GitLab
-#   - commit on feature/*                 -> matching branch synced on GitLab
-#   - GitHub PR merged                    -> Merge Request created on GitLab (manual validation on the
-#                                            GitLab side: main/develop are protected there, no direct push)
+#   - commit on a Gitflow branch          -> matching branch synced on GitLab (this is also what keeps
+#     (feature/*, release/*, hotfix/*,       a PR's source branch in sync, since PRs into main/develop
+#      bugfix/*)                            are opened from one of these branches). release/* and
+#                                            hotfix/* can each open a PR towards both main and develop,
+#                                            per standard Gitflow (double merge).
+#   - GitHub PR (into main/develop)       -> a GitLab Merge Request is created right away (or left
+#                                            as-is if one already exists), on open/synchronize/
+#                                            reopened/merge — no separate branch mirroring on this
+#                                            event, only the GitLab MR itself (manual validation on
+#                                            the GitLab side: main/develop are protected there, no
+#                                            direct push)
 #   - GitHub version tag                  -> Release created on GitLab
 #
 # GitLab's own pipeline (.gitlab-ci.yml) then kicks in by itself as soon as a branch, a MR or
@@ -19,6 +26,9 @@ on:
   push:
     branches:
       - 'feature/**'
+      - 'release/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
     tags:
       - '*'
 
@@ -27,27 +37,20 @@ env:
 
 jobs:
 # =============================================================================
-# PR opened / updated -> GitLab branch
+# Commit on a Gitflow branch (feature/*, release/*, hotfix/*, bugfix/*)
+# -> GitLab branch
+# (this is also what keeps a PR's source branch in sync on GitLab: PRs into
+# main/develop are opened from one of these branches, so every push to it is
+# already mirrored here — no separate mirroring on PR events)
 # =============================================================================
-  mirror-pr-branch:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Mirror the PR branch
-        uses: ./.github/actions/mirror-to-gitlab
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          dest-ref: refs/heads/${{ github.event.pull_request.head.ref }}
-          gitlab-token: ${{ secrets.GITLAB_TOKEN }}
-          gitlab-project: ${{ env.GITLAB_PROJECT }}
-
-# =============================================================================
-# Commit on feature/* -> GitLab branch
-# =============================================================================
-  mirror-feature-push:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+  mirror-branch-push:
+    if: |
+      github.event_name == 'push' && (
+        startsWith(github.ref, 'refs/heads/feature/') ||
+        startsWith(github.ref, 'refs/heads/release/') ||
+        startsWith(github.ref, 'refs/heads/hotfix/') ||
+        startsWith(github.ref, 'refs/heads/bugfix/')
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,22 +64,20 @@ jobs:
           gitlab-project: ${{ env.GITLAB_PROJECT }}
 
 # =============================================================================
-# PR merged -> GitLab Merge Request
+# PR opened / updated / merged -> GitLab Merge Request
+# No branch mirroring here: the source branch is a feature/* branch already
+# kept in sync by mirror-feature-push above. This job only ensures a GitLab
+# MR exists, as soon as the GitHub PR is opened rather than only once it's
+# merged. The GitLab API call is idempotent (a 409 "already exists" is
+# treated as a no-op), so re-running it on every synchronize/reopened/merge
+# is safe.
 # =============================================================================
   create-merge-request:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    if: |
+      github.event_name == 'pull_request' &&
+      (github.event.action != 'closed' || github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Re-sync the final state of the source branch
-        uses: ./.github/actions/mirror-to-gitlab
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          dest-ref: refs/heads/${{ github.event.pull_request.head.ref }}
-          gitlab-token: ${{ secrets.GITLAB_TOKEN }}
-          gitlab-project: ${{ env.GITLAB_PROJECT }}
-
       - name: Create the Merge Request on GitLab
         shell: bash
         env:

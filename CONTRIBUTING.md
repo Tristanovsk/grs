@@ -51,16 +51,30 @@ installed.
 
 ## Submitting changes
 
-1. Create a branch off `develop` named `feature/<short-description>`.
+This project follows [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) branch
+naming:
+
+- `feature/<short-description>` — off `develop`, merged back into `develop`. Use this for most
+  changes.
+- `bugfix/<short-description>` — off `develop`, merged back into `develop`. Use this for
+  non-urgent bug fixes.
+- `release/<version>` — off `develop`, merged into **both** `main` and `develop` once ready.
+- `hotfix/<version>` — off `main`, merged into **both** `main` and `develop` once ready. Use this
+  for urgent fixes to a released version.
+
+Steps:
+
+1. Create a branch off `develop` (or off `main` for a `hotfix/*`) using one of the prefixes above.
 2. Make your changes, with tests where relevant.
-3. Open a pull request targeting `develop` (CI runs automatically on PRs to `main` and
-   `develop`). Make sure the `python-tests` job passes.
+3. Open a pull request targeting `develop` (`main` too for `release/*`/`hotfix/*`, per Gitflow —
+   open a second PR). CI runs automatically on PRs to `main` and `develop`. Make sure the
+   `python-tests` job passes.
 4. One of the maintainers will review your PR.
 
 ## Documentation
 
 The documentation lives under [`docs/`](docs/) (Sphinx) and is published to
-[cnes.github.io/GRSprocessor](https://cnes.github.io/GRSprocessor/) on every push to `main`.
+[cnes.github.io/GRSprocessor](https://cnes.github.io/GRSprocessor/) on every tag push.
 See `docs/source/index.rst` for the entry point. You can build it locally with:
 
 ```bash
