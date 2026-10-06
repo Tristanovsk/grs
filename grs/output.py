@@ -5,21 +5,59 @@ An :class:`L2aProduct` gathers the L2A variables (remote-sensing reflectance, ae
 DEM, ...) and the coarse-resolution ancillary data (CAMS fields, gaseous transmittance), and writes them
 with a fixed, lossy-but-controlled packing (``int16`` with scale/offset, see `_base_encoding`).
 
+Choosing the format from the file name
+======================================
+
+``export(output_path)`` picks the format from the extension of `output_path`:
+
+=================  ========  =========================================================
+extension          format    files
+=================  ========  =========================================================
+``.nc``            NetCDF    ``<output_path>`` (main) and ``<stem>_anc.nc`` (ancillary)
+``.zarr``          Zarr      ``<output_path>`` (store, with pyramids)
+none               NetCDF    legacy: ``<output_path>/<basename>.nc`` and ``_anc.nc``
+                             (or the format given by ``fmt``)
+=================  ========  =========================================================
+
+``fmt='netcdf'`` / ``fmt='zarr'`` forces the format; with an extension that says otherwise a
+``ValueError`` is raised. Without extension and ``fmt``, ``output_path`` is a directory whose name is the
+base name of the files (previous behavior). With ``fmt='zarr'`` and no extension the store is
+``<output_path>/<basename>.zarr``
+
 Output layouts
 ==============
+NetCDF::
 
-``export_to_netcdf(output_path)``  (unchanged layout)::
+    <dir>/<stem>.nc        main product
+    <dir>/<stem>_anc.nc    ancillary data (coarse grid, dimensions xc, yc)
 
-    <output_path>/<basename>.nc        main product
-    <output_path>/<basename>_anc.nc    ancillary data (coarse grid, dimensions xc, yc)
+Zarr (with pyramids, see below)::
 
-``export_to_zarr(output_path)``::
+    <name>.zarr/                  root group = main product at full resolution (level 0)
+    <name>.zarr/overview_1/       same variables, 2x coarser
+    <name>.zarr/overview_2/       4x coarser
+    ...
+    <name>.zarr/ancillary/        ancillary data (coarse grid, dimensions xc, yc)
 
-    <output_path>/<basename>.zarr/            root group = main product
-    <output_path>/<basename>.zarr/ancillary/  group = ancillary data (coarse grid, dimensions xc, yc)
+Read back with ``xr.open_zarr(store)`` (full resolution), ``xr.open_zarr(store, group='overview_2')`` and
+``xr.open_zarr(store, group='ancillary')``. The packed variables are unpacked automatically
+(``scale_factor`` / ``add_offset`` / ``_FillValue``). The root attribute ``multiscales`` lists the levels
+(group, scale factor, shape) for viewers.
 
-Read back with ``xr.open_zarr(store)`` (main) and ``xr.open_zarr(store, group='ancillary')``.
-The packed variables are unpacked automatically (``scale_factor`` / ``add_offset`` / ``_FillValue``).
+Pyramids
+========
+
+Each level is built from the previous one (factor 2 per level, so level ``k`` is ``2**k`` coarser):
+
+* continuous variables (``Rrs``, ``aot550``, angles, ``dem``, ...): mean of the 2 x 2 block, ignoring NaN;
+* integer variables (``flags``, ``mask``): value of the top-left pixel of the block (nearest). Averaging or
+  OR-ing bit flags would create meaningless values; the overviews are for display, use the full resolution
+  for any statistics on the flags;
+* the coordinates are the block centres and the georeferencing (``GeoTransform``) is updated per level.
+
+The number of levels is chosen so that the coarsest one is at most ``pyramid_min_size`` pixels (512) on
+its longest side (or set with ``pyramid_levels``). The overviews add about 1/3 of the full-resolution size
+(1/4 + 1/16 + ...). ``pyramids=False`` writes the full resolution only.
 
 Zarr export and dask
 ====================
@@ -28,10 +66,12 @@ The product is normally dask-backed (lazy). The Zarr export is built to evaluate
 
 * the main and ancillary datasets are rechunked to regular chunks (default ``y = x = 1024`` and all
   wavelengths in one chunk, the same layout ``Product`` reads) so Zarr chunks and dask chunks coincide;
-* both writes are prepared with ``compute=False`` and run together in one ``dask.compute`` call, so
-  intermediate results shared by the main and the ancillary graphs (e.g. the gaseous transmittance)
-  are computed only once and chunks are written in parallel as soon as they are ready;
-* the packing is fixed (no data-dependent range), so no extra pass over the data is needed;
+* each overview is a lazy coarsening of the previous level, so it reuses the chunks of the full resolution
+  graph instead of recomputing them;
+* all the writes (full resolution, overviews, ancillary) are prepared with ``compute=False`` and run
+  together in one ``dask.compute`` call, so intermediate results shared by the graphs (e.g. the gaseous
+  transmittance, the full-resolution chunks) are computed only once and chunks are written in parallel as
+  soon as they are ready;
 * the metadata of the whole hierarchy is consolidated at the end (one small file read to open it,
   useful on object storage).
 
@@ -39,12 +79,12 @@ Neither export modifies the product: the SNAP-compliant band explosion, the attr
 the rechunking are done on a shallow copy, so ``export_to_netcdf`` and ``export_to_zarr`` can be called
 one after the other on the same object.
 '''
+
 import os
 import shutil
 import numpy as np
 import xarray as xr
 import logging
-
 
 import importlib_resources
 import yaml
@@ -53,10 +93,21 @@ configfile = importlib_resources.files(__package__) / 'config.yml'
 with open(configfile, 'r') as file:
     config = yaml.safe_load(file)
 
-NETCDF_ENGINE = 'netcdf4' #config['processor']['netcdf_engine']
+NETCDF_ENGINE = config['processor']['netcdf_engine']
 
 # attributes that would conflict with the encoding when written
 _CONFLICTING_ATTRS = ('grid_mapping', 'scale_factor', '_FillValue', 'add_offset')
+
+# file extension -> format
+_NETCDF_EXTENSIONS = ('.nc', '.nc4', '.cdf')
+_ZARR_EXTENSIONS = ('.zarr',)
+_FORMAT_EXTENSION = {'netcdf': '.nc', 'zarr': '.zarr'}
+
+# pyramids
+# TODO put these parameters in config.yml
+PYRAMID_FACTOR = 2
+PYRAMID_MIN_SIZE = 512
+OVERVIEW_GROUP = 'overview_{:d}'
 
 
 def _base_encoding():
@@ -101,6 +152,77 @@ def _rrs_encoding():
     return {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
             '_FillValue': -32768, 'grid_mapping': 'spatial_ref'}
 
+
+def _format_from_name(path):
+    '''
+    Output format deduced from the extension of `path`.
+
+    :param path: output path
+    :return: ``'netcdf'`` (``.nc``, ``.nc4``, ``.cdf``), ``'zarr'`` (``.zarr``) or None (other / no extension)
+    '''
+    ext = os.path.splitext(os.path.normpath(path))[1].lower()
+    if ext in _NETCDF_EXTENSIONS:
+        return 'netcdf'
+    if ext in _ZARR_EXTENSIONS:
+        return 'zarr'
+    return None
+
+
+def _pyramid_levels(ny, nx, min_size=PYRAMID_MIN_SIZE, max_levels=None):
+    '''
+    Number of overview levels (not counting the full resolution): the image is halved (rounding up) until
+    its longest side is at most `min_size`.
+
+    >>> _pyramid_levels(5490, 5490)
+    4
+    >>> _pyramid_levels(400, 300)
+    0
+
+    :param ny, nx: size of the full resolution image
+    :param min_size: size under which the coarsest level has to be (pixels, longest side)
+    :param max_levels: upper bound of the number of levels (None: no bound)
+    :return: number of overviews (>= 0)
+    '''
+    levels = 0
+    while max(ny, nx) > min_size and min(ny, nx) > 1:
+        ny, nx = -(-ny // PYRAMID_FACTOR), -(-nx // PYRAMID_FACTOR)  # ceil
+        levels += 1
+        if max_levels is not None and levels >= max_levels:
+            break
+    return levels
+
+
+def _coarsen(ds, factor=PYRAMID_FACTOR):
+    '''
+    Lazy reduction of the spatial resolution of a dataset by `factor` (dims ``y`` and ``x``).
+
+    Continuous (float) variables: mean of the blocks ignoring NaN. Integer / boolean variables (flags,
+    masks): value of the first pixel of the block (nearest). Incomplete blocks at the right / bottom edges
+    are kept (padded), so the size is ``ceil(n / factor)``. The coordinates are the block centres, the
+    georeferencing is updated.
+
+    :param ds: xarray.Dataset with dimensions ``y`` and ``x``
+    :param factor: integer reduction factor
+    :return: coarser xarray.Dataset (dask-backed if `ds` is)
+    '''
+    window = {'y': factor, 'x': factor}
+    is_spatial = [v for v in ds.data_vars if 'y' in ds[v].dims and 'x' in ds[v].dims]
+    discrete = [v for v in is_spatial if ds[v].dtype.kind in 'biu']
+    continuous = [v for v in ds.data_vars if v not in discrete]
+
+    coarse = ds[continuous].coarsen(window, boundary='pad', coord_func='mean').mean(keep_attrs=True)
+    if discrete:
+        nearest = ds[discrete].isel(y=slice(0, None, factor), x=slice(0, None, factor))
+        nearest = nearest.assign_coords(y=coarse['y'], x=coarse['x'])
+        coarse = coarse.assign({v: nearest[v] for v in discrete})
+    coarse.attrs = dict(ds.attrs)
+
+    # geotransform of the coarse grid, recomputed from the coordinates (first pixel = block centre)
+    try:
+        coarse = coarse.rio.write_transform(coarse.rio.transform(recalc=True))
+    except Exception as e:  # georeferencing is informative only: never block the export
+        logging.warning(f'could not update the geotransform of the overview: {e}')
+    return coarse
 
 class L2aProduct():
     '''
@@ -161,8 +283,6 @@ class L2aProduct():
         * The attributes are copied, so the native raster's attributes are no longer modified.
         * ``cirrus_band`` and ``wv_band`` are built from ``prod.cirrus`` / ``prod.wv`` but are not merged
           into the output (as in the previous version); add them to ``l2_prod`` if they should be exported.
-        * The rioxarray calls no longer use ``inplace=True`` (removed in recent rioxarray versions); their
-          results are assigned instead.
         '''
         logging.info('construct l2a')
         native_raster = self.prod.raster
@@ -179,7 +299,7 @@ class L2aProduct():
         cams_raster = self.cams.raster.rename({"x": "xc", "y": "yc"})
         transmittance_raster = self.gas_trans.Tg_tot_coarse.rename({"x": "xc", "y": "yc", 'wl': 'wl_all'})
 
-        # save geometrie angles, take mean values if angle depends on spectral bands
+        # save geometry angles, take mean values if angle depends on spectral bands
         def angle_extraction(angle):
             if 'wl' in angle.coords:
                 return angle.mean('wl')
@@ -283,35 +403,67 @@ class L2aProduct():
         return ds, encoding
 
     @staticmethod
-    def _output_names(output_path):
-        '''Create the output directory; return ``(directory, basename)`` (robust to a trailing slash).'''
+    def _output_names(output_path, ext=None):
+        '''
+        Resolve the output location and create its directory.
+
+        * `output_path` has the extension `ext` (e.g. ``/data/scene.zarr``): it is the output file itself;
+          the directory is its parent and the base name its stem (``scene``).
+        * otherwise (legacy): `output_path` is a directory whose name is the base name; the file is
+          ``<output_path>/<basename><ext>``.
+
+        :param output_path: output path (robust to a trailing slash)
+        :param ext: extension of the format (``'.nc'``, ``'.zarr'``), or None
+        :return: ``(directory, basename, main_path)`` where `main_path` is the main file / store
+            (equal to `directory`/`basename` without extension if `ext` is None)
+        '''
         output_path = os.path.normpath(output_path)
-        os.makedirs(output_path, exist_ok=True)
-        return output_path, os.path.basename(output_path)
+        stem, current_ext = os.path.splitext(os.path.basename(output_path))
+        if ext is not None and current_ext.lower() in (_NETCDF_EXTENSIONS + _ZARR_EXTENSIONS):
+            directory = os.path.dirname(output_path) or '.'
+            basename = stem
+            main = output_path
+        else:
+            directory = output_path
+            basename = os.path.basename(output_path)
+            main = os.path.join(directory, basename + (ext or ''))
+        os.makedirs(directory, exist_ok=True)
+        return directory, basename, main
 
     # ------------------------------------------------------------------
     # exports
     # ------------------------------------------------------------------
-    def export(self, output_path, fmt='netcdf', **kwargs):
+    def export(self, output_path, fmt=None, **kwargs):
         '''
-        Export with the chosen format.
+        Export with the format given by the extension of `output_path` (or by `fmt`).
 
-        :param output_path: output directory (its name is used as base name of the files)
-        :param fmt: ``'netcdf'`` or ``'zarr'``
+        :param output_path: output path. ``.nc`` -> NetCDF file, ``.zarr`` -> Zarr store (with pyramids),
+            no extension -> directory whose name is the base name of the files (NetCDF unless `fmt` says
+            otherwise)
+        :param fmt: ``'netcdf'`` or ``'zarr'`` to force the format (None: from the extension, else NetCDF).
+            Must agree with the extension, if there is one.
         :param kwargs: passed to `export_to_netcdf` or `export_to_zarr`
+        :return: for Zarr the path of the store, None for NetCDF
         '''
+        from_name = _format_from_name(output_path)
+        if fmt is not None and fmt not in _FORMAT_EXTENSION:
+            raise ValueError(f"unknown format {fmt!r}, use 'netcdf' or 'zarr'")
+        if fmt is not None and from_name is not None and fmt != from_name:
+            raise ValueError(f"format {fmt!r} contradicts the extension of {output_path!r} ({from_name})")
+        fmt = fmt or from_name or 'netcdf'
+
         if fmt == 'netcdf':
             return self.export_to_netcdf(output_path, **kwargs)
-        if fmt == 'zarr':
-            return self.export_to_zarr(output_path, **kwargs)
-        raise ValueError(f"unknown format {fmt!r}, use 'netcdf' or 'zarr'")
+        return self.export_to_zarr(output_path, **kwargs)
 
     def export_to_netcdf(self, output_path, snap_compliant=False):
         '''
-        Write the product as compressed, packed NetCDF files: ``<output_path>/<basename>.nc`` (main) and
-        ``<output_path>/<basename>_anc.nc`` (ancillary, coarse resolution). Existing files are replaced.
+        Write the product as compressed, packed NetCDF files: the main product and the ancillary data
+        (coarse resolution). Existing files are replaced.
 
-        :param output_path: output directory (its name is used as base name of the files)
+        :param output_path: ``<dir>/<name>.nc``: main file ``<dir>/<name>.nc``, ancillary
+            ``<dir>/<name>_anc.nc``. Without extension: directory whose name is the base name
+            (``<output_path>/<basename>.nc`` and ``<output_path>/<basename>_anc.nc``, as before)
         :param snap_compliant: write ``Rrs`` as one variable per band so the file opens in SNAP
         '''
         logging.info('export into encoded netcdf')
@@ -322,17 +474,16 @@ class L2aProduct():
             enc.update({'zlib': True, 'complevel': complevel})
 
         # get file naming and create folder
-        output_path, basename = self._output_names(output_path)
-        ofile = os.path.join(output_path, basename)
+        output_path, basename, main_file = self._output_names(output_path, '.nc')
+        anc_file = os.path.join(directory, basename + '_anc.nc')
 
         # clean up to avoid permission denied
-        if os.path.exists(ofile + '.nc'):
-            os.remove(ofile + '.nc')
-        if os.path.exists(ofile + '_anc.nc'):
-            os.remove(ofile + '_anc.nc')
+        for path in (main_file, anc_file):
+            if os.path.exists(path):
+                os.remove(path)
 
         # export full raster data
-        ds.to_netcdf(ofile + '.nc', encoding=encoding, engine=NETCDF_ENGINE)
+        ds.to_netcdf(main_file, encoding=encoding, engine=NETCDF_ENGINE)
 
         # export ancillary data (coarse resolution)
         anc = self.ancillary.copy()
@@ -341,36 +492,58 @@ class L2aProduct():
         for variable in list(anc.keys()):
             encoding[variable] = {"zlib": True, "complevel": complevel, 'grid_mapping': 'spatial_ref'}
 
-        anc.to_netcdf(ofile + '_anc.nc', 'w',
+        anc.to_netcdf(anc_file, 'w',
                       encoding=encoding,
                       engine=NETCDF_ENGINE)
 
         return
 
-    def export_to_zarr(self, output_path, snap_compliant=False, chunks=None, consolidate=True):
+    @staticmethod
+    def _zarr_encoding(ds, encoding):
+        '''Copy of `encoding` for the (dask-chunked) dataset `ds`, with the Zarr chunks equal to the dask chunks.'''
+        enc = {var: dict(e) for var, e in encoding.items() if var in ds.variables}
+        for var, e in enc.items():
+            if ds[var].chunks is not None:
+                e['chunks'] = tuple(c[0] for c in ds[var].chunks)
+        return enc
+
+    def export_to_zarr(self, output_path, snap_compliant=False, chunks=None, consolidate=True,
+                       pyramids=True, pyramid_levels=None, pyramid_min_size=PYRAMID_MIN_SIZE):
         '''
-        Write the product as one Zarr store: ``<output_path>/<basename>.zarr`` with the main product in the
-        root group and the ancillary data in the group ``ancillary``. An existing store is replaced.
+        Write the product as one Zarr store with pyramids: the main product at full resolution in the root
+        group, the overviews (2x, 4x, ... coarser) in the groups ``overview_1``, ``overview_2``, ... and the
+        ancillary data in the group ``ancillary``. An existing store is replaced.
 
         Same variables, attributes and packing as `export_to_netcdf` (int16 + scale/offset, see
         `_base_encoding`); the compression is Zarr's default compressor (the codec option names differ
-        between zarr-python 2 and 3, so none is forced).
+        between zarr-python 2 and 3, so none is forced). Overviews: see the module documentation (mean for
+        continuous variables, nearest for flags and masks).
 
-        The main and the ancillary writes are evaluated together by a single ``dask.compute``, so the lazy
-        processing graph runs once and its chunks are written in parallel.
+        All the writes are evaluated together by a single ``dask.compute``, so the lazy processing graph
+        runs once (the overviews are computed from the full resolution chunks while they are in memory) and
+        its chunks are written in parallel.
 
         Parameters
         ----------
         output_path : str
-            Output directory (its name is used as base name of the store).
+            ``<dir>/<name>.zarr`` for the store itself; without extension the store is
+            ``<output_path>/<basename>.zarr`` (as before).
         snap_compliant : bool, optional
             Write ``Rrs`` as one variable per band (kept for parity with NetCDF; SNAP itself reads NetCDF).
         chunks : dict, optional
             Chunk sizes of the main product per dimension. Default ``{'y': 1024, 'x': 1024, 'wl': -1}``
             (all bands in one chunk). Use smaller spatial chunks (e.g. 512) for web viewing, ``'wl': 1`` to
-            read single bands cheaply. The ancillary data is written in one chunk per variable.
+            read single bands cheaply. The same chunks are used for the overviews (clipped to their size)
+            and the ancillary data is written in one chunk per variable.
         consolidate : bool, optional
             Consolidate the metadata of the whole store at the end (default True).
+        pyramids : bool, optional
+            Write the overviews (default True).
+        pyramid_levels : int, optional
+            Number of overviews (default: as many as needed to get a coarsest level of at most
+            `pyramid_min_size` pixels on its longest side).
+        pyramid_min_size : int, optional
+            See `pyramid_levels` (default 512).
 
         Returns
         -------
@@ -388,9 +561,26 @@ class L2aProduct():
         for var in ds.data_vars:
             ds[var].encoding = {}
         ds = ds.chunk({d: s for d, s in chunks.items() if d in ds.dims})
-        for var, enc in encoding.items():
-            if ds[var].chunks is not None:
-                enc['chunks'] = tuple(c[0] for c in ds[var].chunks)
+
+        # lazy pyramid: each level is the coarsening of the previous one
+        levels = [ds]
+        if pyramids:
+            n_over = _pyramid_levels(ds.sizes['y'], ds.sizes['x'], pyramid_min_size, pyramid_levels)
+            for _ in range(n_over):
+                level = _coarsen(levels[-1])
+                level = level.chunk({d: s for d, s in chunks.items() if d in level.dims})
+                levels.append(level)
+
+        # description of the levels, stored in the root attributes
+        layout = [{'group': '/' if k == 0 else OVERVIEW_GROUP.format(k),
+                   'scale': PYRAMID_FACTOR ** k,
+                   'shape': [int(lv.sizes['y']), int(lv.sizes['x'])]} for k, lv in enumerate(levels)]
+        ds.attrs['multiscales'] = [{
+            'description': 'pyramid of overviews, level k is {:d}**k coarser than the root group'.format(
+                PYRAMID_FACTOR),
+            'resampling': 'mean ignoring NaN for continuous variables, nearest for integer variables (flags, mask)',
+            'layout': layout}]
+        levels[0] = ds
 
         anc = self.ancillary.copy()
         self._scrub_attrs(anc)
@@ -401,17 +591,20 @@ class L2aProduct():
                               'chunks': tuple(c[0] for c in anc[var].chunks)}
                         for var in anc.data_vars}
 
-        output_path, basename = self._output_names(output_path)
-        store = os.path.join(output_path, basename + '.zarr')
+        directory, basename, store = self._output_names(output_path, '.zarr')
         if os.path.exists(store):
             shutil.rmtree(store)
 
         # metadata is written now, the data when the delayed objects are computed
-        delayed_main = ds.to_zarr(store, mode='w', encoding=encoding,
-                                  compute=False, consolidated=False)
-        delayed_anc = anc.to_zarr(store, group='ancillary', mode='a', encoding=encoding_anc,
-                                  compute=False, consolidated=False)
-        dask.compute(delayed_main, delayed_anc)  # one evaluation of the whole graph
+        delayed = [levels[0].to_zarr(store, mode='w', encoding=self._zarr_encoding(levels[0], encoding),
+                                     compute=False, consolidated=False)]
+        for k, level in enumerate(levels[1:], start=1):
+            delayed.append(level.to_zarr(store, group=OVERVIEW_GROUP.format(k), mode='a',
+                                         encoding=self._zarr_encoding(level, encoding),
+                                         compute=False, consolidated=False))
+        delayed.append(anc.to_zarr(store, group='ancillary', mode='a', encoding=encoding_anc,
+                                   compute=False, consolidated=False))
+        dask.compute(*delayed)  # one evaluation of the whole graph
 
         if consolidate:
             try:
