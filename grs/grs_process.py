@@ -595,5 +595,6 @@ class Process:
 
     def write_output(self):
         logging.info('export final product into netcdf')
-        self.l2a.export_to_netcdf(self.odir,
-                                  snap_compliant=self.snap_compliant)
+        self.l2a.export(self.odir,
+                        fmt='netcdf',
+                        snap_compliant=self.snap_compliant)
