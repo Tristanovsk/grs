@@ -35,9 +35,9 @@ bit   name                         meaning
 8     ``surfwater_land``           input variable ``surfwater`` == 0
 9     ``surfwater_water``          input variable ``surfwater`` == 1
 10    ``surfwater_cloud_and_shadow``  input variable ``surfwater`` >= 2
-11    ``OCM_Thick_Cloud``
-12
-13
+11    ``OCM_Thick_Cloud``          OmniCloudMask thick cloud (run at ``OCM_resolution``, 60 m by default)
+12    ``OCM_Thin_Cloud``           OmniCloudMask thin cloud
+13    ``OCM_Cloud_Shadow``         OmniCloudMask cloud shadow
 14-20  ``l1_*``                     Landsat level-1 QA bits copied from ``flags_l1``  [Landsat only]
 ====  ===========================  =============================================================
 
@@ -65,6 +65,7 @@ How it is computed (dask)
 import logging
 from collections import namedtuple
 from functools import lru_cache
+from importlib.metadata import version, PackageNotFoundError
 
 import dask
 import dask.array as da
@@ -73,8 +74,12 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import omnicloudmask as OCM
-from s2cloudless import S2PixelCloudDetector
+# omnicloudmask (torch) and s2cloudless (LightGBM) take seconds to import: they are imported where they
+# are used, so that ``import grs`` (and ``grs -v``) stays fast
+try:
+    _OCM_VERSION = version('omnicloudmask')
+except PackageNotFoundError:
+    _OCM_VERSION = 'unknown'
 
 FLAG_NAME = 'flags'
 
@@ -106,6 +111,11 @@ class Settings:
         s2cloudless probability thresholds of the low and high confidence cloud flags.
     low_confid_cloud_dilation, high_confid_cloud_dilation : int
         s2cloudless dilation radius (pixels) of the low and high confidence cloud flags.
+    OCM_Rband, OCM_Gband, OCM_NIRband : float
+        Red, green and NIR bands (nm, nearest available) given to OmniCloudMask.
+    OCM_resolution : float or None
+        Resolution (m) at which OmniCloudMask runs (default 60; e.g. 100 for speed); the mask is brought
+        back to the native grid. None, or a value not above the native pixel size, runs at native resolution.
     number_of_flags : int
         Size of the flag name/description tables (bits of the ``uint32`` flags).
     '''
@@ -142,6 +152,9 @@ class Settings:
         self.OCM_inference_dtype = "fp32"
         self.OCM_inference_device = 'cpu'
         self.OCM_mosaic_device = 'cpu'
+        # resolution (m) at which OmniCloudMask runs (block-averaged bands); the mask is then brought
+        # back to the native grid. None or <= native pixel size: run at native resolution
+        self.OCM_resolution = 60
 
         # general
         self.number_of_flags = 32
@@ -189,6 +202,7 @@ def _chunks(n, size, minimum=0):
 @lru_cache(maxsize=8)
 def _s2_detector(threshold, average_over, dilation_size):
     '''s2cloudless detector, created once per process (workers) instead of being shipped with every task.'''
+    from s2cloudless import S2PixelCloudDetector
     return S2PixelCloudDetector(threshold=threshold, average_over=average_over,
                                 dilation_size=dilation_size, all_bands=True)
 
@@ -379,13 +393,26 @@ class Masking(Settings):
 
         return _Step(fn, None, halo, ())
 
-    # TODO process downscaled image to save time (e.g. resolution 60 m)
+    def _pixel_size(self):
+        '''Native pixel size (units of the ``x`` coordinate, m for projected rasters); None if unknown.'''
+        x = self.prod['x'].values if 'x' in self.prod.coords else None
+        if x is None or x.size < 2:
+            return None
+        return abs(float(x[1] - x[0]))
+
+    def _ocm_factor(self):
+        '''Integer downscaling factor so that the OmniCloudMask input is at about `OCM_resolution`.'''
+        res = self._pixel_size()
+        if not self.OCM_resolution or not res:
+            return 1
+        return max(1, int(round(self.OCM_resolution / res)))
+
     def _get_omnicloudmask(self,
                       bitmasks=(11, 12, 13),
                       names=('OCM_Thick_Cloud', 'OCM_Thin_Cloud', 'OCM_Cloud_Shadow'),
-                      descriptions=('Thick Cloud from OmniCloudMask version ' + OCM.__version__,
-                                    'Thin Cloud from OmniCloudMask version ' + OCM.__version__,
-                                    'Cloud Shadow from OmniCloudMask version ' + OCM.__version__)):
+                      descriptions=('Thick Cloud from OmniCloudMask version ' + _OCM_VERSION,
+                                    'Thin Cloud from OmniCloudMask version ' + _OCM_VERSION,
+                                    'Cloud Shadow from OmniCloudMask version ' + _OCM_VERSION)):
         '''Apply OmniCloudMAsk for clouds and cloud shadows masking
 
         Outputs:
@@ -402,28 +429,56 @@ class Masking(Settings):
          Achieving state-of-the-art cloud and cloud shadow identification with OmniCloudMask.
          Remote Sensing of Environment, 322, 114694. https://doi.org/10.1016/J.RSE.2025.114694
 
-        :param rgnir: raster xarray object with the red, green and nir bands
-        :return omnimask: raster of the retrieved mask
+        Run on a downscaled image to save time: the red, green and NIR bands are averaged (ignoring NaN) over
+        ``factor x factor`` blocks, with ``factor`` = `OCM_resolution` / native pixel size rounded
+        (e.g. 6 for Sentinel-2 at 10 m and 60 m), the prediction is done on this coarse image (lazy bands:
+        only the coarse image is held in memory), then each coarse class is copied to the
+        ``factor x factor`` native pixels it covers (nearest). The mask and the flag bits are therefore at
+        native resolution, with blocky edges of `OCM_resolution`.
+
+        Sets ``self.omnimask`` (uint8, native grid) and the bits `bitmasks` of ``self.flags``.
+
+        :return: number of flagged pixels of each bit of `bitmasks`
         '''
-        rgnir = self.prod.bands.sel(wl=[self.OCM_Rband, self.OCM_Gband, self.OCM_NIRband])
-        self.rgnir = rgnir
+        iwl = [self._wl_index(wl) for wl in (self.OCM_Rband, self.OCM_Gband, self.OCM_NIRband)]
+        rgnir = self.prod.bands.isel(wl=iwl)
         for ii in range(len(bitmasks)):
             self._register(bitmasks[ii], names[ii], descriptions[ii])
 
-        logging.info('OmniCloudMask processing')
-        omnimask = OCM.predict_from_array(rgnir.fillna(0).values,
-                                          batch_size=self.OCM_batch_size,
-                                          inference_dtype=self.OCM_inference_dtype,
-                                          inference_device=self.OCM_inference_device,
-                                          mosaic_device=self.OCM_mosaic_device
-                                          )[0]
-        self.omnimask=omnimask
-        # set flags raster
-        self.flags = self.flags + (
-                ((1 == omnimask) << bitmasks[0]) +
-                ((2 == omnimask) << bitmasks[1]) +
-                ((3 == omnimask) << bitmasks[2])
-        )
+        factor = self._ocm_factor()
+        ny, nx = rgnir.sizes['y'], rgnir.sizes['x']
+        if factor > 1:
+            # incomplete blocks at the bottom / right edges are averaged over their valid pixels
+            rgnir = rgnir.coarsen(y=factor, x=factor, boundary='pad').mean(skipna=True)
+        res = self._pixel_size()
+        logging.info('OmniCloudMask processing on {:d} x {:d} pixels{}'.format(
+            rgnir.sizes['y'], rgnir.sizes['x'],
+            '' if res is None else ' ({:g} m)'.format(res * factor)))
+
+        import omnicloudmask as OCM
+
+        coarse = OCM.predict_from_array(np.asarray(rgnir.fillna(0).transpose('wl', 'y', 'x').values,
+                                                   dtype=np.float32),
+                                        batch_size=self.OCM_batch_size,
+                                        inference_dtype=self.OCM_inference_dtype,
+                                        inference_device=self.OCM_inference_device,
+                                        mosaic_device=self.OCM_mosaic_device
+                                        )[0].astype(np.uint8)
+
+        # back to the native grid: pixel (i, j) takes the class of the block (i // factor, j // factor)
+        if factor > 1:
+            omnimask = coarse[np.ix_(np.arange(ny) // factor, np.arange(nx) // factor)]
+        else:
+            omnimask = coarse
+        self.omnimask = omnimask
+
+        # set flags raster (in place, uint32)
+        counts = []
+        for value, bit in zip((1, 2, 3), bitmasks):
+            cond = omnimask == value
+            _set(self.flags, bit, cond)
+            counts.append(int(np.count_nonzero(cond)))
+        return counts
 
     def _water_step(self,
                     bitmasks=(3, 4),
@@ -664,8 +719,10 @@ class Masking(Settings):
 
         self.flags = flags
 
-        # OmniCloudMask on full raster
-        self._get_omnicloudmask()
+        # OmniCloudMask on a downscaled image, mask brought back to the native grid
+        ocm_bits = (11, 12, 13)
+        counts += self._get_omnicloudmask(bitmasks=ocm_bits)
+        bits = bits + list(ocm_bits)
 
         self._store_stats(bits, counts, flags.size)
 

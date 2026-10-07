@@ -135,14 +135,34 @@ __package__ = 'grs'
 __version__ = '3.0.1dev'
 
 
-from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
+import importlib
 
-from .cams import CamsProduct
-from .auxdata import SensorData, AuxData
-from .product import Product
-from .output import L2aProduct
-from .mask import Masking
-from .grs_kernel import Kernel
-from .grs_process import Process
+# public classes and the submodule defining them; a submodule is imported the first time one of its classes
+# is accessed (``grs.Process``, ``from grs import Masking``), so ``import grs`` and ``grs -v`` do not load
+# the heavy dependencies (torch, LightGBM, eoreader, rasterio...)
+_LAZY = {
+    'Aerosol': 'utils', 'Misc': 'utils', 'Rasterization': 'utils', 'GaseousTransmittance': 'utils',
+    'CamsProduct': 'cams',
+    'SensorData': 'auxdata', 'AuxData': 'auxdata',
+    'Product': 'product',
+    'L2aProduct': 'output',
+    'Masking': 'mask',
+    'Kernel': 'grs_kernel',
+    'Process': 'grs_process',
+}
+
+__all__ = list(_LAZY)
+
+
+def __getattr__(name):
+    if name in _LAZY:
+        value = getattr(importlib.import_module('.' + _LAZY[name], __name__), name)
+        globals()[name] = value  # cached: next access does not go through __getattr__
+        return value
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
+
+def __dir__():
+    return sorted(list(globals()) + __all__)
 
 

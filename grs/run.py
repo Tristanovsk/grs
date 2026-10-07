@@ -44,19 +44,20 @@ import logging
 
 from pathlib import Path
 from docopt import docopt
-from osgeo import gdal
 
-from . import class_logger
 from . import __package__, __version__
-from .grs_process import Process
-from exe.procutils import misc
-
-misc = misc()
 
 
 def main():
+    # -h / -v are handled (and exit) here, before the heavy imports below
     args = docopt(__doc__, version=__package__ + '_' + __version__)
     print(args)
+
+    from osgeo import gdal
+    from . import class_logger
+    from .grs_process import Process
+    from exe.procutils import misc
+    misc = misc()
 
     file = Path(args['<input_file>'])
 
