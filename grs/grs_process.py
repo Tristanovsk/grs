@@ -284,7 +284,7 @@ class Process:
             elif 'SAFE' in extension:
                 logging.info('Open L1C Sentinel 2 image and compute angle parameters')
                 try:
-                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
+                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution, lazy_geom=True)
                     l1c.load_product()
                 except Exception as exc:
                     raise GRS_IO_Exception(l1c_prod, exc)
