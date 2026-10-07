@@ -82,11 +82,16 @@ html_theme_options = {
     'use_download_button': True,
     'navigation_with_keys': True,
     'show_toc_level': 2,
+    'logo': {
+        'image_light': '_static/grs_logo_v0.svg',
+        'image_dark': '_static/grs_logo_v0_dark.svg',
+    },
 }
 
 html_title = ''
 html_logo = '_static/grs_logo_v0.svg'
-html_favicon = '_static/grs_logo_light.png'
+# the favicon follows the light / dark theme of the browser
+html_favicon = '_static/grs_favicon.svg'
 
 html_static_path = ['_static']
 html_css_files = ['custom.css']
