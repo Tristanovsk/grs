@@ -21,12 +21,13 @@ none               NetCDF    legacy: ``<output_path>/<basename>.nc`` and ``_anc.
 
 ``fmt='netcdf'`` / ``fmt='zarr'`` forces the format; with an extension that says otherwise a
 ``ValueError`` is raised. Without extension and ``fmt``, ``output_path`` is a directory whose name is the
-base name of the files (previous behavior). With ``fmt='zarr'`` and no extension the store is
-``<output_path>/<basename>.zarr``
+base name of the files (previous behaviour). With ``fmt='zarr'`` and no extension the store is
+``<output_path>/<basename>.zarr``.
 
 Output layouts
 ==============
-NetCDF::
+
+NetCDF (unchanged layout)::
 
     <dir>/<stem>.nc        main product
     <dir>/<stem>_anc.nc    ancillary data (coarse grid, dimensions xc, yc)
@@ -59,6 +60,32 @@ The number of levels is chosen so that the coarsest one is at most ``pyramid_min
 its longest side (or set with ``pyramid_levels``). The overviews add about 1/3 of the full-resolution size
 (1/4 + 1/16 + ...). ``pyramids=False`` writes the full resolution only.
 
+Cloud-ready Zarr
+================
+
+The store is laid out for reading a window of the image without downloading the rest, and for being
+written straight to object storage:
+
+* **Sharding** (zarr-python >= 3, Zarr format 3, and an xarray with the ``shards`` encoding): small inner
+  chunks (default 256 x 256 pixels, all wavelengths) are packed into large shards (default 1024 x 1024).
+  A reader fetches one inner chunk with a byte-range request, while the store only holds a few large
+  objects (4x4 = 16 chunks per object) instead of thousands of small ones: fewer requests to list / write,
+  no per-object overhead. The shard shape is the dask chunk and a multiple of the inner chunk; a level
+  that is a single block (small overviews) is stored without sharding. If a requirement is missing the
+  export warns and writes plain 512 x 512 chunks (Zarr format 3 with zarr-python 3, format 2 otherwise).
+* **Compression**: Blosc/zstd with byte shuffle (``compression`` / ``clevel``), well suited to the packed
+  ``int16`` data and the bit flags.
+* **Consolidated metadata**: the metadata of the whole hierarchy (full resolution, overviews, ancillary)
+  is read in one request when opening the store.
+* **Overviews** (see Pyramids) for fast low-resolution display.
+* **Remote output**: ``output_path`` can be an fsspec URL (``s3://bucket/scene.zarr``, ``gs://``,
+  ``az://``...; credentials through ``storage_options``). The chunks are written directly to the bucket as
+  they are computed, nothing is staged on the local disk. Needs the matching fsspec driver (``s3fs``,
+  ``gcsfs``, ``adlfs``). NetCDF is local only.
+
+Dask chunks are the shards, so every shard is written by exactly one task (concurrent writes into the same
+shard would corrupt it).
+
 Zarr export and dask
 ====================
 
@@ -72,6 +99,7 @@ The product is normally dask-backed (lazy). The Zarr export is built to evaluate
   together in one ``dask.compute`` call, so intermediate results shared by the graphs (e.g. the gaseous
   transmittance, the full-resolution chunks) are computed only once and chunks are written in parallel as
   soon as they are ready;
+* the packing is fixed (no data-dependent range), so no extra pass over the data is needed;
 * the metadata of the whole hierarchy is consolidated at the end (one small file read to open it,
   useful on object storage).
 
@@ -79,12 +107,12 @@ Neither export modifies the product: the SNAP-compliant band explosion, the attr
 the rechunking are done on a shallow copy, so ``export_to_netcdf`` and ``export_to_zarr`` can be called
 one after the other on the same object.
 '''
-
 import os
 import shutil
 import numpy as np
 import xarray as xr
 import logging
+
 
 import importlib_resources
 import yaml
@@ -93,7 +121,7 @@ configfile = importlib_resources.files(__package__) / 'config.yml'
 with open(configfile, 'r') as file:
     config = yaml.safe_load(file)
 
-NETCDF_ENGINE = config['processor']['netcdf_engine']
+NETCDF_ENGINE = 'netcdf4' #config['processor']['netcdf_engine']
 
 # attributes that would conflict with the encoding when written
 _CONFLICTING_ATTRS = ('grid_mapping', 'scale_factor', '_FillValue', 'add_offset')
@@ -104,10 +132,14 @@ _ZARR_EXTENSIONS = ('.zarr',)
 _FORMAT_EXTENSION = {'netcdf': '.nc', 'zarr': '.zarr'}
 
 # pyramids
-# TODO put these parameters in config.yml
 PYRAMID_FACTOR = 2
 PYRAMID_MIN_SIZE = 512
 OVERVIEW_GROUP = 'overview_{:d}'
+
+# Zarr layout (pixels; -1 = whole dimension): write blocks (= shards), stored chunks
+_DEFAULT_SHARDS = {'y': 1024, 'x': 1024, 'wl': -1}
+_DEFAULT_CHUNKS_SHARDED = {'y': 256, 'x': 256, 'wl': -1}
+_DEFAULT_CHUNKS = {'y': 512, 'x': 512, 'wl': -1}
 
 
 def _base_encoding():
@@ -160,12 +192,119 @@ def _format_from_name(path):
     :param path: output path
     :return: ``'netcdf'`` (``.nc``, ``.nc4``, ``.cdf``), ``'zarr'`` (``.zarr``) or None (other / no extension)
     '''
-    ext = os.path.splitext(os.path.normpath(path))[1].lower()
+    ext = os.path.splitext(str(path).rstrip('/\\'))[1].lower()  # no normpath: it would break 's3://...'
     if ext in _NETCDF_EXTENSIONS:
         return 'netcdf'
     if ext in _ZARR_EXTENSIONS:
         return 'zarr'
     return None
+
+
+def _is_remote(path):
+    '''True if `path` is an fsspec URL (``s3://``, ``gs://``, ``az://``, ``https://``...), False for a local path.'''
+    path = str(path)
+    return '://' in path and not path.startswith('file://')
+
+
+def _zarr_major():
+    '''Major version of zarr-python, None if zarr is not installed.'''
+    try:
+        import zarr
+        return int(zarr.__version__.split('.')[0])
+    except Exception:
+        return None
+
+
+def _xarray_supports_shards():
+    '''True if the installed xarray accepts the ``shards`` key in the Zarr encoding (feature test, not a version test).'''
+    try:
+        import inspect
+        import xarray.backends.zarr as xarray_zarr
+        return 'shards' in inspect.getsource(xarray_zarr)
+    except Exception:
+        return False
+
+
+def _compression_encoding(compression, clevel, zarr_major):
+    '''
+    Compression options for the encoding of the Zarr variables: Blosc with `compression` codec
+    (``'zstd'``, ``'lz4'``, ``'zlib'``...) and byte shuffle. The option name depends on the zarr-python
+    version (``compressors`` for 3, ``compressor`` for 2).
+
+    :return: dict to merge in the encoding of each variable ({} if `compression` is None or unavailable)
+    '''
+    if compression is None or zarr_major is None:
+        return {}
+    try:
+        if zarr_major >= 3:
+            from zarr.codecs import BloscCodec
+            return {'compressors': (BloscCodec(cname=compression, clevel=clevel, shuffle='shuffle'),)}
+        import numcodecs
+        return {'compressor': numcodecs.Blosc(cname=compression, clevel=clevel, shuffle=numcodecs.Blosc.SHUFFLE)}
+    except Exception as e:
+        logging.warning(f'compression {compression!r} not available, using the Zarr default: {e}')
+        return {}
+
+
+def _var_chunking(dims, dask_chunks, chunks):
+    '''
+    Stored chunk shape and write-block (shard) shape of a variable.
+
+    The block is the dask chunk (regular chunks: first one). The stored chunk is the requested one, clipped
+    to the block; it has to divide the block, otherwise the whole block is used (small overviews).
+
+    :param dims: dimension names of the variable
+    :param dask_chunks: ``variable.chunks`` (tuple of tuples)
+    :param chunks: requested stored chunk size per dimension (-1 / missing: whole block)
+    :return: ``(chunk_shape, block_shape)``, tuples in the order of `dims`
+    '''
+    inner, block = [], []
+    for dim, dc in zip(dims, dask_chunks):
+        blk = int(dc[0])
+        want = chunks.get(dim, -1)
+        c = blk if (want is None or want < 0) else min(int(want), blk)
+        if blk % c:
+            c = blk
+        inner.append(c)
+        block.append(blk)
+    return tuple(inner), tuple(block)
+
+
+def _clear_store(store, storage_options=None):
+    '''Delete an existing local or remote Zarr store (a store left from a previous run).'''
+    if _is_remote(store):
+        import fsspec
+        fs, path = fsspec.core.url_to_fs(store, **(storage_options or {}))
+        if fs.exists(path):
+            fs.rm(path, recursive=True)
+    elif os.path.exists(store):
+        shutil.rmtree(store)
+
+
+def _consolidate(store, storage_options=None, zarr_major=None, groups=()):
+    '''
+    Consolidate the metadata of the local or remote store: the root group (which covers the whole
+    hierarchy) and each group of `groups` on its own, so that a group opened directly
+    (``xr.open_zarr(store, group='overview_2')``) also needs a single metadata request.
+
+    :param store: path or URL of the store
+    :param storage_options: fsspec options for a URL
+    :param zarr_major: major version of zarr-python
+    :param groups: paths of the groups to consolidate individually (e.g. ``['overview_1', 'ancillary']``)
+    '''
+    import zarr
+    if _is_remote(store):
+        if (zarr_major or 0) >= 3:
+            # zarr 3 needs an async filesystem (s3fs, gcsfs, adlfs...)
+            target = zarr.storage.FsspecStore.from_url(store, storage_options=storage_options or {})
+        else:
+            import fsspec
+            target = fsspec.get_mapper(store, **(storage_options or {}))
+    else:
+        target = store
+    zarr.consolidate_metadata(target)
+    for group in groups:
+        zarr.consolidate_metadata(target, path=group)
 
 
 def _pyramid_levels(ny, nx, min_size=PYRAMID_MIN_SIZE, max_levels=None):
@@ -223,6 +362,7 @@ def _coarsen(ds, factor=PYRAMID_FACTOR):
     except Exception as e:  # georeferencing is informative only: never block the export
         logging.warning(f'could not update the geotransform of the overview: {e}')
     return coarse
+
 
 class L2aProduct():
     '''
@@ -283,6 +423,8 @@ class L2aProduct():
         * The attributes are copied, so the native raster's attributes are no longer modified.
         * ``cirrus_band`` and ``wv_band`` are built from ``prod.cirrus`` / ``prod.wv`` but are not merged
           into the output (as in the previous version); add them to ``l2_prod`` if they should be exported.
+        * The rioxarray calls no longer use ``inplace=True`` (removed in recent rioxarray versions); their
+          results are assigned instead.
         '''
         logging.info('construct l2a')
         native_raster = self.prod.raster
@@ -299,7 +441,7 @@ class L2aProduct():
         cams_raster = self.cams.raster.rename({"x": "xc", "y": "yc"})
         transmittance_raster = self.gas_trans.Tg_tot_coarse.rename({"x": "xc", "y": "yc", 'wl': 'wl_all'})
 
-        # save geometry angles, take mean values if angle depends on spectral bands
+        # save geometrie angles, take mean values if angle depends on spectral bands
         def angle_extraction(angle):
             if 'wl' in angle.coords:
                 return angle.mean('wl')
@@ -467,6 +609,8 @@ class L2aProduct():
         :param snap_compliant: write ``Rrs`` as one variable per band so the file opens in SNAP
         '''
         logging.info('export into encoded netcdf')
+        if _is_remote(output_path):
+            raise ValueError('NetCDF can only be written to a local path; use a .zarr output for object storage')
 
         complevel = self.complevel
         ds, encoding = self._prepare_export(snap_compliant)
@@ -474,7 +618,7 @@ class L2aProduct():
             enc.update({'zlib': True, 'complevel': complevel})
 
         # get file naming and create folder
-        output_path, basename, main_file = self._output_names(output_path, '.nc')
+        directory, basename, main_file = self._output_names(output_path, '.nc')
         anc_file = os.path.join(directory, basename + '_anc.nc')
 
         # clean up to avoid permission denied
@@ -498,26 +642,19 @@ class L2aProduct():
 
         return
 
-    @staticmethod
-    def _zarr_encoding(ds, encoding):
-        '''Copy of `encoding` for the (dask-chunked) dataset `ds`, with the Zarr chunks equal to the dask chunks.'''
-        enc = {var: dict(e) for var, e in encoding.items() if var in ds.variables}
-        for var, e in enc.items():
-            if ds[var].chunks is not None:
-                e['chunks'] = tuple(c[0] for c in ds[var].chunks)
-        return enc
-
-    def export_to_zarr(self, output_path, snap_compliant=False, chunks=None, consolidate=True,
-                       pyramids=True, pyramid_levels=None, pyramid_min_size=PYRAMID_MIN_SIZE):
+    def export_to_zarr(self, output_path, snap_compliant=False, chunks=None, shards=None, sharding=True,
+                       compression='zstd', clevel=5, storage_options=None, max_concurrency=None,
+                       consolidate=True, pyramids=True, pyramid_levels=None,
+                       pyramid_min_size=PYRAMID_MIN_SIZE):
         '''
-        Write the product as one Zarr store with pyramids: the main product at full resolution in the root
-        group, the overviews (2x, 4x, ... coarser) in the groups ``overview_1``, ``overview_2``, ... and the
-        ancillary data in the group ``ancillary``. An existing store is replaced.
+        Write the product as one cloud-ready Zarr store with pyramids: the main product at full resolution
+        in the root group, the overviews (2x, 4x, ... coarser) in the groups ``overview_1``,
+        ``overview_2``, ... and the ancillary data in the group ``ancillary``. An existing store is replaced.
 
         Same variables, attributes and packing as `export_to_netcdf` (int16 + scale/offset, see
-        `_base_encoding`); the compression is Zarr's default compressor (the codec option names differ
-        between zarr-python 2 and 3, so none is forced). Overviews: see the module documentation (mean for
-        continuous variables, nearest for flags and masks).
+        `_base_encoding`). Cloud layout: sharded chunks, Blosc/zstd compression, consolidated metadata, direct
+        write to object storage (see the module documentation). Overviews: mean for continuous variables,
+        nearest for flags and masks.
 
         All the writes are evaluated together by a single ``dask.compute``, so the lazy processing graph
         runs once (the overviews are computed from the full resolution chunks while they are in memory) and
@@ -526,17 +663,40 @@ class L2aProduct():
         Parameters
         ----------
         output_path : str
-            ``<dir>/<name>.zarr`` for the store itself; without extension the store is
-            ``<output_path>/<basename>.zarr`` (as before).
+            ``<dir>/<name>.zarr`` or a remote URL ``s3://bucket/<name>.zarr`` (the ``.zarr`` extension is
+            required for a URL). Without extension the local store is ``<output_path>/<basename>.zarr``
+            (as before).
         snap_compliant : bool, optional
             Write ``Rrs`` as one variable per band (kept for parity with NetCDF; SNAP itself reads NetCDF).
         chunks : dict, optional
-            Chunk sizes of the main product per dimension. Default ``{'y': 1024, 'x': 1024, 'wl': -1}``
-            (all bands in one chunk). Use smaller spatial chunks (e.g. 512) for web viewing, ``'wl': 1`` to
-            read single bands cheaply. The same chunks are used for the overviews (clipped to their size)
-            and the ancillary data is written in one chunk per variable.
+            Stored chunk size per dimension, i.e. the unit of a read. Default 256 x 256 pixels with all
+            wavelengths (512 x 512 when sharding is not available). Use ``'wl': 1`` to read single
+            bands cheaply. Must divide the shard size, otherwise the whole shard is used.
+        shards : dict, optional
+            Size per dimension of the write blocks, which are the shards when sharding is on. Default
+            ``{'y': 1024, 'x': 1024, 'wl': -1}``. Also the dask chunking of the computation: a shard is held
+            in memory (float32, before packing) while it is computed, about ``1024 * 1024 * n_bands * 4``
+            bytes per variable. Lower it (e.g. 512) when memory is tight.
+        sharding : bool, optional
+            Pack the chunks into shards (default True). Needs zarr-python >= 3 (Zarr format 3) and an xarray
+            that accepts the ``shards`` encoding; otherwise a warning says what is missing and plain chunks
+            are written (Zarr format 3 with zarr-python 3, format 2 with zarr-python 2).
+        compression : str or None, optional
+            Blosc codec: ``'zstd'`` (default), ``'lz4'`` (faster, larger), ``'zlib'``...; None keeps the
+            Zarr default.
+        clevel : int, optional
+            Compression level (default 5).
+        storage_options : dict, optional
+            Credentials / options of the fsspec filesystem when `output_path` is a URL
+            (e.g. ``{'profile': 'myprofile'}`` for S3, ``{'anon': False}``).
+        max_concurrency : int, optional
+            Number of concurrent I/O operations of zarr-python 3 (``async.concurrency``, default 10).
+            Raising it (e.g. 32 or 64) speeds up the writes to object storage; ignored with zarr-python 2.
         consolidate : bool, optional
-            Consolidate the metadata of the whole store at the end (default True).
+            Consolidate the metadata at the end (default True): the root group, which covers the whole
+            hierarchy, and each overview / ancillary group on its own. zarr-python 3 may warn that
+            consolidated metadata is not part of the Zarr v3 specification; it is read transparently by
+            ``xr.open_zarr`` and ignored by readers that do not support it.
         pyramids : bool, optional
             Write the overviews (default True).
         pyramid_levels : int, optional
@@ -548,19 +708,26 @@ class L2aProduct():
         Returns
         -------
         str
-            Path of the Zarr store.
+            Path / URL of the Zarr store.
         '''
         import dask
 
         logging.info('export into encoded zarr')
-        if chunks is None:
-            chunks = {'y': 1024, 'x': 1024, 'wl': -1}
+        zarr_major = _zarr_major()
+        zarr3 = (zarr_major or 0) >= 3  # Zarr format 3 (default of zarr-python 3)
+        sharded = bool(sharding) and zarr3 and _xarray_supports_shards()
+        if sharding and not sharded:
+            reason = 'zarr-python >= 3' if not zarr3 else 'a recent xarray (the installed one has no `shards` encoding)'
+            logging.warning(f'sharding needs {reason}: writing plain chunks')
+        chunks = dict(chunks) if chunks else dict(_DEFAULT_CHUNKS_SHARDED if sharded else _DEFAULT_CHUNKS)
+        block = dict(shards) if shards else dict(_DEFAULT_SHARDS)
+        compression_enc = _compression_encoding(compression, clevel, zarr_major)
 
         ds, encoding = self._prepare_export(snap_compliant)
         # variable encodings inherited from the input (e.g. NetCDF or Zarr chunks) must not leak into the output
         for var in ds.data_vars:
             ds[var].encoding = {}
-        ds = ds.chunk({d: s for d, s in chunks.items() if d in ds.dims})
+        ds = ds.chunk({d: s for d, s in block.items() if d in ds.dims})
 
         # lazy pyramid: each level is the coarsening of the previous one
         levels = [ds]
@@ -568,7 +735,7 @@ class L2aProduct():
             n_over = _pyramid_levels(ds.sizes['y'], ds.sizes['x'], pyramid_min_size, pyramid_levels)
             for _ in range(n_over):
                 level = _coarsen(levels[-1])
-                level = level.chunk({d: s for d, s in chunks.items() if d in level.dims})
+                level = level.chunk({d: s for d, s in block.items() if d in level.dims})
                 levels.append(level)
 
         # description of the levels, stored in the root attributes
@@ -576,40 +743,69 @@ class L2aProduct():
                    'scale': PYRAMID_FACTOR ** k,
                    'shape': [int(lv.sizes['y']), int(lv.sizes['x'])]} for k, lv in enumerate(levels)]
         ds.attrs['multiscales'] = [{
-            'description': 'pyramid of overviews, level k is {:d}**k coarser than the root group'.format(
-                PYRAMID_FACTOR),
+            'description': 'pyramid of overviews, level k is {:d}**k coarser than the root group'.format(PYRAMID_FACTOR),
             'resampling': 'mean ignoring NaN for continuous variables, nearest for integer variables (flags, mask)',
             'layout': layout}]
         levels[0] = ds
+
+        def level_encoding(level):
+            '''Encoding of one level: packing + compression + stored chunks (+ shards = dask blocks).'''
+            enc = {}
+            for var, e in encoding.items():
+                if var not in level.variables:
+                    continue
+                e = dict(e)
+                e.update(compression_enc)
+                if level[var].dims and level[var].chunks is not None:
+                    inner, blk = _var_chunking(level[var].dims, level[var].chunks, chunks)
+                    e['chunks'] = inner
+                    if sharded and inner != blk:
+                        e['shards'] = blk
+                enc[var] = e
+            return enc
 
         anc = self.ancillary.copy()
         self._scrub_attrs(anc)
         for var in anc.data_vars:
             anc[var].encoding = {}
-        anc = anc.chunk(-1)
-        encoding_anc = {var: {'grid_mapping': 'spatial_ref',
-                              'chunks': tuple(c[0] for c in anc[var].chunks)}
+        anc = anc.chunk(-1)  # coarse data: one chunk per variable
+        encoding_anc = {var: dict(compression_enc, grid_mapping='spatial_ref',
+                                  chunks=tuple(c[0] for c in anc[var].chunks))
                         for var in anc.data_vars}
 
-        directory, basename, store = self._output_names(output_path, '.zarr')
-        if os.path.exists(store):
-            shutil.rmtree(store)
+        # target: URL (written directly to the bucket) or local path
+        if _is_remote(output_path):
+            store = str(output_path).rstrip('/')
+            if _format_from_name(store) != 'zarr':
+                raise ValueError(f"the URL of a Zarr store has to end with '.zarr': {output_path!r}")
+        else:
+            directory, basename, store = self._output_names(output_path, '.zarr')
+        _clear_store(store, storage_options)
+
+        write_kwargs = {'compute': False, 'consolidated': False}
+        if zarr3:
+            write_kwargs['zarr_format'] = 3  # explicit: sharding is a Zarr format 3 feature
+        if storage_options:
+            write_kwargs['storage_options'] = storage_options
 
         # metadata is written now, the data when the delayed objects are computed
-        delayed = [levels[0].to_zarr(store, mode='w', encoding=self._zarr_encoding(levels[0], encoding),
-                                     compute=False, consolidated=False)]
+        delayed = [levels[0].to_zarr(store, mode='w', encoding=level_encoding(levels[0]), **write_kwargs)]
         for k, level in enumerate(levels[1:], start=1):
             delayed.append(level.to_zarr(store, group=OVERVIEW_GROUP.format(k), mode='a',
-                                         encoding=self._zarr_encoding(level, encoding),
-                                         compute=False, consolidated=False))
-        delayed.append(anc.to_zarr(store, group='ancillary', mode='a', encoding=encoding_anc,
-                                   compute=False, consolidated=False))
-        dask.compute(*delayed)  # one evaluation of the whole graph
+                                         encoding=level_encoding(level), **write_kwargs))
+        delayed.append(anc.to_zarr(store, group='ancillary', mode='a', encoding=encoding_anc, **write_kwargs))
+        # one evaluation of the whole graph; zarr's own I/O concurrency can be raised for object storage
+        if max_concurrency and zarr3:
+            import zarr
+            with zarr.config.set({'async.concurrency': int(max_concurrency)}):
+                dask.compute(*delayed)
+        else:
+            dask.compute(*delayed)
 
         if consolidate:
             try:
-                import zarr
-                zarr.consolidate_metadata(store)
+                groups = [OVERVIEW_GROUP.format(k) for k in range(1, len(levels))] + ['ancillary']
+                _consolidate(store, storage_options, zarr_major, groups)
             except Exception as e:
                 logging.warning(f'could not consolidate zarr metadata: {e}')
 
