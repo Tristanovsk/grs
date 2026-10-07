@@ -34,7 +34,12 @@ import gc
 
 import GRSdriver
 
-from . import Product, utils, CamsProduct, L2aProduct, Masking, Kernel
+from . import utils
+from .product import Product
+from .cams import CamsProduct
+from .output import L2aProduct
+from .mask import Masking
+from .grs_kernel import Kernel
 from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join

@@ -56,7 +56,8 @@ from importlib.resources import files
 from numba import njit
 from scipy import ndimage
 
-from . import AuxData, Rasterization, GaseousTransmittance, Misc
+from .auxdata import AuxData
+from .utils import Rasterization, GaseousTransmittance, Misc
 
 # --------------------------------------------------
 # get path of other files as indicated in config.yml
