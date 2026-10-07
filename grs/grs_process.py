@@ -147,7 +147,7 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk=512,
-                aot_resolution=160,
+                aot_resolution=240,
                 aot_chunk=256,
                 scale_aot=1,
                 opac_model=None,
@@ -664,6 +664,8 @@ class Process:
         l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
         l2_prod = l2_prod.set_coords('central_wavelength')
         prod.raster.attrs['opac_model'] = opac_model
+        # pixel size (meter) of the coarse raster of the aerosol retrieval
+        prod.raster.attrs['aot_resolution'] = kernel.coarse_resolution
 
         ######################################
         # Write final product
