@@ -34,13 +34,14 @@ NetCDF (unchanged layout)::
 
 Zarr (with pyramids, see below)::
 
-    <name>.zarr/                  root group = main product at full resolution (level 0)
-    <name>.zarr/overview_1/       same variables, 2x coarser
-    <name>.zarr/overview_2/       4x coarser
+    <name>.zarr/                  root group: product attributes and ``multiscales``, no data
+    <name>.zarr/0/                main product at full resolution (level 0)
+    <name>.zarr/1/                same variables, 2x coarser
+    <name>.zarr/2/                4x coarser
     ...
     <name>.zarr/ancillary/        ancillary data (coarse grid, dimensions xc, yc)
 
-Read back with ``xr.open_zarr(store)`` (full resolution), ``xr.open_zarr(store, group='overview_2')`` and
+Read back with ``xr.open_zarr(store, group='0')`` (full resolution), ``xr.open_zarr(store, group='2')`` and
 ``xr.open_zarr(store, group='ancillary')``. The packed variables are unpacked automatically
 (``scale_factor`` / ``add_offset`` / ``_FillValue``). The root attribute ``multiscales`` lists the levels
 (group, scale factor, shape) for viewers.
@@ -134,7 +135,8 @@ _FORMAT_EXTENSION = {'netcdf': '.nc', 'zarr': '.zarr'}
 # pyramids
 PYRAMID_FACTOR = 2
 PYRAMID_MIN_SIZE = 512
-OVERVIEW_GROUP = 'overview_{:d}'
+LEVEL_GROUP = '{:d}'
+ANCILLARY_GROUP = 'ancillary'
 
 # Zarr layout (pixels; -1 = whole dimension): write blocks (= shards), stored chunks
 _DEFAULT_SHARDS = {'y': 1024, 'x': 1024, 'wl': -1}
@@ -183,6 +185,42 @@ def _rrs_encoding():
     '''Packing of the remote-sensing reflectance (and its per-band variants): int16, 1e-5, offset 0.3.'''
     return {'dtype': 'int16', 'scale_factor': 0.00001, 'add_offset': .3,
             '_FillValue': -32768, 'grid_mapping': 'spatial_ref'}
+
+
+def _coord_encoding():
+    '''
+    Encoding of the non-dimension coordinates (scalars): ``time`` as CF integer seconds,
+    ``spatial_ref`` (CRS container, value meaningless) as a small integer.
+
+    :return: new dictionary ``{coordinate: encoding}``
+    '''
+    return {
+        'time': {'units': 'seconds since 1970-01-01T00:00:00', 'calendar': 'proleptic_gregorian',
+                 'dtype': 'int64'},
+        'spatial_ref': {'dtype': 'int32'},
+    }
+
+
+def _reset_encoding(ds):
+    '''
+    Drop, in place, the encodings inherited from the input files (chunks, codecs, time units...) of all the
+    variables of `ds`, coordinates included, so they cannot conflict with the Zarr layout / version.
+    `ds` must be a shallow copy.
+    '''
+    for var in ds.variables:
+        ds[var].encoding = {}
+
+
+def _load_coords(ds):
+    '''
+    Dataset with its non-dimension coordinates (``time``, ``spatial_ref``: scalars) held in memory.
+
+    Lazy (dask) coordinates, e.g. read from the L1C file or chunked by ``Dataset.chunk``, would otherwise be
+    written by the delayed ``to_zarr`` of every group inside the final ``dask.compute``; in memory they are
+    written with the metadata.
+    '''
+    lazy = {c: ds[c].variable.compute() for c in ds.coords if c not in ds.dims and ds[c].chunks is not None}
+    return ds.assign_coords(lazy) if lazy else ds
 
 
 def _format_from_name(path):
@@ -285,12 +323,12 @@ def _consolidate(store, storage_options=None, zarr_major=None, groups=()):
     '''
     Consolidate the metadata of the local or remote store: the root group (which covers the whole
     hierarchy) and each group of `groups` on its own, so that a group opened directly
-    (``xr.open_zarr(store, group='overview_2')``) also needs a single metadata request.
+    (``xr.open_zarr(store, group='2')``) also needs a single metadata request.
 
     :param store: path or URL of the store
     :param storage_options: fsspec options for a URL
     :param zarr_major: major version of zarr-python
-    :param groups: paths of the groups to consolidate individually (e.g. ``['overview_1', 'ancillary']``)
+    :param groups: paths of the groups to consolidate individually (e.g. ``['0', '1', 'ancillary']``)
     '''
     import zarr
     if _is_remote(store):
@@ -357,11 +395,27 @@ def _coarsen(ds, factor=PYRAMID_FACTOR):
     coarse.attrs = dict(ds.attrs)
 
     # geotransform of the coarse grid, recomputed from the coordinates (first pixel = block centre)
+    return _update_geotransform(coarse)
+
+
+def _update_geotransform(ds, dims=('y', 'x')):
+    '''
+    Rewrite the ``GeoTransform`` of the ``spatial_ref`` variable from the coordinates of `dims`.
+
+    Needed after resampling (overviews, coarse ancillary grid) so that GIS readers see the right pixel size
+    and origin. Failures (e.g. no CRS or non-georeferenced data) only log a warning: georeferencing is
+    informative only and never blocks the export.
+
+    :param ds: xarray.Dataset
+    :param dims: names of the (y, x) spatial dimensions
+    :return: dataset with the updated ``GeoTransform`` (unchanged on failure)
+    '''
     try:
-        coarse = coarse.rio.write_transform(coarse.rio.transform(recalc=True))
-    except Exception as e:  # georeferencing is informative only: never block the export
-        logging.warning(f'could not update the geotransform of the overview: {e}')
-    return coarse
+        ds = ds.rio.set_spatial_dims(x_dim=dims[1], y_dim=dims[0])
+        ds = ds.rio.write_transform(ds.rio.transform(recalc=True))
+    except Exception as e:
+        logging.warning(f'could not update the geotransform: {e}')
+    return ds
 
 
 class L2aProduct():
@@ -480,11 +534,14 @@ class L2aProduct():
         self.l2_prod = self.l2_prod.rio.set_spatial_dims(x_dim='x', y_dim='y')
         self.l2_prod = self.l2_prod.rio.write_coordinate_system()
         self.l2_prod = self.l2_prod.rio.write_crs()
+        self.l2_prod = _update_geotransform(self.l2_prod)
 
         self.ancillary = xr.merge([transmittance_raster, cams_raster], compat='override')
         self.ancillary = self.ancillary.rio.set_spatial_dims(x_dim='xc', y_dim='yc')
         self.ancillary = self.ancillary.rio.write_coordinate_system()
         self.ancillary = self.ancillary.rio.write_crs()
+        # coarse grid: the GeoTransform inherited from the inputs does not match its pixel size
+        self.ancillary = _update_geotransform(self.ancillary, dims=('yc', 'xc'))
 
     # ------------------------------------------------------------------
     # common preparation of the export
@@ -648,8 +705,9 @@ class L2aProduct():
                        pyramid_min_size=PYRAMID_MIN_SIZE):
         '''
         Write the product as one cloud-ready Zarr store with pyramids: the main product at full resolution
-        in the root group, the overviews (2x, 4x, ... coarser) in the groups ``overview_1``,
-        ``overview_2``, ... and the ancillary data in the group ``ancillary``. An existing store is replaced.
+        in the group ``0``, the overviews (2x, 4x, ... coarser) in the groups ``1``, ``2``, ... and the
+        ancillary data in the group ``ancillary``. The root group holds the product attributes and the
+        ``multiscales`` description only. An existing store is replaced.
 
         Same variables, attributes and packing as `export_to_netcdf` (int16 + scale/offset, see
         `_base_encoding`). Cloud layout: sharded chunks, Blosc/zstd compression, consolidated metadata, direct
@@ -694,7 +752,7 @@ class L2aProduct():
             Raising it (e.g. 32 or 64) speeds up the writes to object storage; ignored with zarr-python 2.
         consolidate : bool, optional
             Consolidate the metadata at the end (default True): the root group, which covers the whole
-            hierarchy, and each overview / ancillary group on its own. zarr-python 3 may warn that
+            hierarchy, and each level / ancillary group on its own. zarr-python 3 may warn that
             consolidated metadata is not part of the Zarr v3 specification; it is read transparently by
             ``xr.open_zarr`` and ignored by readers that do not support it.
         pyramids : bool, optional
@@ -724,10 +782,10 @@ class L2aProduct():
         compression_enc = _compression_encoding(compression, clevel, zarr_major)
 
         ds, encoding = self._prepare_export(snap_compliant)
-        # variable encodings inherited from the input (e.g. NetCDF or Zarr chunks) must not leak into the output
-        for var in ds.data_vars:
-            ds[var].encoding = {}
-        ds = ds.chunk({d: s for d, s in block.items() if d in ds.dims})
+        # encodings inherited from the input (e.g. NetCDF or Zarr chunks, codecs) must not leak into the output,
+        # including those of the coordinates (time, spatial_ref)
+        _reset_encoding(ds)
+        ds = _load_coords(ds.chunk({d: s for d, s in block.items() if d in ds.dims}))
 
         # lazy pyramid: each level is the coarsening of the previous one
         levels = [ds]
@@ -735,22 +793,25 @@ class L2aProduct():
             n_over = _pyramid_levels(ds.sizes['y'], ds.sizes['x'], pyramid_min_size, pyramid_levels)
             for _ in range(n_over):
                 level = _coarsen(levels[-1])
-                level = level.chunk({d: s for d, s in block.items() if d in level.dims})
+                level = _load_coords(level.chunk({d: s for d, s in block.items() if d in level.dims}))
                 levels.append(level)
 
         # description of the levels, stored in the root attributes
-        layout = [{'group': '/' if k == 0 else OVERVIEW_GROUP.format(k),
+        groups = [LEVEL_GROUP.format(k) for k in range(len(levels))]
+        layout = [{'group': group,
                    'scale': PYRAMID_FACTOR ** k,
-                   'shape': [int(lv.sizes['y']), int(lv.sizes['x'])]} for k, lv in enumerate(levels)]
-        ds.attrs['multiscales'] = [{
-            'description': 'pyramid of overviews, level k is {:d}**k coarser than the root group'.format(PYRAMID_FACTOR),
+                   'shape': [int(lv.sizes['y']), int(lv.sizes['x'])]}
+                  for k, (group, lv) in enumerate(zip(groups, levels))]
+        # root group: no data, product attributes + description of the levels for viewers
+        root = xr.Dataset(attrs=dict(ds.attrs))
+        root.attrs['multiscales'] = [{
+            'description': 'pyramid of the main product, group k is {:d}**k coarser than group 0'.format(PYRAMID_FACTOR),
             'resampling': 'mean ignoring NaN for continuous variables, nearest for integer variables (flags, mask)',
             'layout': layout}]
-        levels[0] = ds
 
         def level_encoding(level):
             '''Encoding of one level: packing + compression + stored chunks (+ shards = dask blocks).'''
-            enc = {}
+            enc = {var: dict(e) for var, e in _coord_encoding().items() if var in level.variables}
             for var, e in encoding.items():
                 if var not in level.variables:
                     continue
@@ -766,12 +827,12 @@ class L2aProduct():
 
         anc = self.ancillary.copy()
         self._scrub_attrs(anc)
-        for var in anc.data_vars:
-            anc[var].encoding = {}
-        anc = anc.chunk(-1)  # coarse data: one chunk per variable
-        encoding_anc = {var: dict(compression_enc, grid_mapping='spatial_ref',
-                                  chunks=tuple(c[0] for c in anc[var].chunks))
-                        for var in anc.data_vars}
+        _reset_encoding(anc)
+        anc = _load_coords(anc.chunk(-1))  # coarse data: one chunk per variable
+        encoding_anc = {var: dict(e) for var, e in _coord_encoding().items() if var in anc.variables}
+        encoding_anc.update({var: dict(compression_enc, grid_mapping='spatial_ref',
+                                       chunks=tuple(c[0] for c in anc[var].chunks))
+                             for var in anc.data_vars})
 
         # target: URL (written directly to the bucket) or local path
         if _is_remote(output_path):
@@ -789,11 +850,11 @@ class L2aProduct():
             write_kwargs['storage_options'] = storage_options
 
         # metadata is written now, the data when the delayed objects are computed
-        delayed = [levels[0].to_zarr(store, mode='w', encoding=level_encoding(levels[0]), **write_kwargs)]
-        for k, level in enumerate(levels[1:], start=1):
-            delayed.append(level.to_zarr(store, group=OVERVIEW_GROUP.format(k), mode='a',
+        delayed = [root.to_zarr(store, mode='w', **write_kwargs)]
+        for group, level in zip(groups, levels):
+            delayed.append(level.to_zarr(store, group=group, mode='a',
                                          encoding=level_encoding(level), **write_kwargs))
-        delayed.append(anc.to_zarr(store, group='ancillary', mode='a', encoding=encoding_anc, **write_kwargs))
+        delayed.append(anc.to_zarr(store, group=ANCILLARY_GROUP, mode='a', encoding=encoding_anc, **write_kwargs))
         # one evaluation of the whole graph; zarr's own I/O concurrency can be raised for object storage
         if max_concurrency and zarr3:
             import zarr
@@ -804,8 +865,7 @@ class L2aProduct():
 
         if consolidate:
             try:
-                groups = [OVERVIEW_GROUP.format(k) for k in range(1, len(levels))] + ['ancillary']
-                _consolidate(store, storage_options, zarr_major, groups)
+                _consolidate(store, storage_options, zarr_major, groups + [ANCILLARY_GROUP])
             except Exception as e:
                 logging.warning(f'could not consolidate zarr metadata: {e}')
 
