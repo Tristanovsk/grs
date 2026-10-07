@@ -276,36 +276,54 @@ class Kernel():
     # ------------------------------------------------------------------
     # preparation (whole image / look-up tables)
     # ------------------------------------------------------------------
+    def coarsening_factor(self, resolution):
+        '''
+        Number of pixels per coarse pixel, along x and y, to reach the target resolution.
+
+        :param resolution: target pixel size, in the unit of the ``x`` / ``y`` coordinates (meter),
+            e.g. 60, 120, 240...; must be a multiple of the pixel size of the raster
+        :return: dict ``{'x': factor, 'y': factor}`` for ``xarray.Dataset.coarsen``
+        '''
+        factors = {}
+        for dim in ('x', 'y'):
+            pixel_size = abs(float(self.raster[dim][1] - self.raster[dim][0]))
+            factor = resolution / pixel_size
+            if round(factor) < 1 or not np.isclose(factor, round(factor)):
+                raise ValueError(f'coarse resolution {resolution} is not a multiple of the pixel size '
+                                 f'{pixel_size} along {dim}')
+            factors[dim] = int(round(factor))
+        return factors
+
     def get_coarse_masked_raster(self,
                                  variables=['sza', 'vza', 'raa', 'bands'],
 
                                  mask=None,
-                                 xcoarsen=2,
-                                 ycoarsen=2,
+                                 resolution=240,
                                  min_pixel_prop=0.5):
         '''
         Coarse-resolution raster of the masked image (lazy if the raster is dask-backed).
 
-        The pixels with ``mask != 0`` are discarded, the others are averaged by blocks of
-        ``xcoarsen x ycoarsen`` pixels (incomplete blocks at the edges are padded). Coarse pixels made of
-        too few valid pixels are set to NaN.
+        The pixels with ``mask != 0`` are discarded, the others are averaged by blocks of coarse pixels of
+        size ``resolution`` (incomplete blocks at the edges are padded). Coarse pixels made of too few
+        valid pixels are set to NaN.
 
         :param variables: variables of the raster to coarsen
         :param mask: raster of the same grid, 0 for the pixels to keep (None: keep all)
-        :param xcoarsen: number of pixels averaged along x
-        :param ycoarsen: number of pixels averaged along y
+        :param resolution: pixel size (meter) of the coarse raster, e.g. 60, 120, 240...; must be a
+            multiple of the pixel size of the raster (see ``coarsening_factor``)
         :param min_pixel_prop: a coarse pixel is kept if its number of valid pixels is above this proportion
             of the largest number of valid pixels of a coarse pixel
         :return: coarse Dataset with the variables and ``water_pixel_number`` (also kept in
             ``self.coarse_masked_raster``, unfiltered)
         '''
+        window = self.coarsening_factor(resolution)
         if mask is not None:
             raster = self.raster[variables].where(mask == 0)
         else:
             raster = self.raster[variables]
-        self.coarse_masked_raster = raster.coarsen(x=xcoarsen, y=ycoarsen, boundary="pad").mean()
+        self.coarse_masked_raster = raster.coarsen(window, boundary="pad").mean()
         self.coarse_masked_raster['water_pixel_number'] = raster['sza']. \
-            coarsen(x=xcoarsen, y=ycoarsen, boundary="pad").count()
+            coarsen(window, boundary="pad").count()
         min_pixel_number = min_pixel_prop * np.max(self.coarse_masked_raster['water_pixel_number'])
         return self.coarse_masked_raster.where(self.coarse_masked_raster.water_pixel_number > min_pixel_number)
 
