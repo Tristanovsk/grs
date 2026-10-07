@@ -30,7 +30,7 @@ Options:
                      (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
                      'MACL_rh70', 'URBA_rh70'])
   --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
-  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+  --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
 
 
   Example:
@@ -100,10 +100,11 @@ def main():
     class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
                                log_console=False)
 
-    outfile = Path(outdir, outdir.name + ".nc")
+    # Process.write_output writes a Zarr store named after the output directory
+    outfile = Path(outdir, outdir.name + ".zarr")
 
     # skip if already processed
-    if outfile.is_file() & noclobber:
+    if outfile.exists() and noclobber:
         logging.info(f'File {outfile} already processed; skip!')
         exit(-1)
 
