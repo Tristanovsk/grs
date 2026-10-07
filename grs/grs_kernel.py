@@ -469,9 +469,11 @@ class Kernel():
         :param min_pixel_prop: a coarse pixel is kept if its number of valid pixels is above this proportion
             of the largest number of valid pixels of a coarse pixel
         :return: coarse Dataset with the variables and ``water_pixel_number`` (also kept in
-            ``self.coarse_masked_raster``, unfiltered)
+            ``self.coarse_masked_raster``, unfiltered); the resolution is kept in ``self.coarse_resolution``
+            and in the ``resolution`` attribute
         '''
         window = self.coarsening_factor(resolution)
+        self.coarse_resolution = resolution
         if mask is not None:
             raster = self.raster[variables].where(mask == 0)
         else:
@@ -479,6 +481,7 @@ class Kernel():
         self.coarse_masked_raster = raster.coarsen(window, boundary="pad").mean()
         self.coarse_masked_raster['water_pixel_number'] = raster['sza']. \
             coarsen(window, boundary="pad").count()
+        self.coarse_masked_raster.attrs['resolution'] = resolution
         min_pixel_number = min_pixel_prop * np.max(self.coarse_masked_raster['water_pixel_number'])
         return self.coarse_masked_raster.where(self.coarse_masked_raster.water_pixel_number > min_pixel_number)
 
