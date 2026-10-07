@@ -1,8 +1,7 @@
-{{ name | escape | underline}}
+{{ fullname | escape | underline }}
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
    :members:
-   :show-inheritance:
-   :inherited-members:
+   :exclude-members: __init__

@@ -21,25 +21,25 @@ Typical use::
 Flag bits
 =========
 
-====  ===========================  =============================================================
-bit   name                         meaning
-====  ===========================  =============================================================
-0     ``nodata``                   NaN or crazy value (> 1e3) in the input
-1     ``cloud_p06``                s2cloudless, low confidence (probability > 0.6, dilation 12)  [Sentinel-2]
-2     ``cloud_p08``                s2cloudless, high confidence (probability > 0.8, dilation 5)  [Sentinel-2]
-3     ``water_swir_visible_index`` (visible - SWIR) / (visible + SWIR) above threshold
-4     ``water_red_visible_index``  (visible - NIR) / (visible + NIR) above threshold (NDWI-like)
-5     ``thin_cirrus``              cirrus band above the thin cirrus threshold
-6     ``opac_cirrus``              cirrus band above the opaque cirrus threshold
-7     ``high_swir``                SWIR2 reflectance above threshold (bright cloud, glint, ...)
-8     ``surfwater_land``           input variable ``surfwater`` == 0
-9     ``surfwater_water``          input variable ``surfwater`` == 1
-10    ``surfwater_cloud_and_shadow``  input variable ``surfwater`` >= 2
-11    ``OCM_Thick_Cloud``          OmniCloudMask thick cloud (run at ``OCM_resolution``, 60 m by default)
-12    ``OCM_Thin_Cloud``           OmniCloudMask thin cloud
-13    ``OCM_Cloud_Shadow``         OmniCloudMask cloud shadow
-14-20  ``l1_*``                     Landsat level-1 QA bits copied from ``flags_l1``  [Landsat only]
-====  ===========================  =============================================================
+=====  ==============================  ==========================================================================
+bit    name                            meaning
+=====  ==============================  ==========================================================================
+0      ``nodata``                      NaN or crazy value (> 1e3) in the input
+1      ``cloud_p06``                   s2cloudless, low confidence (probability > 0.6, dilation 12)  [Sentinel-2]
+2      ``cloud_p08``                   s2cloudless, high confidence (probability > 0.8, dilation 5)  [Sentinel-2]
+3      ``water_swir_visible_index``    (visible - SWIR) / (visible + SWIR) above threshold
+4      ``water_red_visible_index``     (visible - NIR) / (visible + NIR) above threshold (NDWI-like)
+5      ``thin_cirrus``                 cirrus band above the thin cirrus threshold
+6      ``opac_cirrus``                 cirrus band above the opaque cirrus threshold
+7      ``high_swir``                   SWIR2 reflectance above threshold (bright cloud, glint, ...)
+8      ``surfwater_land``              input variable ``surfwater`` == 0
+9      ``surfwater_water``             input variable ``surfwater`` == 1
+10     ``surfwater_cloud_and_shadow``  input variable ``surfwater`` >= 2
+11     ``OCM_Thick_Cloud``             OmniCloudMask thick cloud (run at ``OCM_resolution``, 60 m by default)
+12     ``OCM_Thin_Cloud``              OmniCloudMask thin cloud
+13     ``OCM_Cloud_Shadow``            OmniCloudMask cloud shadow
+14-20  ``l1_*``                        Landsat level-1 QA bits copied from ``flags_l1``  [Landsat only]
+=====  ==============================  ==========================================================================
 
 How it is computed (dask)
 =========================

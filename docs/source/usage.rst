@@ -1,97 +1,101 @@
 Usage
 =====
 
-Installation
+GRS needs, for each image:
+
+* one Level-1 product: Sentinel-2 ``MSIL1C`` (``.SAFE``) or Landsat 8/9 Level-1;
+* the CAMS atmospheric composition file covering the date and the area (see the
+  :doc:`CAMS tutorial <examples/auxdata>`);
+* optionally a DEM and a SURFWATER water mask, already subset to the tile.
+
+Command line
 ------------
 
-These instructions will get you a copy of the project up and running on
-your local machine for development and testing purposes. See deployment
-for notes on how to deploy the project on a live system.
+.. literalinclude:: ../../grs/run.py
+   :language: text
+   :start-at: Usage:
+   :end-before: '''
 
-Download the LUT files
-~~~~~~~~~~~~~~~~~~~~~~~
+Python
+------
 
-click on
-`grsdata <https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing>`__
-to download and save in your desired path (your_GRSDATA_PATH)
+.. code-block:: python
 
-Installation with conda environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   import grs
 
-::
+   process = grs.Process()
+   process.execute('S2A_MSIL1C_20181019T102031_N0500_R065_T30PYT_20230815T043850.SAFE',
+                   cams_file='cams_forecast_2018-10.nc',
+                   dem_file='COP-DEM_GLO-30-DGED_30PYT.tif',
+                   resolution=20,
+                   aot_resolution=240,
+                   odir='S2A_MSIL1C_20181019T102031_L2AGRS.zarr')
 
-   conda activate "name of your conda env"
+   # the processing is lazy: process.l2a.l2_prod is a dask-backed xarray.Dataset,
+   # computed chunk by chunk when it is written
+   process.write_output()
 
-Python >= 3.9 is recommended, example:
+The main options of :py:meth:`~grs.grs_process.Process.execute`:
 
-::
+``resolution``
+   Pixel size of the processing (10, 20 or 60 m for Sentinel-2).
+``aot_resolution``
+   Pixel size of the coarse grid of the aerosol retrieval (default 240 m); must be a multiple of
+   ``resolution`` (e.g. 60, 120, 240, 480 m). See :ref:`aerosol retrieval <methods-aerosol>`.
+``opac_model``
+   Force the aerosol model (``'ARCT_rh70'``, ``'COAV_rh70'``, ``'DESE_rh70'``, ``'MACL_rh70'``,
+   ``'URBA_rh70'``); by default the model closest to the spectral AOD of CAMS is used.
+``scale_aot``
+   Scaling factor of the CAMS AOD.
+``allpixels``
+   Process all the pixels, not only the water pixels.
+``chunk``
+   Block size (pixels) of the final processing; a 512 x 512 block needs about 350 MB per thread.
 
-   conda create python=3.10 -n grs_v2
-   conda activate grs_v2
+Output product
+--------------
 
-Then, install python dependencies:
+The format is given by the extension of the output path: ``.zarr`` (default, with overviews, can be
+written to object storage) or ``.nc`` (NetCDF, with a separate ``_anc.nc`` file for the ancillary data).
+See :doc:`api/output` for the layouts.
 
-::
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 60
 
-   conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
+   * - Variable
+     - Dimensions
+     - Description
+   * - ``Rrs``
+     - wl, y, x
+     - remote-sensing reflectance (sr\ :sup:`-1`)
+   * - ``BRDFg``
+     - y, x
+     - sunglint reflectance in the SWIR (see :doc:`methods`)
+   * - ``aot550``
+     - y, x
+     - aerosol optical thickness at 550 nm
+   * - ``wind``
+     - y, x
+     - wind speed used for the sunglint (m s\ :sup:`-1`)
+   * - ``flags``
+     - y, x
+     - pixel classification bit field (see :doc:`api/mask`)
+   * - ``mask``
+     - y, x
+     - 0 for the good water pixels, 1 elsewhere
+   * - ``sza``, ``vza``, ``raa``
+     - y, x
+     - solar zenith, viewing zenith and relative azimuth angles (degrees)
 
-Set the ``config.yml`` file:
+The global attributes record the processing settings, among them ``opac_model`` and
+``aot_resolution``.
 
-::
+Read a Zarr product back with:
 
-   path:
-     grsdata: your_GRSDATA_PATH
+.. code-block:: python
 
-Finally, install grs with:
+   import xarray as xr
 
-.. code::
-
-   pip install .
-
-Testing 
--------
-
-After installation, you can type:
-
-.. code::
-
-   grs -h
-
-You should see something like:
-
-.. code::
-
-   Executable to process Sentinel-2 L1C images for aquatic environment
-
-   Usage:
-     grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--scale_aot factor]   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
-     grs -h | --help
-     grs -v | --version
-
-   Options:
-     -h --help        Show this screen.
-     -v --version     Show version.
-
-     <input_file>     Input file to be processed
-
-     --cams_file file     Absolute path of the CAMS file to be used (mandatory)
-
-     -o ofile         Full (absolute or relative) path to output L2 image.
-     --odir odir      Ouput directory [default: ./]
-     --levname lev    Level naming used for output product [default: L2Agrs]
-     --no_clobber     Do not process <input_file> if <output_file> already exists.
-     --resolution=res  spatial resolution of the scene pixels
-     --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
-     --surfwater file  Absolute path of the surfwater geotiff file to be used
-     --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
-     --scale_aot factor scaling factor applied to CAMS aod550 raster
-                       [default: 1]
-     --opac_model name  Force the aerosol model (OPAC) to be 'name'
-                       (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
-                                   'MACL_rh70', 'URBA_rh70'])
-     --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
-
-     Example:
-         grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
-     For CNES datalake:
-         grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
+   l2a = xr.open_zarr('S2A_MSIL1C_20181019T102031_L2AGRS.zarr', group='0')        # full resolution
+   anc = xr.open_zarr('S2A_MSIL1C_20181019T102031_L2AGRS.zarr', group='ancillary')

@@ -1,169 +1,119 @@
 # Configuration file for the Sphinx documentation builder.
-#
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-import os
 import sys
+from pathlib import Path
+
+# Make the package importable without installation (local builds);
+# on Read the Docs the package is also pip-installed (see .readthedocs.yaml).
+DOCS_SOURCE = Path(__file__).resolve().parent
+REPO_ROOT = DOCS_SOURCE.parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
 import grs
 
-__version__ = grs.__version__
-
-sys.path.insert(0, os.path.abspath('../..'))
-
 # -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'GRSprocessor'
 copyright = '2026, CNES/Magellium'
 author = 'Tristan Harmel'
-release = __version__
-today_fmt = "%Y-%m-%d"
-sys.path.insert(0, os.path.abspath('../..'))
-
-
+version = grs.__version__
+release = grs.__version__
+today_fmt = '%Y-%m-%d'
 
 # -- General configuration ---------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
-    "autoapi.extension",
     'sphinx.ext.autodoc',
-    'sphinx.ext.apidoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'sphinx.ext.duration',
-    'sphinx.ext.doctest',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'sphinx_copybutton',
+    'sphinxcontrib.mermaid',
     'myst_nb',
-    'IPython.sphinxext.ipython_console_highlighting'
-
 ]
-## Include Python objects as they appear in source files
-## Default: alphabetically ('alphabetical')
-autodoc_member_order = 'bysource'
-## Default flags used by autodoc directives
-autodoc_default_flags = ['members', 'show-inheritance']
-## Generate autodoc stubs with summaries from code
-autosummary_generate = True
-# Add any paths that contain templates here, relative to this directory.
+
 templates_path = ['_templates']
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
-autoapi_type = "python"
-autoapi_dirs = ["../../grs"]  # Points to your source code directory
+exclude_patterns = ['_build', '**.ipynb_checkpoints', 'Thumbs.db', '.DS_Store']
 
-# Optional configuration choices (default is usually sufficient)
-autoapi_options = [
-    "members",
-    "undoc-members",
-    "private-members",
-    "show-inheritance",
-    "show-module-summary",
-    "special-members",
-    "imported-members",
-]
+# -- Autodoc / autosummary ---------------------------------------------------
 
+autosummary_generate = True
+autoclass_content = 'class'
+autodoc_typehints = 'none'          # types are given in the docstrings
+autodoc_member_order = 'bysource'
+# 'members' is set in the autosummary templates (_templates/autosummary/) to
+# avoid documenting objects twice
+add_module_names = False
+
+# The docstrings mix NumPy sections ("Parameters", "Notes") and reST fields
+# (":param x:"); napoleon converts the first ones and leaves the others.
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_use_rtype = False
+napoleon_use_ivar = True
+napoleon_preprocess_types = True
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy', None),
+    'xarray': ('https://docs.xarray.dev/en/stable', None),
+    'dask': ('https://docs.dask.org/en/stable', None),
+}
 
 # -- Options for HTML output -------------------------------------------------
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-#html_theme = 'alabaster'
-#html_theme = 'sphinx_rtd_theme'
 html_theme = 'sphinx_book_theme'
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+pygments_style = 'sphinx'
 
 html_theme_options = {
-    "repository_url": "https://github.com/Tristanovsk/grs",
-    "repository_branch": "master",
-    "use_repository_button": True,
-    "use_issues_button": True,
-    "use_edit_page_button": True,
-    "navigation_with_keys":True,
-    "path_to_docs": "docs",
+    'repository_url': 'https://github.com/Tristanovsk/grs',
+    'repository_branch': 'master',
+    'path_to_docs': 'docs/source',
+    'use_repository_button': True,
+    'use_issues_button': True,
+    'use_edit_page_button': True,
+    'use_download_button': True,
+    'navigation_with_keys': True,
+    'show_toc_level': 2,
 }
 
+html_title = ''
+html_logo = '_static/grs_logo_v0.svg'
+html_favicon = '_static/grs_logo_light.png'
 
-html_logo = "_static/grs_logo_v0.svg"
-html_title = ""
-
-html_favicon = "_static/grs_logo_light.png"
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
-html_css_files = ["custom.css"]
-
-# Custom sidebar templates, must be a dictionary that maps document names
-# to template names.
-
+html_static_path = ['_static']
+html_css_files = ['custom.css']
 html_show_sourcelink = False
-
 html_last_updated_fmt = today_fmt
 
-# -- Options for HTMLHelp output ------------------------------------------
+htmlhelp_basename = 'grsdoc'
 
-# Output file base name for HTML help builder.
-htmlhelp_basename = "grsdoc"
-
-# -------------------------------
-# For Jupyter notebook rendering
-# --------------------------------
+# -- MyST / notebook rendering -----------------------------------------------
 
 myst_enable_extensions = [
-    "amsmath",
-    "colon_fence",
-    "deflist",
-    "dollarmath",
-    "html_admonition",
-    "html_image",
-    "linkify",
-    "replacements",
-    "smartquotes",
-    "substitution",
+    'amsmath',
+    'colon_fence',
+    'deflist',
+    'dollarmath',
+    'html_admonition',
+    'html_image',
+    'linkify',
+    'smartquotes',
 ]
+myst_heading_anchors = 3
 
-# Autodoc
-autodoc_default_options = {
-    'member-order': 'groupwise',
-    'show-inheritance': True,
-}
-
-# Notebook integration parameters
-nbsphinx_execute = 'auto'
-#nb_execution_mode = "off"
-nb_execution_mode = "cache"
-nb_execution_timeout = -1
-nb_execution_allow_errors = True
-
-# Manage new READTHEDOCS output mechanism
-cache_path = os.getenv('READTHEDOCS_OUTPUT')
-if cache_path is not None:
-    nb_execution_cache_path = f"{cache_path}/../docs/build/.jupyter_cache"
-
-# Merge stderr and stdout
+# The example notebooks need satellite images, CAMS files and look-up tables that
+# are not available on Read the Docs: they are rendered with the outputs stored in
+# the notebooks, not executed.
+nb_execution_mode = 'off'
 nb_merge_streams = True
+# the notebooks store holoviews widgets (only their static output is shown) and
+# use '###' headings right below the title
+suppress_warnings = ['mystnb.unknown_mime_type', 'myst.header']
