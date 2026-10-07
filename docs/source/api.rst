@@ -19,7 +19,7 @@ Processing chain
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.grs_process.Process
@@ -35,7 +35,7 @@ Input data
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.product.Product
@@ -47,7 +47,7 @@ Pixel classification
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.mask.Masking
@@ -58,7 +58,7 @@ Atmospheric and sunglint correction
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.grs_kernel.Kernel
@@ -68,7 +68,7 @@ Output product
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.output.L2aProduct
@@ -78,7 +78,7 @@ Utilities
 
 .. autosummary::
    :toctree: generated
-   :template: class.rst
+   :template: autosummary/class.rst
    :nosignatures:
 
    grs.utils.GaseousTransmittance
