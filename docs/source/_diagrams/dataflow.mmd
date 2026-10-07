@@ -12,7 +12,7 @@ flowchart LR
     PROC["GRS Processing Chain<br/>grs CLI / grs.grs_process.Process"]
 
     subgraph out["Output Data"]
-        OUT1["Level-2 GRS product<br/>NetCDF<br/>Disk/POSIX"]
+        OUT1["Level-2 GRS product<br/>Zarr with pyramids (default) or NetCDF<br/>Disk/POSIX or object storage"]
         OUT2["Run log + error log<br/>Text<br/>Disk/POSIX"]
     end
 

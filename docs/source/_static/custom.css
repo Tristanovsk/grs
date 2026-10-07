@@ -162,3 +162,83 @@ dl.py.property dt{
     background: #f0f0f0;
     color: #555;
 }
+/* ------------------------------------------------------------------ */
+/* Partner logos (support page): same height, aligned, linked          */
+/* ------------------------------------------------------------------ */
+.partner-logos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.5rem 2.5rem;
+    margin: 1rem 0 2rem;
+}
+
+.partner-logos a,
+.partner-logos img.partner-logo {
+    display: inline-block;
+}
+
+img.partner-logo {
+    height: 80px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+/* the logos are made for a white background: keep it in dark mode, without the
+   dimming filter that the theme applies to the images in dark mode */
+html[data-theme="dark"] img.partner-logo {
+    filter: none;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-sizing: content-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark mode versions of the light colours above                       */
+/* ------------------------------------------------------------------ */
+html[data-theme="dark"] code {
+    background: var(--pst-color-surface);
+}
+
+html[data-theme="dark"] th,
+html[data-theme="dark"] th:first-child,
+html[data-theme="dark"] td:first-child {
+    background-color: #1f3550;
+}
+
+html[data-theme="dark"] td:empty {
+    background-color: #2a2a2a !important;
+}
+
+html[data-theme="dark"] td, html[data-theme="dark"] th {
+    border-color: #444 !important;
+}
+
+html[data-theme="dark"] tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2),
+html[data-theme="dark"] tr:first-child:nth-last-child(1) td:first-child:nth-last-child(2) ~ td,
+html[data-theme="dark"] tr:first-child:nth-last-child(1) td:first-child:nth-last-child(1) {
+    background-color: transparent !important;
+}
+
+html[data-theme="dark"] dl.class dt,
+html[data-theme="dark"] dl.exception dt,
+html[data-theme="dark"] dl.data dt,
+html[data-theme="dark"] dl.function dt {
+    background: #16283a;
+    color: #8cc4f0;
+    border-top-color: #3d7eb0;
+}
+
+html[data-theme="dark"] dl.class dl dt,
+html[data-theme="dark"] dl.exception dl dt,
+html[data-theme="dark"] dl.data dl dt,
+html[data-theme="dark"] dl.function dl dt,
+html[data-theme="dark"] dl.py.method dt,
+html[data-theme="dark"] dl.py.method dd dl dt,
+html[data-theme="dark"] dl.py.attribute dt,
+html[data-theme="dark"] dl.py.property dt {
+    background: #262626;
+    color: #dddddd;
+}
