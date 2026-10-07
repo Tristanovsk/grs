@@ -201,6 +201,15 @@ def _coord_encoding():
     }
 
 
+def _package_version(name):
+    '''Installed version of the distribution `name` (from its metadata, without importing it); 'unknown' if absent.'''
+    from importlib.metadata import version, PackageNotFoundError
+    try:
+        return version(name)
+    except PackageNotFoundError:
+        return 'unknown'
+
+
 def _reset_encoding(ds):
     '''
     Drop, in place, the encodings inherited from the input files (chunks, codecs, time units...) of all the
@@ -468,8 +477,8 @@ class L2aProduct():
         Assemble the main and the ancillary datasets with their metadata and georeferencing.
 
         Main product (``self.l2_prod``): attributes of the native raster plus the processing parameters
-        (as strings), the geometry angles (``vza``, ``raa`` averaged over wavelengths if band dependent;
-        ``sza``), ``flags`` and ``dem``; spatial dimensions ``x``/``y``, CRS written.
+        (as strings) and ``GRSdriver_version``, the geometry angles (``vza``, ``raa`` averaged over
+        wavelengths if band dependent; ``sza``), ``flags`` and ``dem``; spatial dimensions ``x``/``y``, CRS written.
         Ancillary (``self.ancillary``): coarse transmittance and CAMS fields on dimensions ``xc``/``yc``.
 
         Notes
@@ -490,6 +499,8 @@ class L2aProduct():
 
         for key in keys:
             self.l2_prod.attrs[key] = str(self.prod.__dict__[key])
+        # version of the L1C reader
+        self.l2_prod.attrs['GRSdriver_version'] = _package_version('GRSdriver')
 
         # rename dim for coarse resolution data
         cams_raster = self.cams.raster.rename({"x": "xc", "y": "yc"})

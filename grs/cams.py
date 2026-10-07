@@ -9,8 +9,6 @@ import pandas
 from scipy.interpolate import interp1d
 import xarray as xr
 
-import matplotlib.pyplot as plt
-
 import logging
 import calendar, datetime
 import cdsapi
@@ -262,6 +260,8 @@ class CamsProduct:
         :param kwargs: kwargs for matplotlib plotting
         :return: fig, axs
         '''
+
+        import matplotlib.pyplot as plt  # imported here: only needed for plotting
 
         Nrows = (len(params) + 4) // 4
         fig, axs = plt.subplots(Nrows, 4, figsize=(4 * 4.2, Nrows * 3.5))
