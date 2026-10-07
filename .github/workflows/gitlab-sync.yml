@@ -11,7 +11,9 @@ name: Sync GitLab CNES
 #                                            reopened/merge — no separate branch mirroring on this
 #                                            event, only the GitLab MR itself (manual validation on
 #                                            the GitLab side: main/develop are protected there, no
-#                                            direct push)
+#                                            direct push). GitHub's "main" is still named "master"
+#                                            on GitLab (predates the GitHub rename) — mapped in the
+#                                            create-merge-request job below.
 #   - GitHub version tag                  -> Release created on GitLab
 #
 # GitLab's own pipeline (.gitlab-ci.yml) then kicks in by itself as soon as a branch, a MR or
@@ -89,6 +91,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+
+          # GitHub's default branch is "main", but on GitLab this same branch is still
+          # named "master" (predates the GitHub rename) — translate before calling the API.
+          map_branch() {
+            case "$1" in
+              main) echo "master" ;;
+              *) echo "$1" ;;
+            esac
+          }
+          SRC_BRANCH="$(map_branch "$SRC_BRANCH")"
+          TGT_BRANCH="$(map_branch "$TGT_BRANCH")"
 
           PAYLOAD=$(jq -n \
             --arg src "$SRC_BRANCH" \
