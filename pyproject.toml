@@ -38,6 +38,15 @@ dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies]
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+docs = [
+    "sphinx>=7",
+    "sphinx-book-theme>=1.1",
+    "sphinx-copybutton",
+    "sphinxcontrib-mermaid",
+    "myst-nb>=1.0",
+    "linkify-it-py",
+    "ipython",
+]
 
 [project.urls]
 Homepage = "https://github.com/CNES/GRSprocessor"

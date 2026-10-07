@@ -159,8 +159,10 @@ def _base_encoding():
     raa           int16    0.01           180         -32768
     sza           int16    0.01           30          -32768
     Rrs           int16    1e-5           0.3         -32768
-    flags, mask   (unchanged dtype, no packing)
+    flags, mask   (as is)  -              -           -
     ============  =======  =============  ==========  ============
+
+    ``flags`` and ``mask`` keep their dtype and are not packed.
 
     :return: new dictionary ``{variable: encoding}``
     '''

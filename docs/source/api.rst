@@ -1,23 +1,105 @@
 .. _api:
 
+API reference
+=============
 
+The main classes are importable from the package itself:
 
-This page provides an auto-generated summary of GRS's API.
+.. code-block:: python
 
+   import grs
+
+   process = grs.Process()
+   process.execute('S2A_MSIL1C_..._T31TFJ_....SAFE', cams_file='cams.nc', resolution=20,
+                   odir='S2A_..._L2AGRS.zarr')
+   process.write_output()
+
+Processing chain
+----------------
 
 .. autosummary::
-   :toctree: GRS API
-   :template: custom-module-template.rst
-   :recursive:
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
 
-   grs.auxdata
-   grs.cams
-   grs.class_logger
-   grs.grs_exception
-   grs.grs_kernel
-   grs.grs_process
-   grs.mask
-   grs.output
-   grs.product
-   grs.run
-   grs.utils
+   grs.grs_process.Process
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   grs.run.main
+
+Input data
+----------
+
+.. autosummary::
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
+
+   grs.product.Product
+   grs.cams.CamsProduct
+   grs.auxdata.AuxData
+
+Pixel classification
+--------------------
+
+.. autosummary::
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
+
+   grs.mask.Masking
+   grs.mask.Settings
+
+Atmospheric and sunglint correction
+-----------------------------------
+
+.. autosummary::
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
+
+   grs.grs_kernel.Kernel
+
+Output product
+--------------
+
+.. autosummary::
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
+
+   grs.output.L2aProduct
+
+Utilities
+---------
+
+.. autosummary::
+   :toctree: generated
+   :template: class.rst
+   :nosignatures:
+
+   grs.utils.GaseousTransmittance
+   grs.utils.Gases
+   grs.utils.Aerosol
+   grs.utils.CamsParams
+   grs.utils.Misc
+   grs.utils.Rasterization
+   grs.class_logger.ServiceLogger
+   grs.grs_exceptions.GRSException
+   grs.grs_exceptions.GRS_IO_Exception
+
+Module overviews
+----------------
+
+Design notes of the main modules (dask processing, flag bits, output formats).
+
+.. toctree::
+   :maxdepth: 1
+
+   api/grs_process
+   api/grs_kernel
+   api/mask
+   api/output
