@@ -1,5 +1,136 @@
-'''
+r'''
 Atmospheric correction kernel: wind / aerosol retrieval and remote-sensing reflectance (dask-friendly).
+
+Physical model
+==============
+
+Notation
+--------
+
+.. list-table::
+   :widths: 25 75
+
+   * - :math:`\lambda`
+     - central wavelength of the band (``wl_true``)
+   * - :math:`\theta_s,\ \theta_v,\ \phi`
+     - solar zenith, viewing zenith and relative azimuth angles (``sza``, ``vza``, ``raa``); the LUTs are
+       read with :math:`\phi_{LUT} = (180^\circ - \phi) \bmod 360^\circ`
+   * - :math:`R_{TOA}(\lambda)`
+     - top-of-atmosphere reflectance of the L1C image (``bands``)
+   * - :math:`\tau_{ref}`
+     - aerosol optical thickness (AOT) at the reference wavelength (550 nm, ``aot_ref``)
+   * - :math:`\tau_a(\lambda),\ \tau_R(\lambda)`
+     - aerosol and Rayleigh optical thicknesses (``aot_lut``, ``rot``)
+   * - :math:`P,\ P_0`
+     - CAMS surface pressure and reference pressure :math:`P_0 = 101320` Pa
+   * - :math:`T_g,\ T_g^{diff}`
+     - gaseous transmittance (H\ :sub:`2`\ O, CH\ :sub:`4`) of the direct and of the diffuse light
+       (see `Kernel.set_gas_transmittance`)
+   * - :math:`w_m`
+     - weight of the aerosol model :math:`m` in the mixture (``aerosol_combination``)
+   * - :math:`U`
+     - wind speed (m s\ :sup:`-1`)
+   * - :math:`\varepsilon(\lambda)`
+     - mean spectral shape of the sunglint reflectance at small angles (``sunglint_eps``)
+   * - :math:`P_{slope}(\lambda)`
+     - probability of the wave slopes reflecting the sun towards the sensor (`Kernel.p_slope`)
+
+Atmospheric diffuse light
+-------------------------
+
+The LUT intensities :math:`I_m` of each aerosol model are mixed and converted into reflectance
+(`Kernel.lut_preparation`):
+
+.. math::
+
+   R_{diff}(\lambda; \tau_{ref}, \theta_s, \theta_v, \phi) =
+   \frac{1}{\cos\theta_s} \sum_m w_m\, I_m(\lambda; \tau_{ref}, \theta_s, \theta_v, \phi)
+
+and removed from the TOA signal, after scaling for the surface pressure and the gaseous absorption:
+
+.. math::
+
+   R_{corr}(\lambda) = R_{TOA}(\lambda) - T_g^{diff}(\lambda)\, \frac{P}{P_0}\,
+   R_{diff}(\lambda; \tau_{ref}, \theta_s, \theta_v, \phi)
+
+Direct and total transmittances
+-------------------------------
+
+With the two-way geometric air mass :math:`M = 1/\cos\theta_s + 1/\cos\theta_v`, the direct
+(sun-surface-sensor) transmittance is
+
+.. math::
+
+   T_{dir}(\lambda) = \exp\left[-\left(\tau_a(\lambda) + \tau_R(\lambda)\,\frac{P}{P_0}\right) M\right],
+   \qquad \tau_a(\lambda) = \sum_m w_m\, \tau_{a,m}(\lambda; \tau_{ref})
+
+and the total (direct + diffuse) transmittance used to bring the water signal to the surface is
+
+.. math::
+
+   T_{tot}(\lambda) = T_{\downarrow}(\lambda; \theta_s, \tau_{ref})\;
+   T_{\downarrow}(\lambda; \bar\theta_v, \tau_{ref})^{1.05}\; T_g(\lambda)
+
+where :math:`T_{\downarrow}` is the LUT transmittance of the downward irradiance (``Ttot_Ed``) and
+:math:`\bar\theta_v` the viewing angle averaged over the bands.
+
+Sunglint
+--------
+
+The sea surface is described by the isotropic Cox-Munk distribution of slopes, whose mean square slope
+depends on the wind speed (Cox and Munk, 1954):
+
+.. math::
+
+   \sigma^2 = 0.003 + 0.00512\, U = \frac{U + 0.586}{195.3}
+
+The sunglint is estimated in a SWIR band :math:`\lambda_s`, where the water-leaving signal is null, and
+extrapolated to all bands with the spectral shape :math:`\varepsilon(\lambda)` and the slope probability of
+each band (the viewing angles of Sentinel-2 depend on the band):
+
+.. math::
+
+   R_f = \frac{\varepsilon(\lambda_r)\, P_{slope}(\lambda_r)\, R_{corr}(\lambda_s)}
+              {T_g(\lambda_s)\, T_{dir}(\lambda_s)\, \varepsilon(\lambda_s)\, P_{slope}(\lambda_s)},
+   \qquad
+   R_g(\lambda) = T_g(\lambda)\, T_{dir}(\lambda)\, \varepsilon(\lambda)\, P_{slope}(\lambda)\,
+   \frac{R_f}{\varepsilon(\lambda_r)\, P_{slope}(\lambda_r)}
+
+with :math:`\lambda_r` a reference SWIR band (see `Kernel.aerosol_visible_chunk` and
+`Kernel.final_process_chunk` for the bands used).
+
+Remote-sensing reflectance
+--------------------------
+
+.. math::
+
+   R_{rs}(\lambda) = \frac{R_{corr}(\lambda) - R_g(\lambda)}{\pi\, T_{tot}(\lambda)}
+
+(the division by :math:`T_{tot}` is only applied where the numerator is positive).
+
+Aerosol retrieval
+-----------------
+
+:math:`\tau_{ref}` is the largest AOT that does not make the reflectance of too many water pixels
+negative. For a set of tested values, the number of pixels with a negative minimum reflectance is
+
+.. math::
+
+   N(\tau_{ref}) = \#\left\{ \mathbf{x} \in V \;:\; \min_\lambda R(\lambda, \mathbf{x}; \tau_{ref}) < 0 \right\},
+   \qquad V = \left\{ \mathbf{x} : \min_\lambda R(\lambda, \mathbf{x}; 0) > t_0 \right\}
+
+and the retrieved value is
+
+.. math::
+
+   \hat\tau_{ref} = \max\left\{ \tau_{ref} \;:\; N(\tau_{ref}) < \eta\, \max\left(N_0, \max_\tau N(\tau)\right) \right\}
+
+with :math:`\eta` = ``neg_pix_rel_thresh``. It is first bounded with the SWIR bands
+(`Kernel.aerosol_swir_chunk`), then retrieved from the visible-NIR bands, one value per block of the
+coarse raster (`Kernel.aerosol_visible_chunk`).
+
+Processing sequence
+===================
 
 Typical sequence (``prod`` = product with ``prod.raster``, ``cams`` = CAMS ancillary data)::
 
@@ -277,8 +408,17 @@ class Kernel():
     # preparation (whole image / look-up tables)
     # ------------------------------------------------------------------
     def coarsening_factor(self, resolution):
-        '''
+        r'''
         Number of pixels per coarse pixel, along x and y, to reach the target resolution.
+
+        With :math:`\Delta x`, :math:`\Delta y` the pixel size of the raster and :math:`r` the target
+        resolution:
+
+        .. math::
+
+           f_x = \frac{r}{\Delta x}, \qquad f_y = \frac{r}{\Delta y}, \qquad f_x, f_y \in \mathbb{N}^*
+
+        e.g. a 20 m image gives :math:`f = 3, 6, 12` for :math:`r` = 60, 120, 240 m.
 
         :param resolution: target pixel size, in the unit of the ``x`` / ``y`` coordinates (meter),
             e.g. 60, 120, 240...; must be a multiple of the pixel size of the raster
@@ -300,12 +440,27 @@ class Kernel():
                                  mask=None,
                                  resolution=240,
                                  min_pixel_prop=0.5):
-        '''
+        r'''
         Coarse-resolution raster of the masked image (lazy if the raster is dask-backed).
 
         The pixels with ``mask != 0`` are discarded, the others are averaged by blocks of coarse pixels of
         size ``resolution`` (incomplete blocks at the edges are padded). Coarse pixels made of too few
         valid pixels are set to NaN.
+
+        For the coarse pixel :math:`B` made of the :math:`f_x \times f_y` pixels of the block
+        (see `coarsening_factor`) and :math:`W_B \subset B` its valid (water) pixels:
+
+        .. math::
+
+           \bar X_B = \frac{1}{N_B} \sum_{\mathbf{x} \in W_B} X(\mathbf{x}), \qquad N_B = \# W_B
+
+        for each variable :math:`X`, and :math:`B` is kept only if
+
+        .. math::
+
+           N_B > p \, \max_{B'} N_{B'}
+
+        with :math:`p` = ``min_pixel_prop``. :math:`N_B` is returned as ``water_pixel_number``.
 
         :param variables: variables of the raster to coarsen
         :param mask: raster of the same grid, 0 for the pixels to keep (None: keep all)
@@ -332,8 +487,24 @@ class Kernel():
                         ang_resol={'sza': 1, 'vza': 1, 'raa': 0},
                         aot_refs=np.linspace(0.0, 0.8, 25),
                         aerosol_combination=AEROSOL_COMBINATION):
-        '''
+        r'''
         Reduce the look-up tables to the geometries of the image and to the aerosol mixture.
+
+        The aerosol models :math:`m` are mixed with the weights :math:`w_m` (`aerosol_combination`) and the
+        LUT intensities are converted into reflectance:
+
+        .. math::
+
+           R_{diff}(\lambda; \tau_{ref}) = \frac{1}{\cos\theta_s} \sum_m w_m\, I_m(\lambda; \tau_{ref}),
+           \qquad
+           R_{ray}(\lambda) = \frac{I_0(\lambda; \tau_{ref} = 0)}{\cos\theta_s}
+
+           \tau_a(\lambda; \tau_{ref}) = \sum_m w_m\, \tau_{a,m}(\lambda; \tau_{ref}),
+           \qquad
+           T_{\downarrow}(\lambda; \theta, \tau_{ref}) = \sum_m w_m\, T_{\downarrow,m}(\lambda; \theta, \tau_{ref})
+
+        (:math:`I_0`: first model of the LUT, used for the Rayleigh-only reflectance). All the tables are
+        then interpolated on `aot_refs` (quadratic) and on the band wavelengths :math:`\lambda`.
 
         The angles are rounded (`ang_resol`) and only their unique values are kept in the LUTs, which
         speeds up the later interpolations. The unique values are found in one pass over the angle rasters
@@ -436,9 +607,18 @@ class Kernel():
              vza,
              azi,
              monoview=False):
-        '''
+        r'''
         Compute the normal angle to wave slopes that produce sunglint.
         Warning: azi: azimuth in rad for convention azi=180 when sun-sensenor in oppositioon
+
+        The facet reflecting the sun towards the sensor bisects the incident and reflected directions;
+        with the scattering angle :math:`\alpha` between them:
+
+        .. math::
+
+           \cos\alpha = \cos\phi \sin\theta_v \sin\theta_s + \cos\theta_v \cos\theta_s,
+           \qquad
+           \cos\theta_N = \frac{\cos\theta_s + \cos\theta_v}{\sqrt{2\,(1 + \cos\alpha)}}
 
         :param sza: solar zenith angle in degree
         :param vza: viewing zenith angle in degree
@@ -467,8 +647,17 @@ class Kernel():
                 azi,
                 sigma2=0.02,
                 monoview=False):
-        '''
+        r'''
         Compute propability of wave slopes producing sunglint.
+
+        Isotropic Cox-Munk (1954) distribution of the slope of the facet normal :math:`\theta_N`
+        (see `mu_N`), divided by :math:`\cos^4\theta_N`:
+
+        .. math::
+
+           P_{slope} = \frac{1}{\pi \sigma^2}\,
+           \exp\left(-\frac{\tan^2\theta_N}{\sigma^2}\right) \frac{1}{\cos^4\theta_N},
+           \qquad \sigma^2 = \frac{U + 0.586}{195.3}
 
         Warning: the correction is currently disabled (see the TODO below): the function returns 1
         everywhere, and NaN where the angles or `sigma2` are NaN (this NaN pattern is used downstream).
@@ -501,12 +690,24 @@ class Kernel():
         return xp_slope * 0 + 1
 
     def set_gas_transmittance(self):
-        '''
+        r'''
         Gaseous transmittance (H2O, CH4) of the low altitude gases, on the coarse grid.
 
         Sets ``Tg_diff_raster`` (diffuse light, absorption-scattering coefficients 0.5 / 0.65) and
         ``Tg_raster`` (coefficients 1), dimensions (wl, y, x). They are loaded in memory once (coarse data):
         the blocks interpolate them to their own grid.
+
+        With :math:`T_{gas}(\lambda; c)` the band transmittance of a gas for the column :math:`c` and
+        :math:`C_{gas}` the CAMS total column:
+
+        .. math::
+
+           T_g(\lambda) = \prod_{gas \in \{H_2O,\, CH_4\}} T_{gas}(\lambda;\, C_{gas}),
+           \qquad
+           T_g^{diff}(\lambda) = T_{H_2O}(\lambda;\, 0.5\, C_{H_2O})\; T_{CH_4}(\lambda;\, 0.65\, C_{CH_4})
+
+        The coefficients :math:`k_{gas} < 1` of :math:`T_g^{diff}` account for the gases located below the
+        scattering layer, which absorb only part of the diffuse light path (6S approach).
         '''
         logging.info('set gaseous transmittance')
         # -------------------------------------------------------------
@@ -536,12 +737,35 @@ class Kernel():
                            idx_nir=[6, 7, 8, 10],
                            chunk=100000
                            ):
-        '''
+        r'''
         Wind speed retrieval from the sunglint, on one block (use with ``xr.map_blocks``).
 
         For each candidate wind speed, the glint-free reflectance is extrapolated between the NIR bands
         (parallax / isotropic Cox-Munk model, see `p_slope`); the retrieved wind is the one that minimises
         the squared residual. Needs ``set_gas_transmittance`` and ``lut_preparation``.
+
+        With the bands :math:`\lambda_0, \lambda_1, \lambda_2` = ``idx_nir[0:3]`` and :math:`R_{corr}`
+        computed for ``aot_ref`` (see the module documentation), the glint is normalised to the geometry
+        of :math:`\lambda_2`:
+
+        .. math::
+
+           R_{geom}(\lambda_i; U) = \frac{P_{slope}(\lambda_2; U)}{T_g(\lambda_i)\, P_{slope}(\lambda_i; U)}\,
+           R_{corr}(\lambda_i)
+
+        and the residual is the difference between :math:`R_{geom}(\lambda_1)` and its linear
+        interpolation between :math:`\lambda_0` and :math:`\lambda_2`:
+
+        .. math::
+
+           \Delta R(U) = R_{geom}(\lambda_0) + \left(R_{geom}(\lambda_2) - R_{geom}(\lambda_0)\right)
+           \frac{\lambda_1 - \lambda_0}{\lambda_2 - \lambda_0} - R_{geom}(\lambda_1),
+           \qquad
+           \hat U = \underset{U}{\operatorname{argmin}}\ \Delta R(U)^2
+
+        Warning: :math:`U` only acts through :math:`P_{slope}`, which is currently disabled (see
+        `p_slope`): :math:`\Delta R` is then the same for all the candidates and the first wind of `winds`
+        is returned.
 
         :param raster: Dataset block (lazy or not) with ``bands``, ``sza``, ``raa``, ``vza`` and the
             coordinates ``wl``, ``x``, ``y``
@@ -630,7 +854,7 @@ class Kernel():
                            chunk=100000,
                            keep_xres=False
                            ):
-        '''
+        r'''
         Maximum AOT compatible with the SWIR bands, on the whole (coarse masked) raster.
 
         For each tested ``aot_ref`` the SWIR reflectance is corrected for the diffuse light of the
@@ -638,6 +862,22 @@ class Kernel():
         ``neg_pix_rel_thresh`` of the maximum number of pixels get a negative reflectance (among the pixels
         positive at ``aot_ref = 0``). The counts are accumulated on the fly: only one reflectance array is
         in memory at a time.
+
+        With the two SWIR bands :math:`\Lambda_s` = ``idx_swir``:
+
+        .. math::
+
+           R_{corr}(\lambda; \tau_{ref}) = R_{TOA}(\lambda) - T_g^{diff}(\lambda)\, \frac{P}{P_0}\,
+           R_{diff}(\lambda; \tau_{ref}), \qquad \lambda \in \Lambda_s
+
+           N(\tau_{ref}) = \#\left\{\mathbf{x} \in V : \min_{\lambda \in \Lambda_s} R_{corr}(\lambda, \mathbf{x};
+           \tau_{ref}) < 0\right\},
+           \qquad V = \left\{\mathbf{x} : \min_{\lambda \in \Lambda_s} R_{corr}(\lambda, \mathbf{x}; 0) > 0\right\}
+
+           \tau_{max} = \max\left\{\tau_{ref} : N(\tau_{ref}) < \eta\, \max_\tau N(\tau)\right\}
+
+        with :math:`\eta` = ``neg_pix_rel_thresh``. The water-leaving signal is negligible in the SWIR: an
+        AOT above :math:`\tau_{max}` would remove more than the atmospheric signal.
 
         Sets ``self.aot_ref_max``; if the result is outside ``]0, aot_ref_lim[`` it falls back on
         ``min(aot_ref_cams_max, aot_ref_lim)``; with no candidate it starts from ``0.8 * aot_refs[-1]``.
@@ -719,7 +959,7 @@ class Kernel():
                               keep_xres=False,
                               update_state=False
                               ):
-        '''
+        r'''
         AOT retrieval from the visible-NIR bands, on one block (use with ``xr.map_blocks`` / ``dask.delayed``).
 
         For 21 values of ``aot_ref`` between 0 and ``min(1.02 * aot_ref_max, aot_ref_lim)``, the reflectance
@@ -728,6 +968,39 @@ class Kernel():
         removes e.g. shadows). The retrieved AOT is the largest value with fewer negative pixels than
         ``neg_pix_rel_thresh`` of the maximum count; without such value it is the mean CAMS AOD over the
         block. The counts are accumulated on the fly (one reflectance array in memory at a time).
+
+        For each tested :math:`\tau_{ref}`, with :math:`R_{corr}` and :math:`T_{dir}` as in the module
+        documentation (here :math:`P/P_0` is averaged over the block in :math:`T_{dir}`), the sunglint is
+        estimated in both SWIR bands :math:`\lambda_s \in \Lambda_s` = ``iwl_swir`` and normalised to the
+        last band :math:`\lambda_r`:
+
+        .. math::
+
+           R_f(\lambda_s) = \frac{\varepsilon(\lambda_r)\, P_{slope}(\lambda_r)\, R_{corr}(\lambda_s)}
+           {T_g(\lambda_s)\, T_{dir}(\lambda_s)\, \varepsilon(\lambda_s)\, P_{slope}(\lambda_s)},
+           \qquad
+           R_f = \min_{\lambda_s \in \Lambda_s} \left|R_f(\lambda_s)\right|
+
+           R_g(\lambda) = T_g(\lambda)\, T_{dir}(\lambda)\, \varepsilon(\lambda)\, P_{slope}(\lambda)\,
+           \frac{R_f}{\varepsilon(\lambda_r)\, P_{slope}(\lambda_r)},
+           \qquad
+           R_{rs}^{TOA}(\lambda; \tau_{ref}) = \frac{R_{corr}(\lambda) - R_g(\lambda)}{\pi}
+
+        (for a mono-view sensor, :math:`R_f(\lambda_s)` is not multiplied by
+        :math:`\varepsilon(\lambda_r) P_{slope}(\lambda_r)`). The negative pixels are counted on the first
+        seven bands :math:`\Lambda_7`:
+
+        .. math::
+
+           N(\tau_{ref}) = \#\left\{\mathbf{x} \in V : \min_{\lambda \in \Lambda_7}
+           R_{rs}^{TOA}(\lambda, \mathbf{x}; \tau_{ref}) < 0\right\},
+           \qquad V = \left\{\mathbf{x} : \min_{\lambda \in \Lambda_7} R_{rs}^{TOA}(\lambda, \mathbf{x}; 0)
+           > -0.0003\right\}
+
+           \hat\tau_{ref} = \max\left\{\tau_{ref} : N(\tau_{ref}) < \eta\,
+           \max\left(N_0, \max_\tau N(\tau)\right)\right\}
+
+        with :math:`\eta` = ``neg_pix_rel_thresh`` and :math:`N_0` = ``self.neg_pix_max``.
 
         The block only reads ``self.aot_ref_max`` (set by ``aerosol_swir_chunk``) and ``self.neg_pix_max``;
         it does not modify the instance, so blocks are independent of each other and of the order or the
@@ -862,12 +1135,64 @@ class Kernel():
                             aot_ref_raster,
                             iwl_swir=[-2, -1]
                             ):
-        '''
+        r'''
         Rrs, sunglint reflectance and AOT of one block (use with ``xr.map_blocks``, see `final_process`).
 
         Steps: Rayleigh / aerosol diffuse light correction with the AOT map, sunglint estimated from the
         SWIR bands and removed, conversion from TOA to BOA (division by the total up/down transmittance
         where the reflectance is positive).
+
+        Each pixel uses its own :math:`\tau_{ref}` (interpolated from `aot_ref_raster`) and pressure:
+
+        .. math::
+
+           R_{corr}(\lambda) = R_{TOA}(\lambda) - T_g^{diff}(\lambda)\, \frac{P}{P_0}\, R_{diff}(\lambda;
+           \tau_{ref}), \qquad
+           T_{dir}(\lambda) = \exp\left[-\left(\tau_a(\lambda) + \tau_R(\lambda)\,\frac{P}{P_0}\right) M\right]
+
+        The sunglint is taken from the first SWIR band :math:`\lambda_{s}` = ``iwl_swir[0]``, with
+        :math:`\lambda_{r}` = ``iwl_swir[-1]``, and small negative values are clipped:
+
+        .. math::
+
+           R_f' = \frac{\varepsilon(\lambda_{r})\, P_{slope}(\lambda_{r})\, R_{corr}(\lambda_s)}
+           {T_g(\lambda_s)\, T_{dir}(\lambda_s)\, \varepsilon(\lambda_s)\, P_{slope}(\lambda_s)},
+           \qquad
+           R_f =
+           \begin{cases}
+              -10^{-5} & \text{if } R_f' < -10^{-3} \\
+              0 & \text{if } -10^{-3} \le R_f' < -10^{-5} \\
+              R_f' & \text{otherwise}
+           \end{cases}
+
+           R_g(\lambda) = T_g(\lambda)\, T_{dir}(\lambda)\, \varepsilon(\lambda)\, P_{slope}(\lambda)\,
+           \frac{R_f}{\varepsilon(\lambda_s)\, P_{slope}(\lambda_s)}
+
+        and the remote-sensing reflectance is
+
+        .. math::
+
+           R_{rs}(\lambda) = \frac{R_{corr}(\lambda) - R_g(\lambda)}{\pi\, T_{tot}(\lambda)},
+           \qquad
+           T_{tot}(\lambda) =
+           \begin{cases}
+              T_{\downarrow}(\lambda; \theta_s)\, T_{\downarrow}(\lambda; \bar\theta_v)^{1.05}\, T_g(\lambda)
+              & \text{if } R_{corr}(\lambda) \ge R_g(\lambda) \\
+              1 & \text{otherwise}
+           \end{cases}
+
+        ``BRDFg`` is :math:`R_f` and ``aot550`` is :math:`\tau_{ref}`.
+
+        Note: :math:`R_f'` is normalised with :math:`\lambda_r` (last band) but :math:`R_g` with
+        :math:`\lambda_s`, so that (without clipping)
+
+        .. math::
+
+           R_g(\lambda_s) = R_{corr}(\lambda_s)\,
+           \frac{\varepsilon(\lambda_r)\, P_{slope}(\lambda_r)}{\varepsilon(\lambda_s)\, P_{slope}(\lambda_s)}
+
+        which differs from :math:`R_{corr}(\lambda_s)` unless the two products are equal
+        (`aerosol_visible_chunk` uses :math:`\lambda_r` for both).
 
         The wind map ``self.wind_img`` is interpolated to the block; the coarse maps (surface pressure,
         gaseous transmittance, `aot_ref_raster`) are interpolated to the block grid. Nothing is stored on
@@ -1064,11 +1389,16 @@ class Kernel():
     @staticmethod
     @njit
     def filter2d(image, weight, windows):
-        '''
+        r'''
         Weighted mean filter of an image (numba).
 
         Each pixel with a positive weight is replaced by the weighted mean of its neighbours in a
-        ``windows`` window (pixels with a null / NaN weight are ignored).
+        ``windows`` window (pixels with a null / NaN weight are ignored):
+
+        .. math::
+
+           \tilde X(i, j) = \frac{\sum_{(k, l) \in \mathcal{W}_{ij},\, w_{kl} > 0} w_{kl}\, X(k, l)}
+           {\sum_{(k, l) \in \mathcal{W}_{ij},\, w_{kl} > 0} w_{kl}}
 
         Warning: the filter works **in place**: the result is the input array itself (``result = image``),
         so `image` is modified and later pixels are computed from already smoothed ones. Pass a copy to

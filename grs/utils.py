@@ -757,7 +757,11 @@ class Misc:
 
     @staticmethod
     def transmittance_dir(aot, air_mass, rot=0):
-        '''Direct transmittance ``exp(-(rot + aot) * air_mass)``.
+        r'''Direct transmittance ``exp(-(rot + aot) * air_mass)``:
+
+        .. math::
+
+           T_{dir} = \exp\left[-(\tau_R + \tau_a)\, M\right]
 
         :param aot: aerosol optical thickness
         :param air_mass: air mass
@@ -766,7 +770,12 @@ class Misc:
 
     @staticmethod
     def air_mass(sza, vza):
-        '''Two-way (sun-surface-sensor) geometric air mass ``1/cos(vza) + 1/cos(sza)``; angles in degrees.'''
+        r'''Two-way (sun-surface-sensor) geometric air mass ``1/cos(vza) + 1/cos(sza)``; angles in degrees:
+
+        .. math::
+
+           M = \frac{1}{\cos\theta_v} + \frac{1}{\cos\theta_s}
+        '''
         return 1 / np.cos(np.radians(vza)) + 1 / np.cos(np.radians(sza))
 
     @staticmethod
