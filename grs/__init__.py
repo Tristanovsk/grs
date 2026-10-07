@@ -126,10 +126,13 @@ Version history
     - fix for bug in azimuth handling in glint correction
     - enables L1C netcdf as intput in CLI
 
+3.0.1:
+    - new masking procedure including OmniCloudMAsk
+    - Export in 'zarr' with pyramids
 '''
 
 __package__ = 'grs'
-__version__ = '3.0.0dev'
+__version__ = '3.0.1dev'
 
 
 from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
