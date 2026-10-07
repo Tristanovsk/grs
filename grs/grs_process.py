@@ -8,7 +8,7 @@ Memory / dask design
 
 * the gaseous absorption correction and the interpolation of the wind map are applied block by block
   (``xr.map_blocks``): the coarse maps are interpolated to the grid of each block;
-* the aerosol retrieval works on a coarse raster (``aot_megapix_size`` times coarser) which is computed once;
+* the aerosol retrieval works on a coarse raster (``aot_resolution`` pixel size) which is computed once;
 * ``Kernel.final_process`` returns the lazy L2A variables; the flag for negative Rrs, the mask and the
   wind map are lazy too;
 * everything is evaluated in a single pass by ``write_output`` (one ``dask.compute`` in ``L2aProduct``), so
@@ -147,7 +147,7 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk=512,
-                aot_megapix_size=8,
+                aot_resolution=160,
                 aot_chunk=256,
                 scale_aot=1,
                 opac_model=None,
@@ -172,7 +172,8 @@ class Process:
         :param megapix_size: not used for the moment (the wind comes from CAMS, see the TODO below)
         :param chunk: size (pixels) of the blocks of the final processing; 512 divides the 1024 shards of
             the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
-        :param aot_megapix_size: the aerosol retrieval is done on a raster this many times coarser
+        :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
+            240...; must be a multiple of ``resolution``
         :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval, and of
             the window of the final smoothing of the AOT map
         :param scale_aot: scaling factor applied to CAMS aod550 raster
@@ -514,8 +515,7 @@ class Process:
         ######################################
         # # TODO speed up process (e.g. proper loop)
         # logging.info('surface rugosity (wind) estimation')
-        # raster = kernel.get_coarse_masked_raster(xcoarsen=megapix_size,
-        #                                          ycoarsen=megapix_size).compute()
+        # raster = kernel.get_coarse_masked_raster(resolution=megapix_size * resolution).compute()
         # _Nwl, _height, _width = raster.bands.shape
         # res = []
         # for iy in range(0, _height, chunk):
@@ -542,7 +542,7 @@ class Process:
 
         # the coarse raster is small: compute it once (one pass over the image) instead of re-evaluating the
         # lazy graph for every block and every aot_ref of the retrieval
-        raster = kernel.get_coarse_masked_raster(xcoarsen=aot_megapix_size, ycoarsen=aot_megapix_size).compute()
+        raster = kernel.get_coarse_masked_raster(resolution=aot_resolution).compute()
         _Nwl, _height, _width = raster.bands.shape
         res = []
         for iy in range(0, _height, aot_chunk):
