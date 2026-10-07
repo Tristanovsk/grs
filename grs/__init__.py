@@ -136,6 +136,7 @@ __version__ = '3.0.1dev'
 
 
 import importlib
+from typing import TYPE_CHECKING
 
 # public classes and the submodule defining them; a submodule is imported the first time one of its classes
 # is accessed (``grs.Process``, ``from grs import Masking``), so ``import grs`` and ``grs -v`` do not load
@@ -152,6 +153,17 @@ _LAZY = {
 }
 
 __all__ = list(_LAZY)
+
+# static imports for type checkers / IDEs only (never executed), as they cannot follow the lazy ``__getattr__``
+if TYPE_CHECKING:
+    from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
+    from .cams import CamsProduct
+    from .auxdata import SensorData, AuxData
+    from .product import Product
+    from .output import L2aProduct
+    from .mask import Masking
+    from .grs_kernel import Kernel
+    from .grs_process import Process
 
 
 def __getattr__(name):

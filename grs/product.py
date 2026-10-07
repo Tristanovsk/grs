@@ -11,7 +11,8 @@ import datetime
 import logging
 from importlib.resources import files
 import yaml
-from . import AuxData, __version__, __package__
+from . import __version__, __package__
+from .auxdata import AuxData
 
 opj = os.path.join
 
