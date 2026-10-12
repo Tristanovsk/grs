@@ -15,7 +15,7 @@ processor for high-spatial-resolution, multispectral optical satellite images ac
 aquatic environments. Given one Level-1 (top-of-atmosphere) product, it corrects successively
 for gaseous absorption, diffuse sky light reflected by the air-water interface, and sunglint,
 to retrieve the water-leaving radiance/reflectance at the surface level. The full scientific
-description is available on the :doc:`index` page.
+description is available on the :doc:`methods` page.
 
 The processor is invoked through the ``grs`` command-line executable
 (entry point ``grs.run:main``, see :py:mod:`grs.run`), which wraps the core
@@ -39,7 +39,7 @@ Scheduling and Triggers
 GRSProcessor has no built-in scheduler; it is triggered externally, granule by granule:
 
 - **Interactively / single granule**: manual call to ``grs <input_file> ...`` (see
-  :doc:`index` "Testing" section for CLI examples).
+  :doc:`usage` for CLI examples).
 - **Batch, on an HPC cluster (SLURM)**: submitted as a job via ``sbatch``, see
   `ci-func-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-func-run.slurm>`_
   (runs ``grs`` / ``exe/launcher.py`` directly on one or more tiles) and
@@ -63,7 +63,7 @@ GRSProcessor has no built-in scheduler; it is triggered externally, granule by g
      superseded by SLURM on the current CNES cluster.
 - **Containerized**: via the Docker image built from
   `Dockerfile <https://github.com/CNES/GRSprocessor/blob/main/Dockerfile>`_
-  (see :doc:`index` "Compile Docker image locally").
+  (see "Compile Docker image locally" in the `README <https://github.com/CNES/GRSprocessor#compile-docker-image-locally>`__).
 
 Dataflow
 --------
