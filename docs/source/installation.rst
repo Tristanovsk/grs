@@ -11,13 +11,16 @@ and save them in a directory of your choice (``your_GRSDATA_PATH`` below).
 Python environment
 ------------------
 
-Python >= 3.9 is required (3.11 recommended). With conda:
+Python >= 3.12 is required. With conda:
 
 .. code-block:: bash
 
-   conda create -n grs python=3.11
+   conda create -n grs python=3.12
    conda activate grs
-   conda install -c conda-forge gdal eoreader cdsapi netCDF4 docopt xmltodict numba
+   conda install -c conda-forge gdal
+
+The other dependencies (``requirements.txt``, including
+`GRSdriver <https://github.com/Tristanovsk/GRSdriver>`__) are installed with the package below.
 
 Configuration
 -------------

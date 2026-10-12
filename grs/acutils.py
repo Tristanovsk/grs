@@ -269,7 +269,7 @@ class GaseousTransmittance(Gases):
                            'h2o': CamsParams('tcwv', 1), }
 
     def Tgas_background(self):
-        '''
+        r'''
         Compute direct transmittance for background absorbing gases: :math:`CO,\ O_2,\ O_4`
 
         :return:
@@ -297,7 +297,7 @@ class GaseousTransmittance(Gases):
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
-                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
                 Tg_int.append(Tg_)
             Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
                                           ).assign_coords({'pressure': val}))
@@ -345,7 +345,7 @@ class GaseousTransmittance(Gases):
                 Tg_ = Tg.sel(wl_hr=srf.wl_hr)
                 wl_integr = Tg_.wl_hr.values
 
-                Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+                Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
                 Tg_int.append(Tg_)
             Tg_raster.append(xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values}
                                           ).assign_coords({'tc': val}))
@@ -419,7 +419,7 @@ class GaseousTransmittance(Gases):
             Tg_ = Tg.sel(wl_hr=srf.wl_hr)
             wl_integr = Tg_.wl_hr.values
 
-            Tg_ = np.trapz(Tg_ * srf, wl_integr) / np.trapz(srf, wl_integr)
+            Tg_ = np.trapezoid(Tg_ * srf, wl_integr) / np.trapezoid(srf, wl_integr)
             Tg_int.append(Tg_)
 
         self.Tg_other = xr.DataArray(Tg_int, name='Ttot', coords={'wl': SRF_hr.wl.values})
@@ -478,7 +478,7 @@ class GaseousTransmittance(Gases):
         tcwvs = np.unique(tcwv_vals)
         tcwvs = tcwvs[~np.isnan(tcwvs)]
         # TODO improve for air_mass raster
-        Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop('air_mass')
+        Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop_vars('air_mass')
         self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
 
 

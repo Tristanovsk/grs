@@ -470,7 +470,7 @@ class Process:
         _sunglint_eps = sunglint_eps.values
 
         # prepare aerosol parameters
-        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop('wl').astype(np.float32)
+        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop_vars('wl').astype(np.float32)
         aot_ref_raster.name = 'aot550'
         _rot = rot.values
 

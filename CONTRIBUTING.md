@@ -20,7 +20,7 @@ request features. Include:
 ```bash
 git clone https://github.com/CNES/GRSprocessor.git
 cd GRSprocessor
-conda create -n grs_dev python=3.11
+conda create -n grs_dev python=3.12
 conda activate grs_dev
 pip install -r requirements.txt
 pip install -e .[dev]

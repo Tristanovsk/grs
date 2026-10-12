@@ -1,5 +1,5 @@
 # GRS algorithm package
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
 [![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
 [![Coverage](badges/coverage.svg)]()
@@ -62,16 +62,16 @@ path:
 conda activate "name of your conda env"
 ```
 
-Python >= 3.9 is required (3.11 recommended), example:
+Python >= 3.12 is required, example:
 ``` 
-conda create python=3.11 -n grs_v2
+conda create python=3.12 -n grs_v2
 conda activate grs_v2
 ```
-Then, install python dependencies:
+Then, install GDAL (Python bindings `osgeo`) from conda-forge:
 ``` 
-conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
+conda install -c conda-forge gdal
 ```
-Finally, install grs with:
+Finally, install grs and its dependencies (`requirements.txt`, including GRSdriver) with:
 ```commandline
 pip install .
 ```
@@ -246,7 +246,7 @@ Contributions are welcome! Quick start:
 ```bash
 git clone https://github.com/CNES/GRSprocessor.git
 cd GRSprocessor
-conda create -n grs_dev python=3.11
+conda create -n grs_dev python=3.12
 conda activate grs_dev
 pip install -r requirements.txt
 pip install -e .[dev]

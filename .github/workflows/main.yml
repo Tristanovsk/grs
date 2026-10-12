@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Installation du paquet gdal
         run: |
@@ -54,7 +54,6 @@ jobs:
           python -m pip install GDAL==$GDAL_VERSION
           python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
           python -m pip install pytest pytest-cov
-          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
                            
           echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
           python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
@@ -101,7 +100,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name : Build
         run: |
@@ -183,7 +182,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name : Install ruff and mypi
         run: pip install ruff mypy

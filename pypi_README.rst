@@ -26,18 +26,19 @@ Installation with conda environment
 
    conda activate "name of your conda env"
 
-Python >= 3.9 is recommended, example:
+Python >= 3.12 is recommended, example:
 
 ::
 
-   conda create python=3.10 -n grs_v2
+   conda create python=3.12 -n grs_v2
    conda activate grs_v2
 
-Then, install python dependencies:
+Then, install GDAL (Python bindings ``osgeo``) from conda-forge; the other dependencies,
+including GRSdriver, are installed with grs by pip:
 
 ::
 
-   conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
+   conda install -c conda-forge gdal
 
 Set the ``config.yml`` file:
 
