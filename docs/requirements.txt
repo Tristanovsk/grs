@@ -1,18 +1,10 @@
+# Python requirements of the Read the Docs build (see .readthedocs.yaml);
+# the Sphinx tools come from the "docs" extra of pyproject.toml.
 -r ../requirements.txt
 
-# Doc
-ipython
-sphinx <=7.2.6
-sphinx-book-theme<=1.1.2
-sphinx-copybutton
-sphinxcontrib-mermaid
-myst-nb
-myst-parser
-linkify-it-py
-
-geopandas
-jupyter
-matplotlib
-cartopy
-hvplot
-
+# Indirect dependencies pinned to versions compatible with ../requirements.txt
+# (numpy 1.25.2, datashader 0.16.3): the latest releases need numpy >= 2 (pyarrow)
+# or no longer work with datashader 0.16.3 (dask).
+dask==2024.9.1
+distributed==2024.9.1
+pyarrow==17.0.0
