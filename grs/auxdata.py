@@ -10,7 +10,6 @@ import xarray as xr
 
 from scipy.interpolate import interp1d
 
-from pkg_resources import resource_filename
 from importlib.resources import files
 
 opj = os.path.join
