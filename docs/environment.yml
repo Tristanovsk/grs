@@ -1,8 +1,10 @@
 # Conda environment of the Read the Docs build.
 # Python is pinned to 3.11: the versions pinned in requirements.txt (netCDF4 1.6.5,
 # numpy 1.25.2, numba 0.58.0...) have no wheels for more recent Python versions.
-# The compiled libraries come from conda-forge; requirements.txt and the docs extra
-# are then installed with pip (see .readthedocs.yaml).
+# GDAL (osgeo, imported by grs.run) and the libraries pinned in requirements.txt
+# that conda-forge provides come from conda; requirements.txt (e.g. numba 0.58.0,
+# not on conda-forge) and the docs extra are then installed with pip
+# (see .readthedocs.yaml).
 name: grs-docs
 channels:
   - conda-forge
@@ -11,6 +13,5 @@ dependencies:
   - gdal
   - netcdf4=1.6.5
   - numpy=1.25.2
-  - numba=0.58.0
   - cartopy
   - pip
