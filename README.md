@@ -7,55 +7,32 @@
 [![PyPI](https://img.shields.io/pypi/v/GRSProcessor)](https://pypi.org/project/GRSprocessor/)
 
 ## GRS (Glint Removal for Sentinel-2-like sensors)
+## GRS (Glint Removal for Sentinel-2-like sensors)
 
-Please check [grs documentation](https://cnes.github.io/GRSprocessor/)
+The GRS algorithm ([Harmel et al.,
+2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856))
+corrects high-spatial resolution multispectral images (Sentinel-2,
+Landsat 8/9) acquired over water for the atmosphere and for the sunlight
+reflected by the water surface (sunglint), which can reach the sensor of
+nadir or near-nadir viewing missions with SWIR bands. The processor
+corrects successively for:
 
-The GRS (Glint Removal for Sentinel-2) algorithm [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856)
-was specifically developed to
-handle and correct for the direct sunlight reflected by the water surface and potentially reaching the sensor (i.e.,
-sunglint signal) of Sentinel-2-like mission, that is nadir or near-nadir viewing sensor with SWIR bands. The GRS
-processor consists of three main modules to correct for (i) gaseous absorption, (ii) diffuse light from sky and its
-reflection by the air-water interface and (iii) the sunglint signal in order to retrieve the water-leaving signal at the
-water surface level. 
+-   the gaseous absorption,
+-   the diffuse light of the sky and its reflection by the air-water
+    interface,
+-   the sunglint, estimated in the SWIR bands,
 
-First, the gaseous absorption (mainly CO2, H2O and O3) correction is performed based on parameterizations of the gas transmittances from full radiative transfer
-computations using lidRadtran v2.0.4. Atmospheric pressure and gas concentrations are retrieved from bilinear
-interpolation within the grid of the Copernicus Atmosphere Monitoring Service dataset (CAMS). Then, spectral radiances
-are corrected for the diffuse sky light and its reflection on the air-water interface. For each pixel, the diffuse
-radiance component is reconstructed for the given viewing geometry (i.e., sensor and Sun viewing angles and relative
-azimuth) from pre-computed look-up tables (LUT). The Rayleigh optical thickness is rescaled based on the actual pressure
-at the scene level to take into account the effects of the altitude on the scattering properties of the atmosphere.
-Those LUTs were generated based on the radiative transfer model OSOAA (Chami et al., 2015) for a typical fine and coarse
-mode aerosol models, encompassing weakly absorbing ones (Levy et al., 2009), and including the specific spectral
-response of the sensor bands. The atmosphere plus surface diffuse signal $`L_{sky}`$ is obtained considering a bimodal aerosol
-model (Wang & Gordon, 1994) as follows:
+to retrieve the remote-sensing reflectance $R_{rs}$ at the water
+surface.
 
-<img src="https://latex.codecogs.com/gif.latex?L_{sky}\left( {\lambda ,{\tau _a}} \right)
- = \gamma L_{sky}^{fine}\left( {\lambda ,{\tau _a}} \right) + \left( {1 - \gamma } \right)L_{sky}^{coarse}\left( {\lambda ,{\tau _a}} \right)"/>
+``` bash
+grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
+    --cams_file cams_forecast_2022-07.nc --resolution 20
+```
 
-where $`L_{sky}^{fine}`$ and $`L_{sky}^{coarse}`$are the radiances for the fine and coarse aerosol modes, respectively, 
-for the aerosol optical thickness $`\tau _a`$; $`\gamma`$ is
-the mixing coefficient corresponding to the relative amount of each mode in the atmosphere. Note that $`\tau _a`$ is obtained from
-the CAMS dataset (Benedetti et al., 2008; Morcrette et al., 2009) and $`\gamma`$ is retrieved from non-linear fitting including the
-LUT aerosol parameters with the spectral values of $`\tau _a`$ provided by CAMS. 
+![](docs/source/_static/example_image_level.png)
 
-Regarding the sunglint correction, the main
-principle is to estimate the bidirectional reflectance distribution function (BRDF) of the rough air-water interface
-from the SWIR bands (i.e., ~1610 and ~2200 nm). The sunglint signal obtained in the SWIR is then extrapolated toward the
-NIR and visible bands. Estimation of the sunglint radiance is based on the fact that water body is virtually totally
-absorbing; water absorption coefficient in the SWIR is several orders of magnitude greater than that in the NIR. Once
-corrected for atmosphere diffuse radiance, the remaining radiance in the SWIR is interpreted as the pure surface
-component of the signal and then translated into BRDF. This BRDF in the SWIR is extrapolated to the other bands
-considering the spectral variation of the refractive index of water and its important consequences onto the spectral
-sunglint signal (see [Harmel et al., 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856) for details). The sunglint radiation is calculated for each pixel, for each
-band, considering the estimated BRDF, atmosphere direct transmittance and the extraterrestrial sun radiance reaching the
-atmosphere, and the water-leaving radiance is then corrected by removing this value. 
 
-The water-leaving component at the
-water surface level is eventually obtained after division by the total transmittance (i.e., diffuse + total
-transmittances) calculated for the bimodal aerosol model from the LUT. The version used here accounts for the spectral
-response of each band of Sentinel-2 A and B as well as Landsat-8 and it is based on the CAMS aerosol data for the
-spectral value of $`\tau _a`$.
 
 
 ## Getting Started
@@ -66,9 +43,16 @@ spectral value of $`\tau _a`$.
 ## Installation
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### Download the LUT files:
-click  on [grsdata](https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing)
- to download and save in your desired path (your_GRSDATA_PATH) 
+### Look-up tables and auxiliary data
+The radiative transfer look-up tables (LUTs) are not shipped with the package: you have to download the LUT files (netcdf format) and the configure the config.yml file.
+
+- Download the LUT files:
+click  on [grsdata](https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing)  to download the netcdf files and then save them in the directory of the LUTs you want noting its path (/YOUR/GRSDATA_PATH)
+- Update the file ./grs/config.yml with:
+```
+path:
+  grsdata:/YOUR/GRSDATA_PATH
+```
 
 ### please use conda environment
 ``` 
