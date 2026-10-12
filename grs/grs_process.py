@@ -147,7 +147,7 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk=512,
-                aot_resolution=240,
+                aot_resolution=500,
                 aot_chunk=256,
                 scale_aot=1,
                 opac_model=None,
