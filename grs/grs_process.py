@@ -565,12 +565,8 @@ class Process:
                                           aot_refs=np.linspace(0, kernel.aot_ref_max, 21))
 
                 # thrird apply non-negativity of visible bands
+                # (one pixel per block: aot_ref and number_of_pixel, the number of water pixels of the block)
                 res_ = kernel.aerosol_visible_chunk(raster_)
-                # NOTE: res_ already holds the number of water pixels of the block (1 x 1). The line below
-                # re-assigns it with the per-pixel map of the block, which xarray aligns on the 1 x 1 grid of
-                # res_ (block centre): this gives NaN unless the centre is a pixel, and NaN weights are
-                # skipped by filter2d. Kept as it was; check kernel.aot_ref_img.number_of_pixel.
-                res_['number_of_pixel'] = raster_.water_pixel_number
                 res.append(res_)
 
         kernel.aot_ref_img = xr.merge(res)
@@ -580,15 +576,16 @@ class Process:
         # TODO check mask/method of weighting and implement into kernel
         windows = np.array([15, 15])
 
-        # filter out outliers from median
+        # filter out outliers from median: outliers and blocks without water pixels (NaN) get the median
+        # aot_ref and a null weight, so that they do not contribute to the weighted mean of filter2d
         aot_median = kernel.aot_ref_img.aot_ref.median()
-        kernel.aot_ref_img = aot_ref_img.where(aot_ref_img.aot_ref < 1.5 * aot_median, aot_median)
-        #    aot_ref_img.aot_ref > 0.75 * aot_median, aot_median).where(
-        #
+        valid = aot_ref_img.aot_ref < 1.5 * aot_median
+        kernel.aot_ref_img = aot_ref_img.assign(aot_ref=aot_ref_img.aot_ref.where(valid, aot_median),
+                                                number_of_pixel=aot_ref_img.number_of_pixel.where(valid, 0))
 
-        # method with weighting to implement:
-        aot_ref_raster = kernel.aot_ref_img  # .where(kernel.aot_ref_img.number_of_pixel > 1)
-        param = aot_ref_raster.aot_ref.values
+        # weighted mean, weights = number of water pixels of the blocks (filter2d works in place: copy)
+        aot_ref_raster = kernel.aot_ref_img
+        param = aot_ref_raster.aot_ref.values.copy()
         _weights = aot_ref_raster.number_of_pixel.values
 
         raster_smoothed = kernel.filter2d(param, _weights, windows)
