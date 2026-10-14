@@ -149,6 +149,7 @@ class Process:
                 chunk=512,
                 aot_resolution=500,
                 aot_chunk=256,
+                aot_smoothing_blocks=3,
                 scale_aot=1,
                 opac_model=None,
                 allpixels=False,
@@ -174,8 +175,11 @@ class Process:
             the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
         :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
             240...; must be a multiple of ``resolution``
-        :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval, and of
-            the window of the final smoothing of the AOT map
+        :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT
+            value is retrieved per block of ``aot_chunk * aot_resolution`` meters
+        :param aot_smoothing_blocks: size, in blocks, of the window of the weighted mean of the block AOT values
+            (3: each block is averaged with its neighbours); the transitions between blocks are then smoothed
+            over about one block
         :param scale_aot: scaling factor applied to CAMS aod550 raster
         :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
         :param allpixels: if True process all pixels (no water pixel masking)
@@ -573,8 +577,13 @@ class Process:
         aot_ref_img = kernel.aot_ref_img
 
         logging.info('smoothing aerosol optical thickness raster')
-        # TODO check mask/method of weighting and implement into kernel
-        windows = np.array([15, 15])
+        # the windows scale with the blocks: weighted mean over aot_smoothing_blocks blocks on the block grid,
+        # then smoothing of the transitions over one block on a grid of step 5 coarse pixels
+        fine_step = 5
+        block_windows = np.array([aot_smoothing_blocks, aot_smoothing_blocks])
+        cells_per_block = max(1, int(round(aot_chunk / fine_step)))
+        cells_per_block += 1 - cells_per_block % 2  # odd, centred window
+        fine_windows = np.array([cells_per_block, cells_per_block])
 
         # filter out outliers from median: outliers and blocks without water pixels (NaN) get the median
         # aot_ref and a null weight, so that they do not contribute to the weighted mean of filter2d
@@ -583,17 +592,17 @@ class Process:
         kernel.aot_ref_img = aot_ref_img.assign(aot_ref=aot_ref_img.aot_ref.where(valid, aot_median),
                                                 number_of_pixel=aot_ref_img.number_of_pixel.where(valid, 0))
 
-        # weighted mean, weights = number of water pixels of the blocks (filter2d works in place: copy)
+        # weighted mean, weights = number of water pixels of the blocks
         aot_ref_raster = kernel.aot_ref_img
-        param = aot_ref_raster.aot_ref.values.copy()
+        param = aot_ref_raster.aot_ref.values
         _weights = aot_ref_raster.number_of_pixel.values
 
-        raster_smoothed = kernel.filter2d(param, _weights, windows)
+        raster_smoothed = kernel.filter2d(param, _weights, block_windows)
         aot_ref_raster = xr.Dataset({'aot_ref': (["y", "x"], raster_smoothed)},
                                     coords=dict(y=kernel.aot_ref_img.y, x=kernel.aot_ref_img.x))
         # get both limit of x and y values for extrapolation using nearest method:
-        new_x = [*raster.x.values[0:-1:5], raster.x.values[-1]]
-        new_y = [*raster.y.values[0:-1:5], raster.y.values[-1]]
+        new_x = [*raster.x.values[0:-1:fine_step], raster.x.values[-1]]
+        new_y = [*raster.y.values[0:-1:fine_step], raster.y.values[-1]]
         aot_ref_raster = aot_ref_raster.interp(x=new_x,
                                                y=new_y,
                                                method='nearest',
@@ -602,8 +611,8 @@ class Process:
         aot_ref_raster = kernel.smoothing(
             aot_ref_raster,
             varname='aot_ref',
-            mask=np.ones((aot_chunk, aot_chunk)),
-            windows=windows)
+            mask=np.ones(fine_windows),
+            windows=fine_windows)
 
         kernel.aot_ref_raster = aot_ref_raster.interp(x=raster.x,
                                                       y=raster.y,

@@ -1403,21 +1403,20 @@ class Kernel():
            \tilde X(i, j) = \frac{\sum_{(k, l) \in \mathcal{W}_{ij},\, w_{kl} > 0} w_{kl}\, X(k, l)}
            {\sum_{(k, l) \in \mathcal{W}_{ij},\, w_{kl} > 0} w_{kl}}
 
-        Warning: the filter works **in place**: the result is the input array itself (``result = image``),
-        so `image` is modified and later pixels are computed from already smoothed ones. Pass a copy to
-        keep the input.
+        The window is truncated at the edges of the image; pixels with a null / NaN weight keep their value.
+        All the means are computed from the input values (`image` is not modified).
 
-        :param image: 2D array to smooth (modified)
+        :param image: 2D array to smooth
         :param weight: 2D array of weights (e.g. inverse uncertainty), same shape
         :param windows: size of the window (rows, columns)
-        :return: `image`, smoothed
+        :return: smoothed copy of `image`
         '''
         M, N = np.shape(image)
         Mf, Nf = windows
         Mf2 = Mf // 2
         Nf2 = Nf // 2
         threshold = 0
-        result = image
+        result = image.copy()
         for i in range(M):
             for j in range(N):
                 num = 0.0
@@ -1425,11 +1424,11 @@ class Kernel():
                 if weight[i, j] > threshold:
                     for ii in range(Mf):
                         ix = i - Mf2 + ii
-                        if ix < M:
+                        if 0 <= ix < M:
                             for jj in range(Nf):
 
                                 iy = j - Nf2 + jj
-                                if iy < N:
+                                if 0 <= iy < N:
                                     wgt = weight[ix, iy]
                                     if wgt > 0.:
                                         num += (wgt * image[ix, iy])
@@ -1467,7 +1466,6 @@ class Kernel():
         ``1`` where the variable is finite and non null) then NaN-aware mean (`conv_mapping`).
 
         The raster is loaded in memory: use it on the coarse wind map, not on a full-resolution image.
-        Note that `filter2d` modifies the array of ``raster[varname]`` in place when it is numpy-backed.
 
         :param raster: Dataset (y, x) containing `varname`
         :param varname: name of the variable
