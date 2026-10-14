@@ -147,7 +147,7 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk=512,
-                aot_resolution=500,
+                aot_resolution=480,
                 aot_chunk=256,
                 aot_smoothing_blocks=3,
                 scale_aot=1,
@@ -174,7 +174,8 @@ class Process:
         :param chunk: size (pixels) of the blocks of the final processing; 512 divides the 1024 shards of
             the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
         :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
-            240...; must be a multiple of ``resolution``
+            240, 480 (default, a multiple of the 10, 20, 30 and 60 m pixel sizes); must be a multiple of
+            ``resolution``
         :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT
             value is retrieved per block of ``aot_chunk * aot_resolution`` meters
         :param aot_smoothing_blocks: size, in blocks, of the window of the weighted mean of the block AOT values

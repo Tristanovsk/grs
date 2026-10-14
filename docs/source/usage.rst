@@ -40,7 +40,7 @@ The main options of :py:meth:`~grs.grs_process.Process.execute`:
 ``resolution``
    Pixel size of the processing (10, 20 or 60 m for Sentinel-2).
 ``aot_resolution``
-   Pixel size of the coarse grid of the aerosol retrieval (default 240 m); must be a multiple of
+   Pixel size of the coarse grid of the aerosol retrieval (default 480 m); must be a multiple of
    ``resolution`` (e.g. 60, 120, 240, 480 m). See :ref:`aerosol retrieval <methods-aerosol>`.
 ``opac_model``
    Force the aerosol model (``'ARCT_rh70'``, ``'COAV_rh70'``, ``'DESE_rh70'``, ``'MACL_rh70'``,

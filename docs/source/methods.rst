@@ -183,7 +183,7 @@ AOT interpolated from the coarse map of step 9, and its own pressure and gaseous
 Aerosol retrieval
 -----------------
 
-The AOT is retrieved on a coarse grid of pixel size ``aot_resolution`` (240 m by default): each coarse
+The AOT is retrieved on a coarse grid of pixel size ``aot_resolution`` (480 m by default): each coarse
 pixel :math:`B` is the mean of its water pixels :math:`W_B`, and is kept if it has enough of them,
 
 .. math::

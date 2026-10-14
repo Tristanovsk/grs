@@ -11,7 +11,8 @@ Dates are given for tagged releases only.
 ### Added
 - New masking procedure including OmniCloudMask (building on the former s2cloudless development).
 - Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
-- AOT coarse resolution stored in output attributes (default 240 m).
+- AOT coarse resolution stored in output attributes (default 480 m, a multiple of the 10, 20, 30 and
+  60 m pixel sizes).
 - Documentation of the kernel physics with equations; reworked Sphinx documentation for Read the Docs
   (light/dark logos, partner logos, reorganised example notebooks: processing, auxiliary data,
   visualization, Landsat).
