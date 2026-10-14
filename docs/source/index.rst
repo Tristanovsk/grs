@@ -37,9 +37,9 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
    :maxdepth: 2
    :caption: Tutorials
 
-   examples/basics
+   examples/processing
+   examples/landsat
    examples/auxdata
-   examples/advanced
    examples/visualization
 
 .. toctree::
