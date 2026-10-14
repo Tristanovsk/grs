@@ -21,6 +21,8 @@ dynamic = ["dependencies"]
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["grs", "grs.*"]
+exclude = ["grs.TEST*"]
 
 [tool.setuptools.package-data]
 "grs"= ['*.yml']
