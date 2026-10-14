@@ -1245,7 +1245,9 @@ class Kernel():
                 _vza_mean = np.mean(_vza, axis=0).values
 
             _azi = (180. - _raa) % 360
-            _air_mass_ = Misc.air_mass(_sza, _vza)
+            # numpy array: (wl, y, x) for Sentinel-2, (y, x) for monoview sensors (broadcast over wl);
+            # a (y, x) DataArray times the (wl, y, x) numpy arrays of Tdir fails with recent xarray
+            _air_mass_ = Misc.air_mass(_sza, _vza).values
             _p_slope_ = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2_,
                                      monoview=monoview).values
 
