@@ -21,11 +21,15 @@ Dates are given for tagged releases only.
 - Coarse raster now defined by spatial resolution instead of pixel factors.
 - Optimised LUT interpolation; `acutils` module renamed to `utils`.
 - Lazy package loading for faster imports; Sentinel-2 viewing geometry loaded lazily.
+- AOT smoothing windows scale with the retrieval blocks (new `aot_smoothing_blocks` parameter of
+  `Process.execute`, default 3).
 
 ### Fixed
 - Weights of the AOT smoothing: the number of water pixels of each retrieval block is used as weight
   (it was overwritten, so that only the empty blocks were weighted); outliers and empty blocks get the
   median AOT with a null weight.
+- `Kernel.filter2d`: window wrapping around the image edges and in-place computation from already
+  smoothed values.
 - `--no_clobber` behaviour for Zarr output and `--snap_compliant` help text in the CLI.
 - Unresolved imports with lazy package loading.
 - Autosummary class template path in the API reference.
