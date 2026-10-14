@@ -91,7 +91,7 @@ You should see something like:
 Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [-o <ofile>] [--odir <odir>] [--resolution res] [--scale_aot factor]   [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file] [--snap_compliant]
+  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--aot_resolution res]   [--max_cloud_cover max_cc] [--scale_aot factor] [--opac_model name] [--levname <lev>] [--no_clobber]   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -103,23 +103,27 @@ Options:
 
   --cams_file file     Absolute path of the CAMS file to be used (mandatory)
 
-  -o ofile         Full (absolute or relative) path to output L2 image.
-  --odir odir      Ouput directory [default: ./]
-  --levname lev    Level naming used for output product [default: L2Agrs]
+  -o <odir>, --odir <odir>  Full (absolute or relative) path to output L2 image.
+  --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --resolution res  spatial resolution of the scene pixels
+  --resolution=res  spatial resolution of the scene pixels [default: 60]
+  --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
+                        resolution [default: 480]
+  --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
+                            in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
   --surfwater file  Absolute path of the surfwater geotiff file to be used
   --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
-  --scale_aot factor scaling factor applied to CAMS aod550 raster
-                    [default: 1]
+  --scale_aot factor  scaling factor applied to CAMS aod550 raster
+                      [default: 1]
   --opac_model name  Force the aerosol model (OPAC) to be 'name'
-                    (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
-                                'MACL_rh70', 'URBA_rh70'])
-  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+                     (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
+                     'MACL_rh70', 'URBA_rh70'])
+  --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
+  --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
 
   Example:
-      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/satellite/S2/cnes/CAMS/2022-07-31-cams-global-atmospheric-composition-forecasts.nc --resolution 60
+      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/cams/world/cams_forecast_2022-07.nc --resolution 60
   For CNES datalake:
       grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
 ```

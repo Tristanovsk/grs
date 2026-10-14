@@ -13,6 +13,8 @@ Dates are given for tagged releases only.
 - Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
 - AOT coarse resolution stored in output attributes (default 480 m, a multiple of the 10, 20, 30 and
   60 m pixel sizes).
+- `--aot_resolution` option of the CLI (pixel size of the coarse grid of the aerosol retrieval, default
+  480 m).
 - Documentation of the kernel physics with equations; reworked Sphinx documentation for Read the Docs
   (light/dark logos, partner logos, reorganised example notebooks: processing, auxiliary data,
   visualization, Landsat).

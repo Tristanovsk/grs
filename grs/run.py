@@ -1,9 +1,9 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
-   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file]\
-   [--suffix suffix] [--snap_compliant]
+  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--aot_resolution res]\
+   [--max_cloud_cover max_cc] [--scale_aot factor] [--opac_model name] [--levname <lev>] [--no_clobber]\
+   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -19,6 +19,8 @@ Options:
   --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
+  --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
+                        resolution [default: 480]
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
                             in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
@@ -48,6 +50,14 @@ from docopt import docopt
 from . import __package__, __version__
 
 
+def set_ofile(filename: str, odir='', level_name='L2GRS', suffix='') -> Path:
+    """Output path: level name of `filename` replaced by `level_name`, extension removed, `suffix` appended."""
+    outfile = filename
+    for level in ('L1C', 'L1GT', 'L1TP'):
+        outfile = outfile.replace(level, level_name)
+    return Path(odir, Path(outfile).stem + suffix)
+
+
 def main():
     # -h / -v are handled (and exit) here, before the heavy imports below
     args = docopt(__doc__, version=__package__ + '_' + __version__)
@@ -56,8 +66,6 @@ def main():
     from osgeo import gdal
     from . import class_logger
     from .grs_process import Process
-    from exe.procutils import misc
-    misc = misc()
 
     file = Path(args['<input_file>'])
 
@@ -68,6 +76,7 @@ def main():
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
+    aot_resolution = int(args['--aot_resolution'])
     max_cc = float(args['--max_cloud_cover'])
     scale_aot = float(args['--scale_aot'])
     opac_model = args['--opac_model']
@@ -94,7 +103,7 @@ def main():
     if not suffix:
         suffix = f'_V{__version__}'
 
-    outdir = misc.set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
+    outdir = set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
     outdir.mkdir(parents=True, exist_ok=True)
 
     class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
@@ -112,7 +121,8 @@ def main():
                  f'File: {file}, '
                  f'output directory: {odir}, '
                  f'cams_file:{cams_file}, '
-                 f'resolution: {resolution}')
+                 f'resolution: {resolution}, '
+                 f'aot_resolution: {aot_resolution}')
 
     try:
         process_ = Process()
@@ -120,6 +130,7 @@ def main():
                          odir=outdir,
                          cams_file=cams_file,
                          resolution=resolution,
+                         aot_resolution=aot_resolution,
                          scale_aot=scale_aot,
                          opac_model=opac_model,
                          dem_file=dem_file,
