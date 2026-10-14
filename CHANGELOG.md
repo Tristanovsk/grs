@@ -28,6 +28,8 @@ Dates are given for tagged releases only.
   `Process.execute`, default 3).
 
 ### Fixed
+- NaN `Rrs` on the edges of the image (about half a pixel of the AOT grid), where the AOT map was not
+  extrapolated.
 - Vertical bands of NaN in Landsat products, and biased sunglint normalisation in the Landsat AOT
   retrieval (slope probability of the reference band taken from a row of the processing block).
 - Weights of the AOT smoothing: the number of water pixels of each retrieval block is used as weight

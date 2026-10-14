@@ -1238,7 +1238,11 @@ class Kernel():
             _pressure = self._surface_pressure.interp(x=x_subset, y=y_subset).values
             _Tg_diff_raster = self.Tg_diff_raster.interp(x=x_subset, y=y_subset).values
             _Tg_raster = self.Tg_raster.interp(x=x_subset, y=y_subset).values
-            _aot_ref_raster = aot_ref_raster.interp(x=x_subset, y=y_subset).values
+            # the AOT map is given at the centres of its coarse pixels: extrapolate it to the pixels of the
+            # image edges, outside the first / last centres (NaN otherwise), within the range of the LUT
+            _aot_ref_raster = np.clip(aot_ref_raster.interp(x=x_subset, y=y_subset,
+                                                            kwargs={'fill_value': 'extrapolate'}).values,
+                                      self.aot_refs.min(), self.aot_refs.max())
 
             _raa = raster.raa
             _vza = raster.vza
