@@ -28,6 +28,8 @@ Dates are given for tagged releases only.
   `Process.execute`, default 3).
 
 ### Fixed
+- Vertical bands of NaN in Landsat products, and biased sunglint normalisation in the Landsat AOT
+  retrieval (slope probability of the reference band taken from a row of the processing block).
 - Weights of the AOT smoothing: the number of water pixels of each retrieval block is used as weight
   (it was overwritten, so that only the empty blocks were weighted); outliers and empty blocks get the
   median AOT with a null weight.
