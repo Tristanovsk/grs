@@ -449,7 +449,8 @@ class Masking(Settings):
         ny, nx = rgnir.sizes['y'], rgnir.sizes['x']
         if factor > 1:
             # incomplete blocks at the bottom / right edges are averaged over their valid pixels
-            rgnir = rgnir.coarsen(y=factor, x=factor, boundary='pad').mean(skipna=True)
+            # (the mean ignores NaN by default; recent xarray no longer accepts ``skipna`` here)
+            rgnir = rgnir.coarsen(y=factor, x=factor, boundary='pad').mean()
         res = self._pixel_size()
         logging.info('OmniCloudMask processing on {:d} x {:d} pixels{}'.format(
             rgnir.sizes['y'], rgnir.sizes['x'],
