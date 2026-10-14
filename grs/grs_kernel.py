@@ -1105,7 +1105,10 @@ class Kernel():
             Rf = np.min(Rf, axis=0)
 
             Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
-            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
+            # slope probability of the reference band: (y, x) for monoview sensors, the same for all the bands
+            # (indexing it would take a row of the block)
+            _p_slope_ref = _p_slope_ if monoview else _p_slope_[-1]
+            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_ref)
 
             # sunglint removal
             Rrs_toa = np.asarray((Rcorr - Rf) / np.pi)
@@ -1297,7 +1300,10 @@ class Kernel():
             Rf_tmp[:] = Rf
 
             Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
-            Rf = _Tg_raster * Tdir * Rf * _p_slope_ / (sunglint_eps[-2] * _p_slope_[-2])
+            # slope probability of the reference band: (y, x) for monoview sensors, the same for all the bands
+            # (indexing it would take a row of the block)
+            _p_slope_ref = _p_slope_ if monoview else _p_slope_[-2]
+            Rf = _Tg_raster * Tdir * Rf * _p_slope_ / (sunglint_eps[-2] * _p_slope_ref)
 
             # sunglint removal
             Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
