@@ -126,13 +126,14 @@ Version history
     - fix for bug in azimuth handling in glint correction
     - enables L1C netcdf as intput in CLI
 
-3.0.1:
+3.1.0:
     - new masking procedure including OmniCloudMAsk
     - Export in 'zarr' with pyramids
+    - fixed weighting of the AOT smoothing, windows scaled with the retrieval blocks
 '''
 
 __package__ = 'grs'
-__version__ = '3.0.1dev'
+__version__ = '3.1.0'
 
 
 import importlib
