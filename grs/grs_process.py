@@ -83,7 +83,9 @@ def _correct_gas_absorption(bands, Tg_raster):
             bands.loc[wl] = bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=bands.x, y=bands.y)
         return bands
 
-    Tg = _compute_small(Tg_raster.sel(wl=bands.wl))
+    # without its scalar coordinates: a spatial_ref different from the one of the bands would be dropped from
+    # the result by the division, and map_blocks would reject the block
+    Tg = _compute_small(Tg_raster.sel(wl=bands.wl)).reset_coords(drop=True)
 
     def block(b):
         corrected = b / Tg.interp(x=b.x, y=b.y)
