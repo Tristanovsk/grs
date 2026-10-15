@@ -15,7 +15,7 @@ import grs
 # -- Project information -----------------------------------------------------
 
 project = 'GRSprocessor'
-copyright = '2026, CNES/Magellium'
+copyright = '2016-2026, CNES/Magellium'
 author = 'Tristan Harmel'
 version = grs.__version__
 release = grs.__version__
