@@ -19,12 +19,16 @@ The user file only needs the keys that differ from the defaults, e.g.::
 
 Create it with ``grs_config --init /path/to/lut``, download the LUTs with ``grs_config --download``
 and run ``grs_config`` to print the configuration in use and check the LUTs.
+
+The missing LUTs are also downloaded automatically before the first image is processed
+(:py:func:`ensure_luts`), unless ``zenodo: auto_download: false`` or ``GRS_NO_DOWNLOAD=1``.
 '''
 
 import argparse
 import datetime
 import hashlib
 import json
+import logging
 import os
 import sys
 import urllib.request
@@ -148,6 +152,42 @@ def check_luts(paths=None):
             + f'. Download them with `grs_config --download` (into {load_config()["path"]["grsdata"]}), '
             'or set the folder holding them with `grs_config --init /path/to/lut` (or path: grsdata in '
             'the user configuration file, or GRS_DATA_ROOT); check the configuration with `grs_config`.')
+
+
+def auto_download_enabled():
+    '''
+    Return whether missing LUTs are downloaded automatically: ``zenodo: auto_download`` of the
+    configuration (default True), switched off by the environment variable ``GRS_NO_DOWNLOAD`` (any
+    value but ``''``/``0``), e.g. on a cluster without internet access.
+    '''
+    if os.environ.get('GRS_NO_DOWNLOAD', '') not in ('', '0'):
+        return False
+    return bool((load_config().get('zenodo') or {}).get('auto_download', True))
+
+
+def ensure_luts():
+    '''
+    Make sure the LUTs of the configuration in use are there, downloading the missing ones from Zenodo
+    when the automatic download is enabled (:py:func:`auto_download_enabled`).
+
+    Called before processing an image, so that a fresh installation (``pip install GRSprocessor``) only
+    needs internet access on the first run. The LUTs go to the LUT folder in use (default folder:
+    :py:func:`default_data_root`).
+
+    :return: list of the paths of the LUTs
+    :raises FileNotFoundError: if a LUT is missing and cannot be downloaded
+    '''
+    if all(exists for _, _, exists in lut_status()):
+        return [path for _, path, _ in lut_status()]
+    if auto_download_enabled():
+        logging.info('LUT(s) missing: downloading them from Zenodo into %s (once, about 1 GB)',
+                     load_config()['path']['grsdata'])
+        try:
+            download_luts()
+        except (ValueError, OSError) as error:
+            logging.error('automatic download of the LUTs failed: %s', error)
+    check_luts()
+    return [path for _, path, _ in lut_status()]
 
 
 def init_user_config(data_root=None, force=False):
@@ -297,6 +337,8 @@ def main(argv=None):
     print(f'default configuration: {default_config_file()}')
     print(f'user configuration:    {user_file} ({"found" if user_file.is_file() else "not found"})')
     print(f'LUT folder:            {load_config()["path"]["grsdata"]} ({data_root_source()})')
+    print(f'automatic download:    {"on" if auto_download_enabled() else "off"} '
+          '(missing LUTs downloaded before the first processing)')
     print('---')
     print(yaml.safe_dump(load_config(), sort_keys=False), end='')
     print('---')

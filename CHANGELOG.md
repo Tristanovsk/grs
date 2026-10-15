@@ -24,6 +24,11 @@ Dates are given for tagged releases only.
   missing); `--init [DATA_ROOT]` writes the user configuration file; `--download` downloads the
   LUTs from Zenodo (MD5 checked) into the LUT folder.
 - Configuration page of the documentation.
+- Automatic download of the missing LUTs from Zenodo before the first processing
+  (`grs.config.ensure_luts`); switched off with `zenodo: auto_download: false` or `GRS_NO_DOWNLOAD=1`.
+- PyPI packaging as `GRSprocessor` (package and commands still `grs`): version read from
+  `grs.__version__`, dependencies matching the imports, wheel without tests nor LUTs; release recipe in
+  `CONTRIBUTING.md` and GitHub workflow `pypi.yml` (trusted publishing on `v*` tags).
 
 ### Changed
 - Configuration read at run time from the packaged defaults (`grs/config.yml`, now documented), the
@@ -36,6 +41,13 @@ Dates are given for tagged releases only.
 - Lazy package loading for faster imports; Sentinel-2 viewing geometry loaded lazily.
 - AOT smoothing windows scale with the retrieval blocks (new `aot_smoothing_blocks` parameter of
   `Process.execute`, default 3).
+- Python >= 3.11. The CLI reads the cloud cover of Sentinel-2 images from `MTD_MSIL1C.xml` directly:
+  the GDAL Python bindings are no longer needed.
+- `execute` and `write_output` use `processor: ncpu` dask threads (one per core before), the L1C bands
+  are no longer held by the CAMS product, and the water masking is done in place: about 35 % less
+  memory and 20 % less time for a Sentinel-2 tile at 20 m.
+- Blocks without water pixels are skipped in the final processing; the disabled sunglint slope
+  probability is no longer computed.
 
 ### Fixed
 - `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.
@@ -53,6 +65,8 @@ Dates are given for tagged releases only.
 - Autosummary class template path in the API reference.
 - Compatibility with recent xarray versions (air-mass broadcasting in the kernel, `coarsen().mean()`
   in masking).
+- Gas absorption correction of dask-backed bands (e.g. GRSdriver with `EOREADER_USE_DASK=1`), which
+  failed on the `spatial_ref` coordinate of the CAMS grid.
 
 ## [3.0.0]
 
