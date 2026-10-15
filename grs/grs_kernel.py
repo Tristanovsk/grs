@@ -661,9 +661,8 @@ class Kernel():
 
         Warning: the correction is currently disabled (see the TODO below): the function returns 1
         everywhere, and NaN where the angles or `sigma2` are NaN (this NaN pattern is used downstream).
-        The slope probability is still evaluated, so while the correction stays disabled the result does not
-        depend on `sigma2` for finite values (it could be computed once outside the wind loop of
-        ``rugosity_est_chunk``).
+        The slope probability itself is not evaluated (it cost about a third of `final_process_chunk`); the
+        formula is kept in comment below.
 
         :param sza: solar zenith angle in degree
         :param vza: viewing zenith angle in degree
@@ -676,18 +675,16 @@ class Kernel():
         :return: DataArray of ones (y, x) if monoview, else (wl, y, x)
         '''
 
-        cosN = self.mu_N(sza, vza, azi, monoview=monoview)
-        thetaN = np.arccos(cosN)
-        # stats == 'cm_iso':
-        # TODO check consistency between sigma2 and formulation
-        # Pdist_ = 1. / (np.pi *2.* sigma2) * np.exp(-1./2 * np.tan(thetaN) ** 2 / sigma2)
-        xp_slope = 1. / (np.pi * sigma2) * np.exp(- np.tan(thetaN) ** 2 / sigma2) / cosN ** 4
+        # TODO Warning revise equation issue with azimuth: correction discarded!!
+        # when enabled again (stats == 'cm_iso'; TODO check consistency between sigma2 and formulation):
+        #   cosN = self.mu_N(sza, vza, azi, monoview=monoview)
+        #   thetaN = np.arccos(cosN)
+        #   xp_slope = 1. / (np.pi * sigma2) * np.exp(- np.tan(thetaN) ** 2 / sigma2) / cosN ** 4
+        # for now: 1, NaN as soon as one of the inputs is NaN (same shape and dtype as the formula)
+        xp_slope = sza * 0. + vza * 0. + azi * 0. + sigma2 * 0. + 1.
         if monoview:
-            xp_slope = xp_slope.transpose('y', 'x')
-        else:
-            xp_slope = xp_slope.transpose('wl', 'y', 'x')
-            # TODO Warning revise equation issue with azimuth: correction discarded!!
-        return xp_slope * 0 + 1
+            return xp_slope.transpose('y', 'x')
+        return xp_slope.transpose('wl', 'y', 'x')
 
     def set_gas_transmittance(self):
         r'''
