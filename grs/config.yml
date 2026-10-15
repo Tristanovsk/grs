@@ -14,10 +14,11 @@ path:
   # root folder of the CAMS files, used when no CAMS file is given to Process.execute
   cams: '/work/datalake/watcal/cams'
 
-# Zenodo record of the LUTs (dataset shared by GRS and hGRS), used by `grs_config --download`
+# Zenodo record of the LUTs (dataset shared by GRS and hGRS, https://doi.org/10.5281/zenodo.23394202),
+# used by `grs_config --download`
 zenodo:
   url: 'https://zenodo.org'
-  record: null
+  record: 23394202
 
 settings:
   # OPAC aerosol models of the LUTs, and default weights of their combination

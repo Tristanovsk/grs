@@ -5,7 +5,8 @@ Quick start
 -----------
 
 GRS needs two radiative transfer look-up tables (LUTs), ``toa_lut_opac_wind_v3.nc`` (835 MB) and
-``transmittance_lut_opac_wind_v3.nc`` (0.6 MB), shared with hGRS and published on Zenodo. Either:
+``transmittance_lut_opac_wind_v3.nc`` (0.6 MB), shared with hGRS and published on Zenodo
+(`doi:10.5281/zenodo.23394202 <https://doi.org/10.5281/zenodo.23394202>`__). Either:
 
 - **download them into the default folder**, with no configuration: ``~/.local/share/grs/lut`` on Linux
   (``~/Library/Application Support/grs/lut`` on macOS, ``%LOCALAPPDATA%\grs\lut`` on Windows):
@@ -56,7 +57,8 @@ interrupted download never leaves an incomplete LUT. In Python:
 
    download_luts()
 
-The LUTs can also be downloaded from the Zenodo web page and copied into the LUT folder by hand.
+The LUTs can also be downloaded from the `Zenodo web page <https://doi.org/10.5281/zenodo.23394202>`__
+and copied into the LUT folder by hand.
 
 Where the settings come from
 ----------------------------

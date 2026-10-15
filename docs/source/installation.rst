@@ -30,8 +30,8 @@ Then check the command-line tool:
 Look-up tables
 --------------
 
-The radiative transfer look-up tables (LUTs) are not part of the package. Download them from Zenodo
-into the default LUT folder (``~/.local/share/grs/lut`` on Linux) and check the configuration:
+The radiative transfer look-up tables (LUTs) are not part of the package. Download them from
+`Zenodo <https://doi.org/10.5281/zenodo.23394202>`__ into the default LUT folder (``~/.local/share/grs/lut`` on Linux) and check the configuration:
 
 .. code-block:: bash
 
