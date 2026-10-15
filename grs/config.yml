@@ -19,6 +19,9 @@ path:
 zenodo:
   url: 'https://zenodo.org'
   record: 23394202
+  # download the missing LUTs automatically before the first processing (also switched off by the
+  # environment variable GRS_NO_DOWNLOAD=1, e.g. without internet access)
+  auto_download: true
 
 settings:
   # OPAC aerosol models of the LUTs, and default weights of their combination

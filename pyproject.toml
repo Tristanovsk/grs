@@ -4,8 +4,8 @@ requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "grs"
-version = "3.1.0"
+# PyPI distribution name; the package (import grs) and the commands (grs, grs_config) keep the name grs
+name = "GRSprocessor"
 description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
 readme = "pypi_README.rst"
 authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
@@ -14,19 +14,28 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
 ]
 keywords = ["Sentinel-2","Landsat-8","Landsat-9","atmospheric correction", "EO satellite"]
-requires-python = ">=3.9"
-dynamic = ["dependencies"]
+# the code uses X | Y types (3.10) and numpy >= 2.3 (3.11)
+requires-python = ">=3.11"
+# version: grs.__version__ (grs/__init__.py); dependencies: requirements.txt
+dynamic = ["version", "dependencies"]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["grs", "grs.*"]
-exclude = ["grs.TEST*"]
+exclude = ["grs.tests", "grs.tests.*"]
 
+# small data shipped with the package; the large LUTs (grs/data/lut/*.nc, grsdata) are not: they are
+# downloaded from Zenodo (grs.config.ensure_luts)
 [tool.setuptools.package-data]
-"grs"= ['*.yml']
-"*"= ['data/lut/gases/*.nc', 'data/auxiliary/*.txt']
+"grs" = ['config.yml', 'data/lut/gases/*.nc', 'data/auxiliary/*.txt']
 
 [tool.setuptools.exclude-package-data]
 "*" = [".gitattributes"]
@@ -35,12 +44,12 @@ exclude = ["grs.TEST*"]
 grs = "grs.run:main"
 grs_config = "grs.config:main"
 
-#dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
+version = { attr = "grs.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies]
-dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest", "build", "twine"]
 docs = [
     "sphinx>=7",
     "sphinx-book-theme>=1.1",
@@ -54,3 +63,6 @@ docs = [
 [project.urls]
 Homepage = "https://github.com/CNES/GRSprocessor"
 Documentation = "https://cnes.github.io/GRSprocessor"
+Source = "https://github.com/CNES/GRSprocessor"
+Changelog = "https://github.com/CNES/GRSprocessor/blob/main/CHANGELOG.md"
+"LUTs (Zenodo)" = "https://doi.org/10.5281/zenodo.23394202"

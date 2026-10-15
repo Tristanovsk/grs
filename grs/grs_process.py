@@ -39,7 +39,7 @@ import dask
 import GRSdriver
 
 from . import utils
-from .config import load_config, lut_path, check_luts
+from .config import load_config, lut_path, check_luts, ensure_luts
 from .product import Product
 from .cams import CamsProduct
 from .output import L2aProduct
@@ -286,8 +286,12 @@ class Process:
         self.snap_compliant = snap_compliant
         self.successful = False
 
-        # stop before reading the image if the LUTs are missing
-        check_luts([self.lut_file, self.trans_lut_file])
+        # stop before reading the image if the LUTs are missing; the LUTs of the configuration are downloaded
+        # from Zenodo the first time (see grs.config.ensure_luts), LUT files set by hand are only checked
+        if [self.lut_file, self.trans_lut_file] == [str(lut_path('toa')), str(lut_path('transmittance'))]:
+            ensure_luts()
+        else:
+            check_luts([self.lut_file, self.trans_lut_file])
 
         ##################################
         # Get image data
