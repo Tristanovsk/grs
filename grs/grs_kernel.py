@@ -1220,29 +1220,54 @@ class Kernel():
         Rf_tmp = np.full((Ny, Nx), np.nan, dtype=dtype)
         aot_tmp = np.full((Ny, Nx), np.nan, dtype=dtype)
 
+        npix = 0
         if Ny > 0 and Nx > 0:
-            sunglint_eps = self.sunglint_eps.values
             x_subset, y_subset = _band_rad.x, _band_rad.y
+            # the AOT map is given at the centres of its coarse pixels: extrapolate it to the pixels of the
+            # image edges, outside the first / last centres (NaN otherwise), within the range of the LUT
+            _aot_ref_raster = np.clip(aot_ref_raster.interp(x=x_subset, y=y_subset,
+                                                            kwargs={'fill_value': 'extrapolate'}).values,
+                                      self.aot_refs.min(), self.aot_refs.max())
+            # aot550 is given for all the pixels, the other outputs only where a band is valid
+            aot_tmp[:] = _aot_ref_raster
+
+            # pixels with at least one valid band (the non-water pixels are NaN in all the bands)
+            valid = np.isfinite(_band_rad.values).any(axis=0)
+            npix = int(valid.sum())
+
+        if npix > 0:
+            sunglint_eps = self.sunglint_eps.values
             Ttot_Ed_lut = self.trans_aero_lut.Ttot_Ed
 
             sigma2 = (self.wind_img.wind + 0.586) / 195.3
             _sigma2_ = sigma2.interp(x=x_subset, y=y_subset)
-
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
 
             # subsetting
             _sza = raster.sza
             _pressure = self._surface_pressure.interp(x=x_subset, y=y_subset).values
             _Tg_diff_raster = self.Tg_diff_raster.interp(x=x_subset, y=y_subset).values
             _Tg_raster = self.Tg_raster.interp(x=x_subset, y=y_subset).values
-            # the AOT map is given at the centres of its coarse pixels: extrapolate it to the pixels of the
-            # image edges, outside the first / last centres (NaN otherwise), within the range of the LUT
-            _aot_ref_raster = np.clip(aot_ref_raster.interp(x=x_subset, y=y_subset,
-                                                            kwargs={'fill_value': 'extrapolate'}).values,
-                                      self.aot_refs.min(), self.aot_refs.max())
 
             _raa = raster.raa
             _vza = raster.vza
+
+            # all the following steps are pixel by pixel: when less than half of the block is valid, compute them
+            # on the valid pixels only, packed in a (1, npix) image (same results, cost proportional to the
+            # number of valid pixels; above half, the copies of the packing cost more than they save)
+            compact = npix < 0.5 * Ny * Nx
+            if compact:
+                def _pack(arr):
+                    return arr[..., valid][..., np.newaxis, :]
+
+                def _pack_da(da):
+                    return xr.DataArray(_pack(da.values), dims=da.dims)
+
+                _band_rad, _sza, _raa, _vza, _sigma2_ = map(_pack_da, (_band_rad, _sza, _raa, _vza, _sigma2_))
+                _pressure, _Tg_diff_raster, _Tg_raster, _aot_ref_raster = map(
+                    _pack, (_pressure, _Tg_diff_raster, _Tg_raster, _aot_ref_raster))
+                Ny, Nx = 1, npix
+
+            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
             if monoview:
                 _vza_mean = _vza.values
             else:
@@ -1298,7 +1323,10 @@ class Kernel():
             Rf[Rf < -0.001] = -0.00001  # np.nan
             Rf[Rf < -0.00001] = 0.0
             Rf = Rf[0]  # np.min(Rf, axis=0)
-            Rf_tmp[:] = Rf
+            if compact:
+                Rf_tmp[valid] = Rf[0]
+            else:
+                Rf_tmp[:] = Rf
 
             Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
             # slope probability of the reference band: (y, x) for monoview sensors, the same for all the bands
@@ -1312,8 +1340,10 @@ class Kernel():
             # Convert from TOA to BOA for positive values
             Ttot_du[Rrs_tmp_ < 0] = 1.
             Rrs_tmp_ = Rrs_tmp_ / Ttot_du
-            Rrs_tmp[:] = Rrs_tmp_
-            aot_tmp[:] = _aot_ref_raster
+            if compact:
+                Rrs_tmp[:, valid] = Rrs_tmp_[:, 0, :]
+            else:
+                Rrs_tmp[:] = Rrs_tmp_
 
         return xr.Dataset(dict(Rrs=(['wl', "y", "x"], Rrs_tmp),
                                BRDFg=(["y", "x"], Rf_tmp),
