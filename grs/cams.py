@@ -58,7 +58,9 @@ class CamsProduct:
         :param suffix:
         '''
 
-        self.prod = prod
+        # only the coordinates, CRS and attributes are needed: dropping the data variables keeps the full-size
+        # image (e.g. all the L1C bands) from being held in memory as long as the CAMS product
+        self.prod = prod.drop_vars(list(prod.data_vars))
         self.date = prod.time
         self.date_day = prod.time.dt.strftime('%Y-%m-%d').values
         self.date_str = str(self.date_day)

@@ -14,6 +14,10 @@ Memory / dask design
 * everything is evaluated in a single pass by ``write_output`` (one ``dask.compute`` in ``L2aProduct``), so
   ``Rrs`` and the intermediate arrays only exist chunk by chunk.
 
+Number of threads: ``execute`` and ``write_output`` run the dask threaded scheduler with ``processor.ncpu``
+workers (configuration), instead of one per core. Every worker holds its blocks in memory, so this sets the
+peak memory (and avoids oversubscribing the cores, numba running its own threads in each block).
+
 Format of the output: ``write_output`` takes it from the name of the output path (``.zarr`` or ``.nc``).
 '''
 import os
@@ -28,6 +32,9 @@ xr.set_options(keep_attrs=True)
 import rioxarray as rio
 import logging
 import gc
+import functools
+
+import dask
 
 import GRSdriver
 
@@ -112,6 +119,15 @@ def _interp_like(coarse, like, name=None):
     return out.assign_coords(scalar_coords)
 
 
+def _with_workers(method):
+    '''Run a `Process` method with ``self.Nproc`` dask workers (threaded scheduler; None: one per core).'''
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with dask.config.set(num_workers=self.Nproc):
+            return method(self, *args, **kwargs)
+    return wrapper
+
+
 class Process:
     '''
     Main GRS class.
@@ -130,6 +146,7 @@ class Process:
         self.flags_tomask = [0, 1, 10, 13, 14, 18]
         self.successful = False
 
+    @_with_workers
     def execute(self, l1c_prod,
                 odir='',
                 cams_file=None,
@@ -364,10 +381,11 @@ class Process:
         # SUBSET RASTER TO KEEP REQUESTED BANDS
         #####################################
         # TODO check if we can remove cirrus and water vapor band from output object
+        # copies: a selection is a view that would keep all the L1C bands in memory
         if prod.bcirrus:
-            prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest')
+            prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest').copy()
         if prod.bwv:
-            prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest')
+            prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest').copy()
 
         prod.raster = prod.raster.sel(wl=prod.wl_process, method='nearest')
 
@@ -436,9 +454,17 @@ class Process:
         else:
             logging.info('apply water masking')
             mask = (ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)  # (ndwi > -0.0) &
-            masked = prod.raster.bands.where(mask)
-            prod.raster['bands'] = masked
+            bands = prod.raster.bands
+            if bands.chunks is None and mask.chunks is None and bands.dims == ('wl', 'y', 'x'):
+                # in memory: set the non-water pixels to NaN in place (``where`` would copy the whole cube)
+                bands.values[:, ~mask.transpose('y', 'x').values] = np.nan
+            else:
+                prod.raster['bands'] = bands.where(mask)
             prod.raster['sza'] = prod.raster['sza'].where(mask)
+            del bands
+
+        # the band selections are views of the bands: release them now rather than at the end of execute
+        del vis, nir, swir, swir2
 
             # TODO @Thales check if it is in agreement with your policy (here stop if no water pixel and return empty object)
             # stop process if no valid (water) pixel available
@@ -680,6 +706,7 @@ class Process:
         self.successful = True
         return kernel
 
+    @_with_workers
     def write_output(self, fmt=None, **export_kwargs):
         '''
         Write the L2A product; this is where the lazy processing is evaluated, chunk by chunk.
