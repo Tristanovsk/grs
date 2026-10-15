@@ -232,7 +232,7 @@ def download_luts(force=False, progress=True):
                 print(f'LUT {name:13s} already there: {path}')
             continue
         if path.name not in remote:
-            raise FileNotFoundError(f'{path.name} is not in the Zenodo record {record["links"]["html"]}')
+            raise FileNotFoundError(f'{path.name} is not in the Zenodo record {record["links"].get("self_html", "")}')
         entry = remote[path.name]
         algorithm, expected = entry['checksum'].split(':', 1)
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -64,7 +64,7 @@ pip install .
 
 ### Look-up tables
 The radiative transfer look-up tables (LUTs, NetCDF files shared with hGRS) are not shipped with the
-package. Download them from Zenodo into the default LUT folder (`~/.local/share/grs/lut` on Linux)
+package. Download them from [Zenodo](https://doi.org/10.5281/zenodo.23394202) into the default LUT folder (`~/.local/share/grs/lut` on Linux)
 and check the configuration:
 ```commandline
 grs_config --download
