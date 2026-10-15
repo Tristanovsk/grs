@@ -43,17 +43,6 @@ grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
 ## Installation
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### Look-up tables and auxiliary data
-The radiative transfer look-up tables (LUTs) are not shipped with the package: you have to download the LUT files (netcdf format) and the configure the config.yml file.
-
-- Download the LUT files:
-click  on [grsdata](https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing)  to download the netcdf files and then save them in the directory of the LUTs you want noting its path (/YOUR/GRSDATA_PATH)
-- Update the file ./grs/config.yml with:
-```
-path:
-  grsdata:/YOUR/GRSDATA_PATH
-```
-
 ### please use conda environment
 ``` 
 conda activate "name of your conda env"
@@ -68,16 +57,23 @@ Then, install python dependencies:
 ``` 
 conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
 ```
-Set the `config.yml` file:
-```
-path:
-  grsdata: your_GRSDATA_PATH
-``` 
-
-Finally, install grs with:
+Install grs with:
 ```commandline
 pip install .
 ```
+
+### Look-up tables
+The radiative transfer look-up tables (LUTs, NetCDF files shared with hGRS) are not shipped with the
+package. Download them from Zenodo into the default LUT folder (`~/.local/share/grs/lut` on Linux)
+and check the configuration:
+```commandline
+grs_config --download
+grs_config
+```
+To keep the LUTs in another folder (e.g. a shared copy), write it first in your user configuration
+file (`~/.config/grs/config.yml`) with `grs_config --init /path/to/lut`, or set the `GRS_DATA_ROOT`
+environment variable. The configuration is read at run time: no need to reinstall the package after
+changing it. See the Configuration page of the documentation.
 
 ## Testing <a name="testing"></a>
 

@@ -73,6 +73,21 @@ Output product
 
    grs.output.L2aProduct
 
+Configuration
+-------------
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   grs.config.load_config
+   grs.config.default_data_root
+   grs.config.lut_path
+   grs.config.check_luts
+   grs.config.download_luts
+   grs.config.init_user_config
+   grs.config.main
+
 Utilities
 ---------
 

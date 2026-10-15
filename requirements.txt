@@ -1,4 +1,4 @@
-importlib_resources
+platformdirs
 
 
 cdsapi #==0.6.1

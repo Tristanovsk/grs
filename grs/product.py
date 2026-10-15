@@ -10,15 +10,13 @@ import datetime
 
 import logging
 from importlib.resources import files
-import yaml
 from . import __version__, __package__
 from .auxdata import AuxData
+from .config import load_config
 
 opj = os.path.join
 
-configfile = files(__package__) / 'config.yml'
-with open(configfile, 'r') as file:
-    config = yaml.safe_load(file)
+config = load_config()
 
 NETCDF_ENGINE = config['processor']['netcdf_engine']
 

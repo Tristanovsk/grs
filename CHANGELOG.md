@@ -20,7 +20,17 @@ Dates are given for tagged releases only.
   visualization, Landsat).
 - `CONTRIBUTING.md` and a separate `README_CNES.md`.
 
+- `grs_config` command: prints the configuration in use and checks the LUTs (exit code 1 if one is
+  missing); `--init [DATA_ROOT]` writes the user configuration file; `--download` downloads the
+  LUTs from Zenodo (MD5 checked) into the LUT folder.
+- Configuration page of the documentation.
+
 ### Changed
+- Configuration read at run time from the packaged defaults (`grs/config.yml`, now documented), the
+  user file `~/.config/grs/config.yml` (or `GRS_CONFIG`) and `GRS_DATA_ROOT`, instead of editing
+  `grs/config.yml` before installing (`grs.config` module). When `grsdata` is not set, the LUTs are
+  read from the user data folder (`~/.local/share/grs/lut` on Linux). New dependency: `platformdirs`.
+- `Process.execute` checks the LUT files before reading the image.
 - Coarse raster now defined by spatial resolution instead of pixel factors.
 - Optimised LUT interpolation; `acutils` module renamed to `utils`.
 - Lazy package loading for faster imports; Sentinel-2 viewing geometry loaded lazily.
@@ -28,6 +38,7 @@ Dates are given for tagged releases only.
   `Process.execute`, default 3).
 
 ### Fixed
+- `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.
 - NaN `Rrs` on the edges of the image (about half a pixel of the AOT grid), where the AOT map was not
   extrapolated.
 - Vertical bands of NaN in Landsat products, and biased sunglint normalisation in the Landsat AOT

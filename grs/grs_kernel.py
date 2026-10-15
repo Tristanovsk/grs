@@ -181,21 +181,18 @@ import xarray as xr
 # keep attributes through operation on xarray objects
 xr.set_options(keep_attrs=True)
 import rioxarray  # noqa: F401  (registers the .rio accessor used by the callers)
-import yaml
 
-from importlib.resources import files
 from numba import njit
 from scipy import ndimage
 
 from .auxdata import AuxData
+from .config import load_config
 from .utils import Rasterization, GaseousTransmittance, Misc
 
 # --------------------------------------------------
-# get path of other files as indicated in config.yml
+# settings of the configuration (see grs.config)
 # --------------------------------------------------
-configfile = files(__package__) / 'config.yml'
-with open(configfile, 'r') as file:
-    config = yaml.safe_load(file)
+config = load_config()
 
 AEROSOL_MODELS = config['settings']['aerosol_models']
 AEROSOL_COMBINATION = config['settings']['aerosol_combination']

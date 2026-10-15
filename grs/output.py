@@ -115,13 +115,6 @@ import xarray as xr
 import logging
 
 
-import importlib_resources
-import yaml
-
-configfile = importlib_resources.files(__package__) / 'config.yml'
-with open(configfile, 'r') as file:
-    config = yaml.safe_load(file)
-
 NETCDF_ENGINE = 'netcdf4' #config['processor']['netcdf_engine']
 
 # attributes that would conflict with the encoding when written

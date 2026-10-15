@@ -29,6 +29,7 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
    :caption: User guide
 
    installation
+   configuration
    usage
    methods
    processing_chain

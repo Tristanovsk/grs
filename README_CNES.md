@@ -21,10 +21,15 @@ Choose your branch (example grs_cnes_v2.1.6)
 git checkout grs_cnes_v2.1.6
 ```
 
-2. Make sure that the grsdata variable is set as follows in the config.yml file:
+2. Set the folder of the LUTs, either in the user configuration file (once):
 ```commandline
-grsdata: '/work/datalake//watcal/GRS/grsdata_v21'
+grs_config --init /work/datalake/watcal/GRS/grsdata_v21
 ```
+or in the environment of the jobs:
+```commandline
+export GRS_DATA_ROOT=/work/datalake/watcal/GRS/grsdata_v21
+```
+and check it with `grs_config` (after step 3).
 
 3. To complete installation please activate your conda grs_cnes environment as follows:
 ```commandline

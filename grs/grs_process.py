@@ -20,9 +20,6 @@ import os
 from os import PathLike
 from pathlib import Path
 
-import importlib_resources
-import yaml
-
 import numpy as np
 import xarray as xr
 
@@ -35,6 +32,7 @@ import gc
 import GRSdriver
 
 from . import utils
+from .config import load_config, lut_path, check_luts
 from .product import Product
 from .cams import CamsProduct
 from .output import L2aProduct
@@ -44,16 +42,7 @@ from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
 
-configfile = importlib_resources.files(__package__) / 'config.yml'
-with open(configfile, 'r') as file:
-    config = yaml.safe_load(file)
-
-GRSDATA = config['path']['grsdata']
-TOALUT = config['path']['toa_lut']
-TRANSLUT = config['path']['trans_lut']
-CAMS_PATH = config['path']['trans_lut']
-NCPU = config['processor']['ncpu']
-NETCDF_ENGINE = config['processor']['netcdf_engine']
+NETCDF_ENGINE = load_config()['processor']['netcdf_engine']
 
 # extensions that tell the output format (see write_output)
 _OUTPUT_EXTENSIONS = ('.zarr', '.nc', '.nc4', '.cdf')
@@ -130,10 +119,12 @@ class Process:
     '''
 
     def __init__(self):
-        self.lut_file = opj(GRSDATA, TOALUT)
-        self.trans_lut_file = opj(GRSDATA, TRANSLUT)
-        self.cams_dir = CAMS_PATH
-        self.Nproc = NCPU
+        # configuration read at run time (see grs.config), so that it can be changed without reinstalling
+        config = load_config()
+        self.lut_file = str(lut_path('toa'))
+        self.trans_lut_file = str(lut_path('transmittance'))
+        self.cams_dir = config['path']['cams']
+        self.Nproc = config['processor']['ncpu']
         self.pressure_ref = 101500.
         self.flags_tokeep = [3]
         self.flags_tomask = [0, 1, 10, 13, 14, 18]
@@ -275,6 +266,9 @@ class Process:
         self.odir = odir
         self.snap_compliant = snap_compliant
         self.successful = False
+
+        # stop before reading the image if the LUTs are missing
+        check_luts([self.lut_file, self.trans_lut_file])
 
         ##################################
         # Get image data
