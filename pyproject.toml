@@ -33,6 +33,7 @@ exclude = ["grs.TEST*"]
 
 [project.scripts]
 grs = "grs.run:main"
+grs_config = "grs.config:main"
 
 #dynamic = ["dependencies"]
 [tool.setuptools.dynamic]

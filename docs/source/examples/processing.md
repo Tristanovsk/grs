@@ -3,8 +3,8 @@
 This notebook runs GRS on one Sentinel-2 L1C image from Python, from the input files to the checks of
 the L2A product:
 
-- inputs: the Level-1 image, the CAMS file of the month and an optional DEM; the look-up tables set in
-  `grs/config.yml` (see {doc}`../installation`),
+- inputs: the Level-1 image, the CAMS file of the month and an optional DEM; the look-up tables (see
+  {doc}`../configuration`),
 - processing with {class}`grs.Process <grs.grs_process.Process>`:
   {meth}`~grs.grs_process.Process.execute` sets up the processing lazily (dask), and
   {meth}`~grs.grs_process.Process.write_output` computes it block by block and writes the product,
