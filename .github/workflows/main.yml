@@ -62,18 +62,24 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             echo "Génération du badge coverage"
             python -m pip install genbadge[coverage]
-            mkdir -p badges
-         
-            genbadge coverage -i coverage.xml -o badges/coverage.svg
 
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            # Le checkout d'un tag laisse le dépôt en detached HEAD : on ne peut
+            # pas y "git push" directement. On bascule donc sur main (branche
+            # depuis laquelle les tags sont coupés) avant de committer le badge.
+            git fetch origin main
+            git checkout -B main origin/main
+
+            mkdir -p badges
+            genbadge coverage -i coverage.xml -o badges/coverage.svg
 
             git add badges/coverage.svg
 
             if ! git diff --cached --quiet; then
               git commit -m "Update coverage badge [skip ci]"
-              git push
+              git push origin HEAD:main
             fi
           fi
 
