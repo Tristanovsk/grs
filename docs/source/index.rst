@@ -60,7 +60,9 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
 Interactive data manipulation
 -----------------------------
 
-See the GRS toolbox package `grstbx <https://github.com/Tristanovsk/grstbx>`__.
+See the GRS toolbox package `grstbx <https://grstbx.readthedocs.io>`__ (``pip install grstbx``):
+interactive viewers for Jupyter and a web dashboard (``grstbx-viewer``) to explore the L2A and L2B
+products.
 
 .. figure:: _static/grstbx_visual_tool.gif
    :alt: animated dashboard of grstbx
