@@ -16,6 +16,10 @@ Command line
    :start-at: Usage:
    :end-before: '''
 
+To process many images, see the :doc:`batch processing tutorial <examples/batch>`: it lists the
+Level-1 images of a date range and runs them from Python, or writes one ``grs`` command per image to
+run them from a shell (several at a time if the memory allows it).
+
 Python
 ------
 

@@ -24,6 +24,8 @@ Dates are given for tagged releases only.
   missing); `--init [DATA_ROOT]` writes the user configuration file; `--download` downloads the
   LUTs from Zenodo (MD5 checked) into the LUT folder.
 - Configuration page of the documentation.
+- Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
+  one `grs` command per image for the command line.
 - Automatic download of the missing LUTs from Zenodo before the first processing
   (`grs.config.ensure_luts`); switched off with `zenodo: auto_download: false` or `GRS_NO_DOWNLOAD=1`.
 - PyPI packaging as `GRSprocessor` (package and commands still `grs`): version read from
