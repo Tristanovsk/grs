@@ -60,6 +60,9 @@ LABEL maintainer="robin.buratti@magellium.fr"
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+# two malloc arenas: the memory freed by the processing threads is reused instead of being kept by
+# one arena per thread (about 2-3 GB less peak memory for a Sentinel-2 tile, same output)
+ENV MALLOC_ARENA_MAX=2
 
 RUN ulimit -s unlimited
 
