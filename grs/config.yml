@@ -11,7 +11,9 @@ path:
   # LUT file names, in grsdata (download them with `grs_config --download`)
   toa_lut: 'toa_lut_opac_wind_v3.nc'
   trans_lut: 'transmittance_lut_opac_wind_v3.nc'
-  # root folder of the CAMS files, used when no CAMS file is given to Process.execute
+  # root folder of the CAMS archive, used when no CAMS file is given to Process.execute: daily files
+  # <cams>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts[_<tile>].nc, the global
+  # file of the day if it exists, else the file of the tile (downloaded from the ADS if needed)
   cams: '/work/datalake/watcal/cams'
 
 # Zenodo record of the LUTs (dataset shared by GRS and hGRS, https://doi.org/10.5281/zenodo.23394202),

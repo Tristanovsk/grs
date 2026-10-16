@@ -24,6 +24,11 @@ Dates are given for tagged releases only.
   missing); `--init [DATA_ROOT]` writes the user configuration file; `--download` downloads the
   LUTs from Zenodo (MD5 checked) into the LUT folder.
 - Configuration page of the documentation.
+- CAMS archive in a `YYYY/MM/DD` tree: without CAMS file, `Process.execute` (and `CamsProduct` with `dir`)
+  reads `<path: cams>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc`, the global
+  file of the day, else downloads the file of the tile next to it (`..._<tile>.nc`); the files of the former
+  layout `<path: cams>/<tile>/<date>-forecast_<tile>.nc` are still read. `grs.cams.cams_daily_file` gives
+  the path of a date. CAMS tutorial on a 2026 image with the daily archive.
 - Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
   one `grs` command per image for the command line.
 - Automatic download of the missing LUTs from Zenodo before the first processing

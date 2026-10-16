@@ -110,10 +110,13 @@ wind) of the date of the image, from the
 [Copernicus Atmosphere Data Store](https://ads.atmosphere.copernicus.eu) (ADS):
 
 - give a CAMS NetCDF file with `--cams_file`;
-- or let GRS download the forecast of the image date and area: without `--cams_file`, it is read from (or
-  downloaded into) `<path: cams>/<tile>/` of the configuration. The download uses `cdsapi`: create an ADS
-  account, accept the licence of the dataset *CAMS global atmospheric composition forecasts*, and write
-  your API key in `~/.cdsapirc`:
+- or let GRS find it in a CAMS archive: without `--cams_file`, the forecasts are read from the `YYYY/MM/DD`
+  tree of `path: cams` of the configuration,
+  `<path: cams>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc` (global file of
+  the day, e.g. updated every day by `ecmwf/download_cams_cds_day.py`), or, if there is none, from the file
+  of the tile in the same folder (`..._<tile>.nc`), downloaded from the ADS if needed. The download uses
+  `cdsapi`: create an ADS account, accept the licence of the dataset *CAMS global atmospheric composition
+  forecasts*, and write your API key in `~/.cdsapirc`:
 
   ```
   url: https://ads.atmosphere.copernicus.eu/api

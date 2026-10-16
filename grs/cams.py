@@ -15,6 +15,26 @@ import cdsapi
 
 opj = os.path.join
 
+# ADS dataset of the CAMS forecasts, also the name of the files of the YYYY/MM/DD archive
+CAMS_DATASET = 'cams-global-atmospheric-composition-forecasts'
+
+
+def cams_daily_file(date, cams_dir, suffix=''):
+    '''
+    Path of the CAMS file of a date in the ``YYYY/MM/DD`` archive:
+    ``<cams_dir>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts<suffix>.nc``.
+
+    Without `suffix`, the global file of the day (e.g. downloaded every day by
+    ``ecmwf/download_cams_cds_day.py``); with a suffix (e.g. ``'_31TGM'``), a file restricted to the area of
+    an image (see :py:meth:`CamsProduct.cams_download`).
+
+    :param date: date (string ``YYYY-MM-DD``, datetime, numpy.datetime64...)
+    :param cams_dir: root folder of the archive
+    :param suffix: suffix of the file name
+    '''
+    date = pandas.Timestamp(np.datetime64(date, 'D'))
+    return opj(cams_dir, f'{date:%Y}', f'{date:%m}', f'{date:%d}', f'{date:%Y-%m-%d}-{CAMS_DATASET}{suffix}.nc')
+
 
 class CamsProduct:
     '''
@@ -47,15 +67,24 @@ class CamsProduct:
                  cams_file=None,
                  dir='./',
                  type='forecast',
-                 suffix=''
+                 suffix=None
                  ):
         '''
+        CAMS data of the date and the area of an image.
+
+        Without `cams_file`, the data are taken from the ``YYYY/MM/DD`` archive of `dir`
+        (see :py:func:`cams_daily_file`): the global file of the day if it exists, else the file of the area
+        of the image, ``<dir>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts<suffix>.nc``,
+        downloaded from the ADS by :py:meth:`load` if it does not exist.
 
         :param prod: l1c product from module product.prod
-        :param cams_file:
-        :param dir:
-        :param type:
-        :param suffix:
+        :param cams_file: CAMS NetCDF file covering the date and the area of the image (global daily or
+            monthly file, or file of the area)
+        :param dir: root folder of the ``YYYY/MM/DD`` archive (used without `cams_file`)
+        :param type: type of the CAMS data (``'forecast'``)
+        :param suffix: suffix of the name of the file of the area (e.g. ``'_31TGM'``); None: from the area
+            (``'_N<lat>_W<lon>_S<lat>_E<lon>'``). It distinguishes the files of an area from the global
+            file of the day.
         '''
 
         # only the coordinates, CRS and attributes are needed: dropping the data variables keeps the full-size
@@ -93,27 +122,36 @@ class CamsProduct:
             'total_column_ozone', 'total_column_water_vapour']
 
         if cams_file:
-            self.file = os.path.basename(cams_file)
-            self.dir = os.path.dirname(cams_file)
-            self.filepath = cams_file
+            self.filepath = self.download_filepath = cams_file
         else:
-            self.dir = dir
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-            self.file = self.date_str + '-' + type + suffix + '.nc'
-            self.filepath = opj(self.dir, self.file)
+            if suffix is None:
+                suffix = '_N{:.2f}_W{:.2f}_S{:.2f}_E{:.2f}'.format(*self.area)
+            if type != 'forecast':
+                suffix = '_' + type + suffix
+            # file of the area of the image, written by cams_download (never the global file of the day)
+            self.download_filepath = cams_daily_file(self.date_str, dir, suffix)
+            global_file = cams_daily_file(self.date_str, dir)
+            self.filepath = global_file if type == 'forecast' and os.path.exists(global_file) \
+                else self.download_filepath
+        self.dir, self.file = os.path.split(self.filepath)
 
     def cams_download(self):
         '''
-        Autodownload from CAMS api of the cams netcdf data for the region-of-interest of the input image.
+        Download from the ADS the CAMS forecasts of the date of the image over its area (enlarged by 1°) into
+        ``download_filepath``, which then becomes the file read by :py:meth:`load`. Without ``cams_file``,
+        it is the file of the area in the ``YYYY/MM/DD`` archive (see :py:func:`cams_daily_file`), never the
+        global file of the day.
 
         :return:
         '''
 
+        self.filepath = self.download_filepath
+        self.dir, self.file = os.path.split(self.filepath)
+        os.makedirs(self.dir or '.', exist_ok=True)
         c = cdsapi.Client()
 
         c.retrieve(
-            'cams-global-atmospheric-composition-forecasts',
+            CAMS_DATASET,
             {
                 'date': self.date_str + '/' + self.date_str,
                 'type': self.type,

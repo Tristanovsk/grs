@@ -130,6 +130,21 @@ def _with_workers(method):
     return wrapper
 
 
+def _cams_from_archive(raster, cams_dir):
+    """
+    CAMS data of an image from the ``YYYY/MM/DD`` archive of `cams_dir` (``path: cams`` of the
+    configuration): global file of the day if it exists, else the file of the tile, downloaded if needed.
+    A file of the former layout ``<cams_dir>/<tile>/<date>-forecast_<tile>.nc`` is still used.
+    """
+    tile = raster.attrs['tile']
+    cams = CamsProduct(raster, dir=cams_dir, suffix='_' + tile)
+    legacy = os.path.join(cams_dir, tile, f'{cams.date_str}-forecast_{tile}.nc')
+    if not os.path.exists(cams.filepath) and os.path.exists(legacy):
+        cams = CamsProduct(raster, cams_file=legacy)
+    logging.info('CAMS file: %s', cams.filepath)
+    return cams
+
+
 class Process:
     '''
     Main GRS class.
@@ -176,7 +191,9 @@ class Process:
 
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
         :param odir: Output path, see `write_output` (``.zarr`` / ``.nc`` extension tells the format)
-        :param cams_file: Absolute path for root directory of CAMS data
+        :param cams_file: CAMS file of the image (global daily or monthly file, or file of the area); None:
+            taken from (or downloaded into) the ``YYYY/MM/DD`` archive of ``path: cams`` of the
+            configuration, see :py:class:`~grs.cams.CamsProduct`
         :param surfwater_file: Absolute path the surfwater file (.tif)
         :param dem_file: Absolute path of the DEM geotiff file
         :param resolution: pixel resolution in meter
@@ -350,9 +367,7 @@ class Process:
             if cams_file:
                 cams = CamsProduct(prod.raster, cams_file=cams_file)
             else:
-                tile = prod.raster.attrs['tile']
-                cams_dir = os.path.join(self.cams_dir, tile)
-                cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
+                cams = _cams_from_archive(prod.raster, self.cams_dir)
             cams.load(daily_stats=False)
         except Exception as exc:
             raise GRS_IO_Exception(cams_file, exc)
