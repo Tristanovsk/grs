@@ -46,6 +46,9 @@ Dates are given for tagged releases only.
 - `execute` and `write_output` use `processor: ncpu` dask threads (one per core before), the L1C bands
   are no longer held by the CAMS product, and the water masking is done in place: about 35 % less
   memory and 20 % less time for a Sentinel-2 tile at 20 m.
+- Two glibc malloc arenas (`MALLOC_ARENA_MAX=2`) in the Docker images, and set at start-up by the `grs`
+  command and `exe/launcher.py` (unless `MALLOC_ARENA_MAX` is set): the memory freed by the reading and
+  processing threads is reused, about 2-3 GB less peak memory with the parallel band reading of GRSdriver.
 - Blocks without water pixels are skipped in the final processing; the disabled sunglint slope
   probability is no longer computed.
 
