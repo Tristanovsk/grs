@@ -560,6 +560,15 @@ class L2aProduct():
             for param in _CONFLICTING_ATTRS:
                 ds[var].attrs.pop(param, None)
 
+    @staticmethod
+    def _bool_attrs_to_int(ds):
+        '''Convert, in place, the boolean attributes of `ds` and of its variables into integers (0/1):
+        NetCDF has no boolean attribute type. `ds` must be a shallow copy.'''
+        for obj in [ds, *ds.variables.values()]:
+            for key, value in obj.attrs.items():
+                if isinstance(value, (bool, np.bool_)):
+                    obj.attrs[key] = int(value)
+
     def _prepare_export(self, snap_compliant=False):
         '''
         Dataset and encoding to write, built on a shallow copy of the product (``self`` is not modified).
@@ -677,6 +686,7 @@ class L2aProduct():
 
         complevel = self.complevel
         ds, encoding = self._prepare_export(snap_compliant)
+        self._bool_attrs_to_int(ds)
         for enc in encoding.values():
             enc.update({'zlib': True, 'complevel': complevel})
 
@@ -695,6 +705,7 @@ class L2aProduct():
         # export ancillary data (coarse resolution)
         anc = self.ancillary.copy()
         self._scrub_attrs(anc)
+        self._bool_attrs_to_int(anc)
         encoding = {}
         for variable in list(anc.keys()):
             encoding[variable] = {"zlib": True, "complevel": complevel, 'grid_mapping': 'spatial_ref'}
