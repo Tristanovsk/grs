@@ -6,6 +6,8 @@ docopt
 fsspec
 GRSdriver >= 1.0.10
 h5netcdf
+# backend of h5netcdf (an optional extra since h5netcdf 1.8)
+h5py
 matplotlib
 netCDF4
 numba
