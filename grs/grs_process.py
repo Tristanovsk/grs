@@ -145,6 +145,25 @@ def _cams_from_archive(raster, cams_dir):
     return cams
 
 
+# settings of the aerosol retrieval, ``aerosol`` section of the configuration
+AEROSOL_SETTINGS = ('aot_resolution', 'min_pixel_prop', 'aot_chunk', 'outlier_factor', 'aot_smoothing_blocks',
+                    'fine_step', 'fine_window', 'aot_step')
+
+
+def _aerosol_settings(**overrides):
+    """
+    Settings of the aerosol retrieval: ``aerosol`` section of the configuration, overridden by the arguments
+    that are not None.
+    """
+    config = load_config().get('aerosol') or {}
+    missing = [key for key in AEROSOL_SETTINGS if key not in config and overrides.get(key) is None]
+    if missing:
+        raise KeyError(f'aerosol settings missing in the configuration: {missing}')
+    settings = {key: config.get(key) for key in AEROSOL_SETTINGS}
+    settings.update({key: value for key, value in overrides.items() if value is not None})
+    return settings
+
+
 class Process:
     '''
     Main GRS class.
@@ -172,9 +191,14 @@ class Process:
                 resolution=20,
                 megapix_size=4,
                 chunk=512,
-                aot_resolution=480,
-                aot_chunk=256,
-                aot_smoothing_blocks=3,
+                aot_resolution=None,
+                aot_chunk=None,
+                aot_smoothing_blocks=None,
+                min_pixel_prop=None,
+                outlier_factor=None,
+                fine_step=None,
+                fine_window=None,
+                aot_step=None,
                 scale_aot=1,
                 opac_model=None,
                 allpixels=False,
@@ -189,6 +213,10 @@ class Process:
         (``Rrs``, ``BRDFg``, ``aot550``, ``flags``, ``mask``, ``wind``...) that are computed, chunk by chunk,
         by ``write_output`` (or by an explicit ``.compute()``).
 
+        The settings of the aerosol retrieval (``aot_resolution`` to ``aot_step``) default to the ``aerosol``
+        section of the configuration (see :py:func:`grs.config.load_config`): None takes the value of the
+        configuration, another value overrides it.
+
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
         :param odir: Output path, see `write_output` (``.zarr`` / ``.nc`` extension tells the format)
         :param cams_file: CAMS file of the image (global daily or monthly file, or file of the area); None:
@@ -201,13 +229,20 @@ class Process:
         :param chunk: size (pixels) of the blocks of the final processing; 512 divides the 1024 shards of
             the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
         :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
-            240, 480 (default, a multiple of the 10, 20, 30 and 60 m pixel sizes); must be a multiple of
-            ``resolution``
+            240 (default), 480; must be a multiple of ``resolution``
         :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT
-            value is retrieved per block of ``aot_chunk * aot_resolution`` meters
+            value is retrieved per block of ``aot_chunk * aot_resolution`` meters (default 256)
         :param aot_smoothing_blocks: size, in blocks, of the window of the weighted mean of the block AOT values
-            (3: each block is averaged with its neighbours); the transitions between blocks are then smoothed
-            over about one block
+            (default 3: each block is averaged with its neighbours)
+        :param min_pixel_prop: coarse pixels with fewer water pixels than this proportion of the fullest one are
+            discarded (default 0.5)
+        :param outlier_factor: blocks with an AOT above ``outlier_factor`` times the median get the median AOT
+            and a null weight (default 1.5)
+        :param fine_step: the transitions between blocks are smoothed on a grid of ``fine_step`` coarse pixels
+            (default 5)
+        :param fine_window: size (cells of this grid) of the NaN-mean window of this smoothing; None in the
+            configuration: about one block (default)
+        :param aot_step: AOT step of the look-up tables of the final processing (default 0.01)
         :param scale_aot: scaling factor applied to CAMS aod550 raster
         :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
         :param allpixels: if True process all pixels (no water pixel masking)
@@ -585,10 +620,17 @@ class Process:
         # aerosol load estimation
         ######################################
         logging.info('aerosol optical thickness estimation')
+        aerosol = _aerosol_settings(aot_resolution=aot_resolution, aot_chunk=aot_chunk,
+                                    aot_smoothing_blocks=aot_smoothing_blocks, min_pixel_prop=min_pixel_prop,
+                                    outlier_factor=outlier_factor, fine_step=fine_step, fine_window=fine_window,
+                                    aot_step=aot_step)
+        logging.info('aerosol retrieval settings: %s', aerosol)
+        aot_resolution, aot_chunk = aerosol['aot_resolution'], aerosol['aot_chunk']
 
         # the coarse raster is small: compute it once (one pass over the image) instead of re-evaluating the
         # lazy graph for every block and every aot_ref of the retrieval
-        raster = kernel.get_coarse_masked_raster(resolution=aot_resolution).compute()
+        raster = kernel.get_coarse_masked_raster(resolution=aot_resolution,
+                                                 min_pixel_prop=aerosol['min_pixel_prop']).compute()
         _Nwl, _height, _width = raster.bands.shape
         res = []
         for iy in range(0, _height, aot_chunk):
@@ -620,17 +662,19 @@ class Process:
 
         logging.info('smoothing aerosol optical thickness raster')
         # the windows scale with the blocks: weighted mean over aot_smoothing_blocks blocks on the block grid,
-        # then smoothing of the transitions over one block on a grid of step 5 coarse pixels
-        fine_step = 5
-        block_windows = np.array([aot_smoothing_blocks, aot_smoothing_blocks])
-        cells_per_block = max(1, int(round(aot_chunk / fine_step)))
-        cells_per_block += 1 - cells_per_block % 2  # odd, centred window
-        fine_windows = np.array([cells_per_block, cells_per_block])
+        # then smoothing of the transitions (by default over one block) on a grid of fine_step coarse pixels
+        fine_step = aerosol['fine_step']
+        block_windows = np.array([aerosol['aot_smoothing_blocks']] * 2)
+        cells = aerosol['fine_window']
+        if cells is None:
+            cells = max(1, int(round(aot_chunk / fine_step)))
+            cells += 1 - cells % 2  # odd, centred window
+        fine_windows = np.array([cells, cells])
 
         # filter out outliers from median: outliers and blocks without water pixels (NaN) get the median
         # aot_ref and a null weight, so that they do not contribute to the weighted mean of filter2d
         aot_median = kernel.aot_ref_img.aot_ref.median()
-        valid = aot_ref_img.aot_ref < 1.5 * aot_median
+        valid = aot_ref_img.aot_ref < aerosol['outlier_factor'] * aot_median
         kernel.aot_ref_img = aot_ref_img.assign(aot_ref=aot_ref_img.aot_ref.where(valid, aot_median),
                                                 number_of_pixel=aot_ref_img.number_of_pixel.where(valid, 0))
 
@@ -665,8 +709,7 @@ class Process:
         # refined LUT preparation
         ######################################
         logging.info('refined LUT preparation')
-        # TODO put aot_step as parameter in config file
-        aot_step = 0.01
+        aot_step = aerosol['aot_step']
         aot_min = float(aot_ref_raster.aot_ref.min())
         aot_max = float(aot_ref_raster.aot_ref.max())
         logging.info('aot range of the refined LUT: %.4f - %.4f', aot_min, aot_max + aot_step)

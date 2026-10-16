@@ -20,7 +20,7 @@ Options:
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
   --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
-                        resolution [default: 480]
+                        resolution (default: aot_resolution of the configuration, 240)
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
                             in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
@@ -112,7 +112,7 @@ def main():
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
-    aot_resolution = int(args['--aot_resolution'])
+    aot_resolution = int(args['--aot_resolution']) if args['--aot_resolution'] else None   # None: configuration
     max_cc = float(args['--max_cloud_cover'])
     scale_aot = float(args['--scale_aot'])
     opac_model = args['--opac_model']
