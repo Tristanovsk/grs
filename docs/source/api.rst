@@ -42,6 +42,12 @@ Input data
    grs.cams.CamsProduct
    grs.auxdata.AuxData
 
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   grs.cams.cams_daily_file
+
 Pixel classification
 --------------------
 
