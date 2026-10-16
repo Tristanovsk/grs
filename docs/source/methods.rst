@@ -183,12 +183,12 @@ AOT interpolated from the coarse map of step 9, and its own pressure and gaseous
 Aerosol retrieval
 -----------------
 
-The AOT is retrieved on a coarse grid of pixel size ``aot_resolution`` (480 m by default): each coarse
+The AOT is retrieved on a coarse grid of pixel size ``aot_resolution`` (240 m by default): each coarse
 pixel :math:`B` is the mean of its water pixels :math:`W_B`, and is kept if it has enough of them,
 
 .. math::
 
-   \bar R_B = \frac{1}{N_B} \sum_{\mathbf{x} \in W_B} R(\mathbf{x}), \qquad N_B > 0.5\, \max_{B'} N_{B'}
+   \bar R_B = \frac{1}{N_B} \sum_{\mathbf{x} \in W_B} R(\mathbf{x}), \qquad N_B > p\, \max_{B'} N_{B'}
 
 The coarse grid is cut into blocks of ``aot_chunk`` pixels. In each block, the AOT is the largest one
 that does not make the reflectance of too many pixels negative. For a set of tested values,
@@ -209,9 +209,15 @@ shadows). This is done in three passes:
    values between 0 and :math:`1.02\, \tau_{max}` (:py:meth:`~grs.grs_kernel.Kernel.aerosol_visible_chunk`).
    Without a valid value, the mean CAMS AOD of the block is used.
 
-The map of the block values is then cleaned and smoothed: values above 1.5 times the median are
-replaced by the median, then a weighted mean filter (weights: number of water pixels of the blocks)
-and a NaN-aware box filter are applied, and the map is interpolated back to the coarse grid.
+The map of the block values is then cleaned and smoothed: values above ``outlier_factor`` (1.5) times
+the median are replaced by the median, then a weighted mean filter over ``aot_smoothing_blocks`` (3)
+blocks (weights: number of water pixels of the blocks) and a NaN-aware box filter over about one block
+(on a grid of ``fine_step`` coarse pixels) are applied, and the map is interpolated back to the coarse
+grid.
+
+With :math:`p` = ``min_pixel_prop`` (0.5), these settings are set in the ``aerosol`` section of the
+configuration (see :doc:`configuration`), with the size ``aot_chunk`` (256) of the blocks. With the
+defaults, a Sentinel-2 tile is cut into 2 x 2 blocks of 61 km.
 
 The coarse resolution is stored in the ``aot_resolution`` attribute of the output product.
 

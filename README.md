@@ -139,7 +139,7 @@ the aerosol optical thickness, the flags and the mask of the valid water pixels,
 | option | |
 |---|---|
 | `--resolution res` | pixel size (m): 10, 20 or 60 for Sentinel-2 (default 60) |
-| `--aot_resolution res` | pixel size (m) of the grid of the aerosol retrieval (default 480) |
+| `--aot_resolution res` | pixel size (m) of the grid of the aerosol retrieval (default 240, `aerosol` section of the configuration) |
 | `--dem_file file` | digital elevation model (GeoTIFF) of the tile, for the pressure correction |
 | `--surfwater file` | external water mask (GeoTIFF) |
 | `--max_cloud_cover cc` | skip the images whose L1C cloud cover is above `cc` (0-1) |

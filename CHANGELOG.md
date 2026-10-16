@@ -11,10 +11,10 @@ Dates are given for tagged releases only.
 ### Added
 - New masking procedure including OmniCloudMask (building on the former s2cloudless development).
 - Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
-- AOT coarse resolution stored in output attributes (default 480 m, a multiple of the 10, 20, 30 and
+- AOT coarse resolution stored in output attributes (default 240 m, a multiple of the 10, 20, 30 and
   60 m pixel sizes).
 - `--aot_resolution` option of the CLI (pixel size of the coarse grid of the aerosol retrieval, default
-  480 m).
+  from the configuration, 240 m).
 - Documentation of the kernel physics with equations; reworked Sphinx documentation for Read the Docs
   (light/dark logos, partner logos, reorganised example notebooks: processing, auxiliary data,
   visualization, Landsat).
@@ -29,6 +29,11 @@ Dates are given for tagged releases only.
   file of the day, else downloads the file of the tile next to it (`..._<tile>.nc`); the files of the former
   layout `<path: cams>/<tile>/<date>-forecast_<tile>.nc` are still read. `grs.cams.cams_daily_file` gives
   the path of a date. CAMS tutorial on a 2026 image with the daily archive.
+- `aerosol` section of the configuration: settings of the AOT retrieval (`aot_resolution`,
+  `min_pixel_prop`, `aot_chunk`, `outlier_factor`, `aot_smoothing_blocks`, `fine_step`, `fine_window`,
+  `aot_step`), overridden by the arguments of the same name of `Process.execute` (new arguments
+  `min_pixel_prop`, `outlier_factor`, `fine_step`, `fine_window`, `aot_step`, previously fixed). Default
+  `aot_resolution` 240 m (was 480 m: one AOT value per Sentinel-2 tile), also for `--aot_resolution`.
 - Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
   one `grs` command per image for the command line.
 - Automatic download of the missing LUTs from Zenodo before the first processing

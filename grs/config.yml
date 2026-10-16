@@ -30,6 +30,28 @@ settings:
   aerosol_combination: [0, 0.5, 0, 0.5, 0., 0.]
   aerosol_models: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70', 'MACL_rh70', 'URBA_rh70', 'WASO_rh0']
 
+# retrieval of the aerosol optical thickness (AOT), see the methods page of the documentation; the
+# parameters of the same name of Process.execute override them, aot_resolution also --aot_resolution
+aerosol:
+  # pixel size (m) of the coarse raster of the water pixels on which the AOT is retrieved; a multiple of
+  # the pixel size of the image (10, 20, 30 or 60 m)
+  aot_resolution: 240
+  # coarse pixels of the coarse raster kept: more water pixels than this proportion of the fullest one
+  min_pixel_prop: 0.5
+  # size (coarse pixels) of the retrieval blocks: one AOT value per block of aot_chunk * aot_resolution
+  # meters (256 x 240 m = 61 km: 2 x 2 blocks for a Sentinel-2 tile)
+  aot_chunk: 256
+  # blocks with an AOT above outlier_factor times the median get the median AOT and a null weight
+  outlier_factor: 1.5
+  # window (blocks) of the weighted mean of the block AOT values (weights: water pixels of the blocks)
+  aot_smoothing_blocks: 3
+  # smoothing of the transitions between blocks, on a grid of fine_step coarse pixels: NaN-mean over
+  # fine_window cells of this grid (null: about one block, aot_chunk / fine_step, odd)
+  fine_step: 5
+  fine_window: null
+  # AOT step of the look-up tables prepared for the final processing
+  aot_step: 0.01
+
 processor:
   ncpu: 8                       # number of processes of the parallel parts
   chunk: 512                    # size (pixels) of the processing blocks
