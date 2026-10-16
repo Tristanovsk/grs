@@ -21,8 +21,8 @@ The notebook shows:
   choose the aerosol model), wind over the image.
 
 The download cells are not run in this documentation (they need an ADS account); the rest of the
-notebook is rendered with the outputs of its last run on the image of the
-{doc}`Sentinel-2 tutorial <processing>`. The
+notebook is rendered with the outputs of its last run on a Sentinel-2 image of 2026-03-09 over Lake
+Geneva (tile 31TGM), with the CAMS daily file of its date. The
 [`ecmwf/`](https://github.com/CNES/GRSprocessor/tree/main/ecmwf) folder of the repository holds the
 scripts used to download long periods on a computing cluster, and the daily update of the archive
 (`download_cams_cds_day.py`).
