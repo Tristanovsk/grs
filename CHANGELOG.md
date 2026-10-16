@@ -53,6 +53,8 @@ Dates are given for tagged releases only.
   probability is no longer computed.
 
 ### Fixed
+- NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):
+  the boolean attributes are written as integers (0/1) in the NetCDF files; Zarr keeps the booleans.
 - `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.
 - NaN `Rrs` on the edges of the image (about half a pixel of the AOT grid), where the AOT map was not
   extrapolated.
