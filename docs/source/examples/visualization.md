@@ -2,11 +2,11 @@
 
 The L2A products of GRS are standard Zarr stores (or NetCDF files): they can be opened, plotted and
 subset with xarray, rioxarray and matplotlib only. For the interactive exploration of the images, use
-the GRS toolbox [grstbx](https://github.com/Tristanovsk/grstbx) (version 2.3.1 or later). It is not on
-PyPI; install it from GitHub, with the Jupyter extras of the interactive viewers:
+the GRS toolbox [grstbx](https://grstbx.readthedocs.io) (version 2.4.0 or later), installed from
+[PyPI](https://pypi.org/project/grstbx/) with the Jupyter extras of the interactive viewers:
 
 ```bash
-pip install "grstbx[notebook] @ git+https://github.com/Tristanovsk/grstbx.git"
+pip install "grstbx[notebook]"
 ```
 
 Both notebooks are rendered with the outputs of their last run: the interactive maps are not
@@ -26,9 +26,9 @@ The first notebook opens the product of the {doc}`Sentinel-2 tutorial <processin
 
 ## Exploring an L2A image with grstbx
 
-The second notebook (from the
-[grstbx tutorials](https://github.com/Tristanovsk/grstbx/tree/main/docs/source/tutorials)) uses the
-tools of grstbx:
+The second notebook (adapted from the
+[grstbx tutorials](https://grstbx.readthedocs.io/en/latest/tutorials/l2a_image.html)) uses the tools of
+grstbx:
 
 `grstbx.L2grs`
 : loads one or several L2A products (Zarr or NetCDF) into a datacube along `time`; for the Zarr
@@ -42,9 +42,10 @@ tools of grstbx:
 : interactive map of $R_{rs}$ over a free basemap (CARTO, OpenStreetMap, OpenTopoMap, Esri...).
   Only the visible pixels are read, at screen resolution, from the Zarr pyramid. It shows true-colour
   or single-band images with colormaps adapted to water reflectance, the full-resolution spectra of
-  the drawn points and, since grstbx 2.3.1, the spectrum of the pixel under the mouse (dashed line,
-  *Live spectrum* checkbox). The drawn points and polygons are retrieved with `get_points` and
-  `get_geom`.
+  the drawn points and the spectrum of the pixel under the mouse (dashed line, *Live spectrum*
+  checkbox). The bands of the RGB composite (true colour, false colour, red edge, SWIR or any band),
+  its gamma, the contrast and the brightness can be adjusted. The drawn points and polygons are
+  retrieved with `get_points` and `get_geom`.
 
 `grstbx.visual.ViewParam`
 : same viewer for any 2-D parameter (e.g. water-quality products), with a colormap picker (`cmap=`
@@ -52,6 +53,14 @@ tools of grstbx:
 
 It also computes simple water-quality parameters (chlorophyll-a, CDOM absorption, suspended
 particulate matter) from $R_{rs}$.
+
+The same viewers are available without notebook in the web dashboard of grstbx, which opens GRS L2A
+and L2B products, time series of products or datacubes in the browser
+(see the [dashboard tutorial](https://grstbx.readthedocs.io/en/latest/tutorials/dashboard.html)):
+
+```bash
+grstbx-viewer S2B_MSIL2AGRS_20200411T110619_T30TWT.zarr
+```
 
 ```{figure} ../_static/grstbx_visual_tool.gif
 :alt: animated view of the interactive viewer of grstbx
