@@ -7,7 +7,6 @@
 [![PyPI](https://img.shields.io/pypi/v/GRSProcessor)](https://pypi.org/project/GRSprocessor/)
 
 ## GRS (Glint Removal for Sentinel-2-like sensors)
-## GRS (Glint Removal for Sentinel-2-like sensors)
 
 The GRS algorithm ([Harmel et al.,
 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856))
@@ -41,108 +40,154 @@ grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
 > [README_CNES.md](README_CNES.md) for CNES-specific installation and run instructions.
 
 ## Installation
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-### please use conda environment
-``` 
-conda activate "name of your conda env"
+GRS needs **Python 3.11 or newer**. It is a pure Python package: all its dependencies (including
+[GRSdriver](https://github.com/Tristanovsk/GRSdriver), which reads the L1C images) are installed by pip,
+and the GDAL Python bindings are not needed.
+
+Create an environment, with conda or venv:
+
+```bash
+conda create -n grs python=3.12
+conda activate grs
+# or: python -m venv grs && source grs/bin/activate
 ```
 
-Python >= 3.9 is recommended, example:
-``` 
-conda create python=3.10 -n grs_v2
-conda activate grs_v2
+The cloud masks use OmniCloudMask, which installs PyTorch. On a computer without a GPU, install the CPU
+build of PyTorch first, much smaller than the default (CUDA) one:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
-Then, install python dependencies:
-``` 
-conda install -c conda-forge eoreader cdsapi netCDF4 docopt xmltodict numba
+
+Then install GRS, from PyPI (distribution name `GRSprocessor`; the package and the commands are `grs`):
+
+```bash
+pip install GRSprocessor
 ```
-Install grs with:
-```commandline
-pip install .
+
+or from the source code (e.g. for the development version):
+
+```bash
+git clone https://github.com/CNES/GRSprocessor.git
+cd GRSprocessor
+pip install .          # or: pip install -e .[dev] to develop
+```
+
+Check the installation:
+
+```bash
+grs -v
+grs_config
 ```
 
 ### Look-up tables
-The radiative transfer look-up tables (LUTs, NetCDF files shared with hGRS) are not shipped with the
-package. Download them from [Zenodo](https://doi.org/10.5281/zenodo.23394202) into the default LUT folder (`~/.local/share/grs/lut` on Linux)
-and check the configuration:
-```commandline
+
+The radiative transfer look-up tables (LUTs, about 1 GB of NetCDF files shared with hGRS) are not in the
+package: they are downloaded from [Zenodo](https://doi.org/10.5281/zenodo.23394202) (checksums verified)
+the first time an image is processed, into the default LUT folder (`~/.local/share/grs/lut` on Linux).
+To download them beforehand and check the configuration:
+
+```bash
 grs_config --download
 grs_config
 ```
-To keep the LUTs in another folder (e.g. a shared copy), write it first in your user configuration
-file (`~/.config/grs/config.yml`) with `grs_config --init /path/to/lut`, or set the `GRS_DATA_ROOT`
-environment variable. The configuration is read at run time: no need to reinstall the package after
-changing it. See the Configuration page of the documentation.
 
-## Testing <a name="testing"></a>
+- To keep the LUTs in another folder (e.g. a copy shared by several users), write it in your user
+  configuration file (`~/.config/grs/config.yml`) with `grs_config --init /path/to/lut`, or set the
+  `GRS_DATA_ROOT` environment variable.
+- Without internet access (e.g. on the nodes of a cluster), download the LUTs beforehand and switch the
+  automatic download off with `GRS_NO_DOWNLOAD=1` (or `zenodo: auto_download: false` in the user
+  configuration).
 
-After installation, you can type:
-```commandline
-grs -h
+The configuration is read at run time: no need to reinstall the package after changing it. See the
+Configuration page of the [documentation](https://cnes.github.io/GRSprocessor).
+
+### CAMS atmospheric data
+
+GRS uses the CAMS global atmospheric composition forecasts (aerosols, ozone, water vapour, pressure,
+wind) of the date of the image, from the
+[Copernicus Atmosphere Data Store](https://ads.atmosphere.copernicus.eu) (ADS):
+
+- give a CAMS NetCDF file with `--cams_file`;
+- or let GRS download the forecast of the image date and area: without `--cams_file`, it is read from (or
+  downloaded into) `<path: cams>/<tile>/` of the configuration. The download uses `cdsapi`: create an ADS
+  account, accept the licence of the dataset *CAMS global atmospheric composition forecasts*, and write
+  your API key in `~/.cdsapirc`:
+
+  ```
+  url: https://ads.atmosphere.copernicus.eu/api
+  key: <your-personal-access-token>
+  ```
+
+## Usage
+
+Process a Sentinel-2 L1C image (`.SAFE` folder) at 20 m:
+
+```bash
+grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
+    --cams_file cams_forecast_2022-07.nc --resolution 20 --odir ./L2A
 ```
 
-You should see something like:
-```commandline
-Executable to process Sentinel-2 L1C images for aquatic environment
+The L2A product is a Zarr store (`<odir>/<name>/<name>.zarr`) with $R_{rs}$, the sunglint reflectance,
+the aerosol optical thickness, the flags and the mask of the valid water pixels, and its overviews
+(pyramid). Useful options (`grs -h` lists them all):
 
-Usage:
-  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--aot_resolution res]   [--max_cloud_cover max_cc] [--scale_aot factor] [--opac_model name] [--levname <lev>] [--no_clobber]   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]
-  grs -h | --help
-  grs -v | --version
+| option | |
+|---|---|
+| `--resolution res` | pixel size (m): 10, 20 or 60 for Sentinel-2 (default 60) |
+| `--aot_resolution res` | pixel size (m) of the grid of the aerosol retrieval (default 480) |
+| `--dem_file file` | digital elevation model (GeoTIFF) of the tile, for the pressure correction |
+| `--surfwater file` | external water mask (GeoTIFF) |
+| `--max_cloud_cover cc` | skip the images whose L1C cloud cover is above `cc` (0-1) |
+| `--opac_model name` | force the aerosol model (OPAC) |
+| `--no_clobber` | skip the images already processed |
+| `--snap_compliant` | one variable per band, for ESA SNAP |
 
-Options:
-  -h --help        Show this screen.
-  -v --version     Show version.
+From Python:
 
-  <input_file>     Input file to be processed
+```python
+import grs
 
-  --cams_file file     Absolute path of the CAMS file to be used (mandatory)
-
-  -o <odir>, --odir <odir>  Full (absolute or relative) path to output L2 image.
-  --levname lev    Level naming used for output product [default: L2AGRS]
-  --no_clobber     Do not process <input_file> if <output_file> already exists.
-  --resolution=res  spatial resolution of the scene pixels [default: 60]
-  --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
-                        resolution [default: 480]
-  --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
-                            in decimal number [default: 1]
-  --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
-  --surfwater file  Absolute path of the surfwater geotiff file to be used
-  --dem_file file  Absolute path of the DEM geotiff file (already subset for the S2 tile)
-  --scale_aot factor  scaling factor applied to CAMS aod550 raster
-                      [default: 1]
-  --opac_model name  Force the aerosol model (OPAC) to be 'name'
-                     (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
-                     'MACL_rh70', 'URBA_rh70'])
-  --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
-  --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
-
-  Example:
-      grs /data/satellite/S2/L1C/S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE --cams_file /data/cams/world/cams_forecast_2022-07.nc --resolution 60
-  For CNES datalake:
-      grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
+process = grs.Process()
+process.execute('S2B_MSIL1C_...SAFE', cams_file='cams_forecast_2022-07.nc', resolution=20,
+                odir='S2B_MSIL2AGRS_....zarr')
+process.write_output()        # the processing is lazy: it is computed block by block while writing
 ```
+
+Landsat 8 and 9 Collection 2 L1 images (`LC08_L1*`, `LC09_L1*` folders) are processed in the same way.
+See the [tutorials](https://cnes.github.io/GRSprocessor) for the processing, the reading of the L2A
+products with xarray and their visualization with [grstbx](https://github.com/Tristanovsk/grstbx).
 
 > If you are on TREX CNES, see [README_CNES.md](README_CNES.md#running-grs-on-trex-with-a-slurm-interactive-job)
-> for how to run the example above as a SLURM interactive job.
+> for how to run GRS as a SLURM interactive job.
 
-### To download CAMS data
-[Register](https://apps.ecmwf.int/registration/) and [ask for a key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key) to use ECMWF API
+### Memory and computing time
 
-## Running the tests
-From terminal:
-```
-grs test/data/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE --shape test/data/shape/SPO04.shp --odir test/results/ --aerosol cams_forecast --dem --resolution 20
-```
+The image is processed lazily, block by block, by `processor: ncpu` threads (8 by default, user
+configuration). For a Sentinel-2 tile at 20 m, expect about 10 GB of memory and a few minutes of computing
+time; lower `ncpu` if memory is tight. The `grs` command limits the number of malloc arenas of glibc to 2
+(`MALLOC_ARENA_MAX=2`, already set in the Docker images), which saves 2-3 GB: set this variable too when
+running GRS from your own Python scripts.
 
-You should get something like:
+### Example
 
 ![image_output](images/example_snap_grs_image.png)
 
-Another examples of output images before (1st column) and after  (2nd column) sunglint correction:
+Examples of output images before (1st column) and after (2nd column) sunglint correction:
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
+
+## Running the tests
+
+```bash
+pip install -e .[dev]
+pytest grs/tests/integration_tests/
+```
+
+The test data (a Sentinel-2 image, CAMS and DEM files) are stored with Git LFS in `grs/tests/inputs`:
+install [git-lfs](https://git-lfs.com) and run `git lfs pull` after cloning, otherwise the files are
+small pointer files and the tests fail.
 
 > For how to launch GRS with Docker on CNES machines, see
 > [README_CNES.md](README_CNES.md#running-grs-with-docker-on-cnes-deprecated).
@@ -152,7 +197,7 @@ Another examples of output images before (1st column) and after  (2nd column) su
 See examples in [exe](exe).
 
 ## Compile Docker image locally
-First and foremost, you must have the coresponding version of GRSdriver at the same level as grs2.
+First and foremost, you must have the corresponding version of GRSdriver at the same level as grs2.
 You should also make sure that the grsdata folder is full (it is a LTS).
 Eventually, you must get Dockerfile out of grs2 folder to have a structure as diplayed below.
 
@@ -216,6 +261,10 @@ GitLab instance for HPC-based validation. Two independent pipelines run on every
    `git-filter-repo`, then force-pushes the cleaned repository to the internal GitLab
    mirror (`gitlab.cnes.fr/waterquality/grs2.git`). This is what triggers the GitLab
    pipeline described below.
+
+**[`pypi.yml`](.github/workflows/pypi.yml) — Publish on PyPI** (tags `v*`, or by hand from the
+Actions tab to TestPyPI or PyPI): builds the sdist and the wheel of `GRSprocessor` and publishes them
+with PyPI trusted publishing (see "Releasing on PyPI" in [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 **[`doc.yml`](.github/workflows/doc.yml) — Pipeline documentation** (same push triggers):
 builds the Sphinx documentation ([`docs/`](docs), furo theme, autoapi, mermaid diagrams);
