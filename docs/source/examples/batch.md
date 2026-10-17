@@ -27,8 +27,9 @@ for date, row in selection.iterrows():          # one row per Level-1 image
 ```
 
 The notebook is rendered with the outputs of its last run: the 21 images of August 2025 of tile
-31TEJ (French Alps: Lac du Bourget, Lake Annecy), about 2 to 4 minutes per image at 20 m. The input images are not
-distributed with GRS: set the paths of the configuration cell to run it on your own data.
+31TEJ (Gulf of Lion: Thau lagoon and the coast of Montpellier), about 2 to 4 minutes per image at
+20 m. The input images are not distributed with GRS: set the paths of the configuration cell to run it
+on your own data.
 
 ```{toctree}
 :maxdepth: 1
