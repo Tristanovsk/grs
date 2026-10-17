@@ -699,6 +699,9 @@ class Process:
             varname='aot_ref',
             mask=np.ones(fine_windows),
             windows=fine_windows)
+        # the box filter can turn a null AOT into a tiny negative value (rounding, e.g. -4e-17): the LUTs of
+        # the final processing would then start below 0 and give NaN Rrs for the whole image
+        aot_ref_raster['aot_ref'] = aot_ref_raster.aot_ref.clip(min=0)
 
         kernel.aot_ref_raster = aot_ref_raster.interp(x=raster.x,
                                                       y=raster.y,
