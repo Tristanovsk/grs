@@ -231,7 +231,7 @@ class Process:
         :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
             240 (default), 480; must be a multiple of ``resolution``
         :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT
-            value is retrieved per block of ``aot_chunk * aot_resolution`` meters (default 256)
+            value is retrieved per block of ``aot_chunk * aot_resolution`` meters (default 64: 15 km at 240 m)
         :param aot_smoothing_blocks: size, in blocks, of the window of the weighted mean of the block AOT values
             (default 3: each block is averaged with its neighbours)
         :param min_pixel_prop: coarse pixels with fewer water pixels than this proportion of the fullest one are

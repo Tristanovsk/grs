@@ -34,6 +34,9 @@ Dates are given for tagged releases only.
   `aot_step`), overridden by the arguments of the same name of `Process.execute` (new arguments
   `min_pixel_prop`, `outlier_factor`, `fine_step`, `fine_window`, `aot_step`, previously fixed). Default
   `aot_resolution` 240 m (was 480 m: one AOT value per Sentinel-2 tile), also for `--aot_resolution`.
+- Default `aot_chunk` 64 (was 256): blocks of 15 km at 240 m. Validated against AERONET-OC (Venise,
+  Section-7 Platform; 73 matchups): AOT RMSE 0.066 instead of 0.094, bias -0.013 instead of -0.054, Rrs
+  RMSE 23 to 33 % lower (study in `notebook/settings_aerosols/AERONET-OC`).
 - Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
   one `grs` command per image for the command line.
 - Automatic download of the missing LUTs from Zenodo before the first processing
