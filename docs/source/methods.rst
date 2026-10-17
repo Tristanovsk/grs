@@ -216,8 +216,10 @@ blocks (weights: number of water pixels of the blocks) and a NaN-aware box filte
 grid.
 
 With :math:`p` = ``min_pixel_prop`` (0.5), these settings are set in the ``aerosol`` section of the
-configuration (see :doc:`configuration`), with the size ``aot_chunk`` (256) of the blocks. With the
-defaults, a Sentinel-2 tile is cut into 2 x 2 blocks of 61 km.
+configuration (see :doc:`configuration`), with the size ``aot_chunk`` (64) of the blocks. With the
+defaults, the blocks are 15 km wide (about 7 x 7 blocks per Sentinel-2 tile): against AERONET-OC
+measurements, this block size gave the most accurate AOT and :math:`R_{rs}` of the sizes tested (15 to
+123 km); larger blocks underestimate the AOT in heterogeneous coastal scenes.
 
 The coarse resolution is stored in the ``aot_resolution`` attribute of the output product.
 

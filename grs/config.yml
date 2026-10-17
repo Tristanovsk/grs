@@ -39,8 +39,10 @@ aerosol:
   # coarse pixels of the coarse raster kept: more water pixels than this proportion of the fullest one
   min_pixel_prop: 0.5
   # size (coarse pixels) of the retrieval blocks: one AOT value per block of aot_chunk * aot_resolution
-  # meters (256 x 240 m = 61 km: 2 x 2 blocks for a Sentinel-2 tile)
-  aot_chunk: 256
+  # meters (64 x 240 m = 15 km: about 7 x 7 blocks for a Sentinel-2 tile). Validated against AERONET-OC
+  # (notebook/settings_aerosols/AERONET-OC): the AOT and Rrs are the most accurate with blocks of 15 km;
+  # larger blocks (256: 61 km) underestimate the AOT in heterogeneous coastal scenes
+  aot_chunk: 64
   # blocks with an AOT above outlier_factor times the median get the median AOT and a null weight
   outlier_factor: 1.5
   # window (blocks) of the weighted mean of the block AOT values (weights: water pixels of the blocks)
