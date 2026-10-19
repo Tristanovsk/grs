@@ -55,8 +55,8 @@ jobs:
           python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
           python -m pip install pytest pytest-cov
                            
-          echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
-          python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
+          echo "Lancement des tests des répertoires grs/tests/unit/ et grs/tests/integration_tests/"
+          python -m pytest --tb=short -vv -s -x grs/tests/unit/ grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
           
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             echo "Génération du badge coverage"

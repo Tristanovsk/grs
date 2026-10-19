@@ -141,6 +141,13 @@ grs test/data/S2B_MSIL1C_20180927T103019_N0206_R108_T31TGK_20180927T143835.SAFE 
 The output product is written as NetCDF in `test/results/S2B_MSIL2AGRS_..._V2.2.0/` (main file `.nc` and
 ancillary data `_anc.nc`); see the [documentation](https://cnes.github.io/GRSprocessor/usage.html#output-product).
 
+Unit tests, on a small L1C subset of the repository (`grs/tests/data`), about 10 s:
+```
+pytest grs/tests/unit/
+```
+The end-to-end tests need the look-up tables: they are skipped when the tables are not found (set
+`GRS_TEST_GRSDATA` to their folder if it is not the `grsdata` folder of `grs/config.yml`).
+
 You should get something like:
 
 ![image_output](images/example_snap_grs_image.png)
@@ -209,7 +216,7 @@ GitLab instance for HPC-based validation. Two independent pipelines run on every
 `develop`, tags; and pull requests to `main`/`develop`):
 
 1. `python-tests` — installs GDAL and the Python dependencies, then runs the integration
-   test suite (`grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
+   test suites (`grs/tests/unit/`, `grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
    and commits the coverage badge.
 2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to
    PyPI.
@@ -250,7 +257,7 @@ conda create -n grs_dev python=3.12
 conda activate grs_dev
 pip install -r requirements.txt
 pip install -e .[dev]
-pytest grs/tests/integration_tests/
+pytest grs/tests/unit/ grs/tests/integration_tests/
 ```
 
 1. Create a branch off `develop` named `feature/<short-description>`.

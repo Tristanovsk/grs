@@ -42,8 +42,13 @@ required to actually run `grs` on data.
 ## Running tests
 
 ```bash
-pytest grs/tests/integration_tests/
+pytest grs/tests/unit/ grs/tests/integration_tests/
 ```
+
+The unit tests (`grs/tests/unit/`, about 10 s) run on a small L1C subset stored in the repository
+(`grs/tests/data`, made with `grs/tests/data/make_test_data.py`); their end-to-end part needs the
+look-up tables and is skipped without them: set `GRS_TEST_GRSDATA` to the folder of the LUTs if it is not
+the `grsdata` folder of `grs/config.yml`.
 
 This is the same test suite executed by CI (job `python-tests` in
 [`.github/workflows/main.yml`](.github/workflows/main.yml)), which also requires GDAL to be
