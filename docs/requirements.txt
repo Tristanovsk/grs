@@ -1,3 +1,0 @@
-# Python requirements of the Read the Docs build (see .readthedocs.yaml);
-# the Sphinx tools come from the "docs" extra of pyproject.toml.
--r ../requirements.txt
