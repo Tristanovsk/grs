@@ -1,5 +1,5 @@
 ARG IMAGE_SOURCE
-FROM ${IMAGE_SOURCE}ubuntu:22.04 AS systemdependencies
+FROM ${IMAGE_SOURCE}ubuntu:24.04 AS systemdependencies
 LABEL maintainer="robin.buratti@magellium.fr"
 
 ENV LANG=C.UTF-8
@@ -31,7 +31,7 @@ RUN --mount=type=secret,id=http_proxy --mount=type=secret,id=https_proxy \
     && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
         software-properties-common \
         gcc \
-        python3.10 \
+        python3 \
         python3-dev \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -51,7 +51,7 @@ WORKDIR /home/grs2
 #########################
 # STAGE 2: Image finale
 #########################
-FROM ${IMAGE_SOURCE}ubuntu:22.04
+FROM ${IMAGE_SOURCE}ubuntu:24.04
 LABEL maintainer="robin.buratti@magellium.fr"
 
 ENV LANG=C.UTF-8
@@ -71,18 +71,20 @@ RUN --mount=type=secret,id=http_proxy --mount=type=secret,id=https_proxy \
     && apt-get -qq update \
     && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
         python-is-python3 \
-        python3.10 \
+        python3 \
         python3-dev \
-        python3-pip \
-        python3-affine \
-        python3-lxml \
-        python3-xmltodict \
+        python3-venv \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
   
 # Récupération de GRS depuis systemdependencies
 COPY --from=systemdependencies /home/grs2 /home/grs2
 
 WORKDIR /home/grs2
+
+# Python packages in a virtualenv (Ubuntu 24.04 forbids pip installs in the system Python, PEP 668)
+RUN python3 -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
 
 ARG ARTIFACTORY_HOST="artifactory.cnes.fr"
 
