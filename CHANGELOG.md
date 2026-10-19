@@ -37,6 +37,10 @@ Dates are given for tagged releases only.
 - Default `aot_chunk` 64 (was 256): blocks of 15 km at 240 m. Validated against AERONET-OC (Venise,
   Section-7 Platform; 73 matchups): AOT RMSE 0.066 instead of 0.094, bias -0.013 instead of -0.054, Rrs
   RMSE 23 to 33 % lower (study in `notebook/settings_aerosols/AERONET-OC`).
+- Unit tests (`grs/tests/unit`, about 20 s): configuration and aerosol settings, CAMS archive, smoothing
+  filters, gaseous correction with dask, command line helpers, and end-to-end processing of a small L1C
+  subset (`grs/tests/data`, 128 x 128 pixels at 60 m over the Camargue, made with `make_test_data.py`);
+  run in the CI with the integration tests.
 - Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
   one `grs` command per image for the command line.
 - Automatic download of the missing LUTs from Zenodo before the first processing
