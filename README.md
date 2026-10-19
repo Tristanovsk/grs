@@ -185,12 +185,18 @@ Examples of output images before (1st column) and after (2nd column) sunglint co
 
 ```bash
 pip install -e .[dev]
+pytest grs/tests/unit/                 # about 20 s
 pytest grs/tests/integration_tests/
 ```
 
-The test data (a Sentinel-2 image, CAMS and DEM files) are stored with Git LFS in `grs/tests/inputs`:
-install [git-lfs](https://git-lfs.com) and run `git lfs pull` after cloning, otherwise the files are
-small pointer files and the tests fail.
+- `grs/tests/unit/`: configuration and aerosol settings, CAMS archive, smoothing filters, gaseous
+  correction (in memory and with dask), command line helpers, and an end-to-end processing of a small
+  L1C subset (128 x 128 pixels at 60 m over the Camargue, `grs/tests/data`, made with
+  `grs/tests/data/make_test_data.py`) checking the L2A product. The end-to-end tests are skipped when
+  the look-up tables are not installed (`grs_config --download`).
+- `grs/tests/integration_tests/`: the test data (a Sentinel-2 image, CAMS and DEM files) are stored with
+  Git LFS in `grs/tests/inputs`: install [git-lfs](https://git-lfs.com) and run `git lfs pull` after
+  cloning, otherwise the files are small pointer files and the tests fail.
 
 > For how to launch GRS with Docker on CNES machines, see
 > [README_CNES.md](README_CNES.md#running-grs-with-docker-on-cnes-deprecated).
@@ -252,7 +258,7 @@ GitLab instance for HPC-based validation. Two independent pipelines run on every
 `develop`, tags; and pull requests to `main`/`develop`):
 
 1. `python-tests` — installs GDAL and the Python dependencies, then runs the integration
-   test suite (`grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
+   test suites (`grs/tests/unit/`, `grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
    and commits the coverage badge.
 2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to
    PyPI.
@@ -296,7 +302,7 @@ conda create -n grs_dev python=3.11
 conda activate grs_dev
 pip install -r requirements.txt
 pip install -e .[dev]
-pytest grs/tests/integration_tests/
+pytest grs/tests/unit/ grs/tests/integration_tests/
 ```
 
 1. Create a branch off `develop` named `feature/<short-description>`.
