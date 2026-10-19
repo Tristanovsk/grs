@@ -107,15 +107,6 @@ Version history
 
 2.1.7:
     - accounts for absorption/scattering interaction for transmittance of absorbing gases
-
-2.2.0:
-    - major update for rugosity and aerosol retrievals
-
-2.2.1:
-    - refinement of the aerosol retrieval algorithm
-
-3.0.0:
-    - merge new version (2.2.1) with CI from v2.1.9
     - fix bugs for true wavelength
     - fix for new ADS CAMS format
 
@@ -126,10 +117,24 @@ Version history
     - fix for bug in azimuth handling in glint correction
     - enables L1C netcdf as intput in CLI
 
+2.2.0:
+    - version with CI for CNES operation
+
+3.0.0:
+    - merge of the scientific developments (major update for rugosity and aerosol retrievals,
+      refinement of the aerosol retrieval algorithm; developed as 2.2.0 and 2.2.1, not released)
+      with the CI from v2.1.9
+
 3.1.0:
-    - new masking procedure including OmniCloudMAsk
-    - Export in 'zarr' with pyramids
+    - new masking procedure including OmniCloudMask
+    - export in 'zarr' with pyramids
     - fixed weighting of the AOT smoothing, windows scaled with the retrieval blocks
+    - configuration read at run time (grs_config), look-up tables downloaded from Zenodo
+    - settings of the aerosol retrieval in the configuration (aerosol section), blocks of 15 km
+      by default (validated with AERONET-OC)
+    - CAMS archive in a YYYY/MM/DD tree
+    - lower memory use and faster processing; unit tests
+    - PyPI package GRSprocessor
 '''
 
 __package__ = 'grs'

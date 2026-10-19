@@ -95,23 +95,28 @@ Dates are given for tagged releases only.
 ## [3.0.0]
 
 ### Changed
-- Merge of the 2.2.1 scientific developments with the CI/CD pipeline from 2.1.9.
+- Merge of the scientific developments with the CI/CD pipeline from 2.1.9: major update of the
+  rugosity (surface roughness) and aerosol retrievals, and refinement of the aerosol retrieval
+  algorithm (developed as 2.2.0 and 2.2.1, not released: the released 2.2.0 is the CNES CI version
+  below).
+
+## [2.2.0] - 2026-10-16
+
+Version with the CI for the CNES operation.
+
+### Added
+- CI/CD: GitHub Actions pipeline for the pull requests and the gitflow branches, synchronisation with
+  the CNES GitLab, PyPI and Docker Hub publication, documentation build.
+- Integration tests (`grs/tests/integration_tests`) and their README.
+- `README_CNES.md` (CNES installation and operation) and `CONTRIBUTING.md`.
+
+### Changed
+- Masking updated with the s2cloudless developments (`s2cloudless` added to the requirements).
+- CWL descriptor updated.
 
 ### Fixed
-- Bugs related to true (band-averaged) wavelengths.
-- Support for the new ADS CAMS format.
 - CLI: accept `--odir` as long alias for `-o`; pass a string path to `gdal.Open`.
 - Docker: upgrade datashader to match the dask API.
-
-## [2.2.1]
-
-### Changed
-- Refinement of the aerosol retrieval algorithm.
-
-## [2.2.0]
-
-### Changed
-- Major update of rugosity (surface roughness) and aerosol retrievals.
 
 ## [2.1.9] - 2026-05-27
 
@@ -132,6 +137,10 @@ Dates are given for tagged releases only.
 
 ### Changed
 - Account for absorption/scattering interaction in the transmittance of absorbing gases.
+
+### Fixed
+- Bugs related to true (band-averaged) wavelengths.
+- Support for the new ADS CAMS format.
 
 ## [2.1.6] - 2024-09-24
 
