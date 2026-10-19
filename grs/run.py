@@ -43,8 +43,8 @@ Options:
 import logging
 
 from pathlib import Path
+from xml.etree import ElementTree
 from docopt import docopt
-from osgeo import gdal
 
 from . import class_logger
 from . import __package__, __version__
@@ -52,6 +52,18 @@ from .grs_process import Process
 from exe.procutils import misc
 
 misc = misc()
+
+
+def s2_cloud_cover(safe):
+    '''
+    Cloud cover (0-1) of a Sentinel-2 L1C image, from ``Cloud_Coverage_Assessment`` of its
+    ``MTD_MSIL1C.xml`` (read directly: no GDAL needed).
+
+    :param safe: path of the ``.SAFE`` folder
+    '''
+    tree = ElementTree.parse(Path(safe, 'MTD_MSIL1C.xml'))
+    node = next(e for e in tree.iter() if e.tag.split('}')[-1] == 'Cloud_Coverage_Assessment')
+    return float(node.text) / 100
 
 
 def main():
@@ -79,9 +91,7 @@ def main():
     basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
     if ('MSIL1C' in basename) and ('SAFE' in basename):
-        f_ = gdal.Open(str(Path(file, 'MTD_MSIL1C.xml')))
-        metadata = f_.GetMetadata()
-        cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
+        cc = s2_cloud_cover(file)
         if cc >= max_cc:
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return

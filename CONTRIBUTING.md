@@ -51,8 +51,7 @@ look-up tables and is skipped without them: set `GRS_TEST_GRSDATA` to the folder
 the `grsdata` folder of `grs/config.yml`.
 
 This is the same test suite executed by CI (job `python-tests` in
-[`.github/workflows/main.yml`](.github/workflows/main.yml)), which also requires GDAL to be
-installed.
+[`.github/workflows/main.yml`](.github/workflows/main.yml)).
 
 ## Submitting changes
 

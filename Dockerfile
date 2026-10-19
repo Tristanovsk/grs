@@ -34,12 +34,8 @@ RUN --mount=type=secret,id=http_proxy --mount=type=secret,id=https_proxy \
         python3.10 \
         python3-dev \
         build-essential \
-        gdal-bin \
-        libgdal-dev \
     && rm -rf /var/lib/apt/lists/*
   
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
-ENV C_INCLUDE_PATH=/usr/include/gdal
 
 # GRS INSTALL
 WORKDIR /home/
@@ -79,10 +75,8 @@ RUN --mount=type=secret,id=http_proxy --mount=type=secret,id=https_proxy \
         python3-dev \
         python3-pip \
         python3-affine \
-        python3-gdal \
         python3-lxml \
         python3-xmltodict \
-        gdal-bin \
     && rm -rf /var/lib/apt/lists/*
   
 # Récupération de GRS depuis systemdependencies

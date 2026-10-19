@@ -1,13 +1,13 @@
 from grs import class_logger
 from grs import __version__
 from grs.grs_process import Process
+from grs.run import s2_cloud_cover
 from pathlib import Path
 import yaml
 import sys
 import logging
 import os
 from datetime import datetime
-from osgeo import gdal
 
 from exe.procutils import misc
 
@@ -111,9 +111,7 @@ def main():
     # first check cloud cover (for S2, not implemented for Landsat)
     if 'MSIL1C' in input_filename:
         max_cc = data["max_cloud_cover"]
-        f_ = gdal.Open(Path(file, 'MTD_MSIL1C.xml'))
-        metadata = f_.GetMetadata()
-        cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
+        cc = s2_cloud_cover(file)
         if cc >= max_cc:
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return

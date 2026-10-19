@@ -1,11 +1,10 @@
 # Conda environment of the Read the Docs build.
-# GDAL (osgeo, imported by grs.run) comes from conda-forge; requirements.txt and the
-# docs extra are then installed with pip (see .readthedocs.yaml).
+# requirements.txt and the docs extra are installed with pip (see .readthedocs.yaml).
+# The GDAL Python bindings (osgeo) are not needed: rasterio/fiona wheels bundle libgdal.
 name: grs-docs
 channels:
   - conda-forge
 dependencies:
   - python=3.12
-  - gdal
   - cartopy
   - pip

@@ -33,12 +33,7 @@ Python >= 3.12 is recommended, example:
    conda create python=3.12 -n grs_v2
    conda activate grs_v2
 
-Then, install GDAL (Python bindings ``osgeo``) from conda-forge; the other dependencies,
-including GRSdriver, are installed with grs by pip:
-
-::
-
-   conda install -c conda-forge gdal
+The dependencies, including GRSdriver, are installed with grs by pip.
 
 Set the ``config.yml`` file:
 

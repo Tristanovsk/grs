@@ -67,11 +67,7 @@ Python >= 3.12 is required, example:
 conda create python=3.12 -n grs_v2
 conda activate grs_v2
 ```
-Then, install GDAL (Python bindings `osgeo`) from conda-forge:
-``` 
-conda install -c conda-forge gdal
-```
-Finally, install grs and its dependencies (`requirements.txt`, including GRSdriver) with:
+Then, install grs and its dependencies (`requirements.txt`, including GRSdriver) with:
 ```commandline
 pip install .
 ```
@@ -215,7 +211,7 @@ GitLab instance for HPC-based validation. Two independent pipelines run on every
 **[`main.yml`](.github/workflows/main.yml) — Pipeline CI** (push to `feature/*`, `main`,
 `develop`, tags; and pull requests to `main`/`develop`):
 
-1. `python-tests` — installs GDAL and the Python dependencies, then runs the integration
+1. `python-tests` — installs the Python dependencies, then runs the integration
    test suites (`grs/tests/unit/`, `grs/tests/integration_tests/`) with coverage. On a tag, it also regenerates
    and commits the coverage badge.
 2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to

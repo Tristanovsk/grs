@@ -49,7 +49,7 @@ mkdir /work/scratch/$USER/tmp
 export TMPDIR=/work/scratch/$USER/tmp
 conda create python=3.12 -n grs_v2
 conda activate grs_v2
-conda install gdal geopandas -c conda-forge-remote
+conda install geopandas -c conda-forge-remote
 pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
 ml gcc
 make

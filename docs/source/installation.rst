@@ -17,9 +17,8 @@ Python >= 3.12 is required. With conda:
 
    conda create -n grs python=3.12
    conda activate grs
-   conda install -c conda-forge gdal
 
-The other dependencies (``requirements.txt``, including
+The dependencies (``requirements.txt``, including
 `GRSdriver <https://github.com/Tristanovsk/GRSdriver>`__) are installed with the package below.
 
 Configuration
