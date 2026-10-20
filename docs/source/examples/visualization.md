@@ -51,8 +51,10 @@ grstbx:
 : same viewer for any 2-D parameter (e.g. water-quality products), with a colormap picker (`cmap=`
   for the initial colormap, *Reverse* toggle) and a log scale.
 
-It also computes simple water-quality parameters (chlorophyll-a, CDOM absorption, suspended
-particulate matter) from $R_{rs}$.
+It then derives the water-quality parameters of the area with
+[GRSl2bgen](https://grsl2bgen.readthedocs.io) (optical water types, chlorophyll-a, suspended
+particulate matter and turbidity, CDOM, transparency, quality flags of the L2A reflectance) and browses
+them with `ViewParam`.
 
 The same viewers are available without notebook in the web dashboard of grstbx, which opens GRS L2A
 and L2B products, time series of products or datacubes in the browser
