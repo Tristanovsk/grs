@@ -1,24 +1,15 @@
-importlib_resources>=6.0
-
-cdsapi>=0.7.4
-datashader>=0.18.0
+# Runtime dependencies of grs (read by pyproject.toml).
+# GRSdriver >= 2.0 reads the Level-1 products without EOReader, sertit, fiona or the GDAL
+# Python bindings: everything installs from PyPI wheels.
 docopt>=0.6.2
-eoreader>=0.24.0
-fiona>=1.10.1
-geopandas>=1.0.1
-GRSdriver>=1.0.10
-holoviews>=1.20.0
+GRSdriver>=2.0.4
 matplotlib>=3.9.0
 netCDF4>=1.7.2
 numba>=0.60.0
 numpy>=2.0
 pandas>=2.2.3
-pyproj>=3.7.0
 PyYAML>=6.0.2
-rasterio>=1.4.3
 rioxarray>=0.17.0
 s2cloudless>=1.7.3
 scipy>=1.14.1
-sertit>=1.54.0
 xarray>=2024.10.0
-xmltodict>=0.14.2

@@ -3,7 +3,7 @@ version: 2
 build:
   os: ubuntu-24.04
   tools:
-    python: "miniforge3-latest"
+    python: "3.12"
 
 sphinx:
   configuration: docs/source/conf.py
@@ -11,12 +11,10 @@ sphinx:
 
 formats: all
 
-conda:
-  environment: docs/environment.yml
-
+# The notebooks are rendered with their stored outputs, not executed: the docs only need
+# grs (imported by autodoc) and the Sphinx stack of the docs extra.
 python:
   install:
-    - requirements: requirements.txt
     - method: pip
       path: .
       extra_requirements:

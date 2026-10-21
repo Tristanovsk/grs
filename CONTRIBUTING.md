@@ -82,9 +82,8 @@ The documentation lives under [`docs/`](docs/) (Sphinx) and is published to
 See `docs/source/index.rst` for the entry point. You can build it locally with:
 
 ```bash
-pip install sphinx sphinx-rtd-theme myst-parser sphinx-autoapi
-cd docs
-sphinx-build -b html source build/html
+pip install ".[docs]"
+sphinx-build -b html docs/source docs/build/html
 ```
 
 ## Code of conduct

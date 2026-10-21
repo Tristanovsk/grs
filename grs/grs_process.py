@@ -2,7 +2,7 @@ import os
 from os import PathLike
 from pathlib import Path
 
-import importlib_resources
+from importlib import resources
 import yaml
 
 import numpy as np
@@ -25,7 +25,7 @@ from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
 
-configfile = importlib_resources.files(__package__) / 'config.yml'
+configfile = resources.files(__package__) / 'config.yml'
 with open(configfile, 'r') as file:
     config = yaml.safe_load(file)
 

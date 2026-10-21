@@ -49,8 +49,6 @@ mkdir /work/scratch/$USER/tmp
 export TMPDIR=/work/scratch/$USER/tmp
 conda create python=3.12 -n grs_v2
 conda activate grs_v2
-conda install geopandas -c conda-forge-remote
-pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
 ml gcc
 make
 pip install .
@@ -67,21 +65,13 @@ grs -h
 > ["Scheduling and Triggers"](https://cnes.github.io/GRSprocessor/processing_chain.html#scheduling-and-triggers)
 > section of the documentation.
 
-Installing from sources with conda on the CNES cluster:
-
-Create the conda environment using the definition file available in the conda folder:
+Install grs in a Python >= 3.12 environment as on HAL above, or with the conda environment of
+the repository (the option -p sets the directory of the environment):
 ```
-conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
-```
-The option -p set the directory where the conda environment will be installed
-
-To install the package grs in conda:
-
-```
-source conda/conda_grs.sh -ci
+conda env create -f environment.yml -p /work/scratch/$USER/grs
 ```
 
-To launch GRS on a pbs node:
+To launch GRS on a pbs node (set the `conda activate` line of the script to this environment):
 
 ```
 qsub launch_grs_exemple.pbs
