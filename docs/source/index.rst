@@ -64,8 +64,15 @@ See the GRS toolbox package `grstbx <https://grstbx.readthedocs.io>`__ (``pip in
 interactive viewers for Jupyter and a web dashboard (``grstbx-viewer``) to explore the L2A and L2B
 products.
 
-.. figure:: _static/grstbx_visual_tool.gif
-   :alt: animated dashboard of grstbx
+.. only:: not latex
+
+   .. figure:: _static/grstbx_visual_tool.gif
+      :alt: animated dashboard of grstbx
+
+.. only:: latex
+
+   .. figure:: _static/grstbx_visual_tool.png
+      :alt: dashboard of grstbx
 
 Indices and tables
 ------------------

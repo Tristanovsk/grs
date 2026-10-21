@@ -64,11 +64,21 @@ and L2B products, time series of products or datacubes in the browser
 grstbx-viewer S2B_MSIL2AGRS_20200411T110619_T30TWT.zarr
 ```
 
+::::{only} not latex
 ```{figure} ../_static/grstbx_visual_tool.gif
 :alt: animated view of the interactive viewer of grstbx
 
 Interactive exploration of an L2A image with grstbx.
 ```
+::::
+
+::::{only} latex
+```{figure} ../_static/grstbx_visual_tool.png
+:alt: view of the interactive viewer of grstbx
+
+Interactive exploration of an L2A image with grstbx.
+```
+::::
 
 ```{toctree}
 :maxdepth: 1
