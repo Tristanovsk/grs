@@ -68,7 +68,14 @@ GRSProcessor has no built-in scheduler; it is triggered externally, granule by g
 Dataflow
 --------
 
-.. mermaid:: _diagrams/dataflow.mmd
+.. only:: not latex
+
+   .. mermaid:: _diagrams/dataflow.mmd
+
+.. only:: latex
+
+   The dataflow diagram is drawn with Mermaid: see the
+   `online documentation <https://grs.readthedocs.io/en/latest/processing_chain.html#dataflow>`__.
 
 Inputs
 ------

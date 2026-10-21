@@ -61,8 +61,15 @@ Interactive data manipulation
 
 See the GRS toolbox package `grstbx <https://github.com/Tristanovsk/grstbx>`__.
 
-.. figure:: _static/grstbx_visual_tool.gif
-   :alt: animated dashboard of grstbx
+.. only:: not latex
+
+   .. figure:: _static/grstbx_visual_tool.gif
+      :alt: animated dashboard of grstbx
+
+.. only:: latex
+
+   .. figure:: _static/grstbx_visual_tool.png
+      :alt: dashboard of grstbx
 
 Indices and tables
 ------------------
