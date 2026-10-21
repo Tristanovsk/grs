@@ -39,6 +39,7 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
 
    examples/basics
    examples/auxdata
+   examples/batch
    examples/advanced
    examples/visualization
 
