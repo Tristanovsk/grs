@@ -70,6 +70,9 @@ Dates are given for tagged releases only.
   processing threads is reused, about 2-3 GB less peak memory with the parallel band reading of GRSdriver.
 - Blocks without water pixels are skipped in the final processing; the disabled sunglint slope
   probability is no longer computed.
+- Integration tests moved to the unit tests (Level-1 product, CAMS data, gaseous transmittance, log
+  files) on the small Camargue subset of `grs/tests/data`: the Git LFS test data (`grs/tests/inputs`)
+  and `grs/tests/integration_tests` are removed, and CI no longer fetches LFS files.
 
 ### Fixed
 - NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):

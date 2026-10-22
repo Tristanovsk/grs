@@ -42,7 +42,7 @@ required to actually run `grs` on data.
 ## Running tests
 
 ```bash
-pytest grs/tests/unit/ grs/tests/integration_tests/
+pytest grs/tests/unit/
 ```
 
 This is the same test suite executed by CI (job `python-tests` in
