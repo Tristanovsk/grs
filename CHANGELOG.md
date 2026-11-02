@@ -74,6 +74,16 @@ Dates are given for tagged releases only.
   files) on the small Camargue subset of `grs/tests/data`: the Git LFS test data (`grs/tests/inputs`)
   and `grs/tests/integration_tests` are removed, and CI no longer fetches LFS files.
 
+### Removed
+- Legacy eager methods of `Kernel`: `rugosity_est`, `aerosol_swir`, `aerosol_visible` and
+  `aerosol_visible_chunk_old` (use the `*_chunk` methods), with the `recalib_aot_ref` and
+  `retrieved_aot_ref` attributes they set.
+- Unused arguments and attributes of `Kernel`: `chunk` of the `*_chunk` block methods, `update_state` of
+  `aerosol_visible_chunk`, and `neg_pix_max`.
+- `grs.auxdata` module: `AuxData` moved to `grs.utils` (`from grs import AuxData` still works); the
+  obsolete `SensorData` (it could no longer be instantiated) and the masking thresholds are removed, with
+  `grs/TEST/src/test_auxdata.py`, which only tested them.
+
 ### Fixed
 - NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):
   the boolean attributes are written as integers (0/1) in the NetCDF files; Zarr keeps the booleans.

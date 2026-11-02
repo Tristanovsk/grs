@@ -123,7 +123,7 @@ and the retrieved value is
 
 .. math::
 
-   \hat\tau_{ref} = \max\left\{ \tau_{ref} \;:\; N(\tau_{ref}) < \eta\, \max\left(N_0, \max_\tau N(\tau)\right) \right\}
+   \hat\tau_{ref} = \max\left\{ \tau_{ref} \;:\; N(\tau_{ref}) < \eta\, \max_\tau N(\tau) \right\}
 
 with :math:`\eta` = ``neg_pix_rel_thresh``. It is first bounded with the SWIR bands
 (`Kernel.aerosol_swir_chunk`), then retrieved from the visible-NIR bands, one value per block of the
@@ -150,9 +150,8 @@ Dask design
 
 * **Block functions are pure.** ``*_chunk`` methods and ``final_process_chunk`` only *read* the
   kernel (LUTs, ancillary data, settings) and return their result: nothing is written to ``self`` while a
-  block is processed (the previous version stored ``Tdir``, ``_p_slope_``, ``aot_ref_max``... on the
-  instance, which is a race between threads and keeps the arrays of the last block alive). They can be
-  used in ``xr.map_blocks`` / ``dask.delayed`` with the threaded or the distributed scheduler.
+  block is processed. They can be used in ``xr.map_blocks`` / ``dask.delayed`` with the threaded or the
+  distributed scheduler.
 * **Blocks are loaded once.** A block may be lazy (dask-backed); each function loads only the variables and
   bands it needs a single time, instead of re-evaluating the graph at every ``.values`` of an
   ``aot_ref`` loop.
@@ -185,9 +184,8 @@ import rioxarray  # noqa: F401  (registers the .rio accessor used by the callers
 from numba import njit
 from scipy import ndimage
 
-from .auxdata import AuxData
 from .config import load_config
-from .utils import Rasterization, GaseousTransmittance, Misc
+from .utils import AuxData, Rasterization, GaseousTransmittance, Misc
 
 # --------------------------------------------------
 # settings of the configuration (see grs.config)
@@ -274,18 +272,16 @@ class _NegativeCounter:
         return np.asarray(self._counts, dtype=np.int64)
 
 
-def _aot_ref_candidates(aot_refs, counts, previous_max, rel_thresh):
+def _aot_ref_candidates(aot_refs, counts, rel_thresh):
     '''
     ``aot_ref`` values with few negative pixels, in the order of `aot_refs`.
 
     :param aot_refs: tested ``aot_ref`` values
     :param counts: number of negative pixels for each of them (see `_NegativeCounter`)
-    :param previous_max: lower bound of the reference number of negative pixels
-    :param rel_thresh: accepted fraction of the reference number (max of `previous_max` and `counts`)
-    :return: array of the ``aot_ref`` whose count is below ``rel_thresh * reference``
+    :param rel_thresh: accepted fraction of the largest count
+    :return: array of the ``aot_ref`` whose count is below ``rel_thresh * counts.max()``
     '''
-    neg_pix_max = np.max([previous_max, counts.max()])
-    return np.asarray(aot_refs)[counts < neg_pix_max * rel_thresh]
+    return np.asarray(aot_refs)[counts < counts.max() * rel_thresh]
 
 
 @njit
@@ -358,8 +354,6 @@ class Kernel():
 
         self.wl_true = prod.raster.wl_true
         self.pressure_ref = 101320.
-
-        self.neg_pix_max = 0
 
         if 'S2' in prod.sensor:
             self.monoview = False
@@ -731,8 +725,7 @@ class Kernel():
                            raster,
                            aot_ref=0.1,
                            winds=np.linspace(0.2, 15, 25),
-                           idx_nir=[6, 7, 8, 10],
-                           chunk=100000
+                           idx_nir=[6, 7, 8, 10]
                            ):
         r'''
         Wind speed retrieval from the sunglint, on one block (use with ``xr.map_blocks``).
@@ -769,7 +762,6 @@ class Kernel():
         :param aot_ref: AOT at the reference wavelength used for the diffuse light correction
         :param winds: candidate wind speeds (m/s)
         :param idx_nir: indices of the (at least four) NIR / SWIR bands used
-        :param chunk: unused, kept for compatibility
         :return: Dataset (y, x) with ``wind`` (m/s, float64), ``cost`` (float64) and ``brdf_g`` (the SWIR
             reflectance after the diffuse light correction), or None for an empty block
         '''
@@ -848,7 +840,6 @@ class Kernel():
                            aot_refs=[0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8],
                            idx_swir=[-2, -1],
                            neg_pix_rel_thresh=0.05,
-                           chunk=100000,
                            keep_xres=False
                            ):
         r'''
@@ -883,7 +874,6 @@ class Kernel():
         :param aot_refs: tested AOT values at the reference wavelength, increasing, starting at 0
         :param idx_swir: indices of the two SWIR bands
         :param neg_pix_rel_thresh: accepted fraction of negative pixels
-        :param chunk: unused, kept for compatibility
         :param keep_xres: keep the reflectance of every ``aot_ref`` in ``self.xres`` (debugging; one full
             raster per ``aot_ref``)
         :return: ``aot_ref_max``, or None for an empty raster
@@ -934,11 +924,11 @@ class Kernel():
             self.xres = xr.concat(xres, dim='aot_ref')
 
         # get aot550 max from which negative Rrs appear
-        aot_ref_maxs = _aot_ref_candidates(aot_refs, counter.counts, 0, neg_pix_rel_thresh)
+        aot_ref_maxs = _aot_ref_candidates(aot_refs, counter.counts, neg_pix_rel_thresh)
         if len(aot_ref_maxs) > 0:
             aot_ref_max = aot_ref_maxs[-1]
         else:
-            aot_ref_max = aot_refs[-1] * 0.8  # self.aot_ref_cams_max
+            aot_ref_max = aot_refs[-1] * 0.8
 
         # to stay within LUT aot range
         if not ((aot_ref_max > 0) and (aot_ref_max < self.aot_ref_lim)):
@@ -952,9 +942,7 @@ class Kernel():
                               # aot_refs=[0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8],
                               iwl_swir=[-2, -1],
                               neg_pix_rel_thresh=0.05,
-                              chunk=100000,
-                              keep_xres=False,
-                              update_state=False
+                              keep_xres=False
                               ):
         r'''
         AOT retrieval from the visible-NIR bands, on one block (use with ``xr.map_blocks`` / ``dask.delayed``).
@@ -994,24 +982,19 @@ class Kernel():
            \qquad V = \left\{\mathbf{x} : \min_{\lambda \in \Lambda_7} R_{rs}^{TOA}(\lambda, \mathbf{x}; 0)
            > -0.0003\right\}
 
-           \hat\tau_{ref} = \max\left\{\tau_{ref} : N(\tau_{ref}) < \eta\,
-           \max\left(N_0, \max_\tau N(\tau)\right)\right\}
+           \hat\tau_{ref} = \max\left\{\tau_{ref} : N(\tau_{ref}) < \eta\, \max_\tau N(\tau)\right\}
 
-        with :math:`\eta` = ``neg_pix_rel_thresh`` and :math:`N_0` = ``self.neg_pix_max``.
+        with :math:`\eta` = ``neg_pix_rel_thresh``.
 
-        The block only reads ``self.aot_ref_max`` (set by ``aerosol_swir_chunk``) and ``self.neg_pix_max``;
-        it does not modify the instance, so blocks are independent of each other and of the order or the
-        threads they run in (the previous version overwrote ``aot_ref_max`` at the end of every block).
+        The block only reads ``self.aot_ref_max`` (set by ``aerosol_swir_chunk``); it does not modify the
+        instance, so blocks are independent of each other and of the order or the threads they run in.
 
         :param raster: Dataset block (lazy or not) with ``bands``, ``sza``, ``raa``, ``vza``,
             ``water_pixel_number`` and the coordinates ``wl``, ``x``, ``y``
         :param iwl_swir: indices of the two SWIR bands used for the sunglint
         :param neg_pix_rel_thresh: accepted fraction of negative pixels
-        :param chunk: unused, kept for compatibility
         :param keep_xres: keep the reflectance of every ``aot_ref`` in ``self.xres`` (debugging; 21 full
             blocks, not thread safe)
-        :param update_state: store the retrieved AOT in ``self.aot_ref_max`` (only meaningful when the
-            function is called once on the whole raster; not thread safe)
         :return: Dataset with one pixel (y, x = block centre): ``aot_ref`` and ``number_of_pixel`` (number
             of water pixels of the block), or None for an empty block
         '''
@@ -1029,7 +1012,6 @@ class Kernel():
 
         # settings read once: they must not change while the block is processed
         aot_ref_max_in = self.aot_ref_max
-        neg_pix_max_in = self.neg_pix_max
         sunglint_eps = self.sunglint_eps.values
         rot = self.rot.values
 
@@ -1093,8 +1075,6 @@ class Kernel():
                     Rf[iwl] = Rf[iwl] / (
                             _Tg_abs[iwl] * Tdir[iwl] * sunglint_eps[iwl] * _p_slope_[iwl])
 
-            # Rf[Rf < -0.0004] = np.nan
-            # Rf[Rf < 0.] = 0.0
             Rf = np.abs(Rf)
             Rf = np.min(Rf, axis=0)
 
@@ -1115,14 +1095,12 @@ class Kernel():
         if keep_xres:
             self.xres = xr.concat(xres, dim='aot_ref')
 
-        aot_ref_maxs = _aot_ref_candidates(aot_refs, counter.counts, neg_pix_max_in, neg_pix_rel_thresh)
+        aot_ref_maxs = _aot_ref_candidates(aot_refs, counter.counts, neg_pix_rel_thresh)
         if len(aot_ref_maxs) > 0:
             aot_ref_max = aot_ref_maxs[-1]
         else:
             aot_ref_max = self._cams_aod550.interp(x=raster.x, y=raster.y).mean(['y', 'x']).values
 
-        if update_state:
-            self.aot_ref_max = aot_ref_max
         number_of_pixel = raster.water_pixel_number.sum(['y', 'x']).values
         retrieved_aot = xr.Dataset({'aot_ref': (["y", "x"], np.array([[aot_ref_max]])),
                                     'number_of_pixel': (["y", "x"], np.array([[number_of_pixel]]))},
@@ -1367,7 +1345,7 @@ class Kernel():
         The image is cut into ``chunk x chunk`` blocks (all wavelengths in one block) and
         `final_process_chunk` is mapped on them with ``xr.map_blocks``: the result is a dask-backed
         Dataset, evaluated when it is written or computed, so that neither ``Rrs`` nor any intermediate
-        full-size array is in memory. Sets ``self.xres`` (as before) and returns it.
+        full-size array is in memory. Sets ``self.xres`` and returns it.
 
         :param raster: Dataset of the image with ``bands``, ``sza``, ``raa``, ``vza`` (dimensions wl, y, x)
         :param aot_ref_raster: DataArray (y, x) with the AOT at the reference wavelength, on a coarse grid
@@ -1376,8 +1354,7 @@ class Kernel():
         :param chunk: block size in pixels. A block needs about ``15 * n_bands * chunk**2 * 8`` bytes while it
             is computed (~350 MB for 512, ~1.4 GB for 1024, per thread). 512 divides the 1024 shards of
             ``export_to_zarr``, which merges four blocks per shard without recomputing anything.
-        :param lazy: if False, compute the result immediately (previous behaviour, needs the memory of the
-            full output)
+        :param lazy: if False, compute the result immediately (needs the memory of the full output)
         :return: Dataset ``xres`` with ``Rrs`` (wl, y, x), ``BRDFg`` (y, x), ``aot550`` (y, x)
 
         Notes
@@ -1541,520 +1518,3 @@ class Kernel():
         ok = count > 0.5 / (size[0] * size[1])  # a true count is at least 1 / (window size), the rest is rounding
         out[ok] = total[ok] / count[ok]
         return out
-
-    # ------------------------------------------------------------------
-    # LEGACY eager versions, kept unchanged for backward compatibility (not dask-friendly).
-    # They allocate full-size numpy arrays and one full raster per aot_ref, and write results to self.
-    # Superseded by: rugosity_est_chunk, aerosol_swir_chunk, aerosol_visible_chunk, final_process.
-    # `rugosity_est` is known not to work (see its TODO). Delete them once nothing calls them.
-    # ------------------------------------------------------------------
-
-    def rugosity_est(self,
-                     raster,
-                     aot_ref=0.1,
-                     winds=np.linspace(0.2, 15, 25),
-                     idx_nir=[6, 7, 8, 10],
-                     chunk=100000
-                     ):
-
-        monoview = self.monoview
-        _R_ = self._R_
-
-        _raster = raster.isel(wl=idx_nir)
-        _Nwl, _height, _width = _raster.bands.shape
-        _wl_true = self.wl_true[idx_nir]
-        Rdiff_lut_ = self.Rdiff_lut.isel(wl=idx_nir)
-
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-        _Tg_raster = self.Tg_raster.interp(x=raster.x, y=raster.y)
-
-        # TODO check if possible/necessary to implement the chunk process (not working now)
-        for iy in range(0, _height, chunk):
-            yc = min(_height, iy + chunk)
-
-            for ix in range(0, _width, chunk):
-
-                xc = min(_width, ix + chunk)
-
-                _band_rad = _raster.bands[:, iy:yc, ix:xc]
-
-                Nwl, Ny, Nx = _band_rad.shape
-                if Ny == 0 or Nx == 0:
-                    continue
-                arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-
-                # subsetting
-                _sza = _raster.sza[iy:yc, ix:xc]  # .values
-                _raa = _raster.raa[:, iy:yc, ix:xc]
-                _vza = _raster.vza[:, iy:yc, ix:xc]
-                _vza_mean = np.mean(_vza, axis=0).values
-                _azi = (180. - _raa) % 360
-
-                _pressure_ = _pressure[iy:yc, ix:xc] / self.pressure_ref
-
-                _Tg_abs = _Tg_raster[idx_nir, iy:yc, ix:xc].values
-                _Tg_abs_diff = _Tg_diff_raster[idx_nir, iy:yc, ix:xc].values
-
-                # get LUT values
-                _Rdiff = _R_.interp_Rlut_rayleigh(self.szas, _sza.values,
-                                                  self.vzas, _vza.values,
-                                                  self.azis, _azi.values,
-                                                  Nwl, Ny, Nx,
-                                                  Rdiff_lut_.interp(aot_ref=aot_ref, method='linear').values)
-
-                _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
-
-                #  correction for diffuse light
-                Rcorr = _band_rad - _Rdiff
-
-                delta_R = []
-                for wind in winds:
-                    _sigma2 = (wind + 0.586) / 195.3
-
-                    _p_slope = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2,
-                                            monoview=monoview).values  # _p_slope[:, iy:yc,ix:xc]
-
-                    Rgeom = _p_slope[2] * Rcorr / (_Tg_abs * _p_slope)
-
-                    deltaR = ((Rgeom[2] - Rgeom[0]) * (_wl_true[1] - _wl_true[0]) /
-                              (_wl_true[2] - _wl_true[0]) + Rgeom[0] - Rgeom[1])
-                    delta_R.append(deltaR.assign_coords({'wind': wind}))
-        swir_Rcorr = Rcorr[-1]
-
-        delta_R = xr.concat(delta_R, dim='wind')
-
-        @njit
-        def find_root(cost, nx, ny, values, result):
-            for ix in range(nx):
-                for iy in range(ny):
-
-                    if np.isnan(cost[:, iy, ix]).all():
-                        continue
-
-                    ind_wind = np.argmin(cost[:, iy, ix])
-
-                    result[ix, iy, :] = [values[ind_wind], cost[ind_wind, iy, ix]]
-            return result
-
-        cost = delta_R.values ** 2
-        nx, ny = _width, _height
-        values = winds
-        result = np.full((_width, _height, 2), np.nan)
-        result = find_root(cost, nx, ny, values, result)
-
-        self.wind_img = xr.Dataset(dict(wind=(["y", "x"], result[:, :, 0].T),
-                                        cost=(["y", "x"], result[:, :, 1].T),
-                                        brdf_g=(["y", "x"], swir_Rcorr.values)
-                                        ),
-                                   coords=dict(
-                                       x=raster.x,
-                                       y=raster.y),
-                                   attrs=dict(
-                                       description="wind speed retrieved from sunglint, parallax and isotropic Cox-Munk model",
-                                       units='m.s-1')
-                                   )
-
-    def aerosol_swir(self,
-                     raster,
-                     aot_refs=[0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8],
-                     idx_swir=[-2, -1],
-                     neg_pix_rel_thresh=0.05,
-                     chunk=100000
-                     ):
-
-        monoview = self.monoview
-        _R_ = self._R_
-
-        _raster = raster.isel(wl=idx_swir)
-        _Nwl, _height, _width = _raster.bands.shape
-        Rdiff_lut_ = self.Rdiff_lut.isel(wl=idx_swir).interp(aot_ref=aot_refs, method='quadratic')
-
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-
-        sigma2 = (self.wind_img.wind + 0.586) / 195.3
-        _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-
-        Rrs_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
-
-        xres = []
-        for _aot_ref in aot_refs:
-            _aot = self.aot_lut.interp(aot_ref=_aot_ref, method='quadratic')  # .values
-            for iy in range(0, _height, chunk):
-                yc = min(_height, iy + chunk)
-
-                for ix in range(0, _width, chunk):
-                    xc = min(_width, ix + chunk)
-
-                    _band_rad = _raster.bands[:, iy:yc, ix:xc]
-
-                    Nwl, Ny, Nx = _band_rad.shape
-                    if Ny == 0 or Nx == 0:
-                        continue
-                    arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-
-                    # subsetting
-                    _sigma2_ = _sigma2[iy:yc, ix:xc]
-                    _sza = _raster.sza[iy:yc, ix:xc]  # .values
-                    if monoview:
-                        _raa = _raster.raa[iy:yc, ix:xc]
-                        _vza = _raster.vza[iy:yc, ix:xc]
-                        _vza_mean = _vza.values
-                    else:
-                        _raa = _raster.raa[:, iy:yc, ix:xc]
-                        _vza = _raster.vza[:, iy:yc, ix:xc]
-                        _vza_mean = np.mean(_vza, axis=0).values
-
-                    _azi = (180. - _raa) % 360
-
-                    _pressure_ = _pressure[iy:yc, ix:xc] / self.pressure_ref
-
-                    _Tg_abs_diff = _Tg_diff_raster[idx_swir, iy:yc, ix:xc].values
-
-                    # get LUT values
-                    _Rdiff = _R_.interp_Rlut_rayleigh(self.szas, _sza.values,
-                                                      self.vzas, _vza.values,
-                                                      self.azis, _azi.values,
-                                                      Nwl, Ny, Nx,
-                                                      Rdiff_lut_.sel(aot_ref=_aot_ref, method='nearest').values)
-
-                    _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
-
-                    #  correction for diffuse light
-                    Rcorr = _band_rad.values - _Rdiff
-                    Rrs_tmp[:, iy:yc, ix:xc] = Rcorr
-
-            xres_ = xr.Dataset(dict(Rrs=(['wl', "y", "x"], Rrs_tmp),
-                                    ),
-                               coords=dict(wl=_raster.wl,
-                                           x=_raster.x,
-                                           y=_raster.y,
-                                           aot_ref=_aot_ref), ).__deepcopy__()
-            xres.append(xres_)
-
-        self.xres = xr.concat(xres, dim='aot_ref')
-
-        # get aot550 max from which negative Rrs appear
-        metric = self.xres.Rrs.min('wl')
-        metric = metric.where(metric.isel(aot_ref=0) > 0)
-
-        metric_pixnum = metric.where(metric < 0).count(['x', 'y'])
-        neg_pix_max = metric_pixnum.max()
-        metric_pixnum_max = neg_pix_max * neg_pix_rel_thresh
-
-        aot_ref_maxs = metric_pixnum.where(metric_pixnum < metric_pixnum_max, drop=True).aot_ref
-        if len(aot_ref_maxs) > 0:
-            self.aot_ref_max = aot_ref_maxs.values[-1]
-        else:
-            self.aot_ref_max = aot_refs[-1]  # self.aot_ref_cams_max
-
-        # for further lut interpolation:
-        # self.aot_ref_max = np.max([0.011, aot_ref_max])
-
-        # to stay within LUT aot range
-        if ~((self.aot_ref_max > 0) & (self.aot_ref_max < self.aot_ref_lim)):
-            self.aot_ref_max = np.min([self.aot_ref_cams_max, self.aot_ref_lim])
-
-        # TODO uncomment after end of dev
-        # del self.xres
-
-    def aerosol_visible_chunk_old(self,
-                              raster,
-                              # aot_refs=[0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8],
-                              iwl_swir=[-2, -1],
-                              neg_pix_rel_thresh=0.05,
-                              chunk=100000
-                              ):
-        ##############################################
-        # Estimate AOT from visible-NIR
-        ##############################################
-        monoview = self.monoview
-        _R_ = self._R_
-
-        _band_rad = raster.bands
-        Nwl, Ny, Nx = _band_rad.shape
-        if Ny == 0 or Nx == 0:
-            return
-
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-        _Tg_abs_diff = _Tg_diff_raster.values
-        _Tg_raster = self.Tg_raster.interp(x=raster.x, y=raster.y)
-        _Tg_abs = _Tg_raster.values
-
-        # parameters
-        _sza = raster.sza
-        _raa = raster.raa
-        _vza = raster.vza
-        _vza_mean = np.mean(_vza, axis=0).values
-        _azi = (180. - _raa) % 360
-        _air_mass_ = Misc.air_mass(_sza, _vza)
-        _pressure_ = _pressure / self.pressure_ref
-
-        sigma2 = (self.wind_img.wind + 0.586) / 195.3
-        _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-        _p_slope_ = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2,
-                                 monoview=monoview).values
-
-        xres = []
-
-        sunglint_eps = self.sunglint_eps.values
-
-        aot_ref_bound = np.min([self.aot_ref_max * 1.02, self.aot_ref_lim])
-        aot_refs = np.linspace(0, aot_ref_bound, 21)
-
-        xres = []
-        for _aot_ref in aot_refs:
-            _aot = self.aot_lut.interp(aot_ref=_aot_ref, method='quadratic')  # .values
-
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-
-            # get LUT values
-            _Rdiff = _R_.interp_Rlut_rayleigh(self.szas, _sza.values,
-                                              self.vzas, _vza.values,
-                                              self.azis, _azi.values,
-                                              Nwl, Ny, Nx,
-                                              self.Rdiff_lut.sel(aot_ref=_aot_ref, method='nearest').values)
-
-            _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
-
-            #  correction for diffuse light
-            Rcorr = _band_rad.values - _Rdiff
-
-            # direct transmittance up/down
-            Tdir = np.exp(-(_aot + self.rot.values * np.mean(
-                _pressure_)) * _air_mass_)  # acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
-            self.Tdir = Tdir
-            self._p_slope_ = _p_slope_
-            self._Tg_abs = _Tg_abs
-
-            Rf = np.full((len(iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
-            for iwl in iwl_swir:
-                if monoview:
-                    Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * sunglint_eps[iwl] * _p_slope_)
-                else:
-                    Rf[iwl] = (sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl])
-                    Rf[iwl] = Rf[iwl] / (
-                            _Tg_abs[iwl] * Tdir[iwl] * sunglint_eps[iwl] * _p_slope_[iwl])
-
-            #Rf[Rf < -0.0004] = np.nan
-            #Rf[Rf < 0.] = 0.0
-            Rf =np.abs(Rf)
-            Rf = np.min(Rf, axis=0)
-
-            Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
-            Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
-
-            # sunglint removal
-            Rrs_toa = ((Rcorr - Rf) / np.pi)
-
-            # print('success')
-            xres_ = xr.Dataset(dict(Rrs=(['wl', "y", "x"], Rrs_toa.values),
-                                    ),
-                               coords=dict(wl=raster.wl,
-                                           x=raster.x,
-                                           y=raster.y,
-                                           aot_ref=_aot_ref),
-                               ).__deepcopy__()
-            xres.append(xres_)
-        xres = xr.concat(xres, dim='aot_ref')
-        self.xres = xres
-
-        metric = (xres.Rrs.isel(wl=slice(0, 7)).min('wl'))
-        # remove pixel with negative Rrs in Rayleigh correction (e.g., shadows)
-        metric = metric.where(metric.isel(aot_ref=0) > -0.0003)
-
-        metric_pixnum = metric.where(metric < 0).count(['x', 'y'])
-        #print(metric_pixnum)
-        neg_pix_max = np.max([self.neg_pix_max, metric_pixnum.max()])
-        metric_pixnum_max = neg_pix_max * neg_pix_rel_thresh
-
-        aot_ref_maxs = metric_pixnum.where(metric_pixnum < metric_pixnum_max, drop=True).aot_ref
-        if len(aot_ref_maxs) > 0:
-            aot_ref_max = aot_ref_maxs.values[-1]
-        else:
-            retrieved_aot = (self.cams.cams_aod.interp(wl=550, method='quadratic')).interp(x=raster.x, y=raster.y)
-            retrieved_aot.name = 'aot_ref'
-            return retrieved_aot
-
-        self.aot_ref_max = aot_ref_max
-        print('----------------')
-        print(aot_ref_max)
-        print('----------------')
-
-        # ind = np.nanargmin((aot_refs - aot_ref_max) ** 2)
-        # map_pixels = metric.sel(aot_ref=aot_refs[ind])
-
-        map_pixels = self.cams.cams_aod.interp(wl=550, method='quadratic'
-                                               ).interp(x=metric.x, y=metric.y)
-
-        map_pixels = map_pixels.where(map_pixels < 0)
-
-        cams_aot_ref_mean_ = map_pixels.mean().values
-        if np.isnan(cams_aot_ref_mean_):
-            cams_aot_ref_mean_ = self.cams.cams_aod.interp(wl=550, method='quadratic').mean()
-
-        self.recalib_aot_ref = float(aot_ref_max / cams_aot_ref_mean_)
-
-        retrieved_aot = (self.cams.cams_aod.interp(wl=550, method='quadratic') * self.recalib_aot_ref).interp(
-            x=raster.x, y=raster.y)
-        retrieved_aot.name = 'aot_ref'
-        return retrieved_aot
-
-    def aerosol_visible(self,
-                        raster,
-                        # aot_refs=[0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8],
-                        iwl_swir=[-2, -1],
-                        neg_pix_rel_thresh=0.05,
-                        chunk=100000
-                        ):
-        ##############################################
-        # Estimate AOT from visible-NIR
-        ##############################################
-        monoview = self.monoview
-        _R_ = self._R_
-
-        _Nwl, _height, _width = raster.bands.shape
-        sunglint_eps = self.sunglint_eps.values
-
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-
-        sigma2 = (self.wind_img.wind + 0.586) / 195.3
-        _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-        _Nwl, _height, _width = raster.bands.shape
-
-        _pressure = self.cams.raster.sp.interp(x=raster.x, y=raster.y).values
-        _Tg_diff_raster = self.Tg_diff_raster.interp(x=raster.x, y=raster.y)
-        _Tg_raster = self.Tg_raster.interp(x=raster.x, y=raster.y)
-        _sigma2 = sigma2.interp(x=raster.x, y=raster.y)
-
-        Rrs_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
-        p_slope_tmp = np.full((_Nwl, _height, _width), np.nan, dtype=self.prod._type)
-        Rf_tmp = np.full((_height, _width), np.nan, dtype=self.prod._type)
-
-        aot_ref_bound = np.min([self.aot_ref_max * 1.2, self.aot_ref_lim])
-        aot_refs = np.linspace(0, aot_ref_bound, 21)
-
-        xres = []
-        for _aot_ref in aot_refs:
-            _aot = self.aot_lut.interp(aot_ref=_aot_ref, method='quadratic')  # .values
-            for iy in range(0, _height, chunk):
-                yc = min(_height, iy + chunk)
-
-                for ix in range(0, _width, chunk):
-                    xc = min(_width, ix + chunk)
-
-                    _band_rad = raster.bands[:, iy:yc, ix:xc]
-
-                    Nwl, Ny, Nx = _band_rad.shape
-                    if Ny == 0 or Nx == 0:
-                        continue
-                    arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
-
-                    # subsetting
-                    _sigma2_ = _sigma2[iy:yc, ix:xc]
-                    _sza = raster.sza[iy:yc, ix:xc]  # .values
-                    if monoview:
-                        _raa = raster.raa[iy:yc, ix:xc]
-                        _vza = raster.vza[iy:yc, ix:xc]
-                        _vza_mean = _vza.values
-                    else:
-                        _raa = raster.raa[:, iy:yc, ix:xc]
-                        _vza = raster.vza[:, iy:yc, ix:xc]
-                        _vza_mean = np.mean(_vza, axis=0).values
-
-                    _azi = (180. - _raa) % 360
-                    _air_mass_ = Misc.air_mass(_sza,
-                                               _vza)  # air_mass[:, iy:yc,ix:xc] #air_mass(_sza,_vza).values #_p_slope = prod.raster.p_slope[:, iy:yc,ix:xc]
-                    _p_slope_ = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2_,
-                                             monoview=monoview).values  # _p_slope[:, iy:yc,ix:xc]
-
-                    _pressure_ = _pressure[iy:yc, ix:xc] / self.pressure_ref
-                    _Tg_abs = _Tg_raster[:, iy:yc, ix:xc].values
-                    _Tg_abs_diff = _Tg_diff_raster[:, iy:yc, ix:xc].values
-
-                    # get LUT values
-                    _Rdiff = _R_.interp_Rlut_rayleigh(self.szas, _sza.values,
-                                                      self.vzas, _vza.values,
-                                                      self.azis, _azi.values,
-                                                      Nwl, Ny, Nx,
-                                                      self.Rdiff_lut.sel(aot_ref=_aot_ref, method='nearest').values)
-
-                    _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
-
-                    #  correction for diffuse light
-                    Rcorr = _band_rad.values - _Rdiff
-
-                    # direct transmittance up/down
-                    Tdir = np.exp(-(_aot + self.rot.values * np.mean(
-                        _pressure_)) * _air_mass_)  # acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
-                    self.Tdir = Tdir
-                    self._p_slope_ = _p_slope_
-                    self._Tg_abs = _Tg_abs
-                    self._p_slope_ = _p_slope_
-                    Rf = np.full((len(iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
-                    for iwl in iwl_swir:
-                        if monoview:
-                            Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * sunglint_eps[iwl] * _p_slope_)
-                        else:
-                            Rf[iwl] = (sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl])
-                            Rf[iwl] = Rf[iwl] / (
-                                    _Tg_abs[iwl] * Tdir[iwl] * sunglint_eps[iwl] * _p_slope_[iwl])
-
-                    Rf[Rf < -0.0004] = np.nan
-                    Rf[Rf < 0.] = 0.0
-                    Rf = np.min(Rf, axis=0)
-                    Rf_tmp[iy:yc, ix:xc] = Rf
-
-                    Rf = _R_._multiplicate(sunglint_eps, Rf, arr_tmp)
-                    Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (sunglint_eps[-1] * _p_slope_[-1])
-
-                    # sunglint removal
-                    # Rrs_tmp_ = Rrs_tmp[:, iy:yc, ix:xc]
-                    Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
-                    p_slope_tmp[:, iy:yc, ix:xc] = _p_slope_
-                    Rrs_tmp[:, iy:yc, ix:xc] = Rrs_tmp_
-                    # no sunglint removal
-                    # Rrs_tmp[:, iy:yc, ix:xc] = (Rcorr  / np.pi)/ Ttot_du
-
-            print('success')
-            xres_ = xr.Dataset(dict(Rrs=(['wl', "y", "x"], Rrs_tmp),
-                                    p_slope=(['wl', "y", "x"], p_slope_tmp),
-                                    BRDFg=(["y", "x"], Rf_tmp),
-                                    ),
-                               coords=dict(wl=raster.wl,
-                                           x=raster.x,
-                                           y=raster.y,
-                                           aot_ref=_aot_ref),
-                               ).__deepcopy__()
-            xres.append(xres_)
-        xres = xr.concat(xres, dim='aot_ref')
-        self.xres = xres
-
-        metric = (xres.Rrs.isel(wl=slice(0, 7)).min('wl'))
-        # remove pixel with negative Rrs in Rayleigh correction (e.g., shadows)
-        metric = metric.where(metric.isel(aot_ref=0) > 0)
-
-        metric_pixnum = metric.where(metric < 0).count(['x', 'y'])
-        neg_pix_max = np.max([self.neg_pix_max, metric_pixnum.max()])
-        metric_pixnum_max = neg_pix_max * neg_pix_rel_thresh
-
-        aot_ref_maxs = metric_pixnum.where(metric_pixnum < metric_pixnum_max, drop=True).aot_ref
-        if len(aot_ref_maxs) > 0:
-            aot_ref_max = aot_ref_maxs.values[-1]
-        else:
-            aot_ref_max = aot_ref_maxs
-        ind = np.nanargmin((aot_refs - aot_ref_max) ** 2)
-
-        map_pixels = metric.sel(aot_ref=aot_refs[ind])
-        map_pixels = self.cams.cams_aod.interp(wl=550, method='quadratic').interp(x=metric.x, y=metric.y).where(
-            map_pixels < 0)
-
-        cams_aot_ref_mean_ = map_pixels.mean().values
-        if np.isnan(cams_aot_ref_mean_):
-            cams_aot_ref_mean_ = self.cams.cams_aod.interp(wl=550, method='quadratic').mean()
-
-        self.recalib_aot_ref = float(aot_ref_max / cams_aot_ref_mean_)
-        self.retrieved_aot_ref = aot_ref_max

@@ -149,8 +149,8 @@ from typing import TYPE_CHECKING
 # the heavy dependencies (torch, LightGBM, eoreader, rasterio...)
 _LAZY = {
     'Aerosol': 'utils', 'Misc': 'utils', 'Rasterization': 'utils', 'GaseousTransmittance': 'utils',
+    'AuxData': 'utils',
     'CamsProduct': 'cams',
-    'SensorData': 'auxdata', 'AuxData': 'auxdata',
     'Product': 'product',
     'L2aProduct': 'output',
     'Masking': 'mask',
@@ -162,9 +162,8 @@ __all__ = list(_LAZY)
 
 # static imports for type checkers / IDEs only (never executed), as they cannot follow the lazy ``__getattr__``
 if TYPE_CHECKING:
-    from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
+    from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance, AuxData
     from .cams import CamsProduct
-    from .auxdata import SensorData, AuxData
     from .product import Product
     from .output import L2aProduct
     from .mask import Masking

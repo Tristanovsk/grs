@@ -12,6 +12,8 @@ Contents
 ``Gases`` / ``GaseousTransmittance``
     Absorbing gas parameters, and band-averaged direct gaseous transmittance rasters computed
     from hyperspectral absorption LUTs and CAMS total columns.
+``AuxData``
+    Rayleigh optical thickness and spectral factor of the sunglint, read from the package data.
 ``Misc``
     Small helpers (pressure vs altitude, direct transmittance, air mass, downsampling).
 
@@ -30,12 +32,17 @@ Performance notes
   is not safe for concurrent parallel calls); do not call them from several dask threads at once.
 '''
 import logging
+from importlib.resources import files
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 import rioxarray
 
 from numba import njit, prange
+
+sunglint_eps_file = files('grs.data.auxiliary').joinpath('mean_rglint_small_angles_vza_le_12_sza_le_60.txt')
+rayleigh_file = files('grs.data.auxiliary').joinpath('rayleigh_bodhaine.txt')
 
 
 @njit(cache=True)
@@ -736,6 +743,41 @@ class GaseousTransmittance(Gases):
         # TODO improve for air_mass raster
         Twvs = self.Twv_lut.Twv.interp(air_mass=self.air_mass_mean).interp(tcwv=tcwvs, method='linear').drop('air_mass')
         self.Twv_raster = Twvs.interp(tcwv=tcwv_vals, method='nearest')
+
+
+class AuxData():
+    '''
+    Class to load auxiliary data:
+
+    - Rayleigh optical thickness
+    - Factor for the spectral variation of the Fresnel reflectance to be applied to sunglint calculation.
+    '''
+
+    def __init__(self, wl=None):
+        # load data from raw files
+
+        self.sunglint_eps = pd.read_csv(sunglint_eps_file, sep=r'\s+', index_col=0).to_xarray()
+        self.rayleigh()
+
+        # reproject onto desired wavelengths
+        if wl is not None:
+            self.sunglint_eps = self.sunglint_eps['mean'].interp(wl=wl)
+            self.rot = self.rot.interp(wl=wl)
+
+    def rayleigh(self):
+        '''
+        Rayleigh Optical Thickness for
+        P=1013.25mb,
+        T=288.15K,
+        CO2=360ppm
+        from
+        Bodhaine, B.A., Wood, N.B, Dutton, E.G., Slusser, J.R. (1999). On Rayleigh
+        Optical Depth Calculations, J. Atmos. Ocean Tech., 16, 1854-1861.
+        '''
+        data = pd.read_csv(rayleigh_file, skiprows=16, sep=' ', header=None)
+        data.columns = ('wl', 'rot', 'dpol')
+        self.rot_pressure_ref = 101325
+        self.rot = data.set_index('wl').to_xarray().rot
 
 
 class Misc:
