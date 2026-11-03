@@ -88,6 +88,9 @@ Dates are given for tagged releases only.
   `grs/TEST/src/test_auxdata.py`, which only tested them.
 
 ### Fixed
+- Installation page of the documentation brought up to date (Python >= 3.11 instead of 3.9, no conda
+  GDAL/eoreader stack, install from PyPI, CPU build of PyTorch, venv or conda, editable install, automatic
+  LUT download with `GRS_DATA_ROOT`/`GRS_NO_DOWNLOAD`, ADS key for CAMS).
 - `wind` was written as uncompressed float64 (Zarr: without Blosc, inner chunks or shards), about 60 % of
   a Zarr product: it is packed as int16 (scale 0.001), 1.2 MB instead of 209 MB at level 0 for a 20 m
   tile, and has its own attributes (`units`, `long_name`) instead of the product ones. The Zarr export
