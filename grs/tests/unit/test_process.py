@@ -77,6 +77,56 @@ def test_mask_and_flags(l2a):
     assert 0.2 < float((l2a.mask == 0).mean()) < 0.95      # water, land and shoreline in the subset
 
 
+def test_clear_sky():
+    """Clear sky = none of the OmniCloudMask bits (11 thick cloud, 12 thin cloud, 13 shadow) set."""
+    from grs.mask import Masking, OCM_BITS
+    assert OCM_BITS == (11, 12, 13)
+    flags = xr.DataArray(np.array([[0, 1 << 3, 1 << 11, 1 << 12],
+                                   [1 << 13, (1 << 3) | (1 << 12), 1 << 10, 1 << 14]], dtype=np.uint32),
+                         dims=('y', 'x'))
+    expected = [[True, True, False, False], [False, False, True, True]]
+    np.testing.assert_array_equal(Masking.clear_sky(flags).values, expected)
+    np.testing.assert_array_equal(Masking.clear_sky(flags.chunk({'y': 1})).values, expected)
+
+
+def test_no_s2cloudless_flags(l2a):
+    """The former s2cloudless bits (1, 2) are not set any more."""
+    assert not (l2a.flags.values & ((1 << 1) | (1 << 2))).any()
+
+
+def test_cloud_screening(monkeypatch, l1c_path, cams_path, l2a, tmp_path):
+    """Pixels of OmniCloudMask class != 0 are not processed (NaN Rrs) and masked.
+
+    The test subset is cloud-free: OmniCloudMask is replaced by a fake prediction with thick cloud, thin cloud
+    and shadow on three bands of rows of the (60 m) image, the rest clear."""
+    import omnicloudmask
+    import grs
+
+    def fake_predict(array, **kwargs):
+        classes = np.zeros(array.shape[1:], dtype=np.uint8)
+        classes[:20], classes[20:30], classes[30:40] = 1, 2, 3
+        return classes[np.newaxis]
+
+    monkeypatch.setattr(omnicloudmask, 'predict_from_array', fake_predict)
+    process = grs.Process()
+    process.execute(l1c_path, cams_file=cams_path, resolution=60, odir=str(tmp_path / 'l2a.zarr'))
+    cloudy_l2a = process.l2a.l2_prod[['Rrs', 'flags', 'mask']].compute()
+
+    flags = cloudy_l2a.flags.values
+    for bit, rows in ((11, slice(0, 20)), (12, slice(20, 30)), (13, slice(30, 40))):
+        assert ((flags[rows] >> bit) & 1).all(), bit
+    cloudy = np.zeros(flags.shape, dtype=bool)
+    cloudy[:40] = True
+    rrs = cloudy_l2a.Rrs.sel(wl=560).values
+    assert np.isnan(rrs[cloudy]).all()
+    assert (cloudy_l2a.mask.values[cloudy] == 1).all()
+    # the clear water pixels are still processed and kept
+    clear_water = ~cloudy & (l2a.mask.values == 0)
+    assert clear_water.sum() > 1000
+    assert np.isfinite(rrs[clear_water]).mean() > 0.99
+    assert (cloudy_l2a.mask.values[clear_water] == 0).mean() > 0.99
+
+
 def test_rrs_on_water(l2a):
     water = (l2a.mask == 0).values
     for wl in (443, 560, 665, 865):

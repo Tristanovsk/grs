@@ -135,10 +135,14 @@ Version history
     - CAMS archive in a YYYY/MM/DD tree
     - lower memory use and faster processing; unit tests
     - PyPI package GRSprocessor
+
+3.1.1:
+    - cloud screening with OmniCloudMask only (s2cloudless removed): only the clear-sky water pixels
+      (OmniCloudMask class 0) are processed
 '''
 
 __package__ = 'grs'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 
 import importlib

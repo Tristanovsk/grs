@@ -178,8 +178,11 @@ class Process:
         self.cams_dir = config['path']['cams']
         self.Nproc = config['processor']['ncpu']
         self.pressure_ref = 101500.
+        # mask recipe (bits of grs.mask): keep the water index pixels (3); mask nodata (0), SURFWATER cloud
+        # and shadow (10), OmniCloudMask thick cloud, thin cloud and shadow (11-13), Landsat dilated cloud (14)
+        # and negative Rrs (18)
         self.flags_tokeep = [3]
-        self.flags_tomask = [0, 1, 10, 13, 14, 18]
+        self.flags_tomask = [0, 10, 11, 12, 13, 14, 18]
         self.successful = False
 
     @_with_workers
@@ -245,7 +248,8 @@ class Process:
         :param aot_step: AOT step of the look-up tables of the final processing (default 0.01)
         :param scale_aot: scaling factor applied to CAMS aod550 raster
         :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
-        :param allpixels: if True process all pixels (no water pixel masking)
+        :param allpixels: if True process all pixels (no water and cloud masking); otherwise only the clear-sky
+            (OmniCloudMask class 0) water pixels are processed
         :param snap_compliant: Output format compliant with SNAP software for practical analysis
         :param provide_kernel: dev option, return the kernel before the retrieval
         :return: the kernel
@@ -271,15 +275,12 @@ class Process:
         INFO:root:pass netcdf image as grs product object
         INFO:root:get CAMS auxilliary data
         INFO:root:flagging from l1c data
-        INFO:root:cloud masking with s2cloudless
-        INFO:root:land masking
-        INFO:root:cirrus masking
-        INFO:root:high swir masking
+        INFO:root:OmniCloudMask processing on 606 x 841 pixels (60 m)
         INFO:root:loading look-up tables
         INFO:root:compute gaseous transmittance from cams data
         INFO:root:correct for gaseous absorption
         INFO:root:compute spectral index (e.g., NDWI)
-        INFO:root:apply water masking
+        INFO:root:apply water and cloud masking
         INFO:root:lut interpolation
         INFO:root:selected aerosol model: DESE_rh70
         INFO:root:scaling aot by: 1
@@ -513,11 +514,14 @@ class Process:
         if allpixels:
             pass  # masked_raster = prod.raster.bands
         else:
-            logging.info('apply water masking')
-            mask = (ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)  # (ndwi > -0.0) &
+            # processed pixels: water (SWIR index, no bright SWIR) and clear sky (OmniCloudMask class 0: no
+            # thick cloud, thin cloud or cloud shadow)
+            logging.info('apply water and cloud masking')
+            mask = ((ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)
+                    & Masking.clear_sky(prod.raster.flags))
             bands = prod.raster.bands
             if bands.chunks is None and mask.chunks is None and bands.dims == ('wl', 'y', 'x'):
-                # in memory: set the non-water pixels to NaN in place (``where`` would copy the whole cube)
+                # in memory: set the pixels not processed to NaN in place (``where`` would copy the whole cube)
                 bands.values[:, ~mask.transpose('y', 'x').values] = np.nan
             else:
                 prod.raster['bands'] = bands.where(mask)

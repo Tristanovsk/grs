@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Dates are given for tagged releases only.
 
-## [Unreleased] - 3.1.0
+## [Unreleased] - 3.1.1
+
+### Changed
+- Cloud screening with OmniCloudMask only, in the core of the processing: the pixels processed (aerosol
+  retrieval and correction) are the clear-sky water pixels, OmniCloudMask class 0 (no thick cloud, thin
+  cloud or cloud shadow, `Masking.clear_sky`); cloudy pixels get NaN `Rrs`. The `mask` recipe masks the
+  OmniCloudMask bits 11, 12 and 13 (was: s2cloudless bit 1 and OmniCloudMask shadow bit 13).
+- s2cloudless removed (masking step, settings, `Masking.s2cloudless_mask` and the `s2cloudless`
+  requirement, with LightGBM): flag bits 1 and 2 (`cloud_p06`, `cloud_p08`) are no longer set.
+
+## [3.1.0]
 
 ### Added
 - New masking procedure including OmniCloudMask (building on the former s2cloudless development).

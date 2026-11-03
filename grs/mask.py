@@ -25,8 +25,7 @@ Flag bits
 bit    name                            meaning
 =====  ==============================  ==========================================================================
 0      ``nodata``                      NaN or crazy value (> 1e3) in the input
-1      ``cloud_p06``                   s2cloudless, low confidence (probability > 0.6, dilation 12)  [Sentinel-2]
-2      ``cloud_p08``                   s2cloudless, high confidence (probability > 0.8, dilation 5)  [Sentinel-2]
+1-2    (unused)                        formerly s2cloudless cloud masks (GRS < 3.1), replaced by OmniCloudMask
 3      ``water_swir_visible_index``    (visible - SWIR) / (visible + SWIR) above threshold
 4      ``water_red_visible_index``     (visible - NIR) / (visible + NIR) above threshold (NDWI-like)
 5      ``thin_cirrus``                 cirrus band above the thin cirrus threshold
@@ -41,6 +40,14 @@ bit    name                            meaning
 14-20  ``l1_*``                        Landsat level-1 QA bits copied from ``flags_l1``  [Landsat only]
 =====  ==============================  ==========================================================================
 
+Clear sky
+=========
+
+The cloud and cloud shadow screening relies on OmniCloudMask (Sentinel-2 and Landsat): a pixel is clear
+when its OmniCloudMask class is 0, i.e. none of the bits ``OCM_BITS`` (11, 12, 13) is set
+(:meth:`Masking.clear_sky`). The processing chain only processes the clear water pixels (see
+:py:meth:`grs.grs_process.Process.execute`).
+
 How it is computed (dask)
 =========================
 
@@ -50,21 +57,18 @@ How it is computed (dask)
   or a ``dask.distributed`` cluster if a client exists); there is no Python tile loop.
 * Only the bands a mask needs are read (band selection is fused into the read when the dataset
   chunks match ``tile_size``).
-* Neighborhood operations (s2cloudless smoothing and dilation) use overlapping tiles
-  (``dask.array.overlap``) with a halo larger than their radius, so the result is identical to a
-  run on the full image while the probability maps only ever exist for one tile.
-* :meth:`Masking.process` evaluates flags **and** per-flag statistics in one ``dask.compute``
-  call, so every tile is processed exactly once. The result (``uint32``, 4 bytes per pixel) is kept
+* Neighbourhood operations (steps with a ``halo``) use overlapping tiles (``dask.array.overlap``)
+  with a halo larger than their radius, so the result is identical to a run on the full image.
+* :meth:`Masking.process` evaluates the tile flags **and** their statistics in one ``dask.compute``
+  call, so every tile is processed exactly once; OmniCloudMask then runs once on a downscaled image
+  (``OCM_resolution``). The result (``uint32``, 4 bytes per pixel) is kept
   in memory and stored in the dataset: cloud detection is never repeated downstream.
 * Peak memory is about ``n_workers x tile_size**2 x (n_bands x 4 bytes x ~3)``. Lower
   ``tile_size`` or the number of workers (``dask.config.set(num_workers=...)``) if memory is tight.
-  s2cloudless uses LightGBM, which has its own threads: on many cores set ``OMP_NUM_THREADS`` or use
-  a distributed cluster with one thread per worker to avoid oversubscription.
 '''
 
 import logging
 from collections import namedtuple
-from functools import lru_cache
 from importlib.metadata import version, PackageNotFoundError
 
 import dask
@@ -74,14 +78,16 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-# omnicloudmask (torch) and s2cloudless (LightGBM) take seconds to import: they are imported where they
-# are used, so that ``import grs`` (and ``grs -v``) stays fast
+# omnicloudmask (torch) takes seconds to import: it is imported where it is used, so that ``import grs``
+# (and ``grs -v``) stays fast
 try:
     _OCM_VERSION = version('omnicloudmask')
 except PackageNotFoundError:
     _OCM_VERSION = 'unknown'
 
 FLAG_NAME = 'flags'
+# flag bits of the OmniCloudMask classes 1 (thick cloud), 2 (thin cloud) and 3 (cloud shadow)
+OCM_BITS = (11, 12, 13)
 
 
 class Settings:
@@ -105,12 +111,6 @@ class Settings:
         ``water_swir_visible_index`` flag: (visible - SWIR) / (visible + SWIR) above this value.
     thin_cirrus_threshold, opac_cirrus_threshold : float
         Cirrus-band reflectance thresholds of the thin and opaque cirrus flags.
-    cloud_average_over : int
-        s2cloudless: size of the averaging window applied to the probability maps (pixels).
-    low_confid_cloud_proba_thresh, high_confid_cloud_proba_thresh : float
-        s2cloudless probability thresholds of the low and high confidence cloud flags.
-    low_confid_cloud_dilation, high_confid_cloud_dilation : int
-        s2cloudless dilation radius (pixels) of the low and high confidence cloud flags.
     OCM_Rband, OCM_Gband, OCM_NIRband : float
         Red, green and NIR bands (nm, nearest available) given to OmniCloudMask.
     OCM_resolution : float or None
@@ -136,13 +136,6 @@ class Settings:
         self.vis_swir_index_threshold = 0.2
         self.thin_cirrus_threshold = 3e-3
         self.opac_cirrus_threshold = 9e-3
-
-        # settings for s2cloudless masks
-        self.cloud_average_over = 1
-        self.low_confid_cloud_proba_thresh = 0.6
-        self.low_confid_cloud_dilation = 12
-        self.high_confid_cloud_proba_thresh = 0.8
-        self.high_confid_cloud_dilation = 5
 
         # settings OmniCloudMask
         self.OCM_Rband = 665
@@ -199,14 +192,6 @@ def _chunks(n, size, minimum=0):
     return tuple(sizes)
 
 
-@lru_cache(maxsize=8)
-def _s2_detector(threshold, average_over, dilation_size):
-    '''s2cloudless detector, created once per process (workers) instead of being shipped with every task.'''
-    from s2cloudless import S2PixelCloudDetector
-    return S2PixelCloudDetector(threshold=threshold, average_over=average_over,
-                                dilation_size=dilation_size, all_bands=True)
-
-
 def _make_block_fn(steps, slot, has_cube, aux_names):
     '''Build the function applied by dask to each tile: runs all `steps` and returns the tile flags.'''
 
@@ -240,7 +225,7 @@ class Masking(Settings):
         to `tile_size`, so no rechunking is needed).
     tile_size : int, optional
         Edge (pixels) of the tiles processed by one task (default 1024). It must be at least as large
-        as the s2cloudless halo (``max(dilation) + average_over + 1`` pixels).
+        as the largest halo of the steps (none of the current steps needs one).
 
     Attributes
     ----------
@@ -251,7 +236,7 @@ class Masking(Settings):
     flag_stats : dict
         Fraction of flagged pixels per flag, keys ``'flag_<name>'``.
     sentinel2 : bool
-        True for Sentinel-2 (s2cloudless is used), False for Landsat (level-1 QA bits are copied).
+        True for Sentinel-2, False for Landsat (the level-1 QA bits are copied).
     '''
 
     def __init__(self, prod: xr.Dataset, tile_size: int = 1024):
@@ -362,37 +347,6 @@ class Masking(Settings):
 
         return _Step(fn, [1], 0, ())
 
-    def _s2cloudless_step(self,
-                          bitmasks=(1, 2),
-                          names=('cloud_p06', 'cloud_p08'),
-                          descriptions=('low confidence cloud mask from s2cloudless with settings proba.',
-                                        'high confidence cloud mask from s2cloudless with settings proba.')):
-        '''Step: s2cloudless cloud masks with two levels of confidence (needs all bands).
-
-        See https://github.com/sentinel-hub/sentinel2-cloud-detector. The probability map is computed
-        once and thresholded/dilated twice. The tiles carry a halo larger than the smoothing and
-        dilation radii, so the result matches a full-image run.
-        '''
-        low_args = (self.low_confid_cloud_proba_thresh, self.cloud_average_over,
-                    self.low_confid_cloud_dilation)
-        high_args = (self.high_confid_cloud_proba_thresh, self.cloud_average_over,
-                     self.high_confid_cloud_dilation)
-        self._register(bitmasks[0], names[0], descriptions[0] + ' threshold={:.2f}, dilation_size={:d}'.format(
-            self.low_confid_cloud_proba_thresh, self.low_confid_cloud_dilation))
-        self._register(bitmasks[1], names[1], descriptions[1] + ' threshold={:.2f}, dilation_size={:d}'.format(
-            self.high_confid_cloud_proba_thresh, self.high_confid_cloud_dilation))
-        halo = max(self.low_confid_cloud_dilation, self.high_confid_cloud_dilation) + self.cloud_average_over + 1
-
-        def fn(t):
-            low, high = _s2_detector(*low_args), _s2_detector(*high_args)
-            data = np.ascontiguousarray(np.moveaxis(t.cube, 0, -1))[np.newaxis]  # (1, h, w, wl)
-            prob = low.get_cloud_probability_maps(data)
-            del data
-            for detector, bit in ((low, bitmasks[0]), (high, bitmasks[1])):
-                _set(t.f, bit, detector.get_mask_from_prob(prob)[0] == 1)
-
-        return _Step(fn, None, halo, ())
-
     def _pixel_size(self):
         '''Native pixel size (units of the ``x`` coordinate, m for projected rasters); None if unknown.'''
         x = self.prod['x'].values if 'x' in self.prod.coords else None
@@ -408,7 +362,7 @@ class Masking(Settings):
         return max(1, int(round(self.OCM_resolution / res)))
 
     def _get_omnicloudmask(self,
-                      bitmasks=(11, 12, 13),
+                      bitmasks=OCM_BITS,
                       names=('OCM_Thick_Cloud', 'OCM_Thin_Cloud', 'OCM_Cloud_Shadow'),
                       descriptions=('Thick Cloud from OmniCloudMask version ' + _OCM_VERSION,
                                     'Thin Cloud from OmniCloudMask version ' + _OCM_VERSION,
@@ -587,11 +541,6 @@ class Masking(Settings):
         '''Compute the nodata flag (bit 0) and add it to ``self.flags``.'''
         self._run([self._nodata_step(*args, **kwargs)])
 
-    def s2cloudless_mask(self, *args, **kwargs):
-        '''Compute the s2cloudless cloud flags (bits 1, 2) and add them to ``self.flags``.'''
-        logging.info('cloud masking with s2cloudless')
-        self._run([self._s2cloudless_step(*args, **kwargs)])
-
     def water_mask(self, *args, **kwargs):
         '''Compute the water index flags (bits 3, 4) and add them to ``self.flags``.'''
         logging.info('water masking')
@@ -675,9 +624,10 @@ class Masking(Settings):
         '''
         Generate the flags raster and attributes in ONE pass over the tiles.
 
-        Builds the lazy dask graph of all masks (nodata, cloud or Landsat QA, water, cirrus if a cirrus
-        band exists, high SWIR, surfwater), then evaluates the flags and the per-flag statistics together
-        with a single ``dask.compute``: every tile is processed once, in parallel. Previously computed
+        Builds the lazy dask graph of the tile masks (nodata, Landsat QA, water, cirrus if a cirrus band
+        exists, high SWIR, surfwater), then evaluates the flags and the per-flag statistics together with a
+        single ``dask.compute``: every tile is processed once, in parallel. The cloud and cloud shadow flags
+        are then added by OmniCloudMask, run once on a downscaled image (bits ``OCM_BITS``). Previously computed
         flags are discarded. The flags are stored (numpy-backed) in ``self.flags`` and in the dataset
         variable ``flags`` with the attributes ``long_name``, ``flag_names``, ``flag_descriptions`` and
         the statistics ``flag_<name>``.
@@ -702,7 +652,8 @@ class Masking(Settings):
         # Other masks based on dask and tile approach
         steps = [self._nodata_step()]
 
-        steps.append(self._s2cloudless_step() if self.sentinel2 else self._landsat_step())
+        if not self.sentinel2:
+            steps.append(self._landsat_step())
         steps.append(self._water_step())
 
         if self.bcirrus:
@@ -721,9 +672,8 @@ class Masking(Settings):
         self.flags = flags
 
         # OmniCloudMask on a downscaled image, mask brought back to the native grid
-        ocm_bits = (11, 12, 13)
-        counts += self._get_omnicloudmask(bitmasks=ocm_bits)
-        bits = bits + list(ocm_bits)
+        counts += self._get_omnicloudmask(bitmasks=OCM_BITS)
+        bits = bits + list(OCM_BITS)
 
         self._store_stats(bits, counts, flags.size)
 
@@ -739,6 +689,17 @@ class Masking(Settings):
             flags = self.prod[FLAG_NAME]
             flags.attrs.update(self.flag_stats)
             return flags
+
+    @staticmethod
+    def clear_sky(flags):
+        '''
+        Clear-sky pixels: OmniCloudMask class 0 (no thick cloud, thin cloud or cloud shadow), i.e. none of
+        the bits ``OCM_BITS`` set.
+
+        :param flags: ``flags`` DataArray (numpy- or dask-backed)
+        :return: boolean DataArray, True for the clear pixels
+        '''
+        return (flags & np.uint32(sum(1 << b for b in OCM_BITS))) == 0
 
     @staticmethod
     def _mask_block(block, tomask_value, tokeep_value, _type):

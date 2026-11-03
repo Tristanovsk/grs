@@ -18,7 +18,6 @@ pandas
 platformdirs
 PyYAML
 rioxarray
-s2cloudless
 scipy
 xarray
 zarr
