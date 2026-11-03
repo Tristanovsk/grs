@@ -99,6 +99,11 @@ See :doc:`api/output` for the layouts.
 The global attributes record the processing settings, among them ``opac_model`` and
 ``aot_resolution``.
 
+Three PNG quicklooks (at most 1000 pixels) are written next to the product: ``<name>_ql_l1c_rgb.png``
+(L1C true colour), ``<name>_ql_l2a_rgb.png`` (``Rrs`` true colour of the water pixels) and
+``<name>_ql_sunglint.png`` (``BRDFg`` of the water pixels), with fixed stretches so that dates can be
+compared. See :ref:`Quicklooks <quicklooks>` for their content.
+
 Read a Zarr product back with:
 
 .. code-block:: python

@@ -123,6 +123,10 @@ Outputs
      - 0..1
      - Alternative format, from the Python API (output path ending in ``.nc``): main file and
        ancillary file ``<name>_anc.nc``, without overviews.
+   * - Quicklooks (``<name>_ql_<kind>.png``)
+     - 0..3
+     - PNG images next to the product: L1C RGB, L2A RGB and sunglint (see `Output product format`_).
+       Not written with ``quicklooks=False``; a failure only logs a warning.
    * - Run log (``log_file.log``)
      - 1..1
      - Full execution log (all levels), written next to the output product.
@@ -171,17 +175,47 @@ Read the product back with xarray:
    import xarray as xr
 
    l2a = xr.open_zarr('<name>.zarr', group='0')          # full resolution
-   quicklook = xr.open_zarr('<name>.zarr', group='3')    # 8 x coarser
+   overview = xr.open_zarr('<name>.zarr', group='3')     # 8 x coarser
    anc = xr.open_zarr('<name>.zarr', group='ancillary')
 
 **NetCDF**: ``<name>.nc`` (main product) and ``<name>_anc.nc`` (ancillary data), local path only, no
 overviews; ``snap_compliant=True`` writes one variable per band for ESA SNAP.
 
-**Quicklooks**: three PNG images (at most 1000 pixels) are written next to the product, in the same pass:
-``<name>_ql_l1c_rgb.png`` (L1C true colour), ``<name>_ql_l2a_rgb.png`` (Rrs true colour of the water
-pixels) and ``<name>_ql_sunglint.png`` (sunglint reflectance ``BRDFg`` of the water pixels). The colour
-stretches are fixed, so that dates can be compared; ``quicklooks=False`` in the export options skips them.
-grstbx adds them to the STAC Items of the products (the L2A RGB as thumbnail).
+.. _quicklooks:
+
+**Quicklooks**: three PNG images are written next to the product (Zarr or NetCDF, local or object
+storage), computed in the same pass over the data::
+
+    <dir>/<name>.zarr                 (or <name>.nc)
+    <dir>/<name>_ql_l1c_rgb.png       L1C true colour
+    <dir>/<name>_ql_l2a_rgb.png       L2A true colour of the water pixels
+    <dir>/<name>_ql_sunglint.png      sunglint of the water pixels
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Quicklook
+     - Data
+     - Stretch
+   * - L1C RGB
+     - TOA reflectance at 665, 560, 490 nm, all pixels (before the gaseous correction)
+     - linear 0-0.3, then gamma 1/2.2
+   * - L2A RGB
+     - ``Rrs`` at 665, 560, 490 nm where ``mask == 0``
+     - linear 0-0.05 sr\ :sup:`-1`, then gamma 1/2.2
+   * - Sunglint
+     - ``BRDFg`` where ``mask == 0``
+     - 0-0.05, ``inferno`` colour map
+
+The images are RGBA, averaged to at most 1000 pixels on the longest side (the full size for smaller
+images). On the L2A RGB and sunglint images, the pixels inside the footprint that are not valid water
+(land, clouds, flagged pixels) are grey, and the pixels outside the footprint are transparent. The
+stretches are fixed, so that the quicklooks of different dates and tiles can be compared. A failure while
+writing them only logs a warning; ``quicklooks=False`` in the export options
+(:py:meth:`~grs.output.L2aProduct.export_to_zarr`, :py:meth:`~grs.output.L2aProduct.export_to_netcdf`)
+skips them. `grstbx <https://grstbx.readthedocs.io>`__ adds them to the STAC Items of the products as
+``ql_l1c_rgb``, ``ql_l2a_rgb`` (thumbnail) and ``ql_sunglint`` assets.
 
 See :doc:`api/output` for all the export options (chunk and shard sizes, compression, number of
 levels...).
