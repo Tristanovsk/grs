@@ -1,118 +1,84 @@
 # GRS Installation and Usage on CNES Machines
 
-This document gathers the instructions specific to installing and running GRS on
-CNES infrastructure (TREX, the HAL HPC cluster, and the PBS/SLURM clusters). For
-general installation instructions (any other machine), see the main
-[README](README.md).
+This document gathers the instructions specific to installing and running GRS on the CNES TREX HPC
+cluster (SLURM). For general installation instructions (any other machine), see the main
+[README](README.md) and the [documentation](https://cnes.github.io/GRSprocessor).
 
-## Installation on TREX (CNES)
+## Installation on TREX
 
-1. First clone the repository (from https or ssh):
-```commandline
-git clone https://gitlab.cnes.fr/waterquality/grs2.git
-```
-or
-```commandline
-git clone git@gitlab.cnes.fr:waterquality/grs2.git
-```
+1. Clone the repository from the internal GitLab mirror (https or ssh) and choose the branch or tag to
+   install:
 
-Choose your branch (example grs_cnes_v2.1.6)
-```commandline
-git checkout grs_cnes_v2.1.6
-```
+   ```bash
+   git clone https://gitlab.cnes.fr/waterquality/grs2.git
+   # or: git clone git@gitlab.cnes.fr:waterquality/grs2.git
+   cd grs2
+   git checkout <branch-or-tag>
+   ```
 
-2. Set the folder of the LUTs, either in the user configuration file (once):
-```commandline
-grs_config --init /work/datalake/watcal/GRS/grsdata_v21
-```
-or in the environment of the jobs:
-```commandline
-export GRS_DATA_ROOT=/work/datalake/watcal/GRS/grsdata_v21
-```
-and check it with `grs_config` (after step 3).
+2. Create a conda environment (Python 3.11 or newer; conda only provides Python, the packages are
+   installed with pip) and install GRS. The TREX nodes have no GPU: install the CPU build of PyTorch
+   (used by the OmniCloudMask cloud masks) first, much smaller than the default CUDA one:
 
-3. To complete installation please activate your conda grs_cnes environment as follows:
-```commandline
-ml conda
-conda activate grs_cnes
-pip install .
-```
+   ```bash
+   ml conda
+   conda create -n grs python=3.12 pip
+   conda activate grs
+   python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+   python -m pip install .
+   ```
 
-You are done, please check [Running GRS on TREX](#running-grs-on-trex-with-a-slurm-interactive-job) below.
+3. Set the folder of the LUTs, either in the user configuration file (once):
 
-## Installation on the HAL CNES HPC
+   ```bash
+   grs_config --init /work/datalake/watcal/GRS/grsdata_v21
+   ```
 
-Script for installation on the HAL CNES HPC:
-```commandline
-# set your grs path here
-your_path_to_grs=/work/scratch/$USER/dev/grs
+   or in the environment of the jobs:
 
-cd $your_path_to_grs
-git clone git@gitlab.cnes.fr:waterquality/grs2.git
-ml conda/4.12.0
-mkdir /work/scratch/$USER/tmp
-export TMPDIR=/work/scratch/$USER/tmp
-conda create python=3.10 -n grs_v2
-conda activate grs_v2
-conda install gdal geopandas -c conda-forge-remote
-pip install cdsapi netCDF4 matplotlib docopt xarray dask dask[array] toolz>=0.8.2 affine xmltodict bokeh eoreader lxml numba
-ml gcc
-make
-pip install .
+   ```bash
+   export GRS_DATA_ROOT=/work/datalake/watcal/GRS/grsdata_v21
+   ```
 
-grs -h
-```
+   The compute nodes have no internet access: switch the automatic download of the LUTs off with
+   `export GRS_NO_DOWNLOAD=1` (or `zenodo: auto_download: false` in the user configuration). If a LUT
+   is missing from the folder, download it from a node with internet access with
+   `grs_config --download`.
 
-## Installation on the PBS cluster (legacy)
+4. Check the installation and the configuration (`grs_config` lists the LUTs and exits with code 1 if
+   one is missing):
 
-> **Note:** this PBS workflow is kept for reference but is superseded by SLURM on the
-> current CNES cluster. See the SLURM scripts under
-> [grs/tests/ci](grs/tests/ci) and [ecmwf](ecmwf) (e.g. `ci-func-run.slurm`,
-> `download_cams.slurm`) for up-to-date job submission examples, and the
-> ["Scheduling and Triggers"](https://cnes.github.io/GRSprocessor/processing_chain.html#scheduling-and-triggers)
-> section of the documentation.
+   ```bash
+   grs -v
+   grs_config
+   ```
 
-Installing from sources with conda on the CNES cluster:
+## CAMS data on TREX
 
-Create the conda environment using the definition file available in the conda folder:
-```
-conda env create -f conda/grs_conda_3.6.yml -p /work/scratch/$user/grs_py3.6
-```
-The option -p set the directory where the conda environment will be installed
-
-To install the package grs in conda:
-
-```
-source conda/conda_grs.sh -ci
-```
-
-To launch GRS on a pbs node:
-
-```
-qsub launch_grs_exemple.pbs
-```
+The default configuration reads the CAMS forecasts from the TREX archive `/work/datalake/watcal/cams`
+(`path: cams`, daily files `YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc`):
+on TREX, `--cams_file` can be omitted. Give `--cams_file` to use another file. The scripts of the
+[ecmwf](ecmwf) folder (e.g. `download_cams.slurm`) download the CAMS data.
 
 ## Running GRS on TREX with a SLURM interactive job
 
-If you are on TREX CNES you can run the grs example using a SLURM interactive job:
-```commandline
+```bash
 unset SLURM_JOB_ID
-srun -A cnes_level2 -N 1 -c 8 --time=02:00:00 --mem=64G --x11 --pty bash
+srun -A cnes_level2 -N 1 -c 8 --time=02:00:00 --mem=64G --pty bash
 ml conda
-conda activate grs_cnes
-grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE --cams_file /work/datalake/watcal/ECMWF/CAMS/2023/06/16/2023-06-16-cams-global-atmospheric-composition-forecasts.nc --odir /work/datalake/watcal/test --resolution 20 --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
+conda activate grs
+grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008_T31TFJ_20230616T111826.SAFE \
+    --odir /work/datalake/watcal/test --resolution 20 \
+    --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
 ```
 
-See the [Testing](README.md#testing) section of the main README for the full list of
-`grs` command-line options.
+GRS uses `processor: ncpu` threads (8 by default): request as many cores (`-c`) as threads. A Sentinel-2
+tile at 20 m needs about 10 GB of memory. See the [Usage](README.md#usage) section of the main README
+for the `grs` options (`grs -h` lists them all).
 
-## Running GRS with Docker on CNES [deprecated]
-
-```
-qsub -q qdev -I -l walltime=4:00:00
-
-/opt/bin/drunner run -it -v /datalake/watcal:/datalake/watcal artifactory.cnes.fr/obs2co-docker/grs:1.4.0 python /app/grs/exe/launcher.py /app/grs/exe//app/grs/exe/global_config.yml
-```
+For batch jobs, see the SLURM scripts under [grs/tests/ci](grs/tests/ci) and [ecmwf](ecmwf), and the
+["Scheduling and Triggers"](https://cnes.github.io/GRSprocessor/processing_chain.html#scheduling-and-triggers)
+section of the documentation.
 
 ## GitLab CI (internal CNES)
 

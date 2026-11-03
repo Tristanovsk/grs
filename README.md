@@ -36,7 +36,7 @@ grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
 
 ## Getting Started
 
-> **Installing on CNES machines (TREX, HAL, PBS/SLURM clusters)?** See
+> **Installing on the CNES TREX cluster?** See
 > [README_CNES.md](README_CNES.md) for CNES-specific installation and run instructions.
 
 ## Installation
@@ -194,9 +194,6 @@ pytest grs/tests/unit/                 # about 35 s
   Camargue, `grs/tests/data`, made with `grs/tests/data/make_test_data.py`) checking the L2A product.
   No Git LFS data is needed. The end-to-end tests are skipped when
   the look-up tables are not installed (`grs_config --download`).
-
-> For how to launch GRS with Docker on CNES machines, see
-> [README_CNES.md](README_CNES.md#running-grs-with-docker-on-cnes-deprecated).
 
 ## Deployment
 
