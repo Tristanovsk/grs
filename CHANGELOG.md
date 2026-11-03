@@ -85,6 +85,10 @@ Dates are given for tagged releases only.
   `grs/TEST/src/test_auxdata.py`, which only tested them.
 
 ### Fixed
+- `wind` was written as uncompressed float64 (Zarr: without Blosc, inner chunks or shards), about 60 % of
+  a Zarr product: it is packed as int16 (scale 0.001), 1.2 MB instead of 209 MB at level 0 for a 20 m
+  tile, and has its own attributes (`units`, `long_name`) instead of the product ones. The Zarr export
+  now compresses and chunks every data variable, also those without packing.
 - NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):
   the boolean attributes are written as integers (0/1) in the NetCDF files; Zarr keeps the booleans.
 - `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.

@@ -733,6 +733,8 @@ class Process:
         kernel.wind_img['wind'] = kernel.wind_img.wind.where(kernel.wind_img.wind < 12)
         # interpolated block by block (lazy), instead of a full-size interpolation in memory
         wind = _interp_like(kernel.wind_img.wind, kernel.xres.BRDFg, name='wind')
+        # own attributes, not the ones of the BRDFg template (product attributes)
+        wind.attrs = {'long_name': 'wind speed at 10 m (CAMS), NaN above 12 m s-1', 'units': 'm s-1'}
         l2_prod = xr.merge([kernel.xres, wind], compat='override')
 
         ##############################################

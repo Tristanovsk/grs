@@ -25,6 +25,18 @@ def test_groups(l2a_zarr):
     assert {'0', 'ancillary'} <= groups
 
 
+def test_zarr_encoding(l2a_zarr):
+    """Every image variable is compressed (Blosc), the wind is packed like the other variables."""
+    level = zarr.open_group(l2a_zarr, mode='r')['0']
+    for var in EXPECTED_VARIABLES:
+        codecs = [c.to_dict()['name'] for c in level[var].metadata.codecs]
+        if codecs[0] == 'sharding_indexed':
+            codecs = [c['name'] for c in level[var].metadata.codecs[0].to_dict()['configuration']['codecs']]
+        assert 'blosc' in codecs, (var, codecs)
+    assert level['wind'].dtype == np.int16
+    assert level['wind'].attrs['units'] == 'm s-1'
+
+
 def test_variables_and_grid(l2a, l1c):
     missing = [v for v in EXPECTED_VARIABLES if v not in l2a]
     assert not missing

@@ -152,10 +152,12 @@ def _base_encoding():
     raa           int16    0.01           180         -32768
     sza           int16    0.01           30          -32768
     Rrs           int16    1e-5           0.3         -32768
+    wind          int16    0.001          -           -32768
     flags, mask   (as is)  -              -           -
     ============  =======  =============  ==========  ============
 
-    ``flags`` and ``mask`` keep their dtype and are not packed.
+    ``flags`` and ``mask`` keep their dtype and are not packed. The Zarr export compresses and chunks the
+    variables missing from this table too, but writes them unpacked.
 
     :return: new dictionary ``{variable: encoding}``
     '''
@@ -171,6 +173,7 @@ def _base_encoding():
                 'grid_mapping': gm},
         'sza': {'dtype': 'int16', 'scale_factor': 0.01, 'add_offset': 30, '_FillValue': -32768,
                 'grid_mapping': gm},
+        'wind': {'dtype': 'int16', 'scale_factor': 0.001, '_FillValue': -32768, 'grid_mapping': gm},
         'flags': {'grid_mapping': gm},
         'mask': {'grid_mapping': gm},
     }
@@ -827,12 +830,15 @@ class L2aProduct():
             'layout': layout}]
 
         def level_encoding(level):
-            '''Encoding of one level: packing + compression + stored chunks (+ shards = dask blocks).'''
+            '''Encoding of one level: packing + compression + stored chunks (+ shards = dask blocks).
+
+            Every data variable gets the compression and the chunking, including those without packing
+            (not in `encoding`), which would otherwise be written with the Zarr defaults.'''
             enc = {var: dict(e) for var, e in _coord_encoding().items() if var in level.variables}
-            for var, e in encoding.items():
-                if var not in level.variables:
-                    continue
-                e = dict(e)
+            for var in level.data_vars:
+                e = dict(encoding.get(var, {}))
+                if 'y' in level[var].dims and 'x' in level[var].dims:
+                    e.setdefault('grid_mapping', 'spatial_ref')
                 e.update(compression_enc)
                 if level[var].dims and level[var].chunks is not None:
                     inner, blk = _var_chunking(level[var].dims, level[var].chunks, chunks)
