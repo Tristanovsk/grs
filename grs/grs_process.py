@@ -42,7 +42,7 @@ from . import utils
 from .config import load_config, lut_path, check_luts, ensure_luts
 from .product import Product
 from .cams import CamsProduct
-from .output import L2aProduct
+from .output import L2aProduct, quicklook_coarsen, quicklook_factor, quicklook_rgb
 from .mask import Masking
 from .grs_kernel import Kernel
 from .grs_exceptions import GRS_IO_Exception
@@ -444,6 +444,11 @@ class Process:
             prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest').copy()
 
         prod.raster = prod.raster.sel(wl=prod.wl_process, method='nearest')
+
+        # coarse L1C RGB of the quicklook, taken before the gas correction and the water masking of the bands
+        # (lazy for dask-backed bands: evaluated with the export, in the same pass)
+        prod.quicklook_l1c = quicklook_coarsen(quicklook_rgb(prod.raster.bands),
+                                               quicklook_factor(prod.raster.sizes['y'], prod.raster.sizes['x']))
 
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION

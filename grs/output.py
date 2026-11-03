@@ -46,6 +46,16 @@ Read back with ``xr.open_zarr(store, group='0')`` (full resolution), ``xr.open_z
 (``scale_factor`` / ``add_offset`` / ``_FillValue``). The root attribute ``multiscales`` lists the levels
 (group, scale factor, shape) for viewers.
 
+Quicklooks (both formats, ``quicklooks=True`` by default), PNG next to the product, longest side at most
+1000 pixels, transparent outside the image::
+
+    <dir>/<name>_ql_l1c_rgb.png   L1C RGB: TOA reflectance (665, 560, 490 nm), 0-0.3 then gamma
+    <dir>/<name>_ql_l2a_rgb.png   L2A RGB: Rrs of the water pixels, 0-0.05 sr-1 then gamma, grey elsewhere
+    <dir>/<name>_ql_sunglint.png  sunglint: BRDFg of the water pixels, 0-0.05 (inferno), grey elsewhere
+
+The stretches are fixed (see `render_quicklooks`), so that the quicklooks of different dates compare. They
+are computed in the same pass over the data as the product.
+
 Pyramids
 ========
 
@@ -135,6 +145,17 @@ ANCILLARY_GROUP = 'ancillary'
 _DEFAULT_SHARDS = {'y': 1024, 'x': 1024, 'wl': -1}
 _DEFAULT_CHUNKS_SHARDED = {'y': 256, 'x': 256, 'wl': -1}
 _DEFAULT_CHUNKS = {'y': 512, 'x': 512, 'wl': -1}
+
+# quicklooks (PNG next to the product, see `render_quicklooks`); fixed stretches, comparable between dates
+QUICKLOOK_KINDS = ('l1c_rgb', 'l2a_rgb', 'sunglint')
+QUICKLOOK_SIZE = 1000          # longest side (pixels), at most
+QUICKLOOK_RGB_WL = (665, 560, 490)  # red, green, blue (nm)
+QUICKLOOK_TOA_MAX = 0.3        # TOA reflectance shown white
+QUICKLOOK_RRS_MAX = 0.05       # Rrs (sr-1) shown white (turbid waters stay below)
+QUICKLOOK_BRDFG_MAX = 0.05     # sunglint reflectance at the top of the colormap
+QUICKLOOK_GAMMA = 1 / 2.2
+QUICKLOOK_CMAP = 'inferno'
+QUICKLOOK_GREY = 0.6           # pixels of the image without value (land, clouds...)
 
 
 def _base_encoding():
@@ -425,6 +446,109 @@ def _update_geotransform(ds, dims=('y', 'x')):
     return ds
 
 
+# ------------------------------------------------------------------
+# quicklooks
+# ------------------------------------------------------------------
+def quicklook_factor(ny, nx, size=QUICKLOOK_SIZE):
+    '''
+    Reduction factor of the quicklooks: the longest side is at most `size` pixels.
+
+    >>> quicklook_factor(5490, 5490)
+    6
+    >>> quicklook_factor(128, 128)
+    1
+    '''
+    return max(1, -(-max(int(ny), int(nx)) // int(size)))
+
+
+def quicklook_coarsen(da, factor):
+    '''Lazy mean (NaN ignored) of `da` over ``factor x factor`` pixel blocks (incomplete blocks kept).'''
+    if factor == 1:
+        return da
+    return da.coarsen(y=factor, x=factor, boundary='pad').mean()
+
+
+def quicklook_rgb(bands):
+    '''Bands nearest to `QUICKLOOK_RGB_WL` (red, green, blue), dimensions (wl, y, x), without coordinates.'''
+    rgb = bands.sel(wl=list(QUICKLOOK_RGB_WL), method='nearest')
+    return rgb.transpose('wl', 'y', 'x').reset_coords(drop=True)
+
+
+def _quicklook_paths(main_path):
+    '''PNG files of the quicklooks, next to the product: ``<dir>/<name>_ql_<kind>.png``.'''
+    base = os.path.splitext(str(main_path).rstrip('/'))[0]
+    return {kind: f'{base}_ql_{kind}.png' for kind in QUICKLOOK_KINDS}
+
+
+def _stretch_rgb(rgb, vmax):
+    '''(3, y, x) reflectance -> (y, x, 3) float in [0, 1]: linear up to `vmax`, then gamma.'''
+    with np.errstate(invalid='ignore'):
+        x = np.clip(np.nan_to_num(np.asarray(rgb, dtype=np.float64) / vmax, nan=0.), 0., 1.) ** QUICKLOOK_GAMMA
+    return np.moveaxis(x, 0, -1)
+
+
+def _to_rgba(rgb01, valid, footprint):
+    '''
+    RGBA uint8 image: `rgb01` (y, x, 3) where `valid`, grey in the rest of the `footprint`, transparent
+    outside the footprint.
+    '''
+    out = np.zeros(rgb01.shape[:2] + (4,), dtype=np.uint8)
+    out[..., :3] = np.round(rgb01 * 255).astype(np.uint8)
+    out[~valid, :3] = int(round(QUICKLOOK_GREY * 255))
+    out[..., 3] = np.where(footprint | valid, 255, 0)
+    return out
+
+
+def render_quicklooks(data):
+    '''
+    Images of the quicklooks from their (computed) coarse data, see `L2aProduct.quicklook_data`.
+
+    * ``l1c_rgb``: TOA reflectance (665, 560, 490 nm), linear up to `QUICKLOOK_TOA_MAX`, then gamma;
+    * ``l2a_rgb``: Rrs (same bands) of the water pixels (``mask == 0``), linear up to `QUICKLOOK_RRS_MAX`
+      (sr-1), then gamma; the other pixels of the image are grey;
+    * ``sunglint``: ``BRDFg`` of the water pixels with the colormap `QUICKLOOK_CMAP` from 0 to
+      `QUICKLOOK_BRDFG_MAX`; the other pixels of the image are grey.
+
+    The pixels outside the image (``footprint``) are transparent. The stretches are fixed, so that the
+    quicklooks of different dates can be compared.
+
+    :param data: dict of numpy-backed DataArrays (``footprint`` and some of ``l1c_rgb``, ``l2a_rgb``, ``sunglint``)
+    :return: dict ``{kind: RGBA uint8 array (y, x, 4)}``
+    '''
+    import matplotlib
+
+    footprint = np.asarray(data['footprint']) > 0
+    images = {}
+    if data.get('l1c_rgb') is not None:
+        rgb = np.asarray(data['l1c_rgb'])
+        images['l1c_rgb'] = _to_rgba(_stretch_rgb(rgb, QUICKLOOK_TOA_MAX), np.isfinite(rgb).all(axis=0), footprint)
+    if data.get('l2a_rgb') is not None:
+        rgb = np.asarray(data['l2a_rgb'])
+        images['l2a_rgb'] = _to_rgba(_stretch_rgb(rgb, QUICKLOOK_RRS_MAX), np.isfinite(rgb).all(axis=0), footprint)
+    if data.get('sunglint') is not None:
+        glint = np.asarray(data['sunglint'], dtype=np.float64)
+        with np.errstate(invalid='ignore'):
+            colors = matplotlib.colormaps[QUICKLOOK_CMAP](np.clip(np.nan_to_num(glint / QUICKLOOK_BRDFG_MAX), 0., 1.))
+        images['sunglint'] = _to_rgba(colors[..., :3], np.isfinite(glint), footprint)
+    return images
+
+
+def _write_png(path, rgba, storage_options=None):
+    '''Write an RGBA image as PNG to a local path or an fsspec URL.'''
+    import io
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.fromarray(rgba, mode='RGBA').save(buffer, format='PNG', optimize=True)
+    if _is_remote(path):
+        import fsspec
+        with fsspec.open(path, 'wb', **(storage_options or {})) as f:
+            f.write(buffer.getvalue())
+    else:
+        with open(path, 'wb') as f:
+            f.write(buffer.getvalue())
+
+
 class L2aProduct():
     '''
     Create and handle the L2A product object.
@@ -648,6 +772,61 @@ class L2aProduct():
         return directory, basename, main
 
     # ------------------------------------------------------------------
+    # quicklooks
+    # ------------------------------------------------------------------
+    def quicklook_data(self):
+        '''
+        Coarse data of the quicklooks (lazy if the product is dask-backed), longest side at most
+        `QUICKLOOK_SIZE` pixels.
+
+        Built from the variables that are exported, so that computing it together with the export (one
+        ``dask.compute``) does not run the processing twice. The L1C RGB comes from ``prod.quicklook_l1c``,
+        taken by the processor before the gas correction and the water masking of the bands (absent:
+        no L1C quicklook).
+
+        :return: dict of DataArrays: ``footprint`` (fraction of the coarse pixel inside the image),
+            ``l2a_rgb`` (3, y, x), ``sunglint`` (y, x) and, if available, ``l1c_rgb`` (3, y, x)
+        '''
+        l2 = self.l2_prod
+        factor = quicklook_factor(l2.sizes['y'], l2.sizes['x'])
+        inside = l2['vza'].notnull() if 'vza' in l2 else xr.ones_like(l2['BRDFg'], dtype=bool)
+        rrs = quicklook_rgb(l2['Rrs'])
+        glint = l2['BRDFg'].reset_coords(drop=True)
+        if 'mask' in l2:
+            # water pixels only: BRDFg / Rrs of the masked pixels (marsh, shore, clouds) are not meaningful
+            water = l2['mask'].reset_coords(drop=True) == 0
+            rrs, glint = rrs.where(water), glint.where(water)
+        data = {'footprint': quicklook_coarsen(inside.reset_coords(drop=True).astype(np.float32), factor),
+                'l2a_rgb': quicklook_coarsen(rrs, factor),
+                'sunglint': quicklook_coarsen(glint, factor)}
+        l1c = getattr(self.prod, 'quicklook_l1c', None)
+        if l1c is not None:
+            data['l1c_rgb'] = l1c
+        return data
+
+    def write_quicklooks(self, data, main_path, storage_options=None):
+        '''
+        Write the quicklooks as PNG files next to the product: ``<dir>/<name>_ql_l1c_rgb.png``,
+        ``..._ql_l2a_rgb.png`` and ``..._ql_sunglint.png`` (see `render_quicklooks`). A failure only logs a
+        warning: the quicklooks never block the export.
+
+        :param data: computed `quicklook_data`
+        :param main_path: path / URL of the product (``.zarr`` store or main ``.nc`` file)
+        :param storage_options: fsspec options for a remote `main_path`
+        :return: dict ``{kind: path}`` of the written files (also kept in ``self.quicklook_files``)
+        '''
+        written = {}
+        try:
+            paths = _quicklook_paths(main_path)
+            for kind, image in render_quicklooks(data).items():
+                _write_png(paths[kind], image, storage_options)
+                written[kind] = paths[kind]
+        except Exception as e:
+            logging.warning(f'could not write the quicklooks: {e}')
+        self.quicklook_files = written
+        return written
+
+    # ------------------------------------------------------------------
     # exports
     # ------------------------------------------------------------------
     def export(self, output_path, fmt=None, **kwargs):
@@ -673,7 +852,7 @@ class L2aProduct():
             return self.export_to_netcdf(output_path, **kwargs)
         return self.export_to_zarr(output_path, **kwargs)
 
-    def export_to_netcdf(self, output_path, snap_compliant=False):
+    def export_to_netcdf(self, output_path, snap_compliant=False, quicklooks=True):
         '''
         Write the product as compressed, packed NetCDF files: the main product and the ancillary data
         (coarse resolution). Existing files are replaced.
@@ -682,7 +861,11 @@ class L2aProduct():
             ``<dir>/<name>_anc.nc``. Without extension: directory whose name is the base name
             (``<output_path>/<basename>.nc`` and ``<output_path>/<basename>_anc.nc``, as before)
         :param snap_compliant: write ``Rrs`` as one variable per band so the file opens in SNAP
+        :param quicklooks: also write the PNG quicklooks next to the main file (see `write_quicklooks`),
+            computed with the main file in a single pass over the data
         '''
+        import dask
+
         logging.info('export into encoded netcdf')
         if _is_remote(output_path):
             raise ValueError('NetCDF can only be written to a local path; use a .zarr output for object storage')
@@ -702,8 +885,11 @@ class L2aProduct():
             if os.path.exists(path):
                 os.remove(path)
 
-        # export full raster data
-        ds.to_netcdf(main_file, encoding=encoding, engine=NETCDF_ENGINE)
+        # export full raster data, with the quicklooks computed in the same pass
+        written = ds.to_netcdf(main_file, encoding=encoding, engine=NETCDF_ENGINE, compute=False)
+        _, ql_data = dask.compute(written, self.quicklook_data() if quicklooks else None)
+        if quicklooks:
+            self.write_quicklooks(ql_data, main_file)
 
         # export ancillary data (coarse resolution)
         anc = self.ancillary.copy()
@@ -722,7 +908,7 @@ class L2aProduct():
     def export_to_zarr(self, output_path, snap_compliant=False, chunks=None, shards=None, sharding=True,
                        compression='zstd', clevel=5, storage_options=None, max_concurrency=None,
                        consolidate=True, pyramids=True, pyramid_levels=None,
-                       pyramid_min_size=PYRAMID_MIN_SIZE):
+                       pyramid_min_size=PYRAMID_MIN_SIZE, quicklooks=True):
         '''
         Write the product as one cloud-ready Zarr store with pyramids: the main product at full resolution
         in the group ``0``, the overviews (2x, 4x, ... coarser) in the groups ``1``, ``2``, ... and the
@@ -782,6 +968,10 @@ class L2aProduct():
             `pyramid_min_size` pixels on its longest side).
         pyramid_min_size : int, optional
             See `pyramid_levels` (default 512).
+        quicklooks : bool, optional
+            Also write the PNG quicklooks (L1C RGB, L2A RGB, sunglint) next to the store, e.g.
+            ``<dir>/<name>_ql_l2a_rgb.png`` (default True, see `write_quicklooks`). They are computed in the
+            same pass as the store.
 
         Returns
         -------
@@ -878,13 +1068,17 @@ class L2aProduct():
             delayed.append(level.to_zarr(store, group=group, mode='a',
                                          encoding=level_encoding(level), **write_kwargs))
         delayed.append(anc.to_zarr(store, group=ANCILLARY_GROUP, mode='a', encoding=encoding_anc, **write_kwargs))
-        # one evaluation of the whole graph; zarr's own I/O concurrency can be raised for object storage
+        # one evaluation of the whole graph (store and quicklooks); zarr's own I/O concurrency can be raised
+        # for object storage
+        ql_data = self.quicklook_data() if quicklooks else None
         if max_concurrency and zarr3:
             import zarr
             with zarr.config.set({'async.concurrency': int(max_concurrency)}):
-                dask.compute(*delayed)
+                ql_data = dask.compute(*delayed, ql_data)[-1]
         else:
-            dask.compute(*delayed)
+            ql_data = dask.compute(*delayed, ql_data)[-1]
+        if quicklooks:
+            self.write_quicklooks(ql_data, store, storage_options)
 
         if consolidate:
             try:

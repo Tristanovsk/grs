@@ -177,6 +177,12 @@ Read the product back with xarray:
 **NetCDF**: ``<name>.nc`` (main product) and ``<name>_anc.nc`` (ancillary data), local path only, no
 overviews; ``snap_compliant=True`` writes one variable per band for ESA SNAP.
 
+**Quicklooks**: three PNG images (at most 1000 pixels) are written next to the product, in the same pass:
+``<name>_ql_l1c_rgb.png`` (L1C true colour), ``<name>_ql_l2a_rgb.png`` (Rrs true colour of the water
+pixels) and ``<name>_ql_sunglint.png`` (sunglint reflectance ``BRDFg`` of the water pixels). The colour
+stretches are fixed, so that dates can be compared; ``quicklooks=False`` in the export options skips them.
+grstbx adds them to the STAC Items of the products (the L2A RGB as thumbnail).
+
 See :doc:`api/output` for all the export options (chunk and shard sizes, compression, number of
 levels...).
 

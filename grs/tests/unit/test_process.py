@@ -1,5 +1,7 @@
 """End-to-end test: L1C subset -> L2A Zarr product (needs the look-up tables)."""
 
+import os
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -35,6 +37,24 @@ def test_zarr_encoding(l2a_zarr):
         assert 'blosc' in codecs, (var, codecs)
     assert level['wind'].dtype == np.int16
     assert level['wind'].attrs['units'] == 'm s-1'
+
+
+def test_quicklooks(l2a_zarr, l2a):
+    """PNG quicklooks next to the store: image size, transparent outside the image, water in colour."""
+    from PIL import Image
+    base = os.path.splitext(l2a_zarr)[0]
+    images = {}
+    for kind in ('l1c_rgb', 'l2a_rgb', 'sunglint'):
+        with Image.open(f'{base}_ql_{kind}.png') as im:
+            assert im.mode == 'RGBA'
+            images[kind] = np.asarray(im)
+        assert images[kind].shape == (l2a.sizes['y'], l2a.sizes['x'], 4)    # 128 px: no reduction
+        assert (images[kind][..., 3] == 255).mean() > 0.9, kind
+    water = (l2a.mask == 0).values
+    rgb = images['l2a_rgb'][..., :3].astype(int)
+    assert (rgb[water].std(axis=1) > 0).mean() > 0.5          # coloured water, not the grey of the land
+    assert (rgb[~water] == round(0.6 * 255)).all()
+    assert images['l1c_rgb'][..., :3].max() > 100
 
 
 def test_variables_and_grid(l2a, l1c):

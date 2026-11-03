@@ -11,6 +11,9 @@ Dates are given for tagged releases only.
 ### Added
 - New masking procedure including OmniCloudMask (building on the former s2cloudless development).
 - Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
+- PNG quicklooks next to the product (Zarr and NetCDF): L1C RGB (TOA reflectance), L2A RGB (Rrs of the
+  water pixels) and sunglint (`BRDFg` of the water pixels), at most 1000 pixels, fixed stretches,
+  computed in the same pass as the product; `quicklooks=False` export option to skip them.
 - AOT coarse resolution stored in output attributes (default 240 m, a multiple of the 10, 20, 30 and
   60 m pixel sizes).
 - `--aot_resolution` option of the CLI (pixel size of the coarse grid of the aerosol retrieval, default
