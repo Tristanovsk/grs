@@ -1,6 +1,7 @@
 # Configuration file for the Sphinx documentation builder.
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
 import sys
 from pathlib import Path
 
@@ -88,6 +89,14 @@ html_theme_options = {
     },
 }
 
+# Read the Docs builds the stable release (v2.2) from its tag and this pre-release
+# from the v3.x branch: banner on every version but the stable one
+if os.environ.get('READTHEDOCS_VERSION', 'stable') != 'stable':
+    html_theme_options['announcement'] = (
+        f'Pre-release documentation of GRS {release}: see the '
+        '<a href="https://grs.readthedocs.io/en/stable/">stable documentation</a> '
+        'of the current release.')
+
 html_title = ''
 html_logo = '_static/grs_logo_v0.svg'
 # the favicon follows the light / dark theme of the browser
@@ -99,6 +108,18 @@ html_show_sourcelink = False
 html_last_updated_fmt = today_fmt
 
 htmlhelp_basename = 'grsdoc'
+
+# -- Options for LaTeX output (PDF of Read the Docs) -------------------------
+
+latex_elements = {
+    # long file names and code-like words do not break: stretch the lines rather
+    # than overflow the margin, and do not report the loose lines
+    'preamble': r'''
+\setlength{\emergencystretch}{3em}
+\hbadness=10000
+\vbadness=10000
+''',
+}
 
 # -- MyST / notebook rendering -----------------------------------------------
 
@@ -120,5 +141,6 @@ myst_heading_anchors = 3
 nb_execution_mode = 'off'
 nb_merge_streams = True
 # the notebooks store holoviews widgets (only their static output is shown) and
-# use '###' headings right below the title
-suppress_warnings = ['mystnb.unknown_mime_type', 'myst.header']
+# use '###' headings right below the title; the widgets have no output for the
+# PDF and EPUB builders (no static image stored)
+suppress_warnings = ['mystnb.unknown_mime_type', 'mystnb.mime_priority', 'myst.header']

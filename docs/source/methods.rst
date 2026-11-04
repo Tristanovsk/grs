@@ -42,8 +42,8 @@ Processing steps
    Sentinel-2 depend on the band). A Level-1 product already converted to NetCDF can be given instead.
 2. **Ancillary data.** The CAMS file gives the surface pressure, the gas columns, the spectral AOD and
    the wind speed (:py:class:`~grs.cams.CamsProduct`).
-3. **Pixel classification.** :py:class:`~grs.mask.Masking` builds the ``flags`` bit field (clouds with
-   s2cloudless and OmniCloudMask, water indices, cirrus, high SWIR, optional SURFWATER mask; see the
+3. **Pixel classification.** :py:class:`~grs.mask.Masking` builds the ``flags`` bit field (clouds and cloud
+   shadows with OmniCloudMask, water indices, cirrus, high SWIR, optional SURFWATER mask; see the
    :doc:`bit table <api/mask>`).
 4. **Gaseous absorption (O**\ :sub:`3`, **NO**\ :sub:`2`, **background gases).** The TOA reflectance is
    divided by the transmittance computed from the CAMS columns (`Gaseous transmittance`_).
@@ -54,8 +54,10 @@ Processing steps
       NDWI = \frac{R(490) - R(842)}{R(490) + R(842)}, \qquad
       NDWI_{SWIR} = \frac{R(490) - R(1610)}{R(490) + R(1610)}
 
-   the processed pixels are those with :math:`NDWI_{SWIR} > 0` and :math:`R(2190) < 0.2` (unless
-   ``allpixels=True``).
+   the processed pixels are the clear-sky water pixels: :math:`NDWI_{SWIR} > 0`, :math:`R(2190) < 0.2`
+   and OmniCloudMask class 0, i.e. no thick cloud, thin cloud or cloud shadow (bits 11-13 not set,
+   :py:meth:`Masking.clear_sky <grs.mask.Masking.clear_sky>`), unless ``allpixels=True``. The other pixels
+   are excluded from the aerosol retrieval and from the correction (NaN :math:`R_{rs}`).
 6. **Aerosol model.** Unless ``opac_model`` is given, the OPAC model :math:`m` whose spectral AOD is
    closest to the CAMS one is selected (the urban model is excluded):
 
@@ -75,8 +77,9 @@ Processing steps
     (`Remote-sensing reflectance`_).
 12. **Flags and mask.** Bit 18 (``neg_rrs``) is set where :math:`R_{rs}(490)` or :math:`R_{rs}(565)` is
     below :math:`-5 \times 10^{-4}`. The binary ``mask`` is 0 (good) for the pixels with bit 3 (water
-    index) set and none of the bits 0 (no data), 1 (s2cloudless cloud), 10 (SURFWATER cloud and shadow),
-    13 (OmniCloudMask shadow), 14 (Landsat dilated cloud) and 18 (negative Rrs); it is 1 elsewhere
+    index) set and none of the bits 0 (no data), 10 (SURFWATER cloud and shadow), 11, 12 and 13
+    (OmniCloudMask thick cloud, thin cloud and cloud shadow), 14 (Landsat dilated cloud) and 18 (negative
+    Rrs); it is 1 elsewhere
     (:py:meth:`Masking.create_mask <grs.mask.Masking.create_mask>`).
 13. **Output.** :py:class:`~grs.output.L2aProduct` writes ``Rrs``, ``BRDFg``, ``aot550``, ``wind``,
     ``flags``, ``mask`` and the ancillary data as Zarr or NetCDF (see :doc:`api/output`).

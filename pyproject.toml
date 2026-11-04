@@ -1,6 +1,8 @@
 # pyproject.toml
 [build-system]
-requires      = ["setuptools>=61.0.0", "wheel"]
+# setuptools >= 64 for the editable installs (pip install -e .), >= 70.1 builds wheels without the
+# `wheel` package (one download less in the isolated build environment)
+requires      = ["setuptools>=70.1"]
 build-backend = "setuptools.build_meta"
 
 [project]

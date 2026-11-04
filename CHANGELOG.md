@@ -6,11 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Dates are given for tagged releases only.
 
-## [Unreleased] - 3.1.0
+## [Unreleased] - 3.1.1
+
+### Changed
+- Cloud screening with OmniCloudMask only, in the core of the processing: the pixels processed (aerosol
+  retrieval and correction) are the clear-sky water pixels, OmniCloudMask class 0 (no thick cloud, thin
+  cloud or cloud shadow, `Masking.clear_sky`); cloudy pixels get NaN `Rrs`. The `mask` recipe masks the
+  OmniCloudMask bits 11, 12 and 13 (was: s2cloudless bit 1 and OmniCloudMask shadow bit 13).
+- s2cloudless removed (masking step, settings, `Masking.s2cloudless_mask` and the `s2cloudless`
+  requirement, with LightGBM): flag bits 1 and 2 (`cloud_p06`, `cloud_p08`) are no longer set.
+
+## [3.1.0]
 
 ### Added
 - New masking procedure including OmniCloudMask (building on the former s2cloudless development).
 - Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
+- PNG quicklooks next to the product (Zarr and NetCDF): L1C RGB (TOA reflectance), L2A RGB (Rrs of the
+  water pixels) and sunglint (`BRDFg` of the water pixels), at most 1000 pixels, fixed stretches,
+  computed in the same pass as the product; `quicklooks=False` export option to skip them.
 - AOT coarse resolution stored in output attributes (default 240 m, a multiple of the 10, 20, 30 and
   60 m pixel sizes).
 - `--aot_resolution` option of the CLI (pixel size of the coarse grid of the aerosol retrieval, default
@@ -70,8 +83,28 @@ Dates are given for tagged releases only.
   processing threads is reused, about 2-3 GB less peak memory with the parallel band reading of GRSdriver.
 - Blocks without water pixels are skipped in the final processing; the disabled sunglint slope
   probability is no longer computed.
+- Integration tests moved to the unit tests (Level-1 product, CAMS data, gaseous transmittance, log
+  files) on the small Camargue subset of `grs/tests/data`: the Git LFS test data (`grs/tests/inputs`)
+  and `grs/tests/integration_tests` are removed, and CI no longer fetches LFS files.
+
+### Removed
+- Legacy eager methods of `Kernel`: `rugosity_est`, `aerosol_swir`, `aerosol_visible` and
+  `aerosol_visible_chunk_old` (use the `*_chunk` methods), with the `recalib_aot_ref` and
+  `retrieved_aot_ref` attributes they set.
+- Unused arguments and attributes of `Kernel`: `chunk` of the `*_chunk` block methods, `update_state` of
+  `aerosol_visible_chunk`, and `neg_pix_max`.
+- `grs.auxdata` module: `AuxData` moved to `grs.utils` (`from grs import AuxData` still works); the
+  obsolete `SensorData` (it could no longer be instantiated) and the masking thresholds are removed, with
+  `grs/TEST/src/test_auxdata.py`, which only tested them.
 
 ### Fixed
+- Installation page of the documentation brought up to date (Python >= 3.11 instead of 3.9, no conda
+  GDAL/eoreader stack, install from PyPI, CPU build of PyTorch, venv or conda, editable install, automatic
+  LUT download with `GRS_DATA_ROOT`/`GRS_NO_DOWNLOAD`, ADS key for CAMS).
+- `wind` was written as uncompressed float64 (Zarr: without Blosc, inner chunks or shards), about 60 % of
+  a Zarr product: it is packed as int16 (scale 0.001), 1.2 MB instead of 209 MB at level 0 for a 20 m
+  tile, and has its own attributes (`units`, `long_name`) instead of the product ones. The Zarr export
+  now compresses and chunks every data variable, also those without packing.
 - NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):
   the boolean attributes are written as integers (0/1) in the NetCDF files; Zarr keeps the booleans.
 - `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.
@@ -95,23 +128,28 @@ Dates are given for tagged releases only.
 ## [3.0.0]
 
 ### Changed
-- Merge of the 2.2.1 scientific developments with the CI/CD pipeline from 2.1.9.
+- Merge of the scientific developments with the CI/CD pipeline from 2.1.9: major update of the
+  rugosity (surface roughness) and aerosol retrievals, and refinement of the aerosol retrieval
+  algorithm (developed as 2.2.0 and 2.2.1, not released: the released 2.2.0 is the CNES CI version
+  below).
+
+## [2.2.0] - 2026-10-16
+
+Version with the CI for the CNES operation.
+
+### Added
+- CI/CD: GitHub Actions pipeline for the pull requests and the gitflow branches, synchronisation with
+  the CNES GitLab, PyPI and Docker Hub publication, documentation build.
+- Integration tests (`grs/tests/integration_tests`) and their README.
+- `README_CNES.md` (CNES installation and operation) and `CONTRIBUTING.md`.
+
+### Changed
+- Masking updated with the s2cloudless developments (`s2cloudless` added to the requirements).
+- CWL descriptor updated.
 
 ### Fixed
-- Bugs related to true (band-averaged) wavelengths.
-- Support for the new ADS CAMS format.
 - CLI: accept `--odir` as long alias for `-o`; pass a string path to `gdal.Open`.
 - Docker: upgrade datashader to match the dask API.
-
-## [2.2.1]
-
-### Changed
-- Refinement of the aerosol retrieval algorithm.
-
-## [2.2.0]
-
-### Changed
-- Major update of rugosity (surface roughness) and aerosol retrievals.
 
 ## [2.1.9] - 2026-05-27
 
@@ -132,6 +170,10 @@ Dates are given for tagged releases only.
 
 ### Changed
 - Account for absorption/scattering interaction in the transmittance of absorbing gases.
+
+### Fixed
+- Bugs related to true (band-averaged) wavelengths.
+- Support for the new ADS CAMS format.
 
 ## [2.1.6] - 2024-09-24
 

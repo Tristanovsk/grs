@@ -107,15 +107,6 @@ Version history
 
 2.1.7:
     - accounts for absorption/scattering interaction for transmittance of absorbing gases
-
-2.2.0:
-    - major update for rugosity and aerosol retrievals
-
-2.2.1:
-    - refinement of the aerosol retrieval algorithm
-
-3.0.0:
-    - merge new version (2.2.1) with CI from v2.1.9
     - fix bugs for true wavelength
     - fix for new ADS CAMS format
 
@@ -126,14 +117,32 @@ Version history
     - fix for bug in azimuth handling in glint correction
     - enables L1C netcdf as intput in CLI
 
+2.2.0:
+    - version with CI for CNES operation
+
+3.0.0:
+    - merge of the scientific developments (major update for rugosity and aerosol retrievals,
+      refinement of the aerosol retrieval algorithm; developed as 2.2.0 and 2.2.1, not released)
+      with the CI from v2.1.9
+
 3.1.0:
-    - new masking procedure including OmniCloudMAsk
-    - Export in 'zarr' with pyramids
+    - new masking procedure including OmniCloudMask
+    - export in 'zarr' with pyramids
     - fixed weighting of the AOT smoothing, windows scaled with the retrieval blocks
+    - configuration read at run time (grs_config), look-up tables downloaded from Zenodo
+    - settings of the aerosol retrieval in the configuration (aerosol section), blocks of 15 km
+      by default (validated with AERONET-OC)
+    - CAMS archive in a YYYY/MM/DD tree
+    - lower memory use and faster processing; unit tests
+    - PyPI package GRSprocessor
+
+3.1.1:
+    - cloud screening with OmniCloudMask only (s2cloudless removed): only the clear-sky water pixels
+      (OmniCloudMask class 0) are processed
 '''
 
 __package__ = 'grs'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 
 import importlib
@@ -144,8 +153,8 @@ from typing import TYPE_CHECKING
 # the heavy dependencies (torch, LightGBM, eoreader, rasterio...)
 _LAZY = {
     'Aerosol': 'utils', 'Misc': 'utils', 'Rasterization': 'utils', 'GaseousTransmittance': 'utils',
+    'AuxData': 'utils',
     'CamsProduct': 'cams',
-    'SensorData': 'auxdata', 'AuxData': 'auxdata',
     'Product': 'product',
     'L2aProduct': 'output',
     'Masking': 'mask',
@@ -157,9 +166,8 @@ __all__ = list(_LAZY)
 
 # static imports for type checkers / IDEs only (never executed), as they cannot follow the lazy ``__getattr__``
 if TYPE_CHECKING:
-    from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance
+    from .utils import Aerosol, Misc, Rasterization, GaseousTransmittance, AuxData
     from .cams import CamsProduct
-    from .auxdata import SensorData, AuxData
     from .product import Product
     from .output import L2aProduct
     from .mask import Masking

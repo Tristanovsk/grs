@@ -11,7 +11,6 @@ import datetime
 import logging
 from importlib.resources import files
 from . import __version__, __package__
-from .auxdata import AuxData
 from .config import load_config
 
 opj = os.path.join

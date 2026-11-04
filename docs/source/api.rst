@@ -40,7 +40,6 @@ Input data
 
    grs.product.Product
    grs.cams.CamsProduct
-   grs.auxdata.AuxData
 
 .. autosummary::
    :toctree: generated
@@ -102,6 +101,7 @@ Utilities
    :template: autosummary/class.rst
    :nosignatures:
 
+   grs.utils.AuxData
    grs.utils.GaseousTransmittance
    grs.utils.Gases
    grs.utils.Aerosol
