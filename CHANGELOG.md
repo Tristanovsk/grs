@@ -43,6 +43,9 @@ Dates are given for tagged releases only.
 - Thread-safe numba threading layer by default (`NUMBA_THREADING_LAYER=threadsafe`: TBB, else OpenMP,
   unless set by the user): the fallback `workqueue` layer aborted the process on the concurrent calls of
   the numba kernels from the dask threads.
+- `grs --no_clobber`: the existing product (or no-water marker) is checked before the logger is set up,
+  so a skipped run no longer overwrites the `log_file.log` of the previous run (the skip message is
+  printed).
 
 ## [3.1.0]
 
