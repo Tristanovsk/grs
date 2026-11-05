@@ -58,7 +58,7 @@ The main options of :py:meth:`~grs.grs_process.Process.execute`:
 ``allpixels``
    Process all the pixels, not only the water pixels.
 ``chunk``
-   Block size (pixels) of the final processing; a 512 x 512 block needs about 350 MB per thread.
+   Block size (pixels) of the final processing; a 512 x 512 block needs about 150 MB per thread.
 
 Output product
 --------------

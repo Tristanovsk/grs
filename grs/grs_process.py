@@ -230,7 +230,7 @@ class Process:
         :param resolution: pixel resolution in meter
         :param megapix_size: not used for the moment (the wind comes from CAMS, see the TODO below)
         :param chunk: size (pixels) of the blocks of the final processing; 512 divides the 1024 shards of
-            the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
+            the Zarr output. A block needs ~150 MB (512) or ~600 MB (1024) per thread.
         :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
             240 (default), 480; must be a multiple of ``resolution``
         :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT

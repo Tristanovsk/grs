@@ -162,6 +162,10 @@ Dask design
   with ``xr.map_blocks``, evaluated chunk by chunk when it is written (e.g. by ``L2aProduct``), so the
   full ``Rrs`` raster is never in memory. The ``aot_ref`` loops keep a running pixel count instead of one
   full raster per ``aot_ref``.
+* **Blocks stay in float32.** In ``final_process_chunk`` the coarse maps interpolated to the block
+  (``interp`` returns float64) are cast to float32, the products are done in place and the temporaries
+  are released as soon as they are used: this halves the peak memory of a block (per dask thread) with
+  the same results (differences ~1e-8 in Rrs) and the same speed.
 * **Numba:** the kernels of ``Rasterization`` are called from several dask threads. If they are compiled
   with ``parallel=True``, the default ``workqueue`` threading layer aborts on concurrent calls: use
   ``NUMBA_THREADING_LAYER=omp`` (or ``tbb``), or a process-based scheduler.
@@ -1202,7 +1206,7 @@ class Kernel():
             # image edges, outside the first / last centres (NaN otherwise), within the range of the LUT
             _aot_ref_raster = np.clip(aot_ref_raster.interp(x=x_subset, y=y_subset,
                                                             kwargs={'fill_value': 'extrapolate'}).values,
-                                      self.aot_refs.min(), self.aot_refs.max())
+                                      self.aot_refs.min(), self.aot_refs.max()).astype(np.float32)
             # aot550 is given for all the pixels, the other outputs only where a band is valid
             aot_tmp[:] = _aot_ref_raster
 
@@ -1215,13 +1219,13 @@ class Kernel():
             Ttot_Ed_lut = self.trans_aero_lut.Ttot_Ed
 
             sigma2 = (self.wind_img.wind + 0.586) / 195.3
-            _sigma2_ = sigma2.interp(x=x_subset, y=y_subset)
+            _sigma2_ = sigma2.interp(x=x_subset, y=y_subset).astype(np.float32)
 
             # subsetting
             _sza = raster.sza
-            _pressure = self._surface_pressure.interp(x=x_subset, y=y_subset).values
-            _Tg_diff_raster = self.Tg_diff_raster.interp(x=x_subset, y=y_subset).values
-            _Tg_raster = self.Tg_raster.interp(x=x_subset, y=y_subset).values
+            _pressure = self._surface_pressure.interp(x=x_subset, y=y_subset).values.astype(np.float32)
+            _Tg_diff_raster = self.Tg_diff_raster.interp(x=x_subset, y=y_subset).values.astype(np.float32)
+            _Tg_raster = self.Tg_raster.interp(x=x_subset, y=y_subset).values.astype(np.float32)
 
             _raa = raster.raa
             _vza = raster.vza
@@ -1253,9 +1257,9 @@ class Kernel():
             # a (y, x) DataArray times the (wl, y, x) numpy arrays of Tdir fails with recent xarray
             _air_mass_ = Misc.air_mass(_sza, _vza).values
             _p_slope_ = self.p_slope(_sza, _vza, _raa, sigma2=_sigma2_,
-                                     monoview=monoview).values
+                                     monoview=monoview).values.astype(np.float32, copy=False)
 
-            _pressure_ = _pressure / self.pressure_ref
+            _pressure_ = (_pressure / self.pressure_ref).astype(np.float32)
 
             # construct wl,y,x raster for Rayleigh optical thickness
             _rot_raster = _R_._multiplicate(self.rot.values, _pressure_, arr_tmp)
@@ -1267,16 +1271,20 @@ class Kernel():
                                      self.aot_refs, _aot_ref_raster,
                                      Nwl, Ny, Nx, self.Rdiff_lut.values)
 
-            _Rdiff = _Rdiff * _Tg_diff_raster * _pressure_
+            _Rdiff *= _Tg_diff_raster
+            _Rdiff *= _pressure_
+            del _Tg_diff_raster
 
             _aot = _R_._interp_aotlut(self.aot_lut.aot_ref.values,
                                       _aot_ref_raster, Nwl, Ny, Nx, self.aot_lut.values)
 
             #  correction for diffuse light
             Rcorr = _band_rad.values - _Rdiff
+            del _Rdiff, _band_rad
 
             # direct transmittance up/down
             Tdir = Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
+            del _aot, _air_mass_, _rot_raster
 
             # vTotal transmittance (for Ed and Lu)
             Tdown = _R_._interp_Tlut(self.szas, _sza.values, Ttot_Ed_lut.aot_ref.values,
@@ -1284,7 +1292,10 @@ class Kernel():
                                      Ttot_Ed_lut.values)
             Tup = _R_._interp_Tlut(self.vzas, _vza_mean, Ttot_Ed_lut.aot_ref.values,
                                    _aot_ref_raster, Nwl, Ny, Nx, Ttot_Ed_lut.values ** 1.05)
-            Ttot_du = Tdown * Tup * _Tg_raster
+            Tdown *= Tup
+            Tdown *= _Tg_raster
+            Ttot_du = Tdown
+            del Tup
 
             Rf = np.full((len(iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
             for iwl in iwl_swir:
@@ -1307,10 +1318,17 @@ class Kernel():
             # slope probability of the reference band: (y, x) for monoview sensors, the same for all the bands
             # (indexing it would take a row of the block)
             _p_slope_ref = _p_slope_ if monoview else _p_slope_[-2]
-            Rf = _Tg_raster * Tdir * Rf * _p_slope_ / (sunglint_eps[-2] * _p_slope_ref)
+            Rf = Rf * _Tg_raster
+            Rf *= Tdir
+            Rf *= _p_slope_
+            Rf /= (sunglint_eps[-2] * _p_slope_ref).astype(np.float32)
+            del Tdir, _p_slope_
 
             # sunglint removal
-            Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
+            Rrs_tmp_ = Rcorr
+            Rrs_tmp_ -= Rf
+            Rrs_tmp_ /= np.float32(np.pi)
+            del Rf
 
             # Convert from TOA to BOA for positive values
             Ttot_du[Rrs_tmp_ < 0] = 1.
@@ -1351,8 +1369,8 @@ class Kernel():
         :param aot_ref_raster: DataArray (y, x) with the AOT at the reference wavelength, on a coarse grid
             (it is loaded in memory if lazy and small)
         :param iwl_swir: indices of the two SWIR bands used for the sunglint
-        :param chunk: block size in pixels. A block needs about ``15 * n_bands * chunk**2 * 8`` bytes while it
-            is computed (~350 MB for 512, ~1.4 GB for 1024, per thread). 512 divides the 1024 shards of
+        :param chunk: block size in pixels. A block needs about ``13 * n_bands * chunk**2 * 4`` bytes while it
+            is computed (~150 MB for 512, ~600 MB for 1024, per thread). 512 divides the 1024 shards of
             ``export_to_zarr``, which merges four blocks per shard without recomputing anything.
         :param lazy: if False, compute the result immediately (needs the memory of the full output)
         :return: Dataset ``xres`` with ``Rrs`` (wl, y, x), ``BRDFg`` (y, x), ``aot550`` (y, x)
