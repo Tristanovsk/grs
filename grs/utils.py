@@ -28,8 +28,9 @@ Performance notes
   concentrations x bands with xarray selections and trapezoid integrals.
 * The spectral AOT fit and the fine-mode fit are linear least-squares problems and are solved in
   closed form (``numpy``), so ``scipy`` is no longer needed.
-* The parallel kernels must be called from a single thread at a time (numba's default threading layer
-  is not safe for concurrent parallel calls); do not call them from several dask threads at once.
+* The parallel kernels are called from several dask threads at once: this needs a thread-safe numba
+  threading layer (tbb or OpenMP; ``workqueue`` aborts the process), which ``import grs`` requests with
+  ``NUMBA_THREADING_LAYER=threadsafe`` unless the variable is already set.
 '''
 import logging
 from importlib.resources import files

@@ -166,14 +166,21 @@ Dask design
   (``interp`` returns float64) are cast to float32, the products are done in place and the temporaries
   are released as soon as they are used: this halves the peak memory of a block (per dask thread) with
   the same results (differences ~1e-8 in Rrs) and the same speed.
-* **Numba:** the kernels of ``Rasterization`` are called from several dask threads. If they are compiled
-  with ``parallel=True``, the default ``workqueue`` threading layer aborts on concurrent calls: use
-  ``NUMBA_THREADING_LAYER=omp`` (or ``tbb``), or a process-based scheduler.
+* **Numba:** the kernels of ``Rasterization`` (``parallel=True``) are called from several dask threads.
+  The ``workqueue`` threading layer aborts on concurrent calls, even with one numba thread per worker, so
+  ``import grs`` sets ``NUMBA_THREADING_LAYER=threadsafe`` (tbb, else OpenMP) unless it is already set.
+  The blocks of ``final_process`` run with one numba thread each (``NUMBA_THREADS_PER_BLOCK``; the
+  setting is local to the dask thread, the calls of the main thread keep all the cores): the dask threads
+  are the parallelism, so ``processor.ncpu`` is the number of busy cores. Measured on 40 cores, 3072 x 3072
+  pixels: 8 dask x 1 numba thread is as fast as 8 x 40 (6.4 s, within the noise), and numba parallelism
+  hardly helps even alone (1 x 1: 20.9 s, 1 x 40: 19.5 s). Throughput stops increasing at about 8 dask threads (GIL, memory bandwidth): more threads only add
+  memory (one block each).
 
 Chunking: ``final_process(..., chunk=512)`` divides the 1024 x 1024 shards of ``L2aProduct.export_to_zarr``,
 which merges four blocks per shard at export time without recomputing them.
 '''
 import copy
+import functools
 import logging
 import types
 import warnings
@@ -185,6 +192,7 @@ import xarray as xr
 xr.set_options(keep_attrs=True)
 import rioxarray  # noqa: F401  (registers the .rio accessor used by the callers)
 
+import numba
 from numba import njit
 from scipy import ndimage
 
@@ -201,6 +209,22 @@ AEROSOL_COMBINATION = config['settings']['aerosol_combination']
 
 # arrays smaller than this (bytes) are loaded in memory once instead of being recomputed by every block
 _SMALL_ARRAY_BYTES = 512 * 2 ** 20
+
+# numba threads of the parallel kernels inside a dask block: the dask threads are the parallelism, a full set
+# of numba threads per block only oversubscribes the cores (8 dask x 1 numba thread: as fast as 8 x 40 on 40
+# cores, and only ``processor.ncpu`` busy cores, e.g. on a shared node or a PBS/SLURM allocation)
+NUMBA_THREADS_PER_BLOCK = 1
+
+
+def _call_with_numba_threads(func, nthreads, *args, **kwargs):
+    '''Call `func` with `nthreads` numba threads in the calling thread (setting local to the thread), then
+    restore the previous number.'''
+    previous = numba.get_num_threads()
+    numba.set_num_threads(max(1, min(nthreads, numba.config.NUMBA_NUM_THREADS)))
+    try:
+        return func(*args, **kwargs)
+    finally:
+        numba.set_num_threads(previous)
 
 
 def _load_small(obj, max_bytes=_SMALL_ARRAY_BYTES):
@@ -1355,7 +1379,8 @@ class Kernel():
                       aot_ref_raster,
                       iwl_swir=[-2, -1],
                       chunk=512,
-                      lazy=True
+                      lazy=True,
+                      numba_threads=NUMBA_THREADS_PER_BLOCK
                       ):
         '''
         Rrs, sunglint reflectance and AOT of the whole image, computed lazily block by block.
@@ -1373,6 +1398,8 @@ class Kernel():
             is computed (~150 MB for 512, ~600 MB for 1024, per thread). 512 divides the 1024 shards of
             ``export_to_zarr``, which merges four blocks per shard without recomputing anything.
         :param lazy: if False, compute the result immediately (needs the memory of the full output)
+        :param numba_threads: numba threads of each block (the blocks run in parallel in the dask threads;
+            None: numba default, one per core)
         :return: Dataset ``xres`` with ``Rrs`` (wl, y, x), ``BRDFg`` (y, x), ``aot550`` (y, x)
 
         Notes
@@ -1393,7 +1420,10 @@ class Kernel():
                                'BRDFg': xr.full_like(plane, np.nan, dtype=dtype),
                                'aot550': xr.full_like(plane, np.nan, dtype=dtype)})
 
-        xres = xr.map_blocks(self._snapshot().final_process_chunk, block,
+        func = self._snapshot().final_process_chunk
+        if numba_threads:
+            func = functools.partial(_call_with_numba_threads, func, numba_threads)
+        xres = xr.map_blocks(func, block,
                              kwargs=dict(aot_ref_raster=aot_ref_raster, iwl_swir=iwl_swir),
                              template=template)
         self.xres = xres if lazy else xres.compute()

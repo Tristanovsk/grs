@@ -146,7 +146,14 @@ __version__ = '3.1.1'
 
 
 import importlib
+import os
 from typing import TYPE_CHECKING
+
+# the numba kernels (parallel=True) are called from several dask threads at once: numba's fallback
+# ``workqueue`` threading layer aborts the process on concurrent calls ("Concurrent access has been
+# detected"), so ask for a thread-safe layer (tbb, else OpenMP). A layer set by the user is kept. Must be
+# set before numba compiles its first parallel kernel.
+os.environ.setdefault('NUMBA_THREADING_LAYER', 'threadsafe')
 
 # public classes and the submodule defining them; a submodule is imported the first time one of its classes
 # is accessed (``grs.Process``, ``from grs import Masking``), so ``import grs`` and ``grs -v`` do not load

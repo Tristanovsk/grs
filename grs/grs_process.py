@@ -16,7 +16,8 @@ Memory / dask design
 
 Number of threads: ``execute`` and ``write_output`` run the dask threaded scheduler with ``processor.ncpu``
 workers (configuration), instead of one per core. Every worker holds its blocks in memory, so this sets the
-peak memory (and avoids oversubscribing the cores, numba running its own threads in each block).
+peak memory (about 150 MB per worker for 512 px blocks). The speed stops increasing at about 8 workers
+(GIL, memory bandwidth; measured on 40 cores), so more workers only cost memory.
 
 Format of the output: ``write_output`` takes it from the name of the output path (``.zarr`` or ``.nc``).
 '''
