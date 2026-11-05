@@ -439,6 +439,19 @@ class Kernel():
         '''CAMS AOD at 550 nm, in memory (coarse grid).'''
         return self._cached('aod550', lambda: _load_small(self.cams.cams_aod.interp(wl=550, method='quadratic')))
 
+    def _Rdiff_tables(self, aot_refs):
+        '''
+        Diffuse light LUT as a numpy array and the indices of the nearest ``aot_ref`` of each value, for the
+        loops of the aerosol retrievals (same tables as ``Rdiff_lut.sel(aot_ref=value, method='nearest')``).
+
+        :param aot_refs: AOT values at the reference wavelength
+        :return: ``(values, indices)``: array (aot_ref, wl, sza, vza, azi) and integer array, one index per
+            value of `aot_refs`
+        '''
+        lut = self.Rdiff_lut.transpose('aot_ref', 'wl', 'sza', 'vza', 'azi')
+        indices = lut.indexes['aot_ref'].get_indexer(np.asarray(aot_refs, dtype=float), method='nearest')
+        return lut.values, indices
+
     @staticmethod
     def _load_block(raster, variables):
         '''
@@ -959,7 +972,8 @@ class Kernel():
         if Ny == 0 or Nx == 0:
             return
 
-        Rdiff_lut_ = self.Rdiff_lut.isel(wl=idx_swir)
+        # LUT of each aot_ref (nearest) taken with numpy: the xarray selections cost more than the retrieval
+        Rdiff_values, iaots = self._Rdiff_tables(aot_refs)
 
         _pressure = self._surface_pressure.interp(x=raster.x, y=raster.y).values
         _Tg_diff_raster = self.Tg_diff_raster.isel(wl=idx_swir).interp(x=raster.x, y=raster.y)
@@ -976,12 +990,12 @@ class Kernel():
 
         counter = _NegativeCounter(base_threshold=0.)
         xres = []
-        for _aot_ref in aot_refs:
+        for _aot_ref, iaot in zip(aot_refs, iaots):
             # get LUT values
             _Rdiff = _R_.interp_Rlut_rayleigh(self.szas, _sza,
                                               self.vzas, _vza,
                                               self.azis, _azi,
-                                              Nwl, Ny, Nx, Rdiff_lut_.sel(aot_ref=_aot_ref, method='nearest').values)
+                                              Nwl, Ny, Nx, Rdiff_values[iaot][idx_swir])
 
             _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
 
@@ -1098,7 +1112,9 @@ class Kernel():
         _raa = raster.raa
         _vza = raster.vza
         _azi = (180. - _raa) % 360
+        # numpy (wl, y, x) or (y, x) for a mono-view sensor: the loop below is pure numpy
         _air_mass_ = Misc.air_mass(_sza, _vza)
+        _air_mass_ = _air_mass_.transpose(*[d for d in ('wl', 'y', 'x') if d in _air_mass_.dims]).values
         _pressure_ = _pressure / self.pressure_ref
 
         sigma2 = (self.wind_img.wind + 0.586) / 195.3
@@ -1116,11 +1132,17 @@ class Kernel():
         aot_ref_bound = np.min([aot_ref_max_in * 1.02, self.aot_ref_lim])
         aot_refs = np.linspace(0, aot_ref_bound, 21)
 
+        # LUTs of all the aot_refs taken at once, as numpy arrays: one xarray call per aot_ref (interpolation,
+        # selection, arithmetic on DataArrays) cost several times the retrieval itself
+        aot_values = self.aot_lut.interp(aot_ref=aot_refs, method='quadratic').transpose('aot_ref', 'wl').values
+        Rdiff_values, iaots = self._Rdiff_tables(aot_refs)
+        # (wl, 1, 1): broadcast on the (wl, y, x) or (y, x) air mass
+        aot_rot = aot_values + rot_term
+        aot_rot = aot_rot.reshape(aot_rot.shape + (1, 1))
+
         counter = _NegativeCounter(base_threshold=-0.0003)
         xres = []
-        for _aot_ref in aot_refs:
-            _aot = self.aot_lut.interp(aot_ref=_aot_ref, method='quadratic')  # .values
-
+        for i, _aot_ref in enumerate(aot_refs):
             arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=np.float32)
 
             # get LUT values
@@ -1128,7 +1150,7 @@ class Kernel():
                                               self.vzas, vza_values,
                                               self.azis, azi_values,
                                               Nwl, Ny, Nx,
-                                              self.Rdiff_lut.sel(aot_ref=_aot_ref, method='nearest').values)
+                                              Rdiff_values[iaots[i]])
 
             _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
 
@@ -1136,7 +1158,7 @@ class Kernel():
             Rcorr = band - _Rdiff
 
             # direct transmittance up/down
-            Tdir = np.exp(-(_aot + rot_term) * _air_mass_)  # acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
+            Tdir = np.exp(-aot_rot[i] * _air_mass_)
 
             Rf = np.full((len(iwl_swir), Ny, Nx), np.nan, dtype=np.float32)
             for iwl in iwl_swir:
