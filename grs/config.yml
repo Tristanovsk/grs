@@ -29,6 +29,11 @@ settings:
   # OPAC aerosol models of the LUTs, and default weights of their combination
   aerosol_combination: [0, 0.5, 0, 0.5, 0., 0.]
   aerosol_models: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70', 'MACL_rh70', 'URBA_rh70', 'WASO_rh0']
+  # images with less water than this area (km²) are not processed: Process.execute stops right after
+  # reading the image (no CAMS, cloud mask, LUTs nor aerosol retrieval) and no product is written.
+  # Water pixels: (blue - SWIR1) / (blue + SWIR1) > 0 and SWIR2 < 0.2, the water test of the processing
+  # (clouds not yet masked). 0: stop only when no pixel passes the test. Not used with allpixels.
+  min_water_area: 1.0
 
 # retrieval of the aerosol optical thickness (AOT), see the methods page of the documentation; the
 # parameters of the same name of Process.execute override them, aot_resolution also --aot_resolution

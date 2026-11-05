@@ -131,6 +131,27 @@ def _with_workers(method):
     return wrapper
 
 
+def _water_area(prod):
+    '''
+    Area (km²) of the water pixels of the Level-1 image, with the water test of the processing:
+    (blue - SWIR1) / (blue + SWIR1) > ``vis_swir_index_threshold`` and SWIR2 < ``sunglint_threshold``, on the
+    TOA reflectance (before the gaseous correction and the cloud mask, so it is only used to skip the images
+    without water).
+
+    :param prod: :py:class:`~grs.product.Product` with the TOA reflectance ``prod.raster.bands``
+    :return: area in km² (float)
+    '''
+    bands = prod.raster.bands
+    vis = bands.sel(wl=prod.bvis, method='nearest')
+    swir = bands.sel(wl=prod.bswir, method='nearest')
+    swir2 = bands.sel(wl=prod.bswir2, method='nearest')
+    with np.errstate(invalid='ignore', divide='ignore'):
+        water = ((vis - swir) / (vis + swir) > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)
+    npix = int(water.sum())
+    pixel_area = abs(float(prod.raster.x[1] - prod.raster.x[0]) * float(prod.raster.y[1] - prod.raster.y[0]))
+    return npix * pixel_area / 1e6
+
+
 def _cams_from_archive(raster, cams_dir):
     """
     CAMS data of an image from the ``YYYY/MM/DD`` archive of `cams_dir` (``path: cams`` of the
@@ -184,7 +205,11 @@ class Process:
         # and negative Rrs (18)
         self.flags_tokeep = [3]
         self.flags_tomask = [0, 10, 11, 12, 13, 14, 18]
+        self.min_water_area = config['settings'].get('min_water_area', 0.)
         self.successful = False
+        # True when execute stopped because the image has (almost) no water (see min_water_area)
+        self.no_water = False
+        self.l2a = None
 
     @_with_workers
     def execute(self, l1c_prod,
@@ -207,7 +232,8 @@ class Process:
                 opac_model=None,
                 allpixels=False,
                 snap_compliant=False,
-                provide_kernel=False
+                provide_kernel=False,
+                min_water_area=None
                 ):
 
         '''
@@ -253,7 +279,11 @@ class Process:
             (OmniCloudMask class 0) water pixels are processed
         :param snap_compliant: Output format compliant with SNAP software for practical analysis
         :param provide_kernel: dev option, return the kernel before the retrieval
-        :return: the kernel
+        :param min_water_area: images with less water (km²) are not processed: the function stops right
+            after reading the image, sets ``self.no_water`` and returns None, and ``write_output`` writes
+            nothing. None: ``settings: min_water_area`` of the configuration (1 km²); 0: stop only without
+            any water pixel. Not used with `allpixels`.
+        :return: the kernel (None if the image has no water)
 
         Examples
         --------
@@ -339,6 +369,8 @@ class Process:
         self.odir = odir
         self.snap_compliant = snap_compliant
         self.successful = False
+        self.no_water = False
+        self.l2a = None
 
         # stop before reading the image if the LUTs are missing; the LUTs of the configuration are downloaded
         # from Zenodo the first time (see grs.config.ensure_luts), LUT files set by hand are only checked
@@ -395,6 +427,19 @@ class Process:
             raise TypeError('l1c_prod must be a file path or an xarray Dataset, got ' + type(l1c_prod).__name__)
 
         self.prod = prod
+
+        ##################################
+        # Stop early if the image has (almost) no water
+        ##################################
+        if min_water_area is None:
+            min_water_area = self.min_water_area
+        if not allpixels:
+            area = _water_area(prod)
+            if area <= 0 or area < min_water_area:
+                logging.warning('no water to process: %.3f km² of water pixels (minimum %.3f km²), '
+                                'image not processed', area, min_water_area)
+                self.no_water = True
+                return None
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
@@ -799,6 +844,11 @@ class Process:
         :param export_kwargs: options of ``L2aProduct.export`` (e.g. ``chunks``, ``shards``, ``compression``,
             ``storage_options``, ``max_concurrency``, ``pyramids``)
         '''
+        if self.l2a is None:
+            # execute stopped (image without water, see min_water_area) or was not run: nothing to write
+            logging.warning('no L2A product to write%s',
+                            ' (image without water)' if self.no_water else ' (execute did not complete)')
+            return None
         logging.info('export final product')
         if fmt is None and Path(str(self.odir).rstrip('/')).suffix.lower() not in _OUTPUT_EXTENSIONS:
             fmt = 'zarr'

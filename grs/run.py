@@ -3,7 +3,8 @@
 Usage:
   grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--aot_resolution res]\
    [--max_cloud_cover max_cc] [--scale_aot factor] [--opac_model name] [--levname <lev>] [--no_clobber]\
-   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]
+   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]\
+   [--min_water_area area]
   grs -h | --help
   grs -v | --version
 
@@ -33,6 +34,9 @@ Options:
                      'MACL_rh70', 'URBA_rh70'])
   --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
   --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
+  --min_water_area area  Do not process the image if it has less water than this area (km2); no product
+                         is written (default: min_water_area of the configuration, 1 km2; 0: only images
+                         without any water pixel are skipped)
 
 
   Example:
@@ -118,6 +122,8 @@ def main():
     opac_model = args['--opac_model']
     snap_compliant = args['--snap_compliant']
     suffix = args['--suffix']
+    # None: configuration
+    min_water_area = float(args['--min_water_area']) if args['--min_water_area'] else None
 
     ##################################
     # File naming convention
@@ -170,8 +176,12 @@ def main():
                          dem_file=dem_file,
                          allpixels=allpixels,
                          surfwater_file=surfwater_file,
-                         snap_compliant=snap_compliant)
-        process_.write_output()
+                         snap_compliant=snap_compliant,
+                         min_water_area=min_water_area)
+        if process_.no_water:
+            logging.info('image without water: no product written')
+        else:
+            process_.write_output()
     except Exception:
         logging.error("Fatal error in grs_process", exc_info=True)
     return
