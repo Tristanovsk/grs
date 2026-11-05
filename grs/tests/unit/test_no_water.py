@@ -5,7 +5,7 @@ import types
 import numpy as np
 import xarray as xr
 
-from grs.grs_process import Process, _water_area
+from grs.grs_process import Process, _water_area, no_water_marker
 
 
 def _prod(water_pixels, size=50, pixel=20.):
@@ -29,6 +29,24 @@ def test_water_area():
 
 
 def test_write_output_without_product():
+    # execute not run: nothing to write
+    assert Process().write_output() is None
+
+
+def test_no_water_marker_names():
+    assert str(no_water_marker('/data/scene.zarr')) == '/data/scene_no_water.txt'
+    assert str(no_water_marker('/data/scene.nc')) == '/data/scene_no_water.txt'
+    # directory of the grs command: <dir>/<name>_no_water.txt
+    assert str(no_water_marker('/data/scene/')) == '/data/scene/scene_no_water.txt'
+    assert no_water_marker('s3://bucket/scene.zarr') is None
+
+
+def test_write_output_writes_marker(tmp_path):
     process = Process()
+    process.odir = str(tmp_path / 'scene.zarr')
     process.no_water = True
-    assert process.write_output() is None
+    process.no_water_info = {'image': 'scene.SAFE', 'water_area_km2': 0.1, 'min_water_area_km2': 1.0}
+    marker = process.write_output()
+    assert marker == tmp_path / 'scene_no_water.txt'
+    assert 'water_area_km2: 0.1' in marker.read_text()
+    assert not (tmp_path / 'scene.zarr').exists()

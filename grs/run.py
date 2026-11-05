@@ -18,7 +18,8 @@ Options:
 
   -o <odir>, --odir <odir>  Full (absolute or relative) path to output L2 image.
   --levname lev    Level naming used for output product [default: L2AGRS]
-  --no_clobber     Do not process <input_file> if <output_file> already exists.
+  --no_clobber     Do not process <input_file> if <output_file> already exists (or its marker file
+                   <name>_no_water.txt for an image without water, see --min_water_area).
   --resolution=res  spatial resolution of the scene pixels [default: 60]
   --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
                         resolution (default: aot_resolution of the configuration, 240)
@@ -34,9 +35,9 @@ Options:
                      'MACL_rh70', 'URBA_rh70'])
   --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
   --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
-  --min_water_area area  Do not process the image if it has less water than this area (km2); no product
-                         is written (default: min_water_area of the configuration, 1 km2; 0: only images
-                         without any water pixel are skipped)
+  --min_water_area area  Do not process the image if it has less water than this area (km2): no product
+                         is written, only the marker file <name>_no_water.txt (default: min_water_area of
+                         the configuration, 1 km2; 0: only images without any water pixel are skipped)
 
 
   Example:
@@ -105,7 +106,7 @@ def main():
     print(args)
 
     from . import class_logger
-    from .grs_process import Process
+    from .grs_process import Process, no_water_marker
 
     file = Path(args['<input_file>'])
 
@@ -152,10 +153,12 @@ def main():
     # Process.write_output writes a Zarr store named after the output directory
     outfile = Path(outdir, outdir.name + ".zarr")
 
-    # skip if already processed
-    if outfile.exists() and noclobber:
-        logging.info(f'File {outfile} already processed; skip!')
-        exit(-1)
+    # skip if already processed, or already found without water (marker file of Process.write_output)
+    if noclobber:
+        for done in (outfile, no_water_marker(outdir)):
+            if done.exists():
+                logging.info(f'File {done} already processed; skip!')
+                exit(-1)
 
     logging.info(f'call grs_process for the following paramater. '
                  f'File: {file}, '
@@ -178,10 +181,8 @@ def main():
                          surfwater_file=surfwater_file,
                          snap_compliant=snap_compliant,
                          min_water_area=min_water_area)
-        if process_.no_water:
-            logging.info('image without water: no product written')
-        else:
-            process_.write_output()
+        # for an image without water: marker file <outdir>/<name>_no_water.txt instead of the product
+        process_.write_output()
     except Exception:
         logging.error("Fatal error in grs_process", exc_info=True)
     return

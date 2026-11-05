@@ -39,7 +39,7 @@ import dask
 
 import GRSdriver
 
-from . import utils
+from . import utils, __version__
 from .config import load_config, lut_path, check_luts, ensure_luts
 from .product import Product
 from .cams import CamsProduct
@@ -129,6 +129,26 @@ def _with_workers(method):
         with dask.config.set(num_workers=self.Nproc):
             return method(self, *args, **kwargs)
     return wrapper
+
+
+def no_water_marker(odir):
+    '''
+    Path of the marker file written instead of the product for an image without water (see
+    ``Process.execute(min_water_area=...)``), so that batch runs can skip it like a processed image:
+    ``<directory>/<basename>_no_water.txt``, with the directory and base name of the product
+    (``/data/scene.zarr`` -> ``/data/scene_no_water.txt``; a directory without extension, as given by the
+    ``grs`` command, ``/data/scene`` -> ``/data/scene/scene_no_water.txt``).
+
+    :param odir: output path given to `Process.execute`
+    :return: Path, or None for a remote output (URL)
+    '''
+    odir = str(odir).rstrip('/')
+    if '://' in odir:
+        return None
+    path = Path(odir)
+    if path.suffix.lower() in _OUTPUT_EXTENSIONS:
+        return path.with_name(path.stem + '_no_water.txt')
+    return path / (path.name + '_no_water.txt')
 
 
 def _water_area(prod):
@@ -281,8 +301,8 @@ class Process:
         :param provide_kernel: dev option, return the kernel before the retrieval
         :param min_water_area: images with less water (km²) are not processed: the function stops right
             after reading the image, sets ``self.no_water`` and returns None, and ``write_output`` writes
-            nothing. None: ``settings: min_water_area`` of the configuration (1 km²); 0: stop only without
-            any water pixel. Not used with `allpixels`.
+            the marker file `no_water_marker` instead of the product. None: ``settings: min_water_area`` of
+            the configuration (1 km²); 0: stop only without any water pixel. Not used with `allpixels`.
         :return: the kernel (None if the image has no water)
 
         Examples
@@ -439,6 +459,10 @@ class Process:
                 logging.warning('no water to process: %.3f km² of water pixels (minimum %.3f km²), '
                                 'image not processed', area, min_water_area)
                 self.no_water = True
+                self.no_water_info = {'image': str(prod.raster.attrs.get('product_name', l1c_prod)
+                                                   if isinstance(l1c_prod, xr.Dataset) else l1c_prod),
+                                      'water_area_km2': round(area, 4),
+                                      'min_water_area_km2': min_water_area}
                 return None
 
         ##################################
@@ -843,11 +867,20 @@ class Process:
         :param fmt: ``'zarr'`` or ``'netcdf'`` to force the format (None: from the name of the output)
         :param export_kwargs: options of ``L2aProduct.export`` (e.g. ``chunks``, ``shards``, ``compression``,
             ``storage_options``, ``max_concurrency``, ``pyramids``)
+        :return: for an image without water (see ``execute(min_water_area=...)``), the path of the marker file
+            written instead of the product (`no_water_marker`)
         '''
         if self.l2a is None:
-            # execute stopped (image without water, see min_water_area) or was not run: nothing to write
-            logging.warning('no L2A product to write%s',
-                            ' (image without water)' if self.no_water else ' (execute did not complete)')
+            if self.no_water:
+                # image without water (see min_water_area): a marker file instead of the product
+                marker = no_water_marker(self.odir)
+                if marker is not None:
+                    marker.parent.mkdir(parents=True, exist_ok=True)
+                    marker.write_text(''.join(f'{key}: {value}\n' for key, value in
+                                              {**self.no_water_info, 'grs_version': __version__}.items()))
+                logging.warning('image without water: no L2A product, marker %s', marker)
+                return marker
+            logging.warning('no L2A product to write (execute did not complete)')
             return None
         logging.info('export final product')
         if fmt is None and Path(str(self.odir).rstrip('/')).suffix.lower() not in _OUTPUT_EXTENSIONS:
