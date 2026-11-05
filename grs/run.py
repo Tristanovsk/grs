@@ -145,20 +145,21 @@ def main():
         suffix = f'_V{__version__}'
 
     outdir = set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
-    outdir.mkdir(parents=True, exist_ok=True)
-
-    class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
-                               log_console=False)
 
     # Process.write_output writes a Zarr store named after the output directory
     outfile = Path(outdir, outdir.name + ".zarr")
 
-    # skip if already processed, or already found without water (marker file of Process.write_output)
+    # skip if already processed, or already found without water (marker file of Process.write_output);
+    # checked before the logger is set up, which would overwrite the log file of the previous run
     if noclobber:
         for done in (outfile, no_water_marker(outdir)):
             if done.exists():
-                logging.info(f'File {done} already processed; skip!')
+                print(f'File {done} already processed; skip!')
                 exit(-1)
+
+    outdir.mkdir(parents=True, exist_ok=True)
+    class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
+                               log_console=False)
 
     logging.info(f'call grs_process for the following paramater. '
                  f'File: {file}, '
