@@ -36,6 +36,29 @@ def cams_daily_file(date, cams_dir, suffix=''):
     return opj(cams_dir, f'{date:%Y}', f'{date:%m}', f'{date:%d}', f'{date:%Y-%m-%d}-{CAMS_DATASET}{suffix}.nc')
 
 
+def _netcdf_engine(filepath):
+    '''
+    xarray engine to read a CAMS file: ``'scipy'`` for the classic NetCDF3 files (e.g. the older monthly
+    global files, ``cams_forecast_YYYY-MM.nc``), None (default engine) otherwise (NetCDF4 / HDF5 files of the
+    daily archive or of the ADS downloads).
+
+    The scipy engine memory-maps a NetCDF3 file: the area of an image (a few CAMS cells, 8 time steps,
+    ~20 variables) is then read with a few page reads per variable, instead of one small read per time step
+    and latitude row with the netCDF4 library, which takes about a minute on a hard disk for a 4 GB monthly
+    file not yet in the cache (6 s with scipy, same values).
+
+    :param filepath: CAMS file
+    :return: engine name or None
+    '''
+    try:
+        with open(filepath, 'rb') as f:
+            magic = f.read(4)
+    except OSError:
+        return None
+    # NetCDF3 classic (CDF\x01) and 64-bit offset (CDF\x02); CDF5 (\x05) is not read by scipy
+    return 'scipy' if magic in (b'CDF\x01', b'CDF\x02') else None
+
+
 class CamsProduct:
     '''
     Unit Conversion:
@@ -184,6 +207,7 @@ class CamsProduct:
         # lazy loading
         cams = xr.open_dataset(self.filepath,
                                decode_cf=True,
+                               engine=_netcdf_engine(self.filepath),
                                )
 
         # -------------------------

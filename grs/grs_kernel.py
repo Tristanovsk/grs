@@ -240,6 +240,34 @@ def _load_small(obj, max_bytes=_SMALL_ARRAY_BYTES):
     return obj
 
 
+def _lut_window(lut, **values):
+    '''
+    Part of a look-up table that covers given values, for a linear interpolation on them.
+
+    Along each dimension, the grid points from the last one below the smallest value to the first one
+    above the largest value are kept (at least two points), so that the interpolation on the window gives
+    the same result as on the whole table (values outside the grid stay NaN). Only this window is then read
+    from the file: e.g. the few solar and viewing zenith angles of an image instead of the whole table.
+
+    :param lut: DataArray or Dataset with ascending coordinates along the dimensions of `values`
+    :param values: dimension name -> array of the values to interpolate on (NaN ignored)
+    :return: `lut` restricted to the windows (lazy if `lut` is)
+    '''
+    windows = {}
+    for dim, vals in values.items():
+        vals = np.asarray(vals, dtype=float)
+        vals = vals[np.isfinite(vals)]
+        grid = lut[dim].values
+        if vals.size == 0 or grid.size < 2:
+            continue
+        i0 = max(int(np.searchsorted(grid, vals.min(), side='right')) - 1, 0)
+        i1 = min(int(np.searchsorted(grid, vals.max(), side='left')), grid.size - 1)
+        if i1 <= i0:  # a single grid point: keep a neighbour (interpolation needs two points)
+            i0, i1 = (i0, i0 + 1) if i0 + 1 < grid.size else (i0 - 1, i0)
+        windows[dim] = slice(i0, i1 + 1)
+    return lut.isel(windows)
+
+
 def _unique_values(*arrays):
     '''
     Sorted unique values of several DataArrays in one pass over their data (dask-aware: only the unique
@@ -530,8 +558,9 @@ class Kernel():
 
         The angles are rounded (`ang_resol`) and only their unique values are kept in the LUTs, which
         speeds up the later interpolations. The unique values are found in one pass over the angle rasters
-        without loading them (dask). The resulting tables are loaded in memory once, so the blocks do not
-        recompute them.
+        without loading them (dask). Only the window of the radiance table around these angles is read
+        (see `_lut_window`), once per run, and the models are mixed before the angular interpolation. The
+        resulting tables are loaded in memory once, so the blocks do not recompute them.
 
         Sets ``trans_aero_lut``, ``Rray``, ``Rdiff_lut``, ``aot_lut``, ``szas``, ``vzas``, ``azis``,
         ``aot_refs``, ``sunglint_eps``, ``rot``, and adds ``sza_trunc``, ``vza_trunc``, ``raa_trunc`` to
@@ -585,19 +614,34 @@ class Kernel():
         self.trans_aero_lut = self.trans_aero_lut.squeeze().reset_coords(drop=True)
 
         # ----------------------------------------
+        # radiance tables on the angles of the image
+        # ----------------------------------------
+        # The radiance table I is large (several GB, compressed): only its window around the angles of the
+        # image is read (a few MB), and the aerosol models are mixed before the angular interpolation
+        # (linear, so the order does not change the result), which interpolates one table instead of one per
+        # model. The windows only depend on the angles, the wind and the mixture: read once, the second call
+        # (refined LUT) does not read the file again.
+        def radiance_windows():
+            radiance = _lut_window(aero_lut.I, sza=sza_, vza=vza_, azi=azi_).load()
+            return (radiance.isel(model=0).sel(aot_ref=0, method='nearest'),
+                    (radiance * aerosol_combination).sum('model'))
+
+        key = ('radiance_windows', float(aero_lut.wind), tuple(sorted(ang_resol.items())),
+               tuple(aerosol_combination.values.tolist()))
+        rayleigh, mixed = self._cached(key, radiance_windows)
+        Rray_ang = rayleigh.interp(sza=sza_, vza=vza_).interp(azi=azi_)
+        Rdiff_ang = mixed.interp(sza=sza_, vza=vza_).interp(azi=azi_)
+
+        # ----------------------------------------
         # interpolation Rayleigh
         # ----------------------------------------
-        self.Rray = aero_lut.I.isel(model=0).sel(aot_ref=0, method='nearest')
-        self.Rray = self.Rray.interp(sza=sza_, vza=vza_).interp(azi=azi_)
-        self.Rray = (self.Rray.interp(wl=self.wl_true, method='quadratic') /
-                     np.cos(np.radians(self.Rray.sza)))
+        self.Rray = (Rray_ang.interp(wl=self.wl_true, method='quadratic') /
+                     np.cos(np.radians(Rray_ang.sza)))
 
         # ----------------------------------------
         # interpolation atmo diffuse light
         # ----------------------------------------
-        self.Rdiff_lut = aero_lut.I.interp(sza=sza_, vza=vza_).interp(azi=azi_)
-        self.Rdiff_lut = (self.Rdiff_lut * aerosol_combination).sum('model')
-        self.Rdiff_lut = self.Rdiff_lut.interp(aot_ref=aot_refs, method='quadratic')
+        self.Rdiff_lut = Rdiff_ang.interp(aot_ref=aot_refs, method='quadratic')
         self.Rdiff_lut = (self.Rdiff_lut.interp(wl=self.wl_true, method='quadratic') /
                           np.cos(np.radians(self.Rdiff_lut.sza)))
 
