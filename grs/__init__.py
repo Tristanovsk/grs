@@ -139,6 +139,12 @@ Version history
 3.1.1:
     - cloud screening with OmniCloudMask only (s2cloudless removed): only the clear-sky water pixels
       (OmniCloudMask class 0) are processed
+    - images without water (less than min_water_area, 1 km²) not processed: marker file
+      <name>_no_water.txt instead of the product, skipped by --no_clobber
+    - faster processing, same products: CAMS NetCDF3 files read by memory map, LUT window around the
+      image angles, aerosol retrieval loops in numpy
+    - lower memory of the final processing (float32 blocks), one numba thread per block, thread-safe
+      numba layer
 '''
 
 __package__ = 'grs'

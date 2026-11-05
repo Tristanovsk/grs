@@ -8,13 +8,41 @@ Dates are given for tagged releases only.
 
 ## [Unreleased] - 3.1.1
 
+### Added
+- Images without water are not processed: `Process.execute` stops right after reading the image (no CAMS,
+  cloud mask, LUTs nor aerosol retrieval) when the water test of the processing finds less water than
+  `min_water_area` (km², `settings: min_water_area` of the configuration, default 1 km²; argument of
+  `execute` and `--min_water_area` option of the CLI; 0: only images without any water pixel). Instead of
+  the product, `write_output` writes the marker file `<name>_no_water.txt` (image, water area, minimum,
+  version), skipped like a product by `grs --no_clobber` and by the batch tutorial (status `no_water`).
+  Not used with `allpixels`.
+
 ### Changed
+- Faster processing, same products (bit-identical L2A on a Sentinel-2 tile; `execute` about 295 s ->
+  150 s on the Loire tile at 20 m):
+  - CAMS NetCDF3 files (monthly global files `cams_forecast_YYYY-MM.nc`) read with the xarray `scipy`
+    engine (memory map): the area of an image is read in ~5 s instead of ~50 s from a hard disk when the
+    file is not in the cache. The NetCDF4 files (daily archive, ADS downloads) keep the default engine.
+  - LUT preparation: only the window of the radiance LUT around the angles of the image is read, once
+    per run, and the aerosol models are mixed before the angular interpolation (45 + 26 s -> 21 + 7 s for
+    the first and refined LUTs).
+  - Aerosol retrieval: the loops over the tested AOT values work on numpy arrays (AOT LUT interpolated
+    once per block, nearest diffuse light LUT by index, direct transmittance without xarray): 33 -> 19 s.
+- Lower memory of the final processing: blocks computed in float32 with in-place products, peak memory
+  per block halved (~150 MB for blocks of 512 pixels, ~600 MB for 1024), same speed and Rrs.
+- One numba thread per block of the final processing (the blocks already run in `processor: ncpu` dask
+  threads): `ncpu` is the number of busy cores, as fast as all the cores per block before.
 - Cloud screening with OmniCloudMask only, in the core of the processing: the pixels processed (aerosol
   retrieval and correction) are the clear-sky water pixels, OmniCloudMask class 0 (no thick cloud, thin
   cloud or cloud shadow, `Masking.clear_sky`); cloudy pixels get NaN `Rrs`. The `mask` recipe masks the
   OmniCloudMask bits 11, 12 and 13 (was: s2cloudless bit 1 and OmniCloudMask shadow bit 13).
 - s2cloudless removed (masking step, settings, `Masking.s2cloudless_mask` and the `s2cloudless`
   requirement, with LightGBM): flag bits 1 and 2 (`cloud_p06`, `cloud_p08`) are no longer set.
+
+### Fixed
+- Thread-safe numba threading layer by default (`NUMBA_THREADING_LAYER=threadsafe`: TBB, else OpenMP,
+  unless set by the user): the fallback `workqueue` layer aborted the process on the concurrent calls of
+  the numba kernels from the dask threads.
 
 ## [3.1.0]
 
