@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'feature/*'
+      - 'release/*'
+      - 'hotfix/*'
+      - 'bugfix/*'
       - main
       - develop
     tags:
@@ -26,17 +29,11 @@ jobs:
    steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true
           fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Installation du paquet gdal
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gdal-bin libgdal-dev
+          python-version: "3.12"
 
       - name: Installation dépendances et lancement des tests
         run: |
@@ -44,33 +41,35 @@ jobs:
           python -m venv python_env
           . python_env/bin/activate
           python -m pip install --upgrade pip
-          GDAL_VERSION=$(gdal-config --version)
-          echo "GDAL system version: $GDAL_VERSION"
 
           echo "Installation des dépendances via pip"
-          python -m pip install GDAL==$GDAL_VERSION
           python -m pip install -r requirements.txt --no-cache-dir --force-reinstall
           python -m pip install pytest pytest-cov
-          python -m pip install -U datashader # la version du requirements.txt n'est plus compatible avec dask
                            
-          echo "Lancement des tests du répertoire  grs/tests/integration_tests/"
-          python -m pytest --tb=short -vv -s -x grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
+          echo "Lancement des tests des répertoires grs/tests/unit/ et grs/tests/integration_tests/"
+          python -m pytest --tb=short -vv -s -x grs/tests/unit/ grs/tests/integration_tests/ --cov=grs --cov-report=html:cov_html --cov-report=xml:coverage.xml --junitxml=test-results.xml
           
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             echo "Génération du badge coverage"
             python -m pip install genbadge[coverage]
-            mkdir -p badges
-         
-            genbadge coverage -i coverage.xml -o badges/coverage.svg
 
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            # Le checkout d'un tag laisse le dépôt en detached HEAD : on ne peut
+            # pas y "git push" directement. On bascule donc sur main (branche
+            # depuis laquelle les tags sont coupés) avant de committer le badge.
+            git fetch origin main
+            git checkout -B main origin/main
+
+            mkdir -p badges
+            genbadge coverage -i coverage.xml -o badges/coverage.svg
 
             git add badges/coverage.svg
 
             if ! git diff --cached --quiet; then
               git commit -m "Update coverage badge [skip ci]"
-              git push
+              git push origin HEAD:main
             fi
           fi
 
@@ -98,7 +97,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name : Build
         run: |
@@ -180,7 +179,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name : Install ruff and mypi
         run: pip install ruff mypy
@@ -206,134 +205,8 @@ jobs:
 
 
 
-  sync:
-    needs: podman-build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-
-      - name: Install git-filter-repo
-        run: |
-          pip install git-filter-repo
-
-      - name: Find LFS files in history
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Reference : ${GITHUB_REF}"
-          echo "Commit    : ${GITHUB_SHA}"
-
-          : > /tmp/lfs-files.txt
-
-          echo
-          echo "=== Searching LFS pointers in history ==="
-
-          while read -r commit; do
-            git ls-tree -r "$commit"
-          done < <(git rev-list HEAD) |
-          while read -r mode type object path; do
-            [ "$type" = "blob" ] || continue
-
-            if git cat-file blob "$object" 2>/dev/null |
-              head -n 1 |
-              grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
-              printf '%s\n' "$path"
-            fi
-          done |
-          sort -u > /tmp/lfs-files.txt
-
-          echo
-          echo "=== LFS files ==="
-
-          if [ -s /tmp/lfs-files.txt ]; then
-            cat /tmp/lfs-files.txt
-            echo
-            echo "Count: $(wc -l < /tmp/lfs-files.txt)"
-          else
-            echo "No LFS files found."
-          fi
-     
-
-      - name: Remove LFS files and .gitattributes
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cat > /tmp/remove-paths.txt <<'EOF'
-          grs/tests/.gitattributes
-          EOF
-
-          if [ -s /tmp/lfs-files.txt ]; then
-            cat /tmp/lfs-files.txt >> /tmp/remove-paths.txt
-          fi
-
-          echo "=== Paths to remove ==="
-          cat /tmp/remove-paths.txt
-
-          git filter-repo \
-            --invert-paths \
-            --paths-from-file /tmp/remove-paths.txt \
-            --force
-          
-      - name: Verify no LFS remains
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "=== Checking .gitattributes ==="
-
-          if git ls-tree -r HEAD --name-only | grep -Fxq 'grs/tests/.gitattributes'; then
-            echo "ERROR: grs/tests/.gitattributes still exists"
-            exit 1
-          fi
-
-          echo "OK: .gitattributes removed"
-
-          echo
-          echo "=== Checking LFS pointers ==="
-
-          FOUND=0
-
-          while read -r commit; do
-            while read -r mode type object path; do
-              [ "$type" = "blob" ] || continue
-
-              if git cat-file blob "$object" 2>/dev/null |
-                 head -n 1 |
-                 grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
-
-                echo "ERROR: LFS pointer found"
-                echo "  commit: $commit"
-                echo "  path:   $path"
-
-                FOUND=1
-              fi
-            done < <(git ls-tree -r "$commit")
-          done < <(git rev-list HEAD)
-
-          if [ "$FOUND" -ne 0 ]; then
-            echo
-            echo "ERROR: LFS pointers are still present."
-            echo "Nothing will be pushed to GitLab."
-            exit 1
-          fi
-
-          echo "OK: no LFS pointers found."
-
-      - name: Push to GitLab
-        env:
-          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-          GITLAB_REPOSITORY: ${{ secrets.GITLAB_REPOSITORY }}
-          GIT_LFS_SKIP_PUSH: "1"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.cnes.fr/waterquality/grs2.git"
-          git push  gitlab  "HEAD:${GITHUB_REF}" --force
+  # The "sync" job to GitLab has been moved to the dedicated workflow
+  # .github/workflows/gitlab-sync.yml: direct push is rejected on GitLab's
+  # protected main/develop branches (pre-receive hook), replaced by a
+  # PR -> GitLab branch -> GitLab Merge Request flow.
 

@@ -19,6 +19,8 @@ Options:
   --levname lev    Level naming used for output product [default: L2AGRS]
   --no_clobber     Do not process <input_file> if <output_file> already exists.
   --resolution=res  spatial resolution of the scene pixels [default: 60]
+  --aot_resolution res  pixel size (m) of the coarse grid of the aerosol retrieval, multiple of the
+                        resolution (default: aot_resolution of the configuration, 240)
   --max_cloud_cover max_cc  Skip process if image level 1 cloud cover is greater than max_cc
                             in decimal number [default: 1]
   --allpixels      force to process all pixels whatever they are masked (cloud, vegetation...) or not
@@ -30,7 +32,7 @@ Options:
                      (choice: ['ARCT_rh70', 'COAV_rh70', 'DESE_rh70',
                      'MACL_rh70', 'URBA_rh70'])
   --suffix suffix  A suffix to append to the output dir name to personalize a run default value is "V<GRS version>"
-  --snap_compliant  Export output to netcdf aligned with "beam" for ESA SNAP software
+  --snap_compliant  Write Rrs as one variable per band (Rrs_<wl>), "beam" layout for ESA SNAP software
 
 
   Example:
@@ -40,13 +42,15 @@ Options:
 
 '''
 
+import ctypes
+import ctypes.util
 import logging
+import os
 
 from pathlib import Path
+from xml.etree import ElementTree
 from docopt import docopt
-from osgeo import gdal
 
-from . import class_logger
 from . import __package__, __version__
 from .grs_process import Process
 from exe.procutils import misc
@@ -54,9 +58,27 @@ from exe.procutils import misc
 misc = misc()
 
 
+def s2_cloud_cover(safe):
+    '''
+    Cloud cover (0-1) of a Sentinel-2 L1C image, from ``Cloud_Coverage_Assessment`` of its
+    ``MTD_MSIL1C.xml`` (read directly: no GDAL needed).
+
+    :param safe: path of the ``.SAFE`` folder
+    '''
+    tree = ElementTree.parse(Path(safe, 'MTD_MSIL1C.xml'))
+    node = next(e for e in tree.iter() if e.tag.split('}')[-1] == 'Cloud_Coverage_Assessment')
+    return float(node.text) / 100
+
+
 def main():
+    # before any thread is started
+    limit_malloc_arenas()
+    # -h / -v are handled (and exit) here, before the heavy imports below
     args = docopt(__doc__, version=__package__ + '_' + __version__)
     print(args)
+
+    from . import class_logger
+    from .grs_process import Process
 
     file = Path(args['<input_file>'])
 
@@ -67,6 +89,7 @@ def main():
     noclobber = args['--no_clobber']
     allpixels = args['--allpixels']
     resolution = int(args['--resolution'])
+    aot_resolution = int(args['--aot_resolution']) if args['--aot_resolution'] else None   # None: configuration
     max_cc = float(args['--max_cloud_cover'])
     scale_aot = float(args['--scale_aot'])
     opac_model = args['--opac_model']
@@ -79,9 +102,7 @@ def main():
     basename = file.name
     # first check cloud cover (for S2, not implemented for Landsat)
     if ('MSIL1C' in basename) and ('SAFE' in basename):
-        f_ = gdal.Open(str(Path(file, 'MTD_MSIL1C.xml')))
-        metadata = f_.GetMetadata()
-        cc = float(metadata['CLOUD_COVERAGE_ASSESSMENT']) / 100
+        cc = s2_cloud_cover(file)
         if cc >= max_cc:
             logging.info('input file not processed since cloud cover {:.3f} is greater than {:.3f}'.format(cc, max_cc))
             return
@@ -93,16 +114,17 @@ def main():
     if not suffix:
         suffix = f'_V{__version__}'
 
-    outdir = misc.set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
+    outdir = set_ofile(basename, odir=odir, level_name=lev, suffix=suffix)
     outdir.mkdir(parents=True, exist_ok=True)
 
     class_logger.ServiceLogger(log_file=str(Path(outdir, 'log_file.log')), error_log="error.log", log_level='INFO',
                                log_console=False)
 
-    outfile = Path(outdir, outdir.name + ".nc")
+    # Process.write_output writes a Zarr store named after the output directory
+    outfile = Path(outdir, outdir.name + ".zarr")
 
     # skip if already processed
-    if outfile.is_file() & noclobber:
+    if outfile.exists() and noclobber:
         logging.info(f'File {outfile} already processed; skip!')
         exit(-1)
 
@@ -110,7 +132,8 @@ def main():
                  f'File: {file}, '
                  f'output directory: {odir}, '
                  f'cams_file:{cams_file}, '
-                 f'resolution: {resolution}')
+                 f'resolution: {resolution}, '
+                 f'aot_resolution: {aot_resolution}')
 
     try:
         process_ = Process()
@@ -118,6 +141,7 @@ def main():
                          odir=outdir,
                          cams_file=cams_file,
                          resolution=resolution,
+                         aot_resolution=aot_resolution,
                          scale_aot=scale_aot,
                          opac_model=opac_model,
                          dem_file=dem_file,

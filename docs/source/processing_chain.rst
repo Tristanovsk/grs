@@ -15,7 +15,7 @@ processor for high-spatial-resolution, multispectral optical satellite images ac
 aquatic environments. Given one Level-1 (top-of-atmosphere) product, it corrects successively
 for gaseous absorption, diffuse sky light reflected by the air-water interface, and sunglint,
 to retrieve the water-leaving radiance/reflectance at the surface level. The full scientific
-description is available on the :doc:`index` page.
+description is available on the :doc:`methods` page.
 
 The processor is invoked through the ``grs`` command-line executable
 (entry point ``grs.run:main``, see :py:mod:`grs.run`), which wraps the core
@@ -30,8 +30,8 @@ date and one tile/footprint**:
 - one Sentinel-2 A/B ``MSIL1C`` ``.SAFE`` product, or
 - one Landsat-8/9 Level-1 (``L1TP``/``L1GT``) product.
 
-The output granule is a single Level-2 GRS product (netCDF) covering the same footprint and
-resolution as the input tile.
+The output granule is a single Level-2 GRS product covering the same footprint and resolution as
+the input tile: a Zarr store with pyramids (default), or NetCDF files (see `Output product format`_).
 
 Scheduling and Triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,7 +39,7 @@ Scheduling and Triggers
 GRSProcessor has no built-in scheduler; it is triggered externally, granule by granule:
 
 - **Interactively / single granule**: manual call to ``grs <input_file> ...`` (see
-  :doc:`index` "Testing" section for CLI examples).
+  :doc:`usage` for CLI examples).
 - **Batch, on an HPC cluster (SLURM)**: submitted as a job via ``sbatch``, see
   `ci-func-run.slurm <https://github.com/CNES/GRSprocessor/blob/main/grs/tests/ci/ci-func-run.slurm>`_
   (runs ``grs`` / ``exe/launcher.py`` directly on one or more tiles) and
@@ -63,12 +63,19 @@ GRSProcessor has no built-in scheduler; it is triggered externally, granule by g
      superseded by SLURM on the current CNES cluster.
 - **Containerized**: via the Docker image built from
   `Dockerfile <https://github.com/CNES/GRSprocessor/blob/main/Dockerfile>`_
-  (see :doc:`index` "Compile Docker image locally").
+  (see "Compile Docker image locally" in the `README <https://github.com/CNES/GRSprocessor#compile-docker-image-locally>`__).
 
 Dataflow
 --------
 
-.. mermaid:: _diagrams/dataflow.mmd
+.. only:: not latex
+
+   .. mermaid:: _diagrams/dataflow.mmd
+
+.. only:: latex
+
+   The dataflow diagram is drawn with Mermaid: see the
+   `online documentation <https://grs.readthedocs.io/en/latest/processing_chain.html#dataflow>`__.
 
 Inputs
 ------
@@ -107,10 +114,19 @@ Outputs
    * - Data Type Name
      - Cardinality
      - Description
-   * - Level-2 GRS product (netCDF)
+   * - Level-2 GRS product (Zarr)
      - 1..1
-     - Water-leaving radiance/reflectance product, one file per granule (see
-       `Data Types`_ below for naming).
+     - Water-leaving reflectance product, one Zarr store per granule with the full resolution, its
+       overviews (pyramids) and the ancillary data (see `Output product format`_ and
+       `Data Types`_ for naming). Default output of the ``grs`` command line.
+   * - Level-2 GRS product (NetCDF)
+     - 0..1
+     - Alternative format, from the Python API (output path ending in ``.nc``): main file and
+       ancillary file ``<name>_anc.nc``, without overviews.
+   * - Quicklooks (``<name>_ql_<kind>.png``)
+     - 0..3
+     - PNG images next to the product: L1C RGB, L2A RGB and sunglint (see `Output product format`_).
+       Not written with ``quicklooks=False``; a failure only logs a warning.
    * - Run log (``log_file.log``)
      - 1..1
      - Full execution log (all levels), written next to the output product.
@@ -118,6 +134,91 @@ Outputs
      - 0..1
      - Subset of the run log containing ``ERROR``-level records only; empty if the run
        completed without error.
+
+Output product format
+~~~~~~~~~~~~~~~~~~~~~
+
+The format is chosen from the output path given to
+:py:meth:`Process.write_output <grs.grs_process.Process.write_output>`: ``.zarr`` gives a Zarr store,
+``.nc`` NetCDF files; a path without extension (as used by the ``grs`` command line) is a directory
+that receives a Zarr store named after it.
+
+**Zarr store with pyramids** (default)::
+
+    <name>.zarr/              root group: product attributes and ``multiscales``, no data
+    <name>.zarr/0/            full resolution (level 0)
+    <name>.zarr/1/            overview, 2 x coarser
+    <name>.zarr/2/            overview, 4 x coarser
+    ...
+    <name>.zarr/ancillary/    ancillary data on the coarse grid (dimensions xc, yc)
+
+* **Pyramids**: each level is built from the previous one by 2 x 2 blocks: mean (ignoring NaN) for the
+  continuous variables (``Rrs``, ``aot550``, angles...), top-left pixel for ``flags`` and ``mask``
+  (averaging bit flags would give meaningless values: use the full resolution for any statistics on
+  the flags). Levels are added until the longest side is at most 512 pixels; they add about 1/3 of the
+  full-resolution size. The root attribute ``multiscales`` lists the levels (group, scale, shape) for
+  viewers, and the georeferencing is updated for each level.
+* **Cloud-ready layout**: inner chunks of 256 x 256 pixels (all wavelengths) packed into 1024 x 1024
+  shards (Zarr format 3, zarr-python >= 3; plain 512 x 512 chunks otherwise), Blosc/zstd compression and
+  consolidated metadata, so that a window of the image can be read without downloading the rest.
+* **Remote output**: the store can be written directly to object storage (``s3://``, ``gs://``,
+  ``az://`` URLs with the matching fsspec driver).
+* **Packing**: the variables are stored as scaled ``int16`` (e.g. ``Rrs``: scale 1e-5, offset 0.3),
+  unpacked automatically when read.
+* **Single pass**: the processing is lazy (dask) and the full resolution, the overviews and the
+  ancillary data are written in one computation, chunk by chunk, so the full image is never in memory.
+
+Read the product back with xarray:
+
+.. code-block:: python
+
+   import xarray as xr
+
+   l2a = xr.open_zarr('<name>.zarr', group='0')          # full resolution
+   overview = xr.open_zarr('<name>.zarr', group='3')     # 8 x coarser
+   anc = xr.open_zarr('<name>.zarr', group='ancillary')
+
+**NetCDF**: ``<name>.nc`` (main product) and ``<name>_anc.nc`` (ancillary data), local path only, no
+overviews; ``snap_compliant=True`` writes one variable per band for ESA SNAP.
+
+.. _quicklooks:
+
+**Quicklooks**: three PNG images are written next to the product (Zarr or NetCDF, local or object
+storage), computed in the same pass over the data::
+
+    <dir>/<name>.zarr                 (or <name>.nc)
+    <dir>/<name>_ql_l1c_rgb.png       L1C true colour
+    <dir>/<name>_ql_l2a_rgb.png       L2A true colour of the water pixels
+    <dir>/<name>_ql_sunglint.png      sunglint of the water pixels
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Quicklook
+     - Data
+     - Stretch
+   * - L1C RGB
+     - TOA reflectance at 665, 560, 490 nm, all pixels (before the gaseous correction)
+     - linear 0-0.3, then gamma 1/2.2
+   * - L2A RGB
+     - ``Rrs`` at 665, 560, 490 nm where ``mask == 0``
+     - linear 0-0.05 sr\ :sup:`-1`, then gamma 1/2.2
+   * - Sunglint
+     - ``BRDFg`` where ``mask == 0``
+     - 0-0.05, ``inferno`` colour map
+
+The images are RGBA, averaged to at most 1000 pixels on the longest side (the full size for smaller
+images). On the L2A RGB and sunglint images, the pixels inside the footprint that are not valid water
+(land, clouds, flagged pixels) are grey, and the pixels outside the footprint are transparent. The
+stretches are fixed, so that the quicklooks of different dates and tiles can be compared. A failure while
+writing them only logs a warning; ``quicklooks=False`` in the export options
+(:py:meth:`~grs.output.L2aProduct.export_to_zarr`, :py:meth:`~grs.output.L2aProduct.export_to_netcdf`)
+skips them. `grstbx <https://grstbx.readthedocs.io>`__ adds them to the STAC Items of the products as
+``ql_l1c_rgb``, ``ql_l2a_rgb`` (thumbnail) and ``ql_sunglint`` assets.
+
+See :doc:`api/output` for all the export options (chunk and shard sizes, compression, number of
+levels...).
 
 Return Codes
 ------------
@@ -194,7 +295,8 @@ the SLURM job scripts shipped in the repository:
      - size of one L1C/L1 product (SAFE or tar) plus the CAMS netCDF file
      - depends on sensor/resolution
    * - Disk — output
-     - one netCDF Level-2 product + ``log_file.log`` + ``error.log`` per granule
+     - one Level-2 Zarr store (full resolution + about 1/3 for the overviews) + ``log_file.log`` +
+       ``error.log`` per granule
      - written under ``--odir``
 
 Data Types
@@ -227,8 +329,9 @@ Data Types
      - e.g. SURFWATER product naming,
        ``SURFWATER_OPTICAL-SINGLE_<tile>_<datetime>_<datetime>_<version>.tif``
    * - Level-2 GRS output
-     - netCDF water-leaving radiance/reflectance product
+     - Zarr store (with pyramids) of the water-leaving reflectance product
      - one tile, one date
-     - ``<basename with L1C/L1GT/L1TP replaced by levname (default L2AGRS)><suffix>.nc``,
-       default ``suffix`` is ``_V<GRS version>`` (see
-       :py:func:`exe.procutils.misc.set_ofile`)
+     - ``<odir>/<name>/<name>.zarr`` with ``<name>`` = input basename with L1C/L1GT/L1TP replaced
+       by ``levname`` (default L2AGRS), extension removed, plus ``suffix`` (default
+       ``_V<GRS version>``), see ``exe.procutils.misc.set_ofile``. The logs are written in
+       ``<odir>/<name>/``.

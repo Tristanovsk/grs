@@ -10,15 +10,14 @@ import datetime
 
 import logging
 from importlib.resources import files
-import yaml
-from . import AuxData, __version__, __package__
+from . import __version__, __package__
+from .config import load_config
 
 opj = os.path.join
 
-configfile = files(__package__) / 'config.yml'
-with open(configfile, 'r') as file:
-    config = yaml.safe_load(file)
+config = load_config()
 
+NETCDF_ENGINE = config['processor']['netcdf_engine']
 
 class Product():
     '''
@@ -76,6 +75,9 @@ class Product():
         self.sza_mean = self.raster.sza.mean()
         self.air_mass_mean = 1. / np.cos(np.radians(self.sza_mean)) + 1. / np.cos(np.radians(self.vza_mean))
 
+        # set to zero potential NaN pixels
+        self.raster['bands']=self.raster.bands.where(self.raster.bands > 0, 0)
+
         # surfwater object:
         surfwater = xr.ones_like(self.raster.bands.isel(wl=0, drop=True).squeeze().astype(np.uint8))
         surfwater.name = 'surfwater'
@@ -96,6 +98,8 @@ class Product():
         #                                         'units': 'mW cm-2 um-1'})
 
         self.auxdatabase = auxdatabase
+        self.auxdata = None
+        self.aero_lut= None
         self.output = output
 
         #########################
@@ -187,12 +191,12 @@ class Product():
         '''
 
         # get LUT
-        self.gas_lut = xr.open_dataset(self.abs_gas_file)
+        self.gas_lut = xr.open_dataset(self.abs_gas_file,engine=NETCDF_ENGINE)
         # self.aero_lut = xr.open_dataset(self.lut_file)
         # convert wavelength in nanometer
         # self.aero_lut['wl'] = self.aero_lut['wl'] * 1000
         # self.aero_lut['wl'].attrs['description'] = 'wavelength of simulation (nanometer)'
-        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file)
+        self.Twv_lut = xr.open_dataset(self.water_vapor_transmittance_file,engine=NETCDF_ENGINE)
 
     def set_outfile(self, file):
         '''
