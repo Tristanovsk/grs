@@ -1,0 +1,114 @@
+name: 'Mirror ref to GitLab (no LFS)'
+description: >
+  Checks out a GitHub ref, strips Git LFS pointers from its history
+  (the GitLab mirror does not accept them) then pushes the result to a
+  given GitLab ref.
+
+inputs:
+  ref:
+    description: 'GitHub ref or SHA to check out (e.g. a PR SHA, a branch name, a tag)'
+    required: true
+  dest-ref:
+    description: 'Full destination ref on GitLab (e.g. refs/heads/feature/dev-ci, refs/tags/v2.3.0)'
+    required: true
+  gitlab-token:
+    description: 'GitLab token (api + write_repository scope)'
+    required: true
+  gitlab-project:
+    description: 'GitLab project path'
+    required: false
+    default: 'waterquality/grs2'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+        fetch-depth: 0
+        lfs: false
+
+    - name: Install git-filter-repo
+      shell: bash
+      run: pip install git-filter-repo
+
+    - name: Strip LFS files from history
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        : > /tmp/lfs-files.txt
+
+        while read -r commit; do
+          git ls-tree -r "$commit"
+        done < <(git rev-list HEAD) |
+        while read -r mode type object path; do
+          [ "$type" = "blob" ] || continue
+
+          if git cat-file blob "$object" 2>/dev/null |
+            head -n 1 |
+            grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+            printf '%s\n' "$path"
+          fi
+        done |
+        sort -u > /tmp/lfs-files.txt
+
+        cat > /tmp/remove-paths.txt <<'EOF'
+        grs/tests/.gitattributes
+        EOF
+
+        if [ -s /tmp/lfs-files.txt ]; then
+          cat /tmp/lfs-files.txt >> /tmp/remove-paths.txt
+        fi
+
+        echo "=== Paths to remove ==="
+        cat /tmp/remove-paths.txt
+
+        git filter-repo \
+          --invert-paths \
+          --paths-from-file /tmp/remove-paths.txt \
+          --force
+
+    - name: Verify no LFS pointer remains
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if git ls-tree -r HEAD --name-only | grep -Fxq 'grs/tests/.gitattributes'; then
+          echo "ERROR: grs/tests/.gitattributes is still present"
+          exit 1
+        fi
+
+        FOUND=0
+
+        while read -r commit; do
+          while read -r mode type object path; do
+            [ "$type" = "blob" ] || continue
+
+            if git cat-file blob "$object" 2>/dev/null |
+               head -n 1 |
+               grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+              echo "ERROR: LFS pointer found (commit=$commit path=$path)"
+              FOUND=1
+            fi
+          done < <(git ls-tree -r "$commit")
+        done < <(git rev-list HEAD)
+
+        if [ "$FOUND" -ne 0 ]; then
+          echo "LFS pointers remain, nothing will be pushed."
+          exit 1
+        fi
+
+        echo "OK: no LFS pointer found."
+
+    - name: Push to GitLab
+      shell: bash
+      env:
+        GITLAB_TOKEN: ${{ inputs.gitlab-token }}
+      run: |
+        set -euo pipefail
+
+        git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.cnes.fr/${{ inputs.gitlab-project }}.git"
+
+        echo "Push HEAD -> ${{ inputs.dest-ref }}"
+        GIT_LFS_SKIP_PUSH=1 git push gitlab "HEAD:${{ inputs.dest-ref }}" --force

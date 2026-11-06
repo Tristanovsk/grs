@@ -15,7 +15,7 @@ processor for high-spatial-resolution, multispectral optical satellite images ac
 aquatic environments. Given one Level-1 (top-of-atmosphere) product, it corrects successively
 for gaseous absorption, diffuse sky light reflected by the air-water interface, and sunglint,
 to retrieve the water-leaving radiance/reflectance at the surface level. The full scientific
-description is available on the :doc:`index` page.
+description is available on the :doc:`methods` page.
 
 The processor is invoked through the ``grs`` command-line executable
 (entry point ``grs.run:main``, see :py:mod:`grs.run`), which wraps the core
@@ -63,7 +63,7 @@ GRSProcessor has no built-in scheduler; it is triggered externally, granule by g
      superseded by SLURM on the current CNES cluster.
 - **Containerized**: via the Docker image built from
   `Dockerfile <https://github.com/CNES/GRSprocessor/blob/main/Dockerfile>`_
-  (see :doc:`index` "Compile Docker image locally").
+  (see "Compile Docker image locally" in the `README <https://github.com/CNES/GRSprocessor#compile-docker-image-locally>`__).
 
 Dataflow
 --------
@@ -75,7 +75,7 @@ Dataflow
 .. only:: latex
 
    The dataflow diagram is drawn with Mermaid: see the
-   `online documentation <https://grs.readthedocs.io/en/v3.x/processing_chain.html#dataflow>`__.
+   `online documentation <https://grs.readthedocs.io/en/latest/processing_chain.html#dataflow>`__.
 
 Inputs
 ------

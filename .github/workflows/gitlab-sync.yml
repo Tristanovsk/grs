@@ -1,0 +1,197 @@
+name: Sync GitLab CNES
+
+# Mirrors the project to gitlab.cnes.fr/waterquality/grs2:
+#   - commit on a Gitflow branch          -> matching branch synced on GitLab (this is also what keeps
+#     (feature/*, release/*, hotfix/*,       a PR's source branch in sync, since PRs into main/develop
+#      bugfix/*)                            are opened from one of these branches). release/* and
+#                                            hotfix/* can each open a PR towards both main and develop,
+#                                            per standard Gitflow (double merge).
+#   - GitHub PR (into main/develop)       -> a GitLab Merge Request is created right away (or left
+#                                            as-is if one already exists), on open/synchronize/
+#                                            reopened/merge — no separate branch mirroring on this
+#                                            event, only the GitLab MR itself (manual validation on
+#                                            the GitLab side: main/develop are protected there, no
+#                                            direct push). GitHub's "main" is still named "master"
+#                                            on GitLab (predates the GitHub rename) — mapped in the
+#                                            create-merge-request job below.
+#   - GitHub version tag                  -> Release created on GitLab
+#
+# GitLab's own pipeline (.gitlab-ci.yml) then kicks in by itself as soon as a branch, a MR or
+# a tag appears on the GitLab side: this workflow only takes care of syncing the refs.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - 'feature/**'
+      - 'release/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
+    tags:
+      - '*'
+
+env:
+  GITLAB_PROJECT: 'waterquality/grs2'
+
+jobs:
+# =============================================================================
+# Commit on a Gitflow branch (feature/*, release/*, hotfix/*, bugfix/*)
+# -> GitLab branch
+# (this is also what keeps a PR's source branch in sync on GitLab: PRs into
+# main/develop are opened from one of these branches, so every push to it is
+# already mirrored here — no separate mirroring on PR events)
+# =============================================================================
+  mirror-branch-push:
+    if: |
+      github.event_name == 'push' && (
+        startsWith(github.ref, 'refs/heads/feature/') ||
+        startsWith(github.ref, 'refs/heads/release/') ||
+        startsWith(github.ref, 'refs/heads/hotfix/') ||
+        startsWith(github.ref, 'refs/heads/bugfix/')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mirror the branch
+        uses: ./.github/actions/mirror-to-gitlab
+        with:
+          ref: ${{ github.sha }}
+          dest-ref: refs/heads/${{ github.ref_name }}
+          gitlab-token: ${{ secrets.GITLAB_TOKEN }}
+          gitlab-project: ${{ env.GITLAB_PROJECT }}
+
+# =============================================================================
+# PR opened / updated / merged -> GitLab Merge Request
+# No branch mirroring here: the source branch is a feature/* branch already
+# kept in sync by mirror-feature-push above. This job only ensures a GitLab
+# MR exists, as soon as the GitHub PR is opened rather than only once it's
+# merged. The GitLab API call is idempotent (a 409 "already exists" is
+# treated as a no-op), so re-running it on every synchronize/reopened/merge
+# is safe.
+# =============================================================================
+  create-merge-request:
+    if: |
+      github.event_name == 'pull_request' &&
+      (github.event.action != 'closed' || github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the Merge Request on GitLab
+        shell: bash
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          SRC_BRANCH: ${{ github.event.pull_request.head.ref }}
+          TGT_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # GitHub's default branch is "main", but on GitLab this same branch is still
+          # named "master" (predates the GitHub rename) — translate before calling the API.
+          map_branch() {
+            case "$1" in
+              main) echo "master" ;;
+              *) echo "$1" ;;
+            esac
+          }
+          SRC_BRANCH="$(map_branch "$SRC_BRANCH")"
+          TGT_BRANCH="$(map_branch "$TGT_BRANCH")"
+
+          PAYLOAD=$(jq -n \
+            --arg src "$SRC_BRANCH" \
+            --arg tgt "$TGT_BRANCH" \
+            --arg title "$PR_TITLE" \
+            --arg desc "Mirror of GitHub PR #${PR_NUMBER}: ${PR_URL}" \
+            '{source_branch:$src, target_branch:$tgt, title:$title, description:$desc}')
+
+          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
+            --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "${PAYLOAD}" \
+            "https://gitlab.cnes.fr/api/v4/projects/${GITLAB_PROJECT//\//%2F}/merge_requests")
+
+          HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+
+          case "${HTTP_CODE}" in
+            201)
+              echo "MR created: $(echo "${BODY}" | jq -r '.web_url')"
+              ;;
+            409)
+              echo "A MR already exists for ${SRC_BRANCH} -> ${TGT_BRANCH}, nothing to do."
+              ;;
+            *)
+              echo "GitLab API error (HTTP ${HTTP_CODE}): ${BODY}"
+              exit 1
+              ;;
+          esac
+
+# =============================================================================
+# GitHub version tag -> GitLab Release
+# =============================================================================
+  release-on-tag:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mirror the tag
+        uses: ./.github/actions/mirror-to-gitlab
+        with:
+          ref: ${{ github.sha }}
+          dest-ref: refs/tags/${{ github.ref_name }}
+          gitlab-token: ${{ secrets.GITLAB_TOKEN }}
+          gitlab-project: ${{ env.GITLAB_PROJECT }}
+
+      - name: Create the Release on GitLab
+        shell: bash
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          echo "Looking up a GitHub release for tag ${TAG_NAME}..."
+          GH_RELEASE=$(curl -s \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}")
+
+          BODY_TEXT=$(echo "${GH_RELEASE}" | jq -r '.body // empty')
+          if [ -z "${BODY_TEXT}" ]; then
+            BODY_TEXT="Release ${TAG_NAME}"
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg tag "${TAG_NAME}" \
+            --arg desc "${BODY_TEXT}" \
+            '{tag_name:$tag, name:$tag, description:$desc}')
+
+          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
+            --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "${PAYLOAD}" \
+            "https://gitlab.cnes.fr/api/v4/projects/${GITLAB_PROJECT//\//%2F}/releases")
+
+          HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+
+          case "${HTTP_CODE}" in
+            201)
+              echo "Release created: $(echo "${BODY}" | jq -r '._links.self')"
+              ;;
+            409)
+              echo "A release already exists for tag ${TAG_NAME}, nothing to do."
+              ;;
+            *)
+              echo "GitLab API error (HTTP ${HTTP_CODE}): ${BODY}"
+              exit 1
+              ;;
+          esac

@@ -38,9 +38,7 @@ def product_test():
     return product
 
 def test_product_initialization_and_metadata(): 
-    """Teste l'initialisation de Product, ses attributs et ses métadonnées."""
 
-    # Arrange : création d'un Dataset minimal
     dataset = xr.Dataset(
         data_vars={
             "bands": (
@@ -76,8 +74,6 @@ def test_product_initialization_and_metadata():
         },
     )
 
-    # Nécessaire pour que l'accesseur .rio soit disponible
-    # Act : initialisation sans dépendance à rioxarray
     rio_mock = MagicMock()
 
     rio_mock.transform_bounds.return_value = (
@@ -100,7 +96,6 @@ def test_product_initialization_and_metadata():
         product = Product(l1c_obj=dataset)
 
 
-    # Assert : attributs essentiels
     assert product.sensor == "S2A"
     assert product.date == datetime.datetime(2024, 6, 15, 10, 30, 0)
 
@@ -120,7 +115,6 @@ def test_product_initialization_and_metadata():
     assert product._type is np.float32
     assert product.nodata == -999.9
 
-    # Assert : métadonnées du Dataset
     assert product.raster.attrs["processor"] == product.processor
     assert product.raster.attrs["version"]
 
@@ -130,7 +124,6 @@ def test_product_initialization_and_metadata():
         "%Y-%m-%dT%H:%M:%S.%f",
     )
 
-    # Assert : coordonnées temporelles
     assert "time" in product.raster.coords
 
     np.testing.assert_equal(
@@ -138,7 +131,6 @@ def test_product_initialization_and_metadata():
         np.datetime64("2024-06-15T10:30:00"),
     )
 
-    # Assert : conversion des longueurs d'onde
     np.testing.assert_array_equal(
         product.raster["wl"].values,
         [490, 560, 842],
@@ -237,7 +229,6 @@ def test_mu_N_multiview(product_test):
     product = product_test
     wl = [500., 600., 700., 800.]
 
-    # Angles vary with wavelength.
     sza_values = np.array([0., 30., 45., 60.])
     vza_values = np.array([0., 10., 20., 30.])
 
@@ -268,7 +259,6 @@ def test_mu_N_multiview(product_test):
         monoview=False,
     )
 
-    # Check output dimensions.
     assert result.dims == ("wl", "y", "x")
 
     # With azi = 0°, cos(alpha) = cos(sza - vza).
@@ -306,8 +296,6 @@ def test_p_slope_monoview(product_test):
         dims=("y", "x"),
     )
     
-    #cosN = np.ones((2,2))
-    #thetaN = 0
     xp_slope = 1 / (np.pi * 0.02)
     expected = np.full((2,2), xp_slope, dtype=np.float64)
     
@@ -325,7 +313,6 @@ def test_p_slope_multiview(product_test):
     product = product_test
     wl = [500., 600., 700., 800.]
 
-    # Angles vary with wavelength.
     sza_values = np.full((4), 60.0)
     vza_values = np.full((4), 60.0)
     azi_values = np.full((4), 180.)
@@ -359,11 +346,8 @@ def test_p_slope_multiview(product_test):
         monoview=False,
     )
 
-    # Check output dimensions.
     assert result.dims == ("wl", "y", "x")
 
-    #cosN = np.ones((2,2))
-    #thetaN = 0
     xp_slope = 1 / (np.pi * 0.02)
     expected = np.full((4,2,2), xp_slope, dtype=np.float64)
 

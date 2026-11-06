@@ -3,7 +3,8 @@ Usage
 
 GRS needs, for each image:
 
-* one Level-1 product: Sentinel-2 ``MSIL1C`` (``.SAFE``) or Landsat 8/9 Level-1;
+* one Level-1 product: Sentinel-2 ``MSIL1C`` (``.SAFE``), Landsat 8/9 Level-1, or a Level-1 product
+  already converted to NetCDF by `GRSdriver <https://github.com/Tristanovsk/GRSdriver>`__;
 * the CAMS atmospheric composition file covering the date and the area (see the
   :doc:`CAMS tutorial <examples/auxdata>`);
 * optionally a DEM and a SURFWATER water mask, already subset to the tile.
@@ -16,9 +17,10 @@ Command line
    :start-at: Usage:
    :end-before: '''
 
-To process many images, see the :doc:`batch processing tutorial <examples/batch>`: it lists the
-Level-1 images of a date range and runs them from Python, or writes one ``grs`` command per image to
-run them from a shell (several at a time if the memory allows it).
+The command line writes the product in ``<odir>/<name>/`` with ``<name>`` the input basename where
+``L1C``/``L1GT``/``L1TP`` is replaced by ``--levname`` (default ``L2AGRS``), without extension, plus
+``--suffix`` (default ``_V<GRS version>``). Sentinel-2 images with a cloud cover above
+``--max_cloud_cover`` are skipped.
 
 Python
 ------
@@ -32,40 +34,39 @@ Python
                    cams_file='cams_forecast_2018-10.nc',
                    dem_file='COP-DEM_GLO-30-DGED_30PYT.tif',
                    resolution=20,
-                   aot_resolution=240,
-                   odir='S2A_MSIL1C_20181019T102031_L2AGRS.zarr')
+                   odir='S2A_MSIL2AGRS_20181019T102031_N0500_R065_T30PYT_20230815T043850')
 
-   # the processing is lazy: process.l2a.l2_prod is a dask-backed xarray.Dataset,
-   # computed chunk by chunk when it is written
+   # process.l2a.l2_prod is the Level-2 xarray.Dataset, held in memory
    process.write_output()
 
-The main options of :py:meth:`~grs.grs_process.Process.execute`:
+The options of :py:meth:`~grs.grs_process.Process.execute`:
 
 ``resolution``
    Pixel size of the processing (10, 20 or 60 m for Sentinel-2).
-``aot_resolution``
-   Pixel size of the coarse grid of the aerosol retrieval (default 240 m); must be a multiple of
-   ``resolution`` (e.g. 60, 120, 240, 480 m). See :ref:`aerosol retrieval <methods-aerosol>`.
-``aot_chunk``, ``aot_smoothing_blocks``, ``min_pixel_prop``, ``outlier_factor``, ``fine_step``, ``fine_window``, ``aot_step``
-   The other settings of the aerosol retrieval. Their defaults, like the one of ``aot_resolution``, are set
-   in the ``aerosol`` section of the configuration (see :doc:`configuration`); the arguments of
-   :py:meth:`~grs.grs_process.Process.execute` override them.
+``cams_file``
+   CAMS file of the date (surface pressure, gas columns, aerosol optical depth, wind).
+``dem_file``
+   DEM (GeoTIFF, subset to the tile) used to compute the surface pressure; without it, the surface
+   pressure of CAMS is used.
+``surfwater_file``
+   SURFWATER water mask (GeoTIFF) used for the pixel classification.
 ``opac_model``
    Force the aerosol model (``'ARCT_rh70'``, ``'COAV_rh70'``, ``'DESE_rh70'``, ``'MACL_rh70'``,
    ``'URBA_rh70'``); by default the model closest to the spectral AOD of CAMS is used.
 ``scale_aot``
-   Scaling factor of the CAMS AOD.
+   Scaling factor of the CAMS AOD at 550 nm.
 ``allpixels``
    Process all the pixels, not only the water pixels.
-``chunk``
-   Block size (pixels) of the final processing; a 512 x 512 block needs about 350 MB per thread.
+``snap_compliant``
+   Write one ``Rrs_<wl>`` variable per band, readable by ESA SNAP.
 
 Output product
 --------------
 
-The format is given by the extension of the output path: ``.zarr`` (default, with overviews, can be
-written to object storage) or ``.nc`` (NetCDF, with a separate ``_anc.nc`` file for the ancillary data).
-See :doc:`api/output` for the layouts.
+:py:meth:`~grs.grs_process.Process.write_output` writes two NetCDF files in the output directory
+``odir``: ``<name>.nc`` (main product, full resolution) and ``<name>_anc.nc`` (ancillary data on the
+CAMS grid, dimensions ``xc``, ``yc``), with ``<name>`` the name of the directory. See
+:doc:`api/output` for the layout.
 
 .. list-table::
    :header-rows: 1
@@ -82,10 +83,7 @@ See :doc:`api/output` for the layouts.
      - sunglint reflectance in the SWIR (see :doc:`methods`)
    * - ``aot550``
      - y, x
-     - aerosol optical thickness at 550 nm
-   * - ``wind``
-     - y, x
-     - wind speed used for the sunglint (m s\ :sup:`-1`)
+     - aerosol optical thickness at 550 nm (from CAMS)
    * - ``flags``
      - y, x
      - pixel classification bit field (see :doc:`api/mask`)
@@ -95,20 +93,19 @@ See :doc:`api/output` for the layouts.
    * - ``sza``, ``vza``, ``raa``
      - y, x
      - solar zenith, viewing zenith and relative azimuth angles (degrees)
+   * - ``dem``
+     - y, x
+     - elevation (m), empty without ``dem_file``
 
-The global attributes record the processing settings, among them ``opac_model`` and
-``aot_resolution``.
+The global attributes record the metadata of the Level-1 product, the masking thresholds and the
+statistics of the flags.
 
-Three PNG quicklooks (at most 1000 pixels) are written next to the product: ``<name>_ql_l1c_rgb.png``
-(L1C true colour), ``<name>_ql_l2a_rgb.png`` (``Rrs`` true colour of the water pixels) and
-``<name>_ql_sunglint.png`` (``BRDFg`` of the water pixels), with fixed stretches so that dates can be
-compared. See :ref:`Quicklooks <quicklooks>` for their content.
-
-Read a Zarr product back with:
+Read the product back with:
 
 .. code-block:: python
 
    import xarray as xr
 
-   l2a = xr.open_zarr('S2A_MSIL1C_20181019T102031_L2AGRS.zarr', group='0')        # full resolution
-   anc = xr.open_zarr('S2A_MSIL1C_20181019T102031_L2AGRS.zarr', group='ancillary')
+   name = 'S2A_MSIL2AGRS_20181019T102031_N0500_R065_T30PYT_20230815T043850'
+   l2a = xr.open_dataset(f'{name}/{name}.nc')
+   anc = xr.open_dataset(f'{name}/{name}_anc.nc')

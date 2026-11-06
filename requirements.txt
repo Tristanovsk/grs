@@ -1,23 +1,15 @@
-# runtime dependencies of GRS (read by pyproject.toml); the LUTs are not packaged, they are downloaded
-# from Zenodo on the first run (or with `grs_config --download`)
-cdsapi
-dask
-docopt
-fsspec
-GRSdriver >= 1.0.10
-h5netcdf
-# backend of h5netcdf (an optional extra since h5netcdf 1.8)
-h5py
-matplotlib
-netCDF4
-numba
-numcodecs
-numpy >= 2.3
-omnicloudmask
-pandas
-platformdirs
-PyYAML
-rioxarray
-scipy
-xarray
-zarr
+# Runtime dependencies of grs (read by pyproject.toml).
+# GRSdriver >= 2.0 reads the Level-1 products without EOReader, sertit, fiona or the GDAL
+# Python bindings: everything installs from PyPI wheels.
+docopt>=0.6.2
+GRSdriver>=2.0.4
+matplotlib>=3.9.0
+netCDF4>=1.7.2
+numba>=0.60.0
+numpy>=2.0
+pandas>=2.2.3
+PyYAML>=6.0.2
+rioxarray>=0.17.0
+s2cloudless>=1.7.3
+scipy>=1.14.1
+xarray>=2024.10.0

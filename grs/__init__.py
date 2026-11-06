@@ -120,29 +120,10 @@ Version history
 2.2.0:
     - version with CI for CNES operation
 
-3.0.0:
-    - merge of the scientific developments (major update for rugosity and aerosol retrievals,
-      refinement of the aerosol retrieval algorithm; developed as 2.2.0 and 2.2.1, not released)
-      with the CI from v2.1.9
-
-3.1.0:
-    - new masking procedure including OmniCloudMask
-    - export in 'zarr' with pyramids
-    - fixed weighting of the AOT smoothing, windows scaled with the retrieval blocks
-    - configuration read at run time (grs_config), look-up tables downloaded from Zenodo
-    - settings of the aerosol retrieval in the configuration (aerosol section), blocks of 15 km
-      by default (validated with AERONET-OC)
-    - CAMS archive in a YYYY/MM/DD tree
-    - lower memory use and faster processing; unit tests
-    - PyPI package GRSprocessor
-
-3.1.1:
-    - cloud screening with OmniCloudMask only (s2cloudless removed): only the clear-sky water pixels
-      (OmniCloudMask class 0) are processed
 '''
 
 __package__ = 'grs'
-__version__ = '3.1.1'
+__version__ = '2.2.0'
 
 
 import importlib

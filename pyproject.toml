@@ -6,8 +6,8 @@ requires      = ["setuptools>=70.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
-# PyPI distribution name; the package (import grs) and the commands (grs, grs_config) keep the name grs
-name = "GRSprocessor"
+name = "grs"
+version = "2.2.0"
 description = "GRS processor for atmospheric correction of high-spatial resolution and multispectral satellite images"
 readme = "pypi_README.rst"
 authors = [{ name = "Tristan Harmel", email = "tristan.harmel@gmail.com" }]
@@ -16,18 +16,12 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Operating System :: OS Independent",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Atmospheric Science",
-    "Topic :: Scientific/Engineering :: GIS",
+    "Programming Language :: Python :: 3.13",
 ]
 keywords = ["Sentinel-2","Landsat-8","Landsat-9","atmospheric correction", "EO satellite"]
-# the code uses X | Y types (3.10) and numpy >= 2.3 (3.11)
-requires-python = ">=3.11"
-# version: grs.__version__ (grs/__init__.py); dependencies: requirements.txt
-dynamic = ["version", "dependencies"]
+requires-python = ">=3.12"
+dynamic = ["dependencies"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -51,7 +45,7 @@ version = { attr = "grs.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies]
-dev = ["black", "bumpver", "isort", "pip-tools", "pytest", "build", "twine"]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 docs = [
     "sphinx>=7",
     "sphinx-book-theme>=1.1",
@@ -61,6 +55,8 @@ docs = [
     "linkify-it-py",
     "ipython",
 ]
+# packages of the example notebooks (CAMS download, maps, interactive viewer)
+notebooks = ["cdsapi>=0.7.4", "cartopy", "grstbx"]
 
 [project.urls]
 Homepage = "https://github.com/CNES/GRSprocessor"

@@ -1,4 +1,3 @@
-
 Version history
 ==================
 
@@ -96,3 +95,25 @@ Version history
     - change input/output feature for grs process
       (i.e., can be called as simple function within a script)
     - Change of output variable with addition of bitmask flags
+
+2.1.5:
+    - repackaging of some classes
+    - include Landsat 8 and 9 imageries
+
+2.1.6:
+    - use GRSdriver instead s2driver
+
+2.1.7:
+    - accounts for absorption/scattering interaction for transmittance of absorbing gases
+    - fix bugs for true wavelength
+    - fix for new ADS CAMS format
+
+2.1.8:
+    - improve log and CI
+
+2.1.9:
+    - fix for bug in azimuth handling in glint correction
+    - enables L1C netcdf as intput in CLI
+
+2.2.0:
+    - version with CI for CNES operation

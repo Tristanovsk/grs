@@ -11,7 +11,7 @@ The main classes are importable from the package itself:
 
    process = grs.Process()
    process.execute('S2A_MSIL1C_..._T31TFJ_....SAFE', cams_file='cams.nc', resolution=20,
-                   odir='S2A_..._L2AGRS.zarr')
+                   odir='S2A_MSIL2AGRS_..._T31TFJ_...')
    process.write_output()
 
 Processing chain
@@ -40,12 +40,7 @@ Input data
 
    grs.product.Product
    grs.cams.CamsProduct
-
-.. autosummary::
-   :toctree: generated
-   :nosignatures:
-
-   grs.cams.cams_daily_file
+   grs.auxdata.AuxData
 
 Pixel classification
 --------------------
@@ -58,15 +53,20 @@ Pixel classification
    grs.mask.Masking
    grs.mask.Settings
 
-Atmospheric and sunglint correction
------------------------------------
+Atmospheric correction utilities
+--------------------------------
 
 .. autosummary::
    :toctree: generated
    :template: autosummary/class.rst
    :nosignatures:
 
-   grs.grs_kernel.Kernel
+   grs.acutils.GaseousTransmittance
+   grs.acutils.Gases
+   grs.acutils.Aerosol
+   grs.acutils.CamsParams
+   grs.acutils.Misc
+   grs.acutils.Rasterization
 
 Output product
 --------------
@@ -78,36 +78,14 @@ Output product
 
    grs.output.L2aProduct
 
-Configuration
--------------
-
-.. autosummary::
-   :toctree: generated
-   :nosignatures:
-
-   grs.config.load_config
-   grs.config.default_data_root
-   grs.config.lut_path
-   grs.config.check_luts
-   grs.config.download_luts
-   grs.config.init_user_config
-   grs.config.main
-
-Utilities
----------
+Logging and exceptions
+----------------------
 
 .. autosummary::
    :toctree: generated
    :template: autosummary/class.rst
    :nosignatures:
 
-   grs.utils.AuxData
-   grs.utils.GaseousTransmittance
-   grs.utils.Gases
-   grs.utils.Aerosol
-   grs.utils.CamsParams
-   grs.utils.Misc
-   grs.utils.Rasterization
    grs.class_logger.ServiceLogger
    grs.grs_exceptions.GRSException
    grs.grs_exceptions.GRS_IO_Exception
@@ -115,12 +93,11 @@ Utilities
 Module overviews
 ----------------
 
-Design notes of the main modules (dask processing, flag bits, output formats).
+Design notes of the main modules (processing by blocks, flag bits, output format).
 
 .. toctree::
    :maxdepth: 1
 
    api/grs_process
-   api/grs_kernel
    api/mask
    api/output

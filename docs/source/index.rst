@@ -29,7 +29,6 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
    :caption: User guide
 
    installation
-   configuration
    usage
    methods
    processing_chain
@@ -38,10 +37,10 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
    :maxdepth: 2
    :caption: Tutorials
 
-   examples/processing
-   examples/batch
-   examples/landsat
+   examples/basics
    examples/auxdata
+   examples/batch
+   examples/advanced
    examples/visualization
 
 .. toctree::
@@ -60,9 +59,7 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
 Interactive data manipulation
 -----------------------------
 
-See the GRS toolbox package `grstbx <https://grstbx.readthedocs.io>`__ (``pip install grstbx``):
-interactive viewers for Jupyter and a web dashboard (``grstbx-viewer``) to explore the L2A and L2B
-products.
+See the GRS toolbox package `grstbx <https://github.com/Tristanovsk/grstbx>`__.
 
 .. only:: not latex
 

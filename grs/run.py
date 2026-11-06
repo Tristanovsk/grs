@@ -1,9 +1,9 @@
 ''' Executable to process Sentinel-2 L1C images for aquatic environment
 
 Usage:
-  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--aot_resolution res]\
-   [--max_cloud_cover max_cc] [--scale_aot factor] [--opac_model name] [--levname <lev>] [--no_clobber]\
-   [--allpixels] [--surfwater file] [--dem_file file] [--suffix suffix] [--snap_compliant]
+  grs <input_file> [--cams_file file] [--odir <odir>] [--resolution res] [--max_cloud_cover max_cc] [--scale_aot factor]\
+   [--opac_model name] [--levname <lev>] [--no_clobber] [--allpixels] [--surfwater file] [--dem_file file]\
+   [--suffix suffix] [--snap_compliant]
   grs -h | --help
   grs -v | --version
 
@@ -52,14 +52,10 @@ from xml.etree import ElementTree
 from docopt import docopt
 
 from . import __package__, __version__
+from .grs_process import Process
+from exe.procutils import misc
 
-
-def set_ofile(filename: str, odir='', level_name='L2GRS', suffix='') -> Path:
-    """Output path: level name of `filename` replaced by `level_name`, extension removed, `suffix` appended."""
-    outfile = filename
-    for level in ('L1C', 'L1GT', 'L1TP'):
-        outfile = outfile.replace(level, level_name)
-    return Path(odir, Path(outfile).stem + suffix)
+misc = misc()
 
 
 def s2_cloud_cover(safe):
@@ -72,25 +68,6 @@ def s2_cloud_cover(safe):
     tree = ElementTree.parse(Path(safe, 'MTD_MSIL1C.xml'))
     node = next(e for e in tree.iter() if e.tag.split('}')[-1] == 'Cloud_Coverage_Assessment')
     return float(node.text) / 100
-
-
-def limit_malloc_arenas(n=2):
-    """
-    Limit the number of glibc malloc arenas to `n` (as ``MALLOC_ARENA_MAX=n``), unless ``MALLOC_ARENA_MAX`` is
-    set in the environment.
-
-    With one arena per thread, the memory freed by the threads that read and process the image is kept by
-    the process: on a Sentinel-2 tile at 20 m the peak memory goes from about 12-13 GB to 9.5-10 GB with 2
-    arenas, with the same output. Call it at start-up, before the threads are created; no effect on systems
-    without glibc.
-    """
-    if os.environ.get('MALLOC_ARENA_MAX'):
-        return
-    try:
-        libc = ctypes.CDLL(ctypes.util.find_library('c'))
-        libc.mallopt(-8, int(n))  # M_ARENA_MAX
-    except (OSError, AttributeError, TypeError):
-        pass
 
 
 def main():

@@ -24,6 +24,9 @@ import os
 from os import PathLike
 from pathlib import Path
 
+from importlib import resources
+import yaml
+
 import numpy as np
 import xarray as xr
 
@@ -49,119 +52,15 @@ from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
 
-NETCDF_ENGINE = load_config()['processor']['netcdf_engine']
+configfile = resources.files(__package__) / 'config.yml'
+with open(configfile, 'r') as file:
+    config = yaml.safe_load(file)
 
-# extensions that tell the output format (see write_output)
-_OUTPUT_EXTENSIONS = ('.zarr', '.nc', '.nc4', '.cdf')
-# arrays smaller than this (bytes) are loaded in memory once
-_SMALL_ARRAY_BYTES = 512 * 2 ** 20
-
-
-def _compute_small(obj, max_bytes=_SMALL_ARRAY_BYTES):
-    '''Load a small dask-backed xarray object in memory (once); anything else is returned unchanged.'''
-    if isinstance(obj, (xr.DataArray, xr.Dataset)) and obj.chunks and obj.nbytes <= max_bytes:
-        return obj.compute()
-    return obj
-
-
-def _correct_gas_absorption(bands, Tg_raster):
-    '''
-    Divide the bands by the gaseous transmittance (coarse grid, interpolated to the pixels).
-
-    * dask-backed `bands`: lazy, done block by block, the transmittance is only interpolated on the block
-      (no full-size interpolation, no sequence of assignments into a big array);
-    * numpy-backed `bands`: in place band by band, as before.
-
-    In both cases the result keeps the dtype of `bands`.
-
-    :param bands: DataArray (wl, y, x) of the TOA reflectance
-    :param Tg_raster: DataArray of the gaseous transmittance on a coarse grid, with the wavelengths of `bands`
-    :return: corrected bands (same object as `bands` for numpy-backed data)
-    '''
-    if bands.chunks is None:
-        for wl in bands.wl.values:
-            bands.loc[wl] = bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=bands.x, y=bands.y)
-        return bands
-
-    # without its scalar coordinates: a spatial_ref different from the one of the bands would be dropped from
-    # the result by the division, and map_blocks would reject the block
-    Tg = _compute_small(Tg_raster.sel(wl=bands.wl)).reset_coords(drop=True)
-
-    def block(b):
-        corrected = b / Tg.interp(x=b.x, y=b.y)
-        corrected = corrected.drop_vars([c for c in corrected.coords if c not in b.coords])
-        return corrected.transpose(*b.dims).astype(b.dtype)
-
-    return xr.map_blocks(block, bands, template=bands)
-
-
-def _interp_like(coarse, like, name=None):
-    '''
-    Interpolate a coarse DataArray (dimensions x, y) onto the grid of `like`, block by block.
-
-    Lazy if `like` is dask-backed: only the part of the coarse map needed by a block is interpolated when
-    the block is computed (no full-size array in memory). Same values as ``coarse.interp(x=like.x, y=like.y)``;
-    the scalar coordinates of `coarse` are kept.
-
-    :param coarse: DataArray on a coarse grid (loaded in memory if small)
-    :param like: DataArray (y, x) giving the target grid and chunks
-    :param name: name of the result
-    :return: DataArray (y, x) float64
-    '''
-    coarse = _compute_small(coarse)
-    like = like.reset_coords(drop=True)
-    template = xr.full_like(like, np.nan, dtype=np.float64)
-
-    def block(b):
-        out = coarse.interp(x=b.x, y=b.y).reset_coords(drop=True)
-        return out.transpose(*b.dims).astype(np.float64)
-
-    out = xr.map_blocks(block, like, template=template).rename(name or coarse.name)
-    scalar_coords = {k: v for k, v in coarse.coords.items() if k not in coarse.dims}
-    return out.assign_coords(scalar_coords)
-
-
-def _with_workers(method):
-    '''Run a `Process` method with ``self.Nproc`` dask workers (threaded scheduler; None: one per core).'''
-    @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
-        with dask.config.set(num_workers=self.Nproc):
-            return method(self, *args, **kwargs)
-    return wrapper
-
-
-def _cams_from_archive(raster, cams_dir):
-    """
-    CAMS data of an image from the ``YYYY/MM/DD`` archive of `cams_dir` (``path: cams`` of the
-    configuration): global file of the day if it exists, else the file of the tile, downloaded if needed.
-    A file of the former layout ``<cams_dir>/<tile>/<date>-forecast_<tile>.nc`` is still used.
-    """
-    tile = raster.attrs['tile']
-    cams = CamsProduct(raster, dir=cams_dir, suffix='_' + tile)
-    legacy = os.path.join(cams_dir, tile, f'{cams.date_str}-forecast_{tile}.nc')
-    if not os.path.exists(cams.filepath) and os.path.exists(legacy):
-        cams = CamsProduct(raster, cams_file=legacy)
-    logging.info('CAMS file: %s', cams.filepath)
-    return cams
-
-
-# settings of the aerosol retrieval, ``aerosol`` section of the configuration
-AEROSOL_SETTINGS = ('aot_resolution', 'min_pixel_prop', 'aot_chunk', 'outlier_factor', 'aot_smoothing_blocks',
-                    'fine_step', 'fine_window', 'aot_step')
-
-
-def _aerosol_settings(**overrides):
-    """
-    Settings of the aerosol retrieval: ``aerosol`` section of the configuration, overridden by the arguments
-    that are not None.
-    """
-    config = load_config().get('aerosol') or {}
-    missing = [key for key in AEROSOL_SETTINGS if key not in config and overrides.get(key) is None]
-    if missing:
-        raise KeyError(f'aerosol settings missing in the configuration: {missing}')
-    settings = {key: config.get(key) for key in AEROSOL_SETTINGS}
-    settings.update({key: value for key, value in overrides.items() if value is not None})
-    return settings
+GRSDATA = config['path']['grsdata']
+TOALUT = config['path']['toa_lut']
+TRANSLUT = config['path']['trans_lut']
+CAMS_PATH = config['path']['trans_lut']
+NCPU = config['processor']['ncpu']
 
 
 class Process:
@@ -603,27 +502,51 @@ class Process:
         ######################################
         # surface rugosity (wind) estimation
         ######################################
-        # # TODO speed up process (e.g. proper loop)
-        # logging.info('surface rugosity (wind) estimation')
-        # raster = kernel.get_coarse_masked_raster(resolution=megapix_size * resolution).compute()
-        # _Nwl, _height, _width = raster.bands.shape
-        # res = []
-        # for iy in range(0, _height, chunk):
-        #     yc = min(_height, iy + chunk)
-        #
-        #     for ix in range(0, _width, chunk):
-        #         xc = min(_width, ix + chunk)
-        #         res.append(kernel.rugosity_est_chunk(raster[dict(x=slice(ix, xc),
-        #                                                          y=slice(iy, yc))]))
-        #
-        # wind_img = xr.merge(res)
-        # # TODO add uncertainty weight for convolution
-        # kernel.wind_img = kernel.smoothing(wind_img,
-        #                                    varname='wind',
-        #                                    mask=np.ones((3, 3)),
-        #                                    windows=np.array([5, 5]))
-        # coarse CAMS map: loaded once, the blocks of the final process only interpolate it
-        kernel.wind_img = cams.raster.wind.to_dataset().compute()
+        logging.info('set final parameters')
+        width = prod.width
+        height = prod.height
+        Nwl = len(prod.raster.wl_to_process)
+
+        pressure_ref = self.pressure_ref
+
+        _sunglint_eps = sunglint_eps.values
+
+        # prepare aerosol parameters
+        aot_ref_raster = aot_ref_raster.interp(x=prod.raster.x, y=prod.raster.y).drop_vars('wl').astype(np.float32)
+        aot_ref_raster.name = 'aot550'
+        _rot = rot.values
+
+        # _aot = aot_lut.interp(aot_ref=_aot_ref)
+        if dem_file:
+            logging.info('compute surface pressure from dem')
+            dem = xr.open_dataset(dem_file).squeeze().interp(y=prod.raster.y, x=prod.raster.x, method='nearest')
+            dem = dem.rename_vars({'band_data': 'dem'})
+            dem.dem.attrs['long_name'] = 'digital elevation model'
+            dem.dem.attrs['units'] = 'm'
+            dem.dem.attrs['source'] = dem_file
+            presure_msl = cams.raster.msl.interp(y=prod.raster.y, x=prod.raster.x)
+            _pressure = (presure_msl * (1. - 0.0065 * dem.dem / 288.15) ** 5.255).values
+        else:
+            dem = None
+            _pressure = cams.raster.sp.interp(x=prod.raster.x, y=prod.raster.y).values
+
+        # -------------------------------------------------------------
+        # SET GASEOUS TRANSMITTANCE FOR LOW ALTITUDE GASES
+        # -------------------------------------------------------------
+        gases = ['h2o', 'ch4']
+        gas_trans = acutils.GaseousTransmittance(prod, cams)
+        # set total transmittance values
+        gas_trans.coef_abs_scat['h2o'] = 0.5
+        gas_trans.coef_abs_scat['ch4'] = 0.5
+        Tg_diff_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y",
+                                                                                                      "x")
+        Tg_diff_raster = Tg_diff_raster.interp(x=prod.raster.x, y=prod.raster.y)
+
+        # set total transmittance values
+        for gas in gases:
+            gas_trans.coef_abs_scat[gas] = 1
+        Tg_raster = gas_trans.get_gaseous_transmittance(gases=gases, background=False).transpose("wl", "y", "x")
+        Tg_raster = Tg_raster.interp(x=prod.raster.x, y=prod.raster.y)
 
         ######################################
         # aerosol load estimation

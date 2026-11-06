@@ -1,7 +1,6 @@
 # Configuration file for the Sphinx documentation builder.
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,7 +15,7 @@ import grs
 # -- Project information -----------------------------------------------------
 
 project = 'GRSprocessor'
-copyright = '2016-2026, CNES/Magellium'
+copyright = '2026, CNES/Magellium'
 author = 'Tristan Harmel'
 version = grs.__version__
 release = grs.__version__
@@ -88,14 +87,6 @@ html_theme_options = {
         'image_dark': '_static/grs_logo_v0_dark.svg',
     },
 }
-
-# Read the Docs builds the stable release (v2.2) from its tag and this pre-release
-# from the v3.x branch: banner on every version but the stable one
-if os.environ.get('READTHEDOCS_VERSION', 'stable') != 'stable':
-    html_theme_options['announcement'] = (
-        f'Pre-release documentation of GRS {release}: see the '
-        '<a href="https://grs.readthedocs.io/en/stable/">stable documentation</a> '
-        'of the current release.')
 
 html_title = ''
 html_logo = '_static/grs_logo_v0.svg'
