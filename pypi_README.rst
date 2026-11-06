@@ -1,30 +1,34 @@
-Usage
-=====
+GRS processor
+=============
 
-WARNING: installation from `GitHub repository <https://github.com/Tristanovsk/grs>`__ is recommended
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GRS (Glint Removal for Sentinel-2-like sensors) performs the atmospheric correction of high spatial resolution
+multispectral images (Sentinel-2 MSI, Landsat 8 and 9 OLI) over inland and coastal waters: it removes the
+contribution of the atmosphere and of the sunglint and gives the remote-sensing reflectance ``Rrs`` of the
+water, with the aerosol optical thickness, the sunglint reflectance and quality flags, in a Zarr (or NetCDF)
+product.
 
+- Source code: https://github.com/CNES/GRSprocessor
+- Documentation: https://cnes.github.io/GRSprocessor
+- Look-up tables (LUTs): https://doi.org/10.5281/zenodo.23394202
 
 Installation
-~~~~~~~~~~~~~~~~~~~~~~~
+------------
 
-These instructions will get you a copy of the project up and running on
-your local machine for development and testing purposes. See deployment
-for notes on how to deploy the project on a live system.
+Python 3.11 or newer is needed:
 
-Download the LUT files
------------------------
+.. code-block:: bash
 
-click on
-`grsdata <https://drive.google.com/drive/folders/1N0-FtW-PTPblR4z-82fFrUTekMd8e3Vz?usp=sharing>`__
-to download and save in your desired path (your_GRSDATA_PATH)
+   pip install GRSprocessor
 
-Installation with conda environment
-------------------------------------
+The package is ``grs`` (``import grs``) and it installs two commands, ``grs`` (processing) and
+``grs_config`` (configuration and LUTs).
 
-::
+The cloud masks use OmniCloudMask, which installs PyTorch. On a computer without a GPU, the CPU build of
+PyTorch is much smaller; install it first with
+``pip install torch --index-url https://download.pytorch.org/whl/cpu``.
 
-   conda activate "name of your conda env"
+Look-up tables
+--------------
 
 Python >= 3.12 is recommended, example:
 

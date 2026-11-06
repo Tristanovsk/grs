@@ -17,7 +17,7 @@ import os.path
 import unittest
 import logging
 import numpy
-from grs import acutils
+from grs import utils
 from grs import class_logger
 from grs import product
 from grs import cams_product
@@ -61,7 +61,7 @@ class TestAcutils(unittest.TestCase):
         # Prepare test data
         self.init_prod_data()
         # instantiate lut
-        lutf = acutils.lut(self.prod.band_names)
+        lutf = utils.lut(self.prod.band_names)
         # execute load_lut
         lutf.load_lut(self.prod.lutfine, self.prod.sensordata.indband)
 
@@ -106,7 +106,7 @@ class TestAcutils(unittest.TestCase):
         self.init_cams_data()
 
         # Instanciate gaseous_transmittance
-        gaseous_transmittance_instance = acutils.gaseous_transmittance(self.prod, self.cams)
+        gaseous_transmittance_instance = utils.gaseous_transmittance(self.prod, self.cams)
 
         print(gaseous_transmittance_instance.SRF)
         ref_srf = numpy.array([0.01448181, 0.03422251, 0.07346335, 0.15444843, 0.31661424, 0.55322278,
@@ -154,6 +154,6 @@ class TestAcutils(unittest.TestCase):
         # test get_pressure function
         atl = 1000.0
         psl = 998.0
-        palt = acutils.misc.get_pressure(atl, psl)
+        palt = utils.misc.get_pressure(atl, psl)
 
         self.assertAlmostEqual(palt, 885.236756238, places=8)

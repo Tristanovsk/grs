@@ -1,3 +1,7 @@
+# limit the malloc arenas before the heavy imports and the threads (see grs.run.limit_malloc_arenas)
+from grs.run import limit_malloc_arenas
+limit_malloc_arenas()
+
 from grs import class_logger
 from grs import __version__
 from grs.grs_process import Process

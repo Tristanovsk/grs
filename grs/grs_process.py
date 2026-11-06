@@ -1,3 +1,25 @@
+'''
+Main GRS processor: from a L1C image to the L2A product (lazy, written chunk by chunk).
+
+Memory / dask design
+====================
+
+``prod.raster`` is normally dask-backed. Nothing of full size is computed in ``Process.execute``:
+
+* the gaseous absorption correction and the interpolation of the wind map are applied block by block
+  (``xr.map_blocks``): the coarse maps are interpolated to the grid of each block;
+* the aerosol retrieval works on a coarse raster (``aot_resolution`` pixel size) which is computed once;
+* ``Kernel.final_process`` returns the lazy L2A variables; the flag for negative Rrs, the mask and the
+  wind map are lazy too;
+* everything is evaluated in a single pass by ``write_output`` (one ``dask.compute`` in ``L2aProduct``), so
+  ``Rrs`` and the intermediate arrays only exist chunk by chunk.
+
+Number of threads: ``execute`` and ``write_output`` run the dask threaded scheduler with ``processor.ncpu``
+workers (configuration), instead of one per core. Every worker holds its blocks in memory, so this sets the
+peak memory (and avoids oversubscribing the cores, numba running its own threads in each block).
+
+Format of the output: ``write_output`` takes it from the name of the output path (``.zarr`` or ``.nc``).
+'''
 import os
 from os import PathLike
 from pathlib import Path
@@ -13,14 +35,19 @@ xr.set_options(keep_attrs=True)
 import rioxarray as rio
 import logging
 import gc
+import functools
 
-from multiprocessing import Pool  # Process pool
-from multiprocessing import sharedctypes
-import itertools
+import dask
 
 import GRSdriver
 
-from . import Product, acutils, AuxData, CamsProduct, L2aProduct, Masking, Rasterization
+from . import utils
+from .config import load_config, lut_path, check_luts, ensure_luts
+from .product import Product
+from .cams import CamsProduct
+from .output import L2aProduct, quicklook_coarsen, quicklook_factor, quicklook_rgb
+from .mask import Masking
+from .grs_kernel import Kernel
 from .grs_exceptions import GRS_IO_Exception
 
 opj = os.path.join
@@ -43,40 +70,88 @@ class Process:
     '''
 
     def __init__(self):
-        self.lut_file = opj(GRSDATA, TOALUT)
-        self.trans_lut_file = opj(GRSDATA, TRANSLUT)
-        self.cams_dir = CAMS_PATH
-        self.Nproc = NCPU
+        # configuration read at run time (see grs.config), so that it can be changed without reinstalling
+        config = load_config()
+        self.lut_file = str(lut_path('toa'))
+        self.trans_lut_file = str(lut_path('transmittance'))
+        self.cams_dir = config['path']['cams']
+        self.Nproc = config['processor']['ncpu']
         self.pressure_ref = 101500.
+        # mask recipe (bits of grs.mask): keep the water index pixels (3); mask nodata (0), SURFWATER cloud
+        # and shadow (10), OmniCloudMask thick cloud, thin cloud and shadow (11-13), Landsat dilated cloud (14)
+        # and negative Rrs (18)
         self.flags_tokeep = [3]
-        self.flags_tomask = [0,1,10,13,14,18]
+        self.flags_tomask = [0, 10, 11, 12, 13, 14, 18]
+        self.successful = False
 
+    @_with_workers
     def execute(self, l1c_prod,
                 odir='',
                 cams_file=None,
                 surfwater_file=None,
                 dem_file=None,
                 resolution=20,
+                megapix_size=4,
+                chunk=512,
+                aot_resolution=None,
+                aot_chunk=None,
+                aot_smoothing_blocks=None,
+                min_pixel_prop=None,
+                outlier_factor=None,
+                fine_step=None,
+                fine_window=None,
+                aot_step=None,
                 scale_aot=1,
                 opac_model=None,
                 allpixels=False,
-                snap_compliant=False
+                snap_compliant=False,
+                provide_kernel=False
                 ):
 
         '''
         Main program calling all GRS steps
 
+        The processing is lazy: when the function returns, ``self.l2a.l2_prod`` holds dask-backed variables
+        (``Rrs``, ``BRDFg``, ``aot550``, ``flags``, ``mask``, ``wind``...) that are computed, chunk by chunk,
+        by ``write_output`` (or by an explicit ``.compute()``).
+
+        The settings of the aerosol retrieval (``aot_resolution`` to ``aot_step``) default to the ``aerosol``
+        section of the configuration (see :py:func:`grs.config.load_config`): None takes the value of the
+        configuration, another value overrides it.
+
         :param l1c_prod: xarray L1C object or L1C input file (path) to be processed
-        :param odir: Absolute path of the output directory
-        :param cams_file: Absolute path for root directory of CAMS data
+        :param odir: Output path, see `write_output` (``.zarr`` / ``.nc`` extension tells the format)
+        :param cams_file: CAMS file of the image (global daily or monthly file, or file of the area); None:
+            taken from (or downloaded into) the ``YYYY/MM/DD`` archive of ``path: cams`` of the
+            configuration, see :py:class:`~grs.cams.CamsProduct`
         :param surfwater_file: Absolute path the surfwater file (.tif)
         :param dem_file: Absolute path of the DEM geotiff file
         :param resolution: pixel resolution in meter
+        :param megapix_size: not used for the moment (the wind comes from CAMS, see the TODO below)
+        :param chunk: size (pixels) of the blocks of the final processing; 512 divides the 1024 shards of
+            the Zarr output. A block needs ~350 MB (512) or ~1.4 GB (1024) per thread.
+        :param aot_resolution: pixel size (meter) of the coarse raster of the aerosol retrieval, e.g. 60, 120,
+            240 (default), 480; must be a multiple of ``resolution``
+        :param aot_chunk: size (pixels, on the coarse raster) of the blocks of the aerosol retrieval; one AOT
+            value is retrieved per block of ``aot_chunk * aot_resolution`` meters (default 64: 15 km at 240 m)
+        :param aot_smoothing_blocks: size, in blocks, of the window of the weighted mean of the block AOT values
+            (default 3: each block is averaged with its neighbours)
+        :param min_pixel_prop: coarse pixels with fewer water pixels than this proportion of the fullest one are
+            discarded (default 0.5)
+        :param outlier_factor: blocks with an AOT above ``outlier_factor`` times the median get the median AOT
+            and a null weight (default 1.5)
+        :param fine_step: the transitions between blocks are smoothed on a grid of ``fine_step`` coarse pixels
+            (default 5)
+        :param fine_window: size (cells of this grid) of the NaN-mean window of this smoothing; None in the
+            configuration: about one block (default)
+        :param aot_step: AOT step of the look-up tables of the final processing (default 0.01)
         :param scale_aot: scaling factor applied to CAMS aod550 raster
         :param opac_model: If set force OPAC aerosol model for LUT interpolation (taken from CAMS data otherwise)
-        :param allpixels: if True process all pixels (no water pixel masking)
+        :param allpixels: if True process all pixels (no water and cloud masking); otherwise only the clear-sky
+            (OmniCloudMask class 0) water pixels are processed
         :param snap_compliant: Output format compliant with SNAP software for practical analysis
-        :return:
+        :param provide_kernel: dev option, return the kernel before the retrieval
+        :return: the kernel
 
         Examples
         --------
@@ -99,15 +174,12 @@ class Process:
         INFO:root:pass netcdf image as grs product object
         INFO:root:get CAMS auxilliary data
         INFO:root:flagging from l1c data
-        INFO:root:cloud masking with s2cloudless
-        INFO:root:land masking
-        INFO:root:cirrus masking
-        INFO:root:high swir masking
+        INFO:root:OmniCloudMask processing on 606 x 841 pixels (60 m)
         INFO:root:loading look-up tables
         INFO:root:compute gaseous transmittance from cams data
         INFO:root:correct for gaseous absorption
         INFO:root:compute spectral index (e.g., NDWI)
-        INFO:root:apply water masking
+        INFO:root:apply water and cloud masking
         INFO:root:lut interpolation
         INFO:root:selected aerosol model: DESE_rh70
         INFO:root:scaling aot by: 1
@@ -153,18 +225,25 @@ class Process:
             abs_gas_file:                        /home/harmel/Dropbox/Dropbox/work/gi...
             water_vapor_transmittance_file:      /home/harmel/Dropbox/Dropbox/work/gi...
 
-        You can either further play with the l2a xarray or save it into netcdf:
+        You can either further play with the l2a xarray or save it (zarr or netcdf, from the name):
 
 
-        >>> process_.odir='./name_of_your_output_l2a_netcdf_directory'
+        >>> process_.odir='./name_of_your_output_l2a.zarr'
         >>> process_.write_output()
-        INFO:root:export final product into netcdf
-        INFO:root:export into encoded netcdf
+        INFO:root:export final product
 
         '''
 
         self.odir = odir
         self.snap_compliant = snap_compliant
+        self.successful = False
+
+        # stop before reading the image if the LUTs are missing; the LUTs of the configuration are downloaded
+        # from Zenodo the first time (see grs.config.ensure_luts), LUT files set by hand are only checked
+        if [self.lut_file, self.trans_lut_file] == [str(lut_path('toa')), str(lut_path('transmittance'))]:
+            ensure_luts()
+        else:
+            check_luts([self.lut_file, self.trans_lut_file])
 
         ##################################
         # Get image data
@@ -175,12 +254,11 @@ class Process:
             basename = Path(l1c_prod).stem
             if 'nc' in extension:
                 logging.info('pass netcdf image as grs product object')
-                prod = Product(xr.open_dataset(l1c_prod))
+                prod = Product(xr.open_dataset(l1c_prod, engine=NETCDF_ENGINE))
             elif 'SAFE' in extension:
                 logging.info('Open L1C Sentinel 2 image and compute angle parameters')
-                global l1c
                 try:
-                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution)
+                    l1c = GRSdriver.Sentinel2Driver(l1c_prod, resolution=resolution, lazy_geom=True)
                     l1c.load_product()
                 except Exception as exc:
                     raise GRS_IO_Exception(l1c_prod, exc)
@@ -211,19 +289,10 @@ class Process:
             except Exception as exc:
                 logging.info('input file format not recognized, stop')
                 raise GRS_IO_Exception(l1c_prod, exc)
+        else:
+            raise TypeError('l1c_prod must be a file path or an xarray Dataset, got ' + type(l1c_prod).__name__)
 
         self.prod = prod
-
-        ##################################
-        # Set sensor specifications
-        ##################################
-        # TODO check evolution concerning viewing angles computation for Lansdat, now in monoview mode
-
-        if 'S2' in prod.sensor:
-            monoview = False
-        else:
-            monoview = True
-        _R_ = Rasterization(monoview=monoview)
 
         ##################################
         # GET ANCILLARY DATA (Pressure, O3, water vapor, NO2...
@@ -233,20 +302,10 @@ class Process:
             if cams_file:
                 cams = CamsProduct(prod.raster, cams_file=cams_file)
             else:
-                tile = prod.raster.attrs['tile']
-                cams_dir = os.path.join(self.cams_dir, tile)
-                cams = CamsProduct(prod.raster, dir=cams_dir, suffix='_' + tile)
-            cams.load()
+                cams = _cams_from_archive(prod.raster, self.cams_dir)
+            cams.load(daily_stats=False)
         except Exception as exc:
             raise GRS_IO_Exception(cams_file, exc)
-
-        # Cox-Munk isotropic mean square slope (sigma2)
-        wind = np.sqrt(cams.raster['v10'] ** 2 + cams.raster['u10'] ** 2)
-        sigma2 = (wind + 0.586) / 195.3
-
-        # get mean values to set LUT
-        _sigma2 = sigma2.mean().values
-        _wind = wind.mean().values
 
         ##################################
         # Pixel classification
@@ -278,52 +337,43 @@ class Process:
         # SUBSET RASTER TO KEEP REQUESTED BANDS
         #####################################
         # TODO check if we can remove cirrus and water vapor band from output object
+        # copies: a selection is a view that would keep all the L1C bands in memory
         if prod.bcirrus:
-            prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest')
+            prod.cirrus = prod.raster.bands.sel(wl=prod.bcirrus, method='nearest').copy()
         if prod.bwv:
-            prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest')
+            prod.wv = prod.raster.bands.sel(wl=prod.bwv, method='nearest').copy()
 
         prod.raster = prod.raster.sel(wl=prod.wl_process, method='nearest')
 
-        # get true central wavelength for the bands to process
-        wl_true = prod.raster.wl_true
-
-        ##################################
-        ## ADD ELEVATION AND PRESSURE BAND
-        ##################################
-        # TODO activate DEM loading to improve pressure computation
-        # prod.get_elevation()
+        # coarse L1C RGB of the quicklook, taken before the gas correction and the water masking of the bands
+        # (lazy for dask-backed bands: evaluated with the export, in the same pass)
+        prod.quicklook_l1c = quicklook_coarsen(quicklook_rgb(prod.raster.bands),
+                                               quicklook_factor(prod.raster.sizes['y'], prod.raster.sizes['x']))
 
         #####################################
         # LOAD LUT FOR ATMOSPHERIC CORRECTION
         #####################################
         logging.info('loading look-up tables')
         try:
-            Ttot_Ed = xr.open_dataset(self.trans_lut_file)
+            trans_lut = xr.open_dataset(self.trans_lut_file, engine=NETCDF_ENGINE)
         except Exception as exc:
             raise GRS_IO_Exception(self.trans_lut_file, exc)
-        Ttot_Ed['wl'] = Ttot_Ed['wl'] * 1000
+        # convert wavelength into nm
+        trans_lut['wl'] = trans_lut['wl'] * 1000
 
         try:
-            aero_lut = xr.open_dataset(self.lut_file)
+            aero_lut = xr.open_dataset(self.lut_file, engine=NETCDF_ENGINE)
         except Exception as exc:
             raise GRS_IO_Exception(self.lut_file, exc)
         aero_lut['wl'] = aero_lut['wl'] * 1000
         aero_lut['aot'] = aero_lut.aot.isel(wind=0).squeeze()
 
-        # remove URBAN aerosol model for this example
-        models = aero_lut.drop_sel(model='URBA_rh70').model.values
-
-        _auxdata = AuxData(wl=wl_true)  # wl=masked.wl)
-        sunglint_eps = _auxdata.sunglint_eps  # ['mean'].interp(wl=wl_true)
-        rot = _auxdata.rot
-
         ####################################
-        #    absorbing gases correction
+        # absorbing gases correction
         ####################################
         logging.info('compute gaseous transmittance from cams data')
         try:
-            gas_trans = acutils.GaseousTransmittance(prod, cams)
+            gas_trans = utils.GaseousTransmittance(prod, cams)
             gases = ['co2', 'o2', 'o4', 'ch4', 'no2', 'o3', 'h2o']
             for gas in gases:
                 gas_trans.coef_abs_scat[gas] = 1
@@ -332,9 +382,9 @@ class Process:
             raise GRS_IO_Exception(cams_file, exc)
 
         logging.info('correct for gaseous absorption')
-        for wl in prod.raster.wl.values:
-            prod.raster['bands'].loc[wl] = prod.raster.bands.sel(wl=wl) / Tg_raster.sel(wl=wl).interp(x=prod.raster.x,
-                                                                                                      y=prod.raster.y)
+        bands_attrs = dict(prod.raster.bands.attrs)
+        prod.raster['bands'] = _correct_gas_absorption(prod.raster.bands, Tg_raster)
+        prod.raster.bands.attrs.update(bands_attrs)
         prod.raster.bands.attrs['gas_absorption_correction'] = True
 
         ######################################
@@ -363,27 +413,70 @@ class Process:
         if allpixels:
             pass  # masked_raster = prod.raster.bands
         else:
-            logging.info('apply water masking')
-            mask = (ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)  # (ndwi > -0.0) &
-            masked = prod.raster.bands.where(mask)
-            prod.raster['bands'] = masked
+            # processed pixels: water (SWIR index, no bright SWIR) and clear sky (OmniCloudMask class 0: no
+            # thick cloud, thin cloud or cloud shadow)
+            logging.info('apply water and cloud masking')
+            mask = ((ndwi_swir > prod.vis_swir_index_threshold) & (swir2 < prod.sunglint_threshold)
+                    & Masking.clear_sky(prod.raster.flags))
+            bands = prod.raster.bands
+            if bands.chunks is None and mask.chunks is None and bands.dims == ('wl', 'y', 'x'):
+                # in memory: set the pixels not processed to NaN in place (``where`` would copy the whole cube)
+                bands.values[:, ~mask.transpose('y', 'x').values] = np.nan
+            else:
+                prod.raster['bands'] = bands.where(mask)
             prod.raster['sza'] = prod.raster['sza'].where(mask)
+            del bands
+
+        # the band selections are views of the bands: release them now rather than at the end of execute
+        del vis, nir, swir, swir2
 
             # TODO @Thales check if it is in agreement with your policy (here stop if no water pixel and return empty object)
             # stop process if no valid (water) pixel available
-            #if np.isnan(prod.raster['sza'].values).all():
+            # if np.isnan(prod.raster['sza'].values).all():
             #    logging.info('no water pixels, stop process')
             #    return
             # END TODO
 
         ######################################
-        # LUT preparation
+        # get DEM information
         ######################################
-        logging.info('lut interpolation')
+        if dem_file:
+            logging.info('load dem')
+            dem = xr.open_dataset(dem_file).squeeze().interp(y=prod.raster.y,
+                                                             x=prod.raster.x,
+                                                             method='nearest')
+            dem = dem.rename_vars({'band_data': 'dem'})
+            dem.dem.attrs['long_name'] = 'digital elevation model'
+            dem.dem.attrs['units'] = 'm'
+            dem.dem.attrs['source'] = dem_file
+            # TODO use the dem to adjust the pressure raster. The kernel uses the CAMS surface pressure for the
+            #  moment; the pressure computed here was never used, and computing it evaluated two full-size
+            #  arrays, so it is not done any more:
+            # presure_msl = cams.raster.msl.interp(y=prod.raster.y, x=prod.raster.x)
+            # _pressure = presure_msl * (1. - 0.0065 * dem.dem / 288.15) ** 5.255
+        else:
+            dem = None
 
+        ######################################
+        # load algorithm kernel
+        ######################################
+        self.kernel = Kernel(prod,
+                             aero_lut,
+                             trans_lut,
+                             cams)
+        kernel = self.kernel
+
+        # option for dev purposes
+        if provide_kernel:
+            return kernel
+
+        ######################################
+        # Aerosol type selection
+        ######################################
         # select appropriate opac aerosol model from CAMS aod
         # remove URBAN for the moment
-        models = aero_lut.drop_sel(model='URBA_rh70').model.values
+        opac_models = aero_lut.model.values
+        models = aero_lut.drop_sel(model=['URBA_rh70']).model.values
         # get mean aot and aot550 from CAMS
         cams_aot_mean = cams.cams_aod.mean(['x', 'y'])
         cams_aot_ref = cams.cams_aod.interp(wl=550, method='quadratic')
@@ -396,69 +489,18 @@ class Process:
             opac_model = aero_lut.sel(model=models).model.values[idx]
 
         logging.info('selected aerosol model: ' + opac_model)
-        # slice LUT
-        aero_lut_ = aero_lut.sel(wind=_wind, method='nearest').sel(model=opac_model)
 
-        # get AOT550 raster (TODO replace with optimal estimation)
-        logging.info('scaling aot by: ' + str(scale_aot))
-        aot_ref_raster = cams_aot_ref * scale_aot
-        aot_ref_raster = aot_ref_raster.astype(np.float32)
-
-        # get unique values for angles and further lut interpolation
-        ang_resol = {'sza': 0.1, 'vza': 0.1, 'raa_round': 0}
-        szamin, szamax = float(prod.raster['sza'].min()), float(prod.raster['sza'].max())
-        vzamin, vzamax = float(prod.raster.isel(wl=0)['vza'].min()), float(prod.raster.isel(wl=0)['vza'].max())
-
-        # check for out-of-range
-        def check_out_of_range(vmin, vmax, ceiling=88):
-            vmin = np.max([0, vmin])
-            vmax = np.min([ceiling, vmax])
-            return vmin, vmax
-
-        szamin, szamax = check_out_of_range(szamin, szamax)
-        vzamin, vzamax = check_out_of_range(vzamin, vzamax, ceiling=25)
-
-        sza_ = np.arange(szamin, szamax + ang_resol['sza'], ang_resol['sza'])
-        vza_ = np.arange(vzamin, vzamax + ang_resol['vza'], ang_resol['vza'])
-
-        azi_ = (180 - np.unique(prod.raster.isel(wl=0)['raa'].round(ang_resol['raa_round']))) % 360
-        azi_ = azi_[~np.isnan(azi_)]
-
-        sza_lut_step = 2
-        vza_lut_step = 2
-
-        sza_slice = slice(np.min(sza_) - sza_lut_step, np.max(sza_) + sza_lut_step)
-        vza_slice = slice(np.min(vza_) - vza_lut_step, np.max(vza_) + vza_lut_step)
-
-        tweak = 4
-        aot_ref_ = np.unique((aot_ref_raster / tweak).round(3)) * tweak
-        aot_ref_min = 0.  # aot_ref_raster.min()
-        aot_ref_max = aot_ref_raster.max()
-        aot_lut = aero_lut_.aot.interp(wl=wl_true, method='quadratic')
-        aot_lut = aot_lut.interp(aot_ref=np.linspace(aot_ref_min, aot_ref_max.values, 1000))  # .plot(hue='wl')
-
-        Rdiff_lut = aero_lut_.I.sel(sza=sza_slice,
-                                    vza=vza_slice
-                                    ).interp(wl=wl_true,
-                                             method='quadratic'
-                                             ).interp(azi=azi_)
-        Rdiff_lut = Rdiff_lut.interp(sza=sza_, vza=vza_)
-        Rray = Rdiff_lut.sel(aot_ref=0)
-        Rdiff_lut = Rdiff_lut.interp(aot_ref=[0, 0.02, 0.05, 0.07, *aot_ref_],
-                                     method='quadratic')  # .sortby("aot_ref")
-
-        szas = Rdiff_lut.sza.values
-        vzas = Rdiff_lut.vza.values
-        azis = Rdiff_lut.azi.values
-        aot_refs = Rdiff_lut.aot_ref.values
-
-        Ttot_Ed_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=szas).interp(
-            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed
-        Ttot_Lu_ = Ttot_Ed.sel(model=opac_model).sel(wind=_wind, method='nearest').interp(sza=vzas).interp(
-            aot_ref=aot_ref_, method='quadratic').interp(wl=wl_true, method='cubic').Ttot_Ed ** 1.05
+        aerosol_combination = (opac_models == opac_model).astype(int)
 
         ######################################
-        # Set final parameters for grs processing
+        # LUT preparation
+        ######################################
+        logging.info('lut interpolation')
+        kernel.lut_preparation(aerosol_combination=aerosol_combination)
+        kernel.set_gas_transmittance()
+
+        ######################################
+        # surface rugosity (wind) estimation
         ######################################
         logging.info('set final parameters')
         width = prod.width
@@ -507,149 +549,135 @@ class Process:
         Tg_raster = Tg_raster.interp(x=prod.raster.x, y=prod.raster.y)
 
         ######################################
-        # Run grs processing
+        # aerosol load estimation
         ######################################
-        logging.info('run grs process')
-        global chunk_process
-        Rrs_result = np.ctypeslib.as_ctypes(np.full((Nwl, height, width), np.nan, dtype=prod._type))
-        Rf_result = np.ctypeslib.as_ctypes(np.full((height, width), np.nan, dtype=prod._type))
-        shared_Rrs = sharedctypes.RawArray(Rrs_result._type_, Rrs_result)
-        shared_Rf = sharedctypes.RawArray(Rf_result._type_, Rf_result)
+        logging.info('aerosol optical thickness estimation')
+        aerosol = _aerosol_settings(aot_resolution=aot_resolution, aot_chunk=aot_chunk,
+                                    aot_smoothing_blocks=aot_smoothing_blocks, min_pixel_prop=min_pixel_prop,
+                                    outlier_factor=outlier_factor, fine_step=fine_step, fine_window=fine_window,
+                                    aot_step=aot_step)
+        logging.info('aerosol retrieval settings: %s', aerosol)
+        aot_resolution, aot_chunk = aerosol['aot_resolution'], aerosol['aot_chunk']
 
-        def chunk_process(args):
-            iy, ix = args
-            yc = min(height, iy + prod.chunk)
-            xc = min(width, ix + prod.chunk)
-            Rrs_tmp = np.ctypeslib.as_array(shared_Rrs)
-            Rf_tmp = np.ctypeslib.as_array(shared_Rf)
+        # the coarse raster is small: compute it once (one pass over the image) instead of re-evaluating the
+        # lazy graph for every block and every aot_ref of the retrieval
+        raster = kernel.get_coarse_masked_raster(resolution=aot_resolution,
+                                                 min_pixel_prop=aerosol['min_pixel_prop']).compute()
+        _Nwl, _height, _width = raster.bands.shape
+        res = []
+        for iy in range(0, _height, aot_chunk):
+            yc = min(_height, iy + aot_chunk)
 
-            _band_rad = prod.raster.bands[:, iy:yc, ix:xc]
+            for ix in range(0, _width, aot_chunk):
+                xc = min(_width, ix + aot_chunk)
+                raster_ = raster[dict(x=slice(ix, xc), y=slice(iy, yc))]
+                number_of_pixel = raster_.water_pixel_number.sum()
+                if number_of_pixel == 0:
+                    continue
 
-            Nwl, Ny, Nx = _band_rad.shape
-            if Ny == 0 or Nx == 0:
-                return
-            arr_tmp = np.full((Nwl, Ny, Nx), np.nan, dtype=prod._type)
+                # first to get rough aot values
+                kernel.aerosol_swir_chunk(raster_)
 
-            # subsetting
-            _sza = prod.raster.sza[iy:yc, ix:xc]  # .values
-            if monoview:
-                _raa = prod.raster.raa[iy:yc, ix:xc]
-                _vza = prod.raster.vza[iy:yc, ix:xc]
-                _vza_mean = _vza.values
-            else:
-                _raa = prod.raster.raa[:, iy:yc, ix:xc]
-                _vza = prod.raster.vza[:, iy:yc, ix:xc]
-                _vza_mean = np.mean(_vza, axis=0).values
+                # second refine retrieval of aot_max
+                if kernel.aot_ref_max < 0.12:
+                    kernel.aot_ref_max = 0.12
+                kernel.aerosol_swir_chunk(raster_,
+                                          aot_refs=np.linspace(0, kernel.aot_ref_max, 21))
 
-            _azi = (180. - _raa) % 360
-            _air_mass_ = acutils.Misc.air_mass(_sza, _vza).values
-            # fix for bug with azimuth
-            # _p_slope_ = prod.p_slope(_sza, _vza, _raa, sigma2=_sigma2, monoview=monoview).values
-            _p_slope_ = 1.
+                # thrird apply non-negativity of visible bands
+                # (one pixel per block: aot_ref and number_of_pixel, the number of water pixels of the block)
+                res_ = kernel.aerosol_visible_chunk(raster_)
+                res.append(res_)
 
-            _aot_ref = aot_ref_raster.values[iy:yc, ix:xc]
-            _pressure_ = _pressure[iy:yc, ix:xc] / pressure_ref
-            _Tg_abs = Tg_raster[:, iy:yc, ix:xc].values
-            _Tg_abs_diff = Tg_diff_raster[:, iy:yc, ix:xc].values
+        kernel.aot_ref_img = xr.merge(res)
+        aot_ref_img = kernel.aot_ref_img
 
-            # construct wl,y,x raster for Rayleigh optical thickness
-            _rot_raster = _R_._multiplicate(_rot, _pressure_, arr_tmp)
+        logging.info('smoothing aerosol optical thickness raster')
+        # the windows scale with the blocks: weighted mean over aot_smoothing_blocks blocks on the block grid,
+        # then smoothing of the transitions (by default over one block) on a grid of fine_step coarse pixels
+        fine_step = aerosol['fine_step']
+        block_windows = np.array([aerosol['aot_smoothing_blocks']] * 2)
+        cells = aerosol['fine_window']
+        if cells is None:
+            cells = max(1, int(round(aot_chunk / fine_step)))
+            cells += 1 - cells % 2  # odd, centred window
+        fine_windows = np.array([cells, cells])
 
-            # get LUT values
-            _Rdiff = _R_.interp_Rlut(szas, _sza.values,
-                                     vzas, _vza.values,
-                                     azis, _azi.values,
-                                     aot_refs, _aot_ref,
-                                     Nwl, Ny, Nx, Rdiff_lut.values)
+        # filter out outliers from median: outliers and blocks without water pixels (NaN) get the median
+        # aot_ref and a null weight, so that they do not contribute to the weighted mean of filter2d
+        aot_median = kernel.aot_ref_img.aot_ref.median()
+        valid = aot_ref_img.aot_ref < aerosol['outlier_factor'] * aot_median
+        kernel.aot_ref_img = aot_ref_img.assign(aot_ref=aot_ref_img.aot_ref.where(valid, aot_median),
+                                                number_of_pixel=aot_ref_img.number_of_pixel.where(valid, 0))
 
-            _Rray = _R_.interp_Rlut_rayleigh(szas, _sza.values,
-                                             vzas, _vza.values,
-                                             azis, _azi.values,
-                                             Nwl, Ny, Nx, Rray.values)
+        # weighted mean, weights = number of water pixels of the blocks
+        aot_ref_raster = kernel.aot_ref_img
+        param = aot_ref_raster.aot_ref.values
+        _weights = aot_ref_raster.number_of_pixel.values
 
-            # _Rdiff = _Rdiff + (_pressure_ - 1) * _Rray
-            _Rdiff = _Rdiff * _Tg_abs_diff * _pressure_
+        raster_smoothed = kernel.filter2d(param, _weights, block_windows)
+        aot_ref_raster = xr.Dataset({'aot_ref': (["y", "x"], raster_smoothed)},
+                                    coords=dict(y=kernel.aot_ref_img.y, x=kernel.aot_ref_img.x))
+        # get both limit of x and y values for extrapolation using nearest method:
+        new_x = [*raster.x.values[0:-1:fine_step], raster.x.values[-1]]
+        new_y = [*raster.y.values[0:-1:fine_step], raster.y.values[-1]]
+        aot_ref_raster = aot_ref_raster.interp(x=new_x,
+                                               y=new_y,
+                                               method='nearest',
+                                               kwargs={"fill_value": "extrapolate"})
 
-            _aot = _R_._interp_aotlut(aot_lut.aot_ref.values, _aot_ref, Nwl, Ny, Nx, aot_lut.values)
+        aot_ref_raster = kernel.smoothing(
+            aot_ref_raster,
+            varname='aot_ref',
+            mask=np.ones(fine_windows),
+            windows=fine_windows)
+        # the box filter can turn a null AOT into a tiny negative value (rounding, e.g. -4e-17): the LUTs of
+        # the final processing would then start below 0 and give NaN Rrs for the whole image
+        aot_ref_raster['aot_ref'] = aot_ref_raster.aot_ref.clip(min=0)
 
-            #  correction for diffuse light
-            Rcorr = _band_rad.values - _Rdiff
-
-            # direct transmittance up/down
-            Tdir = acutils.Misc.transmittance_dir(_aot, _air_mass_, _rot_raster)
-
-            # vTotal transmittance (for Ed and Lu)
-            Tdown = _R_._interp_Tlut(szas, _sza.values, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx,
-                                     Ttot_Ed_.values)
-            Tup = _R_._interp_Tlut(vzas, _vza_mean, Ttot_Ed_.aot_ref.values, _aot_ref, Nwl, Ny, Nx, Ttot_Lu_.values)
-            Ttot_du = Tdown * Tup * _Tg_abs
-
-            Rf = np.full((len(prod.iwl_swir), Ny, Nx), np.nan, dtype=prod._type)
-
-            for iwl in prod.iwl_swir:
-
-                if monoview:
-                    Rf[iwl] = Rcorr[iwl] / (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_)
-                else:
-                    # fix for bug in azimuth
-                    # Rf[iwl] = (_sunglint_eps[-1] * _p_slope_[-1] * Rcorr[iwl] /
-                    #           (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl] * _p_slope_[iwl]))
-                    Rf[iwl] = (_sunglint_eps[-1] * Rcorr[iwl] /
-                               (Tdir[iwl] * _Tg_abs[iwl] * _sunglint_eps[iwl]))
-
-            Rf[Rf < 0] = 0.
-            Rf = np.min(Rf, axis=0)
-            Rf_tmp[iy:yc, ix:xc] = Rf
-
-            Rf = _R_._multiplicate(_sunglint_eps, Rf, arr_tmp)
-            # fix for bug in azimuth
-            # Rf = _Tg_abs * Tdir * Rf * _p_slope_ / (_sunglint_eps[-1] * _p_slope_[-1])
-            Rf = _Tg_abs * Tdir * Rf / (_sunglint_eps[-1])
-
-            # sunglint removal
-            # Rrs_tmp_ =Rcorr / np.pi# Rrs_tmp[:, iy:yc, ix:xc]
-            Rrs_tmp_ = ((Rcorr - Rf) / np.pi)
-
-            # Convert from TOA to BOA for positive values
-            Ttot_du[Rrs_tmp_ < 0] = 1.
-            Rrs_tmp_ = Rrs_tmp_ / Ttot_du
-            Rrs_tmp[:, iy:yc, ix:xc] = Rrs_tmp_
-            return
-
-        window_idxs = [(i, j) for i, j in
-                       itertools.product(range(0, height, prod.chunk),
-                                         range(0, width, prod.chunk))]
-
-        global pool
-        pool = Pool(self.Nproc)
-        res = pool.map(chunk_process, window_idxs)
-        pool.terminate()
-        pool = None
-        logging.info('success')
+        kernel.aot_ref_raster = aot_ref_raster.interp(x=raster.x,
+                                                      y=raster.y,
+                                                      method='linear',
+                                                      kwargs={"fill_value": "extrapolate"})
 
         ######################################
-        # construct l2a object
+        # refined LUT preparation
         ######################################
-        logging.info('construct final product')
-        self.aot_ref_raster = aot_ref_raster
-        l2_prod = xr.Dataset(dict(Rrs=(['wl', "y", "x"], np.ctypeslib.as_array(shared_Rrs)),
-                                  BRDFg=(["y", "x"], np.ctypeslib.as_array(shared_Rf)),
-                                  aot550=(["y", "x"], aot_ref_raster.values)),
-                             coords=dict(wl=prod.raster.wl,
-                                         x=prod.raster.x,
-                                         y=prod.raster.y),
-                             )
+        logging.info('refined LUT preparation')
+        aot_step = aerosol['aot_step']
+        aot_min = float(aot_ref_raster.aot_ref.min())
+        aot_max = float(aot_ref_raster.aot_ref.max())
+        logging.info('aot range of the refined LUT: %.4f - %.4f', aot_min, aot_max + aot_step)
+        kernel.lut_preparation(aerosol_combination=aerosol_combination,
+                               aot_refs=[0, *np.arange(aot_min, aot_max + aot_step, aot_step)])
 
-        l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
-        l2_prod = l2_prod.set_coords('central_wavelength')
+        ######################################
+        # final grs process
+        ######################################
+        logging.info('final grs process')
+        # lazy: nothing is computed here, the blocks are evaluated when the product is written
+        kernel.final_process(kernel.prod.raster,
+                             aot_ref_raster.aot_ref,
+                             chunk=chunk)
+
+        # filter wind retrievals: the kernel works on a frozen copy of the wind map taken in final_process,
+        # so this does not change the Rrs
+        kernel.wind_img['wind'] = kernel.wind_img.wind.where(kernel.wind_img.wind < 12)
+        # interpolated block by block (lazy), instead of a full-size interpolation in memory
+        wind = _interp_like(kernel.wind_img.wind, kernel.xres.BRDFg, name='wind')
+        # own attributes, not the ones of the BRDFg template (product attributes)
+        wind.attrs = {'long_name': 'wind speed at 10 m (CAMS), NaN above 12 m s-1', 'units': 'm s-1'}
+        l2_prod = xr.merge([kernel.xres, wind], compat='override')
 
         ##############################################
         # Update flags and create mask from recipe
         ##############################################
-        # flags for negative blue/green Rrs
+        logging.info('Update flags and create mask from recipe')
+        # flags for negative blue/green Rrs (lazy, uint32 like the other flags)
         bitmask = 18
-        prod.raster['flags'] = prod.raster.flags + (((l2_prod.Rrs.sel(wl=490, method='nearest') < -0.0005) |
-                                                     (l2_prod.Rrs.sel(wl=565, method='nearest') < -0.0005)) << bitmask)
+        negative_rrs = ((l2_prod.Rrs.sel(wl=490, method='nearest') < -0.0005) |
+                        (l2_prod.Rrs.sel(wl=565, method='nearest') < -0.0005))
+        prod.raster['flags'] = prod.raster.flags + (negative_rrs.astype(np.uint32) << bitmask)
         # add name and description
         prod.raster.flags.attrs['flag_descriptions'][bitmask] = 'negative Rrs for blue or green bands'
         prod.raster.flags.attrs['flag_names'][bitmask] = 'neg_rrs'
@@ -659,18 +687,44 @@ class Process:
                                     tomask=self.flags_tomask,
                                     tokeep=self.flags_tokeep,
                                     mask_name="mask")
-        l2_prod = xr.merge([l2_prod, mask])
+        l2_prod = xr.merge([l2_prod, mask], compat='override')
+
+        l2_prod['central_wavelength'] = ('wl', prod.raster.wl_true.values)
+        l2_prod = l2_prod.set_coords('central_wavelength')
+        prod.raster.attrs['opac_model'] = opac_model
+        # pixel size (meter) of the coarse raster of the aerosol retrieval
+        prod.raster.attrs['aot_resolution'] = kernel.coarse_resolution
 
         ######################################
         # Write final product
         ######################################
         logging.info('construct final product')
-        self.l2_prod = l2_prod
+        # self.l2_prod = l2_prod
         self.l2a = L2aProduct(prod, l2_prod, cams, gas_trans, dem)
 
-        return
+        del prod, l2_prod, cams, gas_trans, dem
+        gc.collect()
+        self.successful = True
+        return kernel
 
-    def write_output(self):
-        logging.info('export final product into netcdf')
-        self.l2a.to_netcdf(self.odir,
-                           snap_compliant=self.snap_compliant)
+    @_with_workers
+    def write_output(self, fmt=None, **export_kwargs):
+        '''
+        Write the L2A product; this is where the lazy processing is evaluated, chunk by chunk.
+
+        The format comes from the name of ``self.odir``: ``.zarr`` gives a Zarr store (with pyramids),
+        ``.nc`` a NetCDF file (plus ``_anc.nc`` for the ancillary data); the ``.zarr`` path can be a remote
+        URL (``s3://bucket/name.zarr``). A path with no such extension is a directory and gets a Zarr store
+        (as before), unless `fmt` says otherwise.
+
+        :param fmt: ``'zarr'`` or ``'netcdf'`` to force the format (None: from the name of the output)
+        :param export_kwargs: options of ``L2aProduct.export`` (e.g. ``chunks``, ``shards``, ``compression``,
+            ``storage_options``, ``max_concurrency``, ``pyramids``)
+        '''
+        logging.info('export final product')
+        if fmt is None and Path(str(self.odir).rstrip('/')).suffix.lower() not in _OUTPUT_EXTENSIONS:
+            fmt = 'zarr'
+        return self.l2a.export(self.odir,
+                               fmt=fmt,
+                               snap_compliant=self.snap_compliant,
+                               **export_kwargs)

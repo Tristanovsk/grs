@@ -1,39 +1,52 @@
-"""CAMS data (grs.CamsProduct) on the test subsets."""
+"""CAMS data (grs.cams.CamsProduct) on the grid of the test L1C subset."""
 
-import os
-
+import numpy as np
 import pytest
 import xarray as xr
 
 from grs import CamsProduct
+from grs.product import Product
 
 
 @pytest.fixture(scope='module')
-def raster(l1c_path):
-    with xr.open_dataset(l1c_path) as ds:
-        return ds[['sza']].load()
+def prod(l1c_path):
+    return Product(xr.open_dataset(l1c_path))
 
 
-def test_explicit_file(raster):
-    cams = CamsProduct(raster, cams_file='/some/where/cams_forecast_2021-02.nc')
-    assert (cams.dir, cams.file) == ('/some/where', 'cams_forecast_2021-02.nc')
-
-
-def test_file_of_the_image(raster, tmp_path):
-    cams = CamsProduct(raster, dir=str(tmp_path / 'cams'), suffix='_31TFJ')
-    assert cams.filepath == os.path.join(str(tmp_path / 'cams'), '2021-02-11-forecast_31TFJ.nc')
-
-
-def test_area(raster):
-    cams = CamsProduct(raster, cams_file='cams.nc')
-    north, west, south, east = cams.area                       # image footprint enlarged by 1 deg
-    assert north > south and east > west
-    assert 3 < west < 4 and 5 < east < 6
-
-
-def test_load(raster, cams_path):
-    cams = CamsProduct(raster, cams_file=cams_path)
+@pytest.fixture(scope='module')
+def cams(prod, cams_path):
+    cams = CamsProduct(prod.raster, cams_file=cams_path)
     cams.load()
-    for var in ('aod550', 'sp', 'gtco3', 'tcwv', 'u10', 'v10'):
-        assert var in cams.raster, var
-    assert float(cams.raster.aod550.mean()) > 0
+    return cams
+
+
+def test_variables(cams):
+    expected = {'u10', 'v10', 't2m', 'msl', 'sp', 'tcwv', 'gtco3', 'tcno2', 'tcco', 'tc_ch4',
+                'aod469', 'aod550', 'aod670', 'aod865', 'aod1240'}
+    assert expected <= set(cams.variables)
+    assert expected <= set(cams.raster.data_vars)
+
+
+def test_grid_covers_the_image(cams, prod):
+    # coarse grid of the CAMS data spanning the image (same corners as the image grid)
+    assert cams.raster.x.values[[0, -1]] == pytest.approx([prod.xmin, prod.xmax])
+    assert cams.raster.y.values[[0, -1]] == pytest.approx([prod.ymax, prod.ymin])
+    assert cams.raster.rio.crs == prod.raster.rio.crs
+
+
+def test_values_of_the_day(cams):
+    # winter morning over the Camargue: mistral (northerly wind) and about 1014 hPa
+    assert float(cams.raster.v10.mean()) == pytest.approx(-6.2, abs=0.5)
+    assert float(cams.raster.t2m.mean()) == pytest.approx(281.86, abs=0.1)
+    assert float(cams.raster.sp.mean()) == pytest.approx(101420, abs=100)
+    assert float(cams.raster.msl.mean()) == pytest.approx(101707, abs=20)
+    assert float(cams.raster.tcwv.mean()) == pytest.approx(10.5, abs=0.5)
+
+
+def test_aod_spectrum(cams):
+    aod = cams.cams_aod
+    assert aod.sizes['wl'] == 5
+    assert np.all(aod.values > 0)
+    # aerosol optical depth decreasing with the wavelength
+    spectrum = aod.mean(['x', 'y']).sortby('wl').values
+    assert np.all(np.diff(spectrum) < 0)

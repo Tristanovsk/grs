@@ -148,7 +148,7 @@ You should get something like:
 
 ![image_output](images/example_snap_grs_image.png)
 
-Another examples of output images before (1st column) and after  (2nd column) sunglint correction:
+Examples of output images before (1st column) and after (2nd column) sunglint correction:
 
 ![image_output](images/Fig_valid_qualit_sea_scale.png)
 
@@ -160,7 +160,7 @@ Another examples of output images before (1st column) and after  (2nd column) su
 See examples in [exe](exe).
 
 ## Compile Docker image locally
-First and foremost, you must have the coresponding version of GRSdriver at the same level as grs2.
+First and foremost, you must have the corresponding version of GRSdriver at the same level as grs2.
 You should also make sure that the grsdata folder is full (it is a LTS).
 Eventually, you must get Dockerfile out of grs2 folder to have a structure as diplayed below.
 

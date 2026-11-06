@@ -1,6 +1,8 @@
 # pyproject.toml
 [build-system]
-requires      = ["setuptools>=61.0.0", "wheel"]
+# setuptools >= 64 for the editable installs (pip install -e .), >= 70.1 builds wheels without the
+# `wheel` package (one download less in the isolated build environment)
+requires      = ["setuptools>=70.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -23,18 +25,23 @@ dynamic = ["dependencies"]
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["grs", "grs.*"]
+exclude = ["grs.tests", "grs.tests.*"]
 
+# small data shipped with the package; the large LUTs (grs/data/lut/*.nc, grsdata) are not: they are
+# downloaded from Zenodo (grs.config.ensure_luts)
 [tool.setuptools.package-data]
-"grs"= ['*.yml']
-"*"= ['data/lut/gases/*.nc', 'data/auxiliary/*.txt']
+"grs" = ['config.yml', 'data/lut/gases/*.nc', 'data/auxiliary/*.txt']
 
 [tool.setuptools.exclude-package-data]
 "*" = [".gitattributes"]
 
 [project.scripts]
 grs = "grs.run:main"
+grs_config = "grs.config:main"
 
 [tool.setuptools.dynamic]
+version = { attr = "grs.__version__" }
 dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies]
@@ -54,3 +61,6 @@ notebooks = ["cdsapi>=0.7.4", "cartopy", "grstbx"]
 [project.urls]
 Homepage = "https://github.com/CNES/GRSprocessor"
 Documentation = "https://cnes.github.io/GRSprocessor"
+Source = "https://github.com/CNES/GRSprocessor"
+Changelog = "https://github.com/CNES/GRSprocessor/blob/main/CHANGELOG.md"
+"LUTs (Zenodo)" = "https://doi.org/10.5281/zenodo.23394202"

@@ -45,6 +45,9 @@ LABEL maintainer: "robin.buratti@magellium.fr"
 
 ENV LANG C.UTF-8
 ENV LC_ C.UTF-8
+# two malloc arenas: the memory freed by the processing threads is reused instead of being kept by
+# one arena per thread (about 2-3 GB less peak memory for a Sentinel-2 tile, same output)
+ENV MALLOC_ARENA_MAX=2
 
 RUN ulimit -s unlimited
 
@@ -74,6 +77,11 @@ RUN if [ -f "/kaniko/run/secrets/http_proxy" ]; then export http_proxy=$(cat /ka
         --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
         --no-cache-dir \
         -r requirements.txt \
+    # datashader==0.16.3 (requirements.txt) is incompatible with the dask version
+    # pip resolves transitively (dask.dataframe.core.DataFrame was removed/moved) —
+    # same workaround as the python-tests CI job.
+    && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org \
+        --no-cache-dir --upgrade datashader \
     && pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org .
 
 RUN mkdir -p /datalake/watcal/GRS \

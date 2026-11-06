@@ -16,7 +16,7 @@ import os
 import os.path
 import unittest
 import numpy
-from grs import acutils
+from grs import utils
 from grs import class_logger
 from grs import product
 from grs import cams_product

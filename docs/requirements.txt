@@ -1,0 +1,18 @@
+-r ../requirements.txt
+
+# Doc
+ipython
+sphinx <=7.2.6
+sphinx-book-theme<=1.1.2
+sphinx-copybutton
+sphinxcontrib-mermaid
+myst-nb
+myst-parser
+linkify-it-py
+
+geopandas
+jupyter
+matplotlib
+cartopy
+hvplot
+

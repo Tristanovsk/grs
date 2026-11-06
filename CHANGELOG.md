@@ -1,0 +1,344 @@
+# Changelog
+
+All notable changes to GRS are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Dates are given for tagged releases only.
+
+## [Unreleased] - 3.1.1
+
+### Changed
+- Cloud screening with OmniCloudMask only, in the core of the processing: the pixels processed (aerosol
+  retrieval and correction) are the clear-sky water pixels, OmniCloudMask class 0 (no thick cloud, thin
+  cloud or cloud shadow, `Masking.clear_sky`); cloudy pixels get NaN `Rrs`. The `mask` recipe masks the
+  OmniCloudMask bits 11, 12 and 13 (was: s2cloudless bit 1 and OmniCloudMask shadow bit 13).
+- s2cloudless removed (masking step, settings, `Masking.s2cloudless_mask` and the `s2cloudless`
+  requirement, with LightGBM): flag bits 1 and 2 (`cloud_p06`, `cloud_p08`) are no longer set.
+
+## [3.1.0]
+
+### Added
+- New masking procedure including OmniCloudMask (building on the former s2cloudless development).
+- Export to Zarr (Zarr v3) with multiscale pyramids and geo-information.
+- PNG quicklooks next to the product (Zarr and NetCDF): L1C RGB (TOA reflectance), L2A RGB (Rrs of the
+  water pixels) and sunglint (`BRDFg` of the water pixels), at most 1000 pixels, fixed stretches,
+  computed in the same pass as the product; `quicklooks=False` export option to skip them.
+- AOT coarse resolution stored in output attributes (default 240 m, a multiple of the 10, 20, 30 and
+  60 m pixel sizes).
+- `--aot_resolution` option of the CLI (pixel size of the coarse grid of the aerosol retrieval, default
+  from the configuration, 240 m).
+- Documentation of the kernel physics with equations; reworked Sphinx documentation for Read the Docs
+  (light/dark logos, partner logos, reorganised example notebooks: processing, auxiliary data,
+  visualization, Landsat).
+- `CONTRIBUTING.md` and a separate `README_CNES.md`.
+
+- `grs_config` command: prints the configuration in use and checks the LUTs (exit code 1 if one is
+  missing); `--init [DATA_ROOT]` writes the user configuration file; `--download` downloads the
+  LUTs from Zenodo (MD5 checked) into the LUT folder.
+- Configuration page of the documentation.
+- CAMS archive in a `YYYY/MM/DD` tree: without CAMS file, `Process.execute` (and `CamsProduct` with `dir`)
+  reads `<path: cams>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc`, the global
+  file of the day, else downloads the file of the tile next to it (`..._<tile>.nc`); the files of the former
+  layout `<path: cams>/<tile>/<date>-forecast_<tile>.nc` are still read. `grs.cams.cams_daily_file` gives
+  the path of a date. CAMS tutorial on a 2026 image with the daily archive.
+- `aerosol` section of the configuration: settings of the AOT retrieval (`aot_resolution`,
+  `min_pixel_prop`, `aot_chunk`, `outlier_factor`, `aot_smoothing_blocks`, `fine_step`, `fine_window`,
+  `aot_step`), overridden by the arguments of the same name of `Process.execute` (new arguments
+  `min_pixel_prop`, `outlier_factor`, `fine_step`, `fine_window`, `aot_step`, previously fixed). Default
+  `aot_resolution` 240 m (was 480 m: one AOT value per Sentinel-2 tile), also for `--aot_resolution`.
+- Default `aot_chunk` 64 (was 256): blocks of 15 km at 240 m. Validated against AERONET-OC (Venise,
+  Section-7 Platform; 73 matchups): AOT RMSE 0.066 instead of 0.094, bias -0.013 instead of -0.054, Rrs
+  RMSE 23 to 33 % lower (study in `notebook/settings_aerosols/AERONET-OC`).
+- Unit tests (`grs/tests/unit`, about 20 s): configuration and aerosol settings, CAMS archive, smoothing
+  filters, gaseous correction with dask, command line helpers, and end-to-end processing of a small L1C
+  subset (`grs/tests/data`, 128 x 128 pixels at 60 m over the Camargue, made with `make_test_data.py`);
+  run in the CI with the integration tests.
+- Batch processing tutorial (documentation): Level-1 images of a date range processed from Python, or
+  one `grs` command per image for the command line.
+- Automatic download of the missing LUTs from Zenodo before the first processing
+  (`grs.config.ensure_luts`); switched off with `zenodo: auto_download: false` or `GRS_NO_DOWNLOAD=1`.
+- PyPI packaging as `GRSprocessor` (package and commands still `grs`): version read from
+  `grs.__version__`, dependencies matching the imports, wheel without tests nor LUTs; release recipe in
+  `CONTRIBUTING.md` and GitHub workflow `pypi.yml` (trusted publishing on `v*` tags).
+
+### Changed
+- Configuration read at run time from the packaged defaults (`grs/config.yml`, now documented), the
+  user file `~/.config/grs/config.yml` (or `GRS_CONFIG`) and `GRS_DATA_ROOT`, instead of editing
+  `grs/config.yml` before installing (`grs.config` module). When `grsdata` is not set, the LUTs are
+  read from the user data folder (`~/.local/share/grs/lut` on Linux). New dependency: `platformdirs`.
+- `Process.execute` checks the LUT files before reading the image.
+- Coarse raster now defined by spatial resolution instead of pixel factors.
+- Optimised LUT interpolation; `acutils` module renamed to `utils`.
+- Lazy package loading for faster imports; Sentinel-2 viewing geometry loaded lazily.
+- AOT smoothing windows scale with the retrieval blocks (new `aot_smoothing_blocks` parameter of
+  `Process.execute`, default 3).
+- Python >= 3.11. The CLI reads the cloud cover of Sentinel-2 images from `MTD_MSIL1C.xml` directly:
+  the GDAL Python bindings are no longer needed.
+- `execute` and `write_output` use `processor: ncpu` dask threads (one per core before), the L1C bands
+  are no longer held by the CAMS product, and the water masking is done in place: about 35 % less
+  memory and 20 % less time for a Sentinel-2 tile at 20 m.
+- Two glibc malloc arenas (`MALLOC_ARENA_MAX=2`) in the Docker images, and set at start-up by the `grs`
+  command and `exe/launcher.py` (unless `MALLOC_ARENA_MAX` is set): the memory freed by the reading and
+  processing threads is reused, about 2-3 GB less peak memory with the parallel band reading of GRSdriver.
+- Blocks without water pixels are skipped in the final processing; the disabled sunglint slope
+  probability is no longer computed.
+- Integration tests moved to the unit tests (Level-1 product, CAMS data, gaseous transmittance, log
+  files) on the small Camargue subset of `grs/tests/data`: the Git LFS test data (`grs/tests/inputs`)
+  and `grs/tests/integration_tests` are removed, and CI no longer fetches LFS files.
+
+### Removed
+- Legacy eager methods of `Kernel`: `rugosity_est`, `aerosol_swir`, `aerosol_visible` and
+  `aerosol_visible_chunk_old` (use the `*_chunk` methods), with the `recalib_aot_ref` and
+  `retrieved_aot_ref` attributes they set.
+- Unused arguments and attributes of `Kernel`: `chunk` of the `*_chunk` block methods, `update_state` of
+  `aerosol_visible_chunk`, and `neg_pix_max`.
+- `grs.auxdata` module: `AuxData` moved to `grs.utils` (`from grs import AuxData` still works); the
+  obsolete `SensorData` (it could no longer be instantiated) and the masking thresholds are removed, with
+  `grs/TEST/src/test_auxdata.py`, which only tested them.
+
+### Fixed
+- Installation page of the documentation brought up to date (Python >= 3.11 instead of 3.9, no conda
+  GDAL/eoreader stack, install from PyPI, CPU build of PyTorch, venv or conda, editable install, automatic
+  LUT download with `GRS_DATA_ROOT`/`GRS_NO_DOWNLOAD`, ADS key for CAMS).
+- `wind` was written as uncompressed float64 (Zarr: without Blosc, inner chunks or shards), about 60 % of
+  a Zarr product: it is packed as int16 (scale 0.001), 1.2 MB instead of 209 MB at level 0 for a 20 m
+  tile, and has its own attributes (`units`, `long_name`) instead of the product ones. The Zarr export
+  now compresses and chunks every data variable, also those without packing.
+- NetCDF export failed (`TypeError: illegal data type for attribute b'gas_absorption_correction'`):
+  the boolean attributes are written as integers (0/1) in the NetCDF files; Zarr keeps the booleans.
+- `Process.cams_dir` was set from the `trans_lut` setting instead of `path: cams`.
+- NaN `Rrs` on the edges of the image (about half a pixel of the AOT grid), where the AOT map was not
+  extrapolated.
+- Vertical bands of NaN in Landsat products, and biased sunglint normalisation in the Landsat AOT
+  retrieval (slope probability of the reference band taken from a row of the processing block).
+- Weights of the AOT smoothing: the number of water pixels of each retrieval block is used as weight
+  (it was overwritten, so that only the empty blocks were weighted); outliers and empty blocks get the
+  median AOT with a null weight.
+- `Kernel.filter2d`: window wrapping around the image edges and in-place computation from already
+  smoothed values.
+- `--no_clobber` behaviour for Zarr output and `--snap_compliant` help text in the CLI.
+- Unresolved imports with lazy package loading.
+- Autosummary class template path in the API reference.
+- Compatibility with recent xarray versions (air-mass broadcasting in the kernel, `coarsen().mean()`
+  in masking).
+- Gas absorption correction of dask-backed bands (e.g. GRSdriver with `EOREADER_USE_DASK=1`), which
+  failed on the `spatial_ref` coordinate of the CAMS grid.
+
+## [3.0.0]
+
+### Changed
+- Merge of the scientific developments with the CI/CD pipeline from 2.1.9: major update of the
+  rugosity (surface roughness) and aerosol retrievals, and refinement of the aerosol retrieval
+  algorithm (developed as 2.2.0 and 2.2.1, not released: the released 2.2.0 is the CNES CI version
+  below).
+
+## [2.2.0] - 2026-10-16
+
+Version with the CI for the CNES operation.
+
+### Added
+- CI/CD: GitHub Actions pipeline for the pull requests and the gitflow branches, synchronisation with
+  the CNES GitLab, PyPI and Docker Hub publication, documentation build.
+- Integration tests (`grs/tests/integration_tests`) and their README.
+- `README_CNES.md` (CNES installation and operation) and `CONTRIBUTING.md`.
+
+### Changed
+- Masking updated with the s2cloudless developments (`s2cloudless` added to the requirements).
+- CWL descriptor updated.
+
+### Fixed
+- CLI: accept `--odir` as long alias for `-o`; pass a string path to `gdal.Open`.
+- Docker: upgrade datashader to match the dask API.
+
+## [2.1.9] - 2026-05-27
+
+### Added
+- L1C NetCDF accepted as input in the CLI.
+- CI/CD: GitLab synchronisation, PyPI publication, Sphinx documentation build, coverage badge,
+  CWL descriptor.
+
+### Fixed
+- Azimuth handling in the sunglint correction.
+
+## [2.1.8] - 2025-03-19
+
+### Changed
+- Improved logging and CI.
+
+## [2.1.7] - 2024-11-07
+
+### Changed
+- Account for absorption/scattering interaction in the transmittance of absorbing gases.
+
+### Fixed
+- Bugs related to true (band-averaged) wavelengths.
+- Support for the new ADS CAMS format.
+
+## [2.1.6] - 2024-09-24
+
+### Changed
+- Use `GRSdriver` instead of `s2driver`.
+
+## [2.1.5]
+
+### Added
+- Landsat 8 and 9 imagery support.
+
+### Changed
+- Repackaging of some classes.
+
+## [2.1.4]
+
+### Changed
+- `grs` process can be called as a simple function within a script (new input/output handling).
+- Output variables now include bitmask flags.
+
+## [2.1.3]
+
+### Changed
+- New automated CAMS loading and revised parameters.
+
+## [2.1.2]
+
+### Fixed
+- Tiles straddling the Greenwich meridian.
+
+## [2.1.1]
+
+### Changed
+- Package data.
+
+## [2.1.0] - 2024-02-22
+
+### Changed
+- Major update of the radiative transfer look-up tables and aerosol models.
+
+## [2.0.5]
+
+### Changed
+- New output format compliant with the SNAP "BEAM" format.
+
+## [2.0.4]
+
+### Changed
+- Output format adapted for QGIS.
+
+## [2.0.3]
+
+### Added
+- SurfWater integration.
+
+## [2.0.2]
+
+### Changed
+- Memory optimisation.
+
+## [2.0.1]
+
+### Fixed
+- I/O issues.
+
+## [2.0.0]
+
+### Removed
+- snappy skeleton (SNAP dependency); simplification of previous options; Landsat handling dropped.
+
+## [1.5.0]
+
+### Changed
+- Output parameters extended with `ndwi_nir` and `ndwi_swir`.
+
+## [1.4.0]
+
+### Changed
+- Image processed by rectangular chunks.
+
+## [1.3.4]
+
+### Added
+- Slope and shade from DEM.
+
+## [1.3.3]
+
+### Fixed
+- Sunglint BRDF output.
+
+## [1.3.2]
+
+### Changed
+- Major improvement of LUT interpolation and access.
+
+## [1.3.1]
+
+### Fixed
+- CAMS data extraction with xarray and longitude conventions.
+
+## [1.3.0]
+
+### Changed
+- CAMS data update (CDS version): new AOD wavelengths and spectral SSA from 2018 onwards.
+- Adjustment for absorbing aerosols through SSA.
+
+## [1.2.4]
+
+### Added
+- Option to load MAJA and WaterDetect masks and export them in the output file.
+- Option to process WaterDetect water pixels only.
+
+## [1.2.3]
+
+### Changed
+- Compliance with SNAP 8.
+- Output written directly in compressed NetCDF4 at the end of the process.
+
+### Added
+- New utility `get_subset`.
+
+## [1.2.2]
+
+### Changed
+- Nearest-neighbour interpolation to keep tile-edge pixels.
+- `product.dispose` to minimise memory usage in the SNAP JVM.
+
+## [1.2.1]
+
+### Added
+- High-latitude processing (DEM change).
+- Option to process all pixels before masking non-water pixels.
+
+## [1.2.0]
+
+### Changed
+- Full data matrix loaded from the image instead of line-by-line pixel extraction
+  (preparation for multi-pixel retrieval).
+
+## [1.1.4]
+
+### Added
+- Cloud mask; compressed NetCDF4 output format.
+
+## [1.1.3]
+
+### Changed
+- Minor changes.
+
+## [1.1.2]
+
+### Changed
+- Output in Rrs units.
+
+## [1.1.1]
+
+### Changed
+- Minor changes.
+
+## [1.1.0]
+
+### Added
+- Landsat 4, 5, 7 and 8 support.
+
+## [1.0.0]
+
+### Added
+- GRS for Sentinel-2.
