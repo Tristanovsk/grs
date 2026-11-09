@@ -77,11 +77,15 @@ from dask.array.overlap import overlap, trim_internal
 import numpy as np
 import pandas as pd
 import xarray as xr
-import pandas as pd
-
-import logging
 
 from s2cloudless import S2PixelCloudDetector
+
+# omnicloudmask (torch) takes seconds to import: it is imported where it is used, so that ``import grs``
+# (and ``grs -v``) stays fast
+try:
+    _OCM_VERSION = version('omnicloudmask')
+except PackageNotFoundError:
+    _OCM_VERSION = 'unknown'
 
 FLAG_NAME = 'flags'
 # flag bits of the OmniCloudMask classes 1 (thick cloud), 2 (thin cloud) and 3 (cloud shadow)
@@ -259,6 +263,190 @@ class Masking(Settings):
         self.flags = np.zeros((y_size, x_size), dtype=np.uint32)
         self.flag_stats = {}
 
+    # ------------------------------------------------------------------
+    # machinery
+    # ------------------------------------------------------------------
+    def _register(self, bit, name, description):
+        '''Record the name and description of flag bit `bit`.'''
+        self.flag_names[bit] = name
+        self.flag_descriptions[bit] = description
+
+    def _wl_index(self, wl, nearest=True):
+        '''Position of wavelength `wl` along the wl axis (nearest, or exact like ``sel(wl=wl)``).'''
+        index = self.prod.indexes['wl']
+        if nearest:
+            return int(index.get_indexer([wl], method='nearest')[0])
+        return int(index.get_loc(wl))
+
+    def _require(self, name):
+        '''Return dataset variable `name`, failing early with a clear message if it is missing.'''
+        if name not in self.prod:
+            raise KeyError(f"the dataset has no variable '{name}', needed by this mask")
+        return self.prod[name]
+
+    def _flags_lazy(self, steps):
+        '''Lazy dask array (y, x, uint32) with the flags of `steps`.
+
+        All steps run in one task per tile. Tiles overlap by the largest halo of the steps, are
+        processed whole (halo included) and trimmed afterwards.
+        '''
+        ny, nx = self.prod.sizes['y'], self.prod.sizes['x']
+        halo = max(s.halo for s in steps)
+        if self.tile_size < halo:
+            raise ValueError(f'tile_size ({self.tile_size}) must be at least the halo ({halo} pixels)')
+        chunks = {'y': _chunks(ny, self.tile_size, halo), 'x': _chunks(nx, self.tile_size, halo)}
+
+        # bands needed by the steps
+        if any(s.bands is None for s in steps):
+            needed, slot = None, None  # all bands
+        else:
+            needed = sorted({i for s in steps for i in s.bands})
+            slot = {iwl: k for k, iwl in enumerate(needed)}
+        has_cube = needed != []
+        aux_names = sorted({n for s in steps for n in s.aux})
+
+        arrays, depths = [], []
+        if has_cube:
+            bands = self._require('bands').transpose('wl', 'y', 'x').chunk({'wl': -1, **chunks})
+            if needed is not None:
+                bands = bands.isel(wl=needed)  # fused into the read: other bands are not loaded
+            arrays.append(bands.data)
+            depths.append({0: 0, 1: halo, 2: halo})
+        for name in aux_names:
+            arrays.append(self._require(name).transpose('y', 'x').chunk(chunks).data)
+            depths.append({0: halo, 1: halo})
+
+        if halo > 0:
+            arrays = [overlap(a, depth=d, boundary='none') for a, d in zip(arrays, depths)]
+
+        flags = da.map_blocks(_make_block_fn(steps, slot, has_cube, aux_names), *arrays,
+                              drop_axis=0 if has_cube else [],
+                              dtype=np.uint32,
+                              meta=np.empty((0, 0), dtype=np.uint32))
+        if halo > 0:
+            flags = trim_internal(flags, {0: halo, 1: halo}, boundary='none')
+        return flags
+
+    def _run(self, steps):
+        '''Compute `steps` (in parallel) and OR their bits into ``self.flags``.'''
+        result = self._flags_lazy(steps).compute()
+        if self.flags is None:
+            self.flags = result
+        else:
+            np.bitwise_or(self.flags, result, out=self.flags)
+
+    def _nodata_step(self, bitmask=0, name='nodata', description='nodata in input image'):
+        '''Step: flag nodata, i.e. NaN or crazy values (> 1e3) in the band with index 1.'''
+        self._register(bitmask, name, description)
+
+        def fn(t):
+            b = t.band(1)
+            _set(t.f, bitmask, np.isnan(b) | (b > 1e3))
+
+        return _Step(fn, [1], 0, ())
+
+    def _pixel_size(self):
+        '''Native pixel size (units of the ``x`` coordinate, m for projected rasters); None if unknown.'''
+        x = self.prod['x'].values if 'x' in self.prod.coords else None
+        if x is None or x.size < 2:
+            return None
+        return abs(float(x[1] - x[0]))
+
+    def _ocm_factor(self):
+        '''Integer downscaling factor so that the OmniCloudMask input is at about `OCM_resolution`.'''
+        res = self._pixel_size()
+        if not self.OCM_resolution or not res:
+            return 1
+        return max(1, int(round(self.OCM_resolution / res)))
+
+    def _get_omnicloudmask(self,
+                      bitmasks=OCM_BITS,
+                      names=('OCM_Thick_Cloud', 'OCM_Thin_Cloud', 'OCM_Cloud_Shadow'),
+                      descriptions=('Thick Cloud from OmniCloudMask version ' + _OCM_VERSION,
+                                    'Thin Cloud from OmniCloudMask version ' + _OCM_VERSION,
+                                    'Cloud Shadow from OmniCloudMask version ' + _OCM_VERSION)):
+        '''Apply OmniCloudMask for clouds and cloud shadows masking.
+
+        Outputs: 0 = Clear, 1 = Thick Cloud, 2 = Thin Cloud, 3 = Cloud Shadow.
+        See https://github.com/DPIRD-DMA/OmniCloudMask
+
+        Run on a downscaled image to save time: the red, green and NIR bands are averaged (ignoring NaN) over
+        ``factor x factor`` blocks, with ``factor`` = `OCM_resolution` / native pixel size rounded
+        (e.g. 6 for Sentinel-2 at 10 m and 60 m), the prediction is done on this coarse image (lazy bands:
+        only the coarse image is held in memory), then each coarse class is copied to the
+        ``factor x factor`` native pixels it covers (nearest). The mask and the flag bits are therefore at
+        native resolution, with blocky edges of `OCM_resolution`.
+
+        Sets ``self.omnimask`` (uint8, native grid) and the bits `bitmasks` of ``self.flags``.
+
+        :return: number of flagged pixels of each bit of `bitmasks`
+        '''
+        iwl = [self._wl_index(wl) for wl in (self.OCM_Rband, self.OCM_Gband, self.OCM_NIRband)]
+        rgnir = self.prod.bands.isel(wl=iwl)
+        for ii in range(len(bitmasks)):
+            self._register(bitmasks[ii], names[ii], descriptions[ii])
+
+        factor = self._ocm_factor()
+        ny, nx = rgnir.sizes['y'], rgnir.sizes['x']
+        if factor > 1:
+            # incomplete blocks at the bottom / right edges are averaged over their valid pixels
+            # (the mean ignores NaN by default; recent xarray no longer accepts ``skipna`` here)
+            rgnir = rgnir.coarsen(y=factor, x=factor, boundary='pad').mean()
+        res = self._pixel_size()
+        logging.info('OmniCloudMask processing on {:d} x {:d} pixels{}'.format(
+            rgnir.sizes['y'], rgnir.sizes['x'],
+            '' if res is None else ' ({:g} m)'.format(res * factor)))
+
+        import omnicloudmask as OCM
+
+        coarse = OCM.predict_from_array(np.asarray(rgnir.fillna(0).transpose('wl', 'y', 'x').values,
+                                                   dtype=np.float32),
+                                        batch_size=self.OCM_batch_size,
+                                        inference_dtype=self.OCM_inference_dtype,
+                                        inference_device=self.OCM_inference_device,
+                                        mosaic_device=self.OCM_mosaic_device
+                                        )[0].astype(np.uint8)
+
+        # back to the native grid: pixel (i, j) takes the class of the block (i // factor, j // factor)
+        if factor > 1:
+            omnimask = coarse[np.ix_(np.arange(ny) // factor, np.arange(nx) // factor)]
+        else:
+            omnimask = coarse
+        self.omnimask = omnimask
+
+        # set flags raster (in place, uint32)
+        counts = []
+        for value, bit in zip((1, 2, 3), bitmasks):
+            cond = omnimask == value
+            _set(self.flags, bit, cond)
+            counts.append(int(np.count_nonzero(cond)))
+        return counts
+
+    def _water_step(self,
+                    bitmasks=(3, 4),
+                    names=('water_swir_visible_index', 'water_red_visible_index'),
+                    descriptions=('water mask from normalized index from swir and visible band',
+                                  'water mask from normalized index from nir and visible band, '
+                                  'warning could fail for turbid waters')):
+        '''Step: water/land masks from the normalised indices (visible, SWIR) and (visible, NIR).'''
+        ivis, inir, iswir = (self._wl_index(w) for w in (self.bvis, self.bnir, self.bswir))
+        self._register(bitmasks[0], names[0], descriptions[0] +
+                       ', bands centered on {:.1f} and {:.1f} nm'.format(self.bvis, self.bswir) +
+                       ', threshold={:.2f}'.format(self.vis_swir_index_threshold))
+        self._register(bitmasks[1], names[1], descriptions[1] +
+                       ', bands centered on {:.1f} and {:.1f} nm'.format(self.bvis, self.bnir) +
+                       ', threshold={:.2f}'.format(self.ndwi_threshold))
+
+        def fn(t):
+            vis = t.band(ivis)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                other = t.band(iswir)
+                _set(t.f, bitmasks[0], (vis - other) / (vis + other) > self.vis_swir_index_threshold)
+                other = t.band(inir)
+                _set(t.f, bitmasks[1], (vis - other) / (vis + other) > self.ndwi_threshold)
+
+        return _Step(fn, [ivis, inir, iswir], 0, ())
+
     def nodata_mask(self,
                     bitmask=0,
                     name='nodata',
@@ -383,7 +571,7 @@ class Masking(Settings):
         '''
 
         logging.info('cirrus masking')
-        cirrus = self.prod.bands.sel(wl=self.bcirrus, method='nearest')
+        icirrus = self._wl_index(self.bcirrus)
         thresholds = [self.thin_cirrus_threshold, self.opac_cirrus_threshold]
         for ii in range(2):
             self._register(bitmasks[ii], names[ii], descriptions[ii] + ', threshold {:.4f}'.format(thresholds[ii]))
@@ -416,12 +604,19 @@ class Masking(Settings):
                                       'cloud and shadow mask from surfwater input file')):
         '''Step: land / water / cloud-and-shadow classes of the 2-D input variable ``surfwater``.'''
         for ii in range(3):
-            # set naming and description as attributes
-            self.flag_descriptions[bitmasks[ii]] = descriptions[ii]
-            self.flag_names[bitmasks[ii]] = names[ii]
+            self._register(bitmasks[ii], names[ii], descriptions[ii])
+        self._require('surfwater')
+
+        def fn(t):
+            sw = t.aux['surfwater']
+            _set(t.f, bitmasks[0], sw == 0)
+            _set(t.f, bitmasks[1], sw == 1)
+            _set(t.f, bitmasks[2], sw >= 2)
+
+        return _Step(fn, [], 0, ('surfwater',))
 
     def duplicate_landsat_flags(self,
-                                bitmasks=[11, 12, 13, 14, 15, 16, 17],
+                                bitmasks=[14, 15, 16, 17, 18, 19, 20],
                                 landsat_bitmasks=[1, 2, 3, 4, 5, 6, 7],
                                 names=['l1_dilated_cloud', 'l1_cirrus', 'l1_cloud',
                                        'l1_cloud_shadow', 'l1_snow', 'l1_clear', 'l1_water'],
@@ -446,7 +641,16 @@ class Masking(Settings):
         '''
 
         logging.info('duplicating landsat level 1 flags')
-        self._run([self._landsat_step(*args, **kwargs)])
+        for ii, bit in enumerate(bitmasks):
+            self._register(bit, names[ii], descriptions[ii])
+        self._require(flags_landsat_band)
+
+        def fn(t):
+            f1 = t.aux[flags_landsat_band]
+            for ii, bit in enumerate(bitmasks):
+                _set(t.f, bit, (f1 & (1 << landsat_bitmasks[ii])) != 0)
+
+        return _Step(fn, [], 0, (flags_landsat_band,))
 
     # ------------------------------------------------------------------
     # statistics
@@ -513,15 +717,20 @@ class Masking(Settings):
               plus the dictionary of flags statistics
         :return: see :param output
         '''
-        # apply the masking processors
-        self.nodata_mask()
-        if self.sentinel2:
-            self.cloud_mask()
-        else:
-            self.duplicate_landsat_flags()
-        self.water_mask()
+        self.flag_names[:] = None
+        self.flag_descriptions[:] = None
+        self.flag_stats = {}
+
+        # masks based on dask and tile approach, in one lazy graph (cloud/cloud-shadow screening is
+        # OmniCloudMask, run separately below; s2cloudless bits 1-2 are no longer used, see module doc)
+        steps = [self._nodata_step()]
+
+        if not self.sentinel2:
+            steps.append(self.duplicate_landsat_flags())
+        steps.append(self._water_step())
+
         if self.bcirrus:
-            steps.append(self._cirrus_step())
+            steps.append(self.cirrus_mask())
         steps.append(self._high_swir_step())
 
         steps.append(self._surfwater_step())

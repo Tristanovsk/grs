@@ -123,7 +123,7 @@ Version history
 '''
 
 __package__ = 'grs'
-__version__ = '2.2.0'
+__version__ = '3.0.0'
 
 
 import importlib
