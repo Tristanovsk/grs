@@ -73,13 +73,57 @@ jobs:
             fi
           fi
 
+      - name: Résumé des tests et de la couverture
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          summary = []
+
+          try:
+              root = ET.parse('test-results.xml').getroot()
+              suite = root.find('testsuite') if root.tag == 'testsuites' else root
+              tests = int(suite.get('tests', 0))
+              failures = int(suite.get('failures', 0))
+              errors = int(suite.get('errors', 0))
+              skipped = int(suite.get('skipped', 0))
+              passed = tests - failures - errors - skipped
+              time = float(suite.get('time', 0))
+              summary += [
+                  '## Tests unitaires',
+                  '',
+                  '| Total | Réussis | Échoués | Erreurs | Ignorés | Durée |',
+                  '|---|---|---|---|---|---|',
+                  f'| {tests} | {passed} | {failures} | {errors} | {skipped} | {time:.1f}s |',
+              ]
+          except (FileNotFoundError, ET.ParseError):
+              summary += ['## Tests unitaires', '', '_pas de résultats (test-results.xml manquant)_']
+
+          try:
+              root = ET.parse('coverage.xml').getroot()
+              line_rate = float(root.get('line-rate', 0)) * 100
+              summary += [
+                  '',
+                  '## Couverture',
+                  '',
+                  f"**{line_rate:.1f}%** des lignes couvertes "
+                  f"({root.get('lines-covered')}/{root.get('lines-valid')})",
+              ]
+          except (FileNotFoundError, ET.ParseError):
+              summary += ['', '## Couverture', '', '_pas de rapport (coverage.xml manquant)_']
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+              f.write('\n'.join(summary) + '\n')
+          PY
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: false
-        #if: always()   # Upload même si les tests échouent
+        if: always()   # Upload même si les tests échouent
         with:
           name: test-reports
-          path : | 
+          path : |
             coverage.xml
             test-results.xml
             cov_html/
@@ -118,10 +162,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Free disk space
+        # omnicloudmask (torch) pushed the image build over the runner's default free space
+        # ("no space left on device" while podman commits the layer): the GitHub-hosted ubuntu
+        # runner ships several GB of preinstalled toolchains we don't use (.NET, Android, Haskell,
+        # Swift) and ~20-30 GB of unused container images; remove them first to get headroom back.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/local/share/chromium /usr/share/swift
+          sudo docker image prune --all --force
+          df -h /
+
       - name: Build image
         run: |
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}"
-          export VERSION_GRS=$(grep version pyproject.toml | cut -d '"' -f 2)
+          export VERSION_GRS=$(python3 -c "import ast, pathlib; t = pathlib.Path('grs/__init__.py').read_text(); print(next(n.value.value for n in ast.parse(t).body if isinstance(n, ast.Assign) and getattr(n.targets[0], 'id', '') == '__version__'))")
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "Tag : $GITHUB_REF_NAME"
             export VERSION_GRS=${GITHUB_REF_NAME};

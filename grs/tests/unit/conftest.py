@@ -8,6 +8,9 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 # 128 x 128 pixels at 60 m of S2A 2021-02-11 over the Camargue (tile 31TFJ), and its CAMS data
 L1C_SUBSET = os.path.join(DATA_DIR, 'S2A_MSIL1C_20210211_T31TFJ_camargue_subset.nc')
 CAMS_SUBSET = os.path.join(DATA_DIR, 'cams_forecast_2021-02-11_camargue.nc')
+# full Level-1 image of the subset, used only when it is on the computer
+SAFE = ('/data/satellite/Sentinel-2/L1C/31TFJ/2021/02/11/'
+        'S2A_MSIL1C_20210211T104151_N0500_R008_T31TFJ_20230608T124831.SAFE')
 
 
 @pytest.fixture(scope='session')
@@ -27,11 +30,14 @@ def lut_files():
     """
     from grs.grs_process import GRSDATA, TOALUT, TRANSLUT
     grsdata = os.environ.get('GRS_TEST_GRSDATA', GRSDATA)
+    if grsdata is None:
+        return ()
     return os.path.join(grsdata, TOALUT), os.path.join(grsdata, TRANSLUT)
 
 
 def luts_available():
-    return all(os.path.exists(f) for f in lut_files())
+    files = lut_files()
+    return bool(files) and all(os.path.exists(f) for f in files)
 
 
 @pytest.fixture(scope='session')

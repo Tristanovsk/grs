@@ -1,15 +1,22 @@
 # Runtime dependencies of grs (read by pyproject.toml).
 # GRSdriver >= 2.0 reads the Level-1 products without EOReader, sertit, fiona or the GDAL
 # Python bindings: everything installs from PyPI wheels.
+cdsapi>=0.7.4
+dask>=2024.10.0
 docopt>=0.6.2
 GRSdriver>=2.0.4
+h5netcdf>=1.3.0
+h5py>=3.11.0
 matplotlib>=3.9.0
 netCDF4>=1.7.2
 numba>=0.60.0
 numpy>=2.0
+omnicloudmask
 pandas>=2.2.3
+platformdirs>=4.0
 PyYAML>=6.0.2
 rioxarray>=0.17.0
 s2cloudless>=1.7.3
 scipy>=1.14.1
 xarray>=2024.10.0
+zarr>=2.18
