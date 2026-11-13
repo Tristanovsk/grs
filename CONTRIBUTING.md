@@ -20,7 +20,7 @@ request features. Include:
 ```bash
 git clone https://github.com/CNES/GRSprocessor.git
 cd GRSprocessor
-conda create -n grs_dev python=3.11
+conda create -n grs_dev python=3.12
 conda activate grs_dev
 pip install -r requirements.txt
 pip install -e .[dev]
@@ -45,28 +45,45 @@ required to actually run `grs` on data.
 pytest grs/tests/unit/
 ```
 
+The unit tests (`grs/tests/unit/`, about 10 s) run on a small L1C subset stored in the repository
+(`grs/tests/data`, made with `grs/tests/data/make_test_data.py`); their end-to-end part needs the
+look-up tables and is skipped without them: set `GRS_TEST_GRSDATA` to the folder of the LUTs if it is not
+the `grsdata` folder of `grs/config.yml`.
+
 This is the same test suite executed by CI (job `python-tests` in
-[`.github/workflows/main.yml`](.github/workflows/main.yml)), which also requires GDAL to be
-installed.
+[`.github/workflows/main.yml`](.github/workflows/main.yml)).
 
 ## Submitting changes
 
-1. Create a branch off `develop` named `feature/<short-description>`.
+This project follows [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) branch
+naming:
+
+- `feature/<short-description>` — off `develop`, merged back into `develop`. Use this for most
+  changes.
+- `bugfix/<short-description>` — off `develop`, merged back into `develop`. Use this for
+  non-urgent bug fixes.
+- `release/<version>` — off `develop`, merged into **both** `main` and `develop` once ready.
+- `hotfix/<version>` — off `main`, merged into **both** `main` and `develop` once ready. Use this
+  for urgent fixes to a released version.
+
+Steps:
+
+1. Create a branch off `develop` (or off `main` for a `hotfix/*`) using one of the prefixes above.
 2. Make your changes, with tests where relevant.
-3. Open a pull request targeting `develop` (CI runs automatically on PRs to `main` and
-   `develop`). Make sure the `python-tests` job passes.
+3. Open a pull request targeting `develop` (`main` too for `release/*`/`hotfix/*`, per Gitflow —
+   open a second PR). CI runs automatically on PRs to `main` and `develop`. Make sure the
+   `python-tests` job passes.
 4. One of the maintainers will review your PR.
 
 ## Documentation
 
 The documentation lives under [`docs/`](docs/) (Sphinx) and is published to
-[cnes.github.io/GRSprocessor](https://cnes.github.io/GRSprocessor/) on every push to `main`.
+[cnes.github.io/GRSprocessor](https://cnes.github.io/GRSprocessor/) on every tag push.
 See `docs/source/index.rst` for the entry point. You can build it locally with:
 
 ```bash
-pip install sphinx sphinx-rtd-theme myst-parser sphinx-autoapi
-cd docs
-sphinx-build -b html source build/html
+pip install ".[docs]"
+sphinx-build -b html docs/source docs/build/html
 ```
 
 ## Releasing on PyPI

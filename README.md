@@ -185,12 +185,13 @@ Examples of output images before (1st column) and after (2nd column) sunglint co
 
 ```bash
 pip install -e .[dev]
-pytest grs/tests/unit/                 # about 35 s
+pytest grs/tests/unit/                 # about 45 s
 ```
 
 - `grs/tests/unit/`: configuration and aerosol settings, Level-1 product, CAMS data and archive, smoothing
   filters, gaseous transmittance and correction (in memory and with dask), log files, command line
-  helpers, and an end-to-end processing of a small L1C subset (128 x 128 pixels at 60 m over the
+  helpers, masking, output product (Zarr and NetCDF), utilities, the retrievals of the `Kernel`
+  (`grs/tests/unit/kernel/`: LUT preparation, wind, aerosol, final processing), and an end-to-end processing of a small L1C subset (128 x 128 pixels at 60 m over the
   Camargue, `grs/tests/data`, made with `grs/tests/data/make_test_data.py`) checking the L2A product.
   No Git LFS data is needed. The end-to-end tests are skipped when
   the look-up tables are not installed (`grs_config --download`).
@@ -248,31 +249,35 @@ GitLab instance for HPC-based validation. Two independent pipelines run on every
 
 ### GitHub Actions (public, [`.github/workflows/`](.github/workflows))
 
-**[`main.yml`](.github/workflows/main.yml) — Pipeline CI** (push to `feature/*`, `main`,
-`develop`, tags; and pull requests to `main`/`develop`):
+**[`main.yml`](.github/workflows/main.yml) — Pipeline CI** (push to `feature/*`, `release/*`,
+`hotfix/*`, `bugfix/*`, `main`, `develop`, tags; and pull requests to `main`/`develop`):
 
-1. `python-tests` — installs GDAL and the Python dependencies, then runs the unit
-   tests (`grs/tests/unit/`) with coverage. On a tag, it also regenerates
-   and commits the coverage badge.
+1. `python-tests` — installs the Python dependencies (Python 3.12, no GDAL), then runs the unit
+   tests (`grs/tests/unit/`) with coverage, and writes a summary of the tests and of the coverage
+   in the job page. On a tag, it also regenerates and commits the coverage badge on `main`.
 2. `pypi` (tags only, needs `python-tests`) — builds the sdist/wheel and publishes it to
    PyPI.
-3. `podman-build` (needs `python-tests`) — builds the Docker image (`Dockerfile-github`);
-   on a tag, it also pushes `guillaumeeb/grs:<tag>` and `:latest` to Docker Hub.
+3. `podman-build` (needs `python-tests`) — builds the Docker image (`Dockerfile-github`, Ubuntu 24.04,
+   Python 3.12); on a tag, it also pushes `guillaumeeb/grs:<tag>` and `:latest` to Docker Hub.
 4. `lint` (pull requests and tags, needs `podman-build`) — runs `ruff` and `mypy` and
    uploads their reports as artifacts (non-blocking).
-5. `sync` (needs `podman-build`) — strips Git-LFS pointer files from the whole history with
-   `git-filter-repo`, then force-pushes the cleaned repository to the internal GitLab
-   mirror (`gitlab.cnes.fr/waterquality/grs2.git`). This is what triggers the GitLab
-   pipeline described below.
+
+**[`gitlab-sync.yml`](.github/workflows/gitlab-sync.yml) — Sync GitLab CNES**: mirrors the Gitflow
+branches (`feature/*`, `release/*`, `hotfix/*`, `bugfix/*`) to the internal GitLab
+(`gitlab.cnes.fr/waterquality/grs2`), opens a GitLab merge request for each GitHub pull request into
+`main`/`develop`, and creates a GitLab release for each version tag. The Git LFS pointer files are
+stripped on the way ([`mirror-to-gitlab`](.github/actions/mirror-to-gitlab/action.yml) action). This is
+what triggers the GitLab pipeline described below.
 
 **[`pypi.yml`](.github/workflows/pypi.yml) — Publish on PyPI** (tags `v*`, or by hand from the
-Actions tab to TestPyPI or PyPI): builds the sdist and the wheel of `GRSprocessor` and publishes them
-with PyPI trusted publishing (see "Releasing on PyPI" in [CONTRIBUTING.md](CONTRIBUTING.md)).
+Actions tab to TestPyPI or PyPI): runs the unit tests, then builds the sdist and the wheel of
+`GRSprocessor` and publishes them with PyPI trusted publishing (see "Releasing on PyPI" in
+[CONTRIBUTING.md](CONTRIBUTING.md)).
 
-**[`doc.yml`](.github/workflows/doc.yml) — Pipeline documentation** (same push triggers):
-builds the Sphinx documentation ([`docs/`](docs), furo theme, autoapi, mermaid diagrams);
-on a tag it uploads the HTML as an artifact, and on `main` it publishes it to
-[GitHub Pages](https://cnes.github.io/GRSprocessor/).
+**[`doc.yml`](.github/workflows/doc.yml) — Pipeline documentation** (branch pushes that modify
+`docs/`, and tags): builds the Sphinx documentation ([`docs/`](docs), sphinx-book-theme, autosummary,
+myst-nb notebooks, mermaid diagrams; also built on [Read the Docs](.readthedocs.yaml)); on a tag it
+publishes it to [GitHub Pages](https://cnes.github.io/GRSprocessor/).
 
 ### GitLab CI (internal CNES, [`.gitlab-ci.yml`](.gitlab-ci.yml))
 

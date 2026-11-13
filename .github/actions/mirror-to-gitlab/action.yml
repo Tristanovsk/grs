@@ -1,0 +1,148 @@
+name: 'Mirror ref to GitLab (no LFS)'
+description: >
+  Checks out a GitHub ref, strips Git LFS pointers from its history
+  (the GitLab mirror does not accept them) then pushes the result to a
+  given GitLab ref.
+
+inputs:
+  ref:
+    description: 'GitHub ref or SHA to check out (e.g. a PR SHA, a branch name, a tag)'
+    required: true
+  dest-ref:
+    description: 'Full destination ref on GitLab (e.g. refs/heads/feature/dev-ci, refs/tags/v2.3.0)'
+    required: true
+  gitlab-token:
+    description: 'GitLab token (api + write_repository scope)'
+    required: true
+  gitlab-project:
+    description: 'GitLab project path'
+    required: false
+    default: 'waterquality/grs2'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+        fetch-depth: 0
+        lfs: false
+
+    - name: Install git-filter-repo
+      shell: bash
+      run: pip install git-filter-repo
+
+    - name: Strip LFS files from history
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # `git rev-list --objects` dedupes by blob content: two different
+        # paths that happen to share identical bytes (e.g. duplicate SMAC
+        # coefficient files) would only get one of their paths reported,
+        # leaving the other un-stripped. List every (object, path) of every
+        # commit's tree instead -- same as `git ls-tree -r` per commit, but
+        # tab-separated so a path containing spaces stays intact.
+        while read -r commit; do
+          git ls-tree -r "$commit"
+        done < <(git rev-list HEAD) |
+          awk -F'\t' '{split($1, a, " "); if (a[2] == "blob") print a[3] "\t" $2}' \
+          > /tmp/all-blobs.txt
+
+        # Looking up every blob one by one (one `git cat-file` process per
+        # occurrence, repeated across commits that share an unchanged blob)
+        # is by far the slowest part of this job. Instead: resolve
+        # type/size for every *unique* blob in a single batched call, and
+        # only then read the content of the few candidates small enough to
+        # be an LFS pointer file (a handful of plain-text lines, well under
+        # 1 KB).
+        cut -f1 /tmp/all-blobs.txt | sort -u |
+          git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize)' \
+          > /tmp/object-info.txt
+
+        awk '$2 == "blob" && $3 < 1024 { print $1 }' /tmp/object-info.txt |
+          sort -u > /tmp/small-blobs.txt
+
+        : > /tmp/lfs-objects.txt
+        while read -r object; do
+          if git cat-file blob "$object" 2>/dev/null |
+            head -n 1 |
+            grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+            printf '%s\n' "$object" >> /tmp/lfs-objects.txt
+          fi
+        done < /tmp/small-blobs.txt
+
+        # Map the matching objects back to every path they were committed
+        # under across history (a shared blob can sit at several paths), so
+        # they all get removed.
+        awk -F'\t' 'NR==FNR { want[$1]; next } $1 in want { print $2 }' \
+          /tmp/lfs-objects.txt /tmp/all-blobs.txt |
+          sort -u > /tmp/lfs-files.txt
+
+        cat > /tmp/remove-paths.txt <<'EOF'
+        grs/tests/.gitattributes
+        EOF
+
+        if [ -s /tmp/lfs-files.txt ]; then
+          cat /tmp/lfs-files.txt >> /tmp/remove-paths.txt
+        fi
+
+        echo "=== Paths to remove ==="
+        cat /tmp/remove-paths.txt
+
+        git filter-repo \
+          --invert-paths \
+          --paths-from-file /tmp/remove-paths.txt \
+          --force
+
+    - name: Verify no LFS pointer remains
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if git ls-tree -r HEAD --name-only | grep -Fxq 'grs/tests/.gitattributes'; then
+          echo "ERROR: grs/tests/.gitattributes is still present"
+          exit 1
+        fi
+
+        # Same batched approach as the stripping step above: resolve every
+        # reachable object's type/size in one call, then only read the
+        # content of blobs small enough to be an LFS pointer file.
+        git rev-list --objects HEAD > /tmp/all-objects-after.txt
+
+        cut -d' ' -f1 /tmp/all-objects-after.txt |
+          git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize)' \
+          > /tmp/object-info-after.txt
+
+        awk '$2 == "blob" && $3 < 1024 { print $1 }' /tmp/object-info-after.txt |
+          sort -u > /tmp/small-blobs-after.txt
+
+        FOUND=0
+        while read -r object; do
+          if git cat-file blob "$object" 2>/dev/null |
+             head -n 1 |
+             grep -Fxq 'version https://git-lfs.github.com/spec/v1'; then
+            path=$(awk -v o="$object" '$1==o{print $2; exit}' /tmp/all-objects-after.txt)
+            echo "ERROR: LFS pointer found (object=$object path=${path:-unknown})"
+            FOUND=1
+          fi
+        done < /tmp/small-blobs-after.txt
+
+        if [ "$FOUND" -ne 0 ]; then
+          echo "LFS pointers remain, nothing will be pushed."
+          exit 1
+        fi
+
+        echo "OK: no LFS pointer found."
+
+    - name: Push to GitLab
+      shell: bash
+      env:
+        GITLAB_TOKEN: ${{ inputs.gitlab-token }}
+      run: |
+        set -euo pipefail
+
+        git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.cnes.fr/${{ inputs.gitlab-project }}.git"
+
+        echo "Push HEAD -> ${{ inputs.dest-ref }}"
+        GIT_LFS_SKIP_PUSH=1 git push gitlab "HEAD:${{ inputs.dest-ref }}" --force

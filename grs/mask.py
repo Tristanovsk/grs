@@ -562,7 +562,7 @@ class Masking(Settings):
         self._run([self._surfwater_step(*args, **kwargs)])
 
     def duplicate_landsat_flags(self, *args, **kwargs):
-        '''Copy the Landsat level-1 QA bits (bits 11-17) into ``self.flags``.'''
+        '''Copy the Landsat level-1 QA bits (bits 14-20) into ``self.flags``.'''
         logging.info('duplicating landsat level 1 flags')
         self._run([self._landsat_step(*args, **kwargs)])
 

@@ -356,9 +356,14 @@ def _find_min_cost(cost, values):
     best_cost = np.full((ny, nx), np.nan)
     for iy in range(ny):
         for ix in range(nx):
-            if np.isnan(cost[:, iy, ix]).all():
+            # smallest non-NaN cost (np.argmin would return the first NaN; nanargmin is not in numba)
+            ind = -1
+            for i in range(n):
+                c = cost[i, iy, ix]
+                if not np.isnan(c) and (ind < 0 or c < cost[ind, iy, ix]):
+                    ind = i
+            if ind < 0:
                 continue
-            ind = np.argmin(cost[:, iy, ix])
             best_value[iy, ix] = values[ind]
             best_cost[iy, ix] = cost[ind, iy, ix]
     return best_value, best_cost

@@ -61,6 +61,8 @@ docs = [
     "linkify-it-py",
     "ipython",
 ]
+# packages of the example notebooks (CAMS download, maps, interactive viewer)
+notebooks = ["cartopy", "grstbx"]
 
 [project.urls]
 Homepage = "https://github.com/CNES/GRSprocessor"

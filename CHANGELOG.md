@@ -16,6 +16,12 @@ Dates are given for tagged releases only.
   the product, `write_output` writes the marker file `<name>_no_water.txt` (image, water area, minimum,
   version), skipped like a product by `grs --no_clobber` and by the batch tutorial (status `no_water`).
   Not used with `allpixels`.
+- Unit tests of the `Kernel` retrievals (`grs/tests/unit/kernel/`: LUT preparation, coarse rasters, wind,
+  SWIR and visible aerosol, final processing), of the masking, output product, configuration, command line,
+  exceptions and utilities (from `develop`, PR #24 and #26).
+- CI from `develop`: GitLab synchronisation in its own workflow (`gitlab-sync.yml`, Gitflow branches,
+  merge requests and releases), unit tests before the PyPI publication, test and coverage summary,
+  release/hotfix/bugfix branches, documentation published on tags; `notebooks` extra in `pyproject.toml`.
 
 ### Changed
 - Faster processing, same products (bit-identical L2A on a Sentinel-2 tile; `execute` about 295 s ->
@@ -38,6 +44,10 @@ Dates are given for tagged releases only.
   OmniCloudMask bits 11, 12 and 13 (was: s2cloudless bit 1 and OmniCloudMask shadow bit 13).
 - s2cloudless removed (masking step, settings, `Masking.s2cloudless_mask` and the `s2cloudless`
   requirement, with LightGBM): flag bits 1 and 2 (`cloud_p06`, `cloud_p08`) are no longer set.
+- Merge of `develop` (CNES): Docker images on Ubuntu 24.04 / Python 3.12 without GDAL, SLURM test
+  environment on Python 3.12, `exe/launcher.py` without `osgeo` (cloud cover from `s2_cloud_cover`),
+  light `environment.yml`, CWL descriptor reading its inputs from S3; requirements with minimum versions
+  and GRSdriver >= 2.0.4 (no EOReader, sertit, fiona). The processing code of 3.1.1 is kept.
 
 ### Fixed
 - Thread-safe numba threading layer by default (`NUMBA_THREADING_LAYER=threadsafe`: TBB, else OpenMP,
@@ -46,6 +56,10 @@ Dates are given for tagged releases only.
 - `grs --no_clobber`: the existing product (or no-water marker) is checked before the logger is set up,
   so a skipped run no longer overwrites the `log_file.log` of the previous run (the skip message is
   printed).
+- Wind retrieval: `_find_min_cost` picked the first candidate with a NaN cost (`np.argmin` returns the
+  first NaN) instead of the smallest valid cost, giving a NaN cost and a wrong wind on the pixels where
+  only some wind candidates have a valid cost.
+- Configuration tests no longer read the user file of the computer (`~/.config/grs/config.yml`).
 
 ## [3.1.0]
 
