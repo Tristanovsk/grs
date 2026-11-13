@@ -1,6 +1,6 @@
-# GRS Installation and Usage on CNES Machines
+# GRSprocessor Installation and Usage on CNES Machines
 
-This document gathers the instructions specific to installing and running GRS on the CNES TREX HPC
+This document gathers the instructions specific to installing and running GRSprocessor on the CNES TREX HPC
 cluster (SLURM). For general installation instructions (any other machine), see the main
 [README](README.md) and the [documentation](https://cnes.github.io/GRSprocessor).
 
@@ -17,7 +17,7 @@ cluster (SLURM). For general installation instructions (any other machine), see 
    ```
 
 2. Create a conda environment (Python 3.11 or newer; conda only provides Python, the packages are
-   installed with pip) and install GRS. The TREX nodes have no GPU: install the CPU build of PyTorch
+   installed with pip) and install GRSprocessor. The TREX nodes have no GPU: install the CPU build of PyTorch
    (used by the OmniCloudMask cloud masks) first, much smaller than the default CUDA one:
 
    ```bash
@@ -60,7 +60,7 @@ The default configuration reads the CAMS forecasts from the TREX archive `/work/
 on TREX, `--cams_file` can be omitted. Give `--cams_file` to use another file. The scripts of the
 [ecmwf](ecmwf) folder (e.g. `download_cams.slurm`) download the CAMS data.
 
-## Running GRS on TREX with a SLURM interactive job
+## Running GRSprocessor on TREX with a SLURM interactive job
 
 ```bash
 unset SLURM_JOB_ID
@@ -72,7 +72,7 @@ grs /work/datalake/S2-L1C/31TFJ/2023/06/16/S2B_MSIL1C_20230616T103629_N0509_R008
     --dem_file /work/datalake/static_aux/MNT/COP-DEM_GLO-30-DGED_S2_tiles/COP-DEM_GLO-30-DGED_31TFJ.tif
 ```
 
-GRS uses `processor: ncpu` threads (8 by default): request as many cores (`-c`) as threads. A Sentinel-2
+GRSprocessor uses `processor: ncpu` threads (8 by default): request as many cores (`-c`) as threads. A Sentinel-2
 tile at 20 m needs about 10 GB of memory. See the [Usage](README.md#usage) section of the main README
 for the `grs` options (`grs -h` lists them all).
 

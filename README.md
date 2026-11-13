@@ -1,14 +1,14 @@
-# GRS algorithm package
+# GRSprocessor
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/Apache-2.0)
-[![GRS](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
+[![GRSprocessor](https://github.com/CNES/GRSProcessor/actions/workflows/main.yml/badge.svg)](https://github.com/CNES/GRSprocessor/actions)
 [![Coverage](badges/coverage.svg)]()
 [![Docker Image Version](https://img.shields.io/docker/v/guillaumeeb/grs/2.1.9)](https://hub.docker.com/r/guillaumeeb/grs)
 [![PyPI](https://img.shields.io/pypi/v/GRSProcessor)](https://pypi.org/project/GRSprocessor/)
 
-## GRS (Glint Removal for Sentinel-2-like sensors)
+## GRSprocessor (Glint Removal for Sentinel-2-like sensors)
 
-The GRS algorithm ([Harmel et al.,
+The GRSprocessor algorithm ([Harmel et al.,
 2018](https://www.sciencedirect.com/science/article/pii/S0034425717304856))
 corrects high-spatial resolution multispectral images (Sentinel-2,
 Landsat 8/9) acquired over water for the atmosphere and for the sunlight
@@ -41,7 +41,7 @@ grs S2B_MSIL1C_20220731T103629_N0400_R008_T31TFJ_20220731T124834.SAFE \
 
 ## Installation
 
-GRS needs **Python 3.11 or newer**. It is a pure Python package: all its dependencies (including
+GRSprocessor needs **Python 3.11 or newer**. It is a pure Python package: all its dependencies (including
 [GRSdriver](https://github.com/Tristanovsk/GRSdriver), which reads the L1C images) are installed by pip,
 and the GDAL Python bindings are not needed.
 
@@ -60,7 +60,7 @@ build of PyTorch first, much smaller than the default (CUDA) one:
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Then install GRS, from PyPI (distribution name `GRSprocessor`; the package and the commands are `grs`):
+Then install GRSprocessor from PyPI (the package and the commands are `grs`):
 
 ```bash
 pip install GRSprocessor
@@ -105,12 +105,12 @@ Configuration page of the [documentation](https://cnes.github.io/GRSprocessor).
 
 ### CAMS atmospheric data
 
-GRS uses the CAMS global atmospheric composition forecasts (aerosols, ozone, water vapour, pressure,
+GRSprocessor uses the CAMS global atmospheric composition forecasts (aerosols, ozone, water vapour, pressure,
 wind) of the date of the image, from the
 [Copernicus Atmosphere Data Store](https://ads.atmosphere.copernicus.eu) (ADS):
 
 - give a CAMS NetCDF file with `--cams_file`;
-- or let GRS find it in a CAMS archive: without `--cams_file`, the forecasts are read from the `YYYY/MM/DD`
+- or let GRSprocessor find it in a CAMS archive: without `--cams_file`, the forecasts are read from the `YYYY/MM/DD`
   tree of `path: cams` of the configuration,
   `<path: cams>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc` (global file of
   the day, e.g. updated every day by `ecmwf/download_cams_cds_day.py`), or, if there is none, from the file
@@ -163,7 +163,7 @@ See the [tutorials](https://cnes.github.io/GRSprocessor) for the processing, the
 products with xarray and their visualization with [grstbx](https://github.com/Tristanovsk/grstbx).
 
 > If you are on TREX CNES, see [README_CNES.md](README_CNES.md#running-grs-on-trex-with-a-slurm-interactive-job)
-> for how to run GRS as a SLURM interactive job.
+> for how to run GRSprocessor as a SLURM interactive job.
 
 ### Memory and computing time
 
@@ -171,7 +171,7 @@ The image is processed lazily, block by block, by `processor: ncpu` threads (8 b
 configuration). For a Sentinel-2 tile at 20 m, expect about 10 GB of memory and a few minutes of computing
 time; lower `ncpu` if memory is tight. The `grs` command limits the number of malloc arenas of glibc to 2
 (`MALLOC_ARENA_MAX=2`, already set in the Docker images), which saves 2-3 GB: set this variable too when
-running GRS from your own Python scripts.
+running GRSprocessor from your own Python scripts.
 
 ### Example
 
