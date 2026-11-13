@@ -1,7 +1,7 @@
 # Batch processing of Sentinel-2 images
 
 This notebook processes a time series of Sentinel-2 L1C images (or Landsat Collection 2 Level-1
-images) of one or several tiles into GRS L2A products, with
+images) of one or several tiles into GRSprocessor L2A products, with
 {class}`grs.Process <grs.grs_process.Process>`:
 
 - configuration of the batch: input and output folders, tiles, date range, auxiliary data and
@@ -28,7 +28,7 @@ for date, row in selection.iterrows():          # one row per Level-1 image
 
 The notebook is rendered with the outputs of its last run: the 21 images of August 2025 of tile
 31TEJ (Gulf of Lion: Thau lagoon and the coast of Montpellier), about 2 to 4 minutes per image at
-20 m. The input images are not distributed with GRS: set the paths of the configuration cell to run it
+20 m. The input images are not distributed with GRSprocessor: set the paths of the configuration cell to run it
 on your own data.
 
 ```{toctree}

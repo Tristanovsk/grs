@@ -1,6 +1,6 @@
 # Processing a Landsat 8/9 image
 
-GRS processes the Level-1 products (collection 2, `L1TP` / `L1GT`) of the OLI sensor of Landsat 8 and
+GRSprocessor processes the Level-1 products (collection 2, `L1TP` / `L1GT`) of the OLI sensor of Landsat 8 and
 9 like the Sentinel-2 images, with a few differences:
 
 - the bands of OLI from 443 to 2201 nm (865 nm for the NIR, 1609 and 2201 nm for the sunglint), at
@@ -33,7 +33,7 @@ process.write_output()
 ```
 
 The notebook is rendered with the outputs of its last run; the input images are not distributed with
-GRS: set the paths of the settings cell to run it on your own data.
+GRSprocessor: set the paths of the settings cell to run it on your own data.
 
 ```{toctree}
 :maxdepth: 1

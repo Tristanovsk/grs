@@ -1,14 +1,14 @@
 Installation
 ============
 
-GRS needs **Python 3.11 or newer**. It is a pure Python package, distributed on PyPI as
+GRSprocessor needs **Python 3.11 or newer**. It is a pure Python package, distributed on PyPI as
 ``GRSprocessor``: all its dependencies (including `GRSdriver <https://github.com/Tristanovsk/GRSdriver>`__,
 which reads the L1C images) are installed by pip, and the GDAL Python bindings are not needed.
 
 Python environment
 ------------------
 
-Install GRS in a dedicated environment, with venv:
+Install GRSprocessor in a dedicated environment, with venv:
 
 .. code-block:: bash
 
@@ -33,8 +33,8 @@ build of PyTorch first, much smaller than the default (CUDA) one:
 
    python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 
-Install GRS
------------
+Install GRSprocessor
+--------------------
 
 From PyPI (the package is ``grs``, ``import grs``, and it installs the commands ``grs`` and
 ``grs_config``):
@@ -88,9 +88,9 @@ The configuration is read at run time: no need to reinstall the package after ch
 CAMS atmospheric data
 ---------------------
 
-GRS uses the CAMS global atmospheric composition forecasts (aerosols, ozone, water vapour, pressure,
+GRSprocessor uses the CAMS global atmospheric composition forecasts (aerosols, ozone, water vapour, pressure,
 wind) of the date of the image, from the `Copernicus Atmosphere Data Store
-<https://ads.atmosphere.copernicus.eu>`__ (ADS). Give a CAMS NetCDF file to the processing, or let GRS
+<https://ads.atmosphere.copernicus.eu>`__ (ADS). Give a CAMS NetCDF file to the processing, or let GRSprocessor
 download it: create an ADS account, accept the licence of the dataset *CAMS global atmospheric
 composition forecasts*, and write your API key in ``~/.cdsapirc``:
 

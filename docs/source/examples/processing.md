@@ -1,6 +1,6 @@
 # Processing a Sentinel-2 image
 
-This notebook runs GRS on one Sentinel-2 L1C image from Python, from the input files to the checks of
+This notebook runs GRSprocessor on one Sentinel-2 L1C image from Python, from the input files to the checks of
 the L2A product:
 
 - inputs: the Level-1 image, the CAMS data (a file, or the daily file of the CAMS archive of the
@@ -27,8 +27,8 @@ process.write_output()
 ```
 
 The image is the Sentinel-2B acquisition of 2020-04-11 over the Loire estuary and the Bay of Biscay
-(tile 30TWT). The notebook is rendered with the outputs of its last run (GRS 3.1.1); the input images are not
-distributed with GRS: set the paths of the settings cell to run it on your own data. The same
+(tile 30TWT). The notebook is rendered with the outputs of its last run (GRSprocessor 3.1.1); the input images are not
+distributed with GRSprocessor: set the paths of the settings cell to run it on your own data. The same
 processing from the command line is described in {doc}`../usage`.
 
 ```{toctree}

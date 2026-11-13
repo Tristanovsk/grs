@@ -93,7 +93,7 @@ html_theme_options = {
 # from the v3.x branch: banner on every version but the stable one
 if os.environ.get('READTHEDOCS_VERSION', 'stable') != 'stable':
     html_theme_options['announcement'] = (
-        f'Pre-release documentation of GRS {release}: see the '
+        f'Pre-release documentation of GRSprocessor {release}: see the '
         '<a href="https://grs.readthedocs.io/en/stable/">stable documentation</a> '
         'of the current release.')
 

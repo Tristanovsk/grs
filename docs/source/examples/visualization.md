@@ -1,8 +1,8 @@
 # Visualization
 
-The L2A products of GRS are standard Zarr stores (or NetCDF files): they can be opened, plotted and
+The L2A products of GRSprocessor are standard Zarr stores (or NetCDF files): they can be opened, plotted and
 subset with xarray, rioxarray and matplotlib only. For the interactive exploration of the images, use
-the GRS toolbox [grstbx](https://grstbx.readthedocs.io) (version 2.4.0 or later), installed from
+the GRSprocessor toolbox [grstbx](https://grstbx.readthedocs.io) (version 2.4.0 or later), installed from
 [PyPI](https://pypi.org/project/grstbx/) with the Jupyter extras of the interactive viewers:
 
 ```bash
@@ -56,7 +56,7 @@ It then derives the water-quality parameters of the area with
 particulate matter and turbidity, CDOM, transparency, quality flags of the L2A reflectance) and browses
 them with `ViewParam`.
 
-The same viewers are available without notebook in the web dashboard of grstbx, which opens GRS L2A
+The same viewers are available without notebook in the web dashboard of grstbx, which opens GRSprocessor L2A
 and L2B products, time series of products or datacubes in the browser
 (see the [dashboard tutorial](https://grstbx.readthedocs.io/en/latest/tutorials/dashboard.html)):
 

@@ -4,7 +4,7 @@ Configuration
 Quick start
 -----------
 
-GRS needs two radiative transfer look-up tables (LUTs), ``toa_lut_opac_wind_v3.nc`` (835 MB) and
+GRSprocessor needs two radiative transfer look-up tables (LUTs), ``toa_lut_opac_wind_v3.nc`` (835 MB) and
 ``transmittance_lut_opac_wind_v3.nc`` (0.6 MB), shared with hGRS and published on Zenodo
 (`doi:10.5281/zenodo.23394202 <https://doi.org/10.5281/zenodo.23394202>`__). Either:
 

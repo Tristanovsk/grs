@@ -1,10 +1,10 @@
-GRS documentation
-=================
+GRSprocessor documentation
+==========================
 
-GRS (Glint Removal for Sentinel-2-like sensors)
------------------------------------------------
+GRSprocessor (Glint Removal for Sentinel-2-like sensors)
+--------------------------------------------------------
 
-The GRS algorithm (`Harmel et al., 2018
+The GRSprocessor algorithm (`Harmel et al., 2018
 <https://www.sciencedirect.com/science/article/pii/S0034425717304856>`__) corrects high-spatial
 resolution multispectral images (Sentinel-2, Landsat 8/9) acquired over water for the atmosphere and
 for the sunlight reflected by the water surface (sunglint), which can reach the sensor of nadir or
@@ -22,7 +22,7 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
        --cams_file cams_forecast_2022-07.nc --resolution 20
 
 .. figure:: _static/example_image_level.png
-   :alt: example of GRS output
+   :alt: example of GRSprocessor output
 
 .. toctree::
    :maxdepth: 2
@@ -60,7 +60,7 @@ to retrieve the remote-sensing reflectance :math:`R_{rs}` at the water surface.
 Interactive data manipulation
 -----------------------------
 
-See the GRS toolbox package `grstbx <https://grstbx.readthedocs.io>`__ (``pip install grstbx``):
+See the GRSprocessor toolbox package `grstbx <https://grstbx.readthedocs.io>`__ (``pip install grstbx``):
 interactive viewers for Jupyter and a web dashboard (``grstbx-viewer``) to explore the L2A and L2B
 products.
 

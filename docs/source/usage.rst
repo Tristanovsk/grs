@@ -1,7 +1,7 @@
 Usage
 =====
 
-GRS needs, for each image:
+GRSprocessor needs, for each image:
 
 * one Level-1 product: Sentinel-2 ``MSIL1C`` (``.SAFE``) or Landsat 8/9 Level-1;
 * the CAMS atmospheric composition file covering the date and the area (see the

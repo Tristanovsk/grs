@@ -1,6 +1,6 @@
 # CAMS auxiliary data
 
-GRS takes the state of the atmosphere at the time of the image from the
+GRSprocessor takes the state of the atmosphere at the time of the image from the
 [CAMS global atmospheric composition forecasts](https://ads.atmosphere.copernicus.eu/datasets/cams-global-atmospheric-composition-forecasts)
 (Copernicus Atmosphere Monitoring Service), distributed by the Atmosphere Data Store (ADS): surface
 pressure, total columns of the absorbing gases, spectral aerosol optical depth and 10 m wind. One file
@@ -16,7 +16,7 @@ The notebook shows:
   (`<cams_dir>/YYYY/MM/DD/YYYY-MM-DD-cams-global-atmospheric-composition-forecasts.nc`; older archive:
   one file per month),
 - how to find the CAMS file of an image in this archive,
-- what GRS reads from a CAMS file ({meth}`CamsProduct.load <grs.cams.CamsProduct.load>`): maps of the
+- what GRSprocessor reads from a CAMS file ({meth}`CamsProduct.load <grs.cams.CamsProduct.load>`): maps of the
   variables over a Sentinel-2 tile, spectral aerosol optical depth and Ångström exponent (used to
   choose the aerosol model), wind over the image.
 

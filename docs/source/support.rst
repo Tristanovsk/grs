@@ -1,7 +1,7 @@
 Supporting institutions
 =======================
 
-GRS is developed with the support of:
+GRSprocessor is developed with the support of:
 
 .. container:: partner-logos
 
